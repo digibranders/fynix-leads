@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { ApprovalStatus } from "@/lib/domain/status";
 import type { Lead } from "@/lib/domain/types";
-import { insertAt, removeByRef, reviewQueue } from "./queue";
+import { SAMPLE_LEADS } from "@/lib/sample/data";
+import { insertAt, queueSegments, removeByRef, reviewQueue } from "./queue";
 
 const item = (ref: string) => ({ ref });
 const refs = (items: readonly { ref: string }[]) => items.map((i) => i.ref);
@@ -122,5 +123,59 @@ describe("reviewQueue", () => {
 
   it("returns an empty list when nothing is pending", () => {
     expect(reviewQueue([lead("LD-0001", "approved", "2026-11-01T09:00:00Z")])).toEqual([]);
+  });
+});
+
+describe("queueSegments", () => {
+  const decided = (ref: string, approval: ApprovalStatus, submittedAt: string, decidedAt: string): Lead => ({
+    ...lead(ref, approval, submittedAt),
+    decision: { outcome: approval === "approved" ? "approved" : "rejected", decidedAt },
+  });
+
+  const leads = [
+    lead("LD-0001", "pending", "2026-11-11T09:00:00Z"),
+    lead("LD-0002", "pending", "2026-11-09T09:00:00Z"),
+    lead("LD-0003", "needs_clarification", "2026-11-10T09:00:00Z"),
+    lead("LD-0004", "needs_clarification", "2026-11-08T09:00:00Z"),
+    decided("LD-0005", "approved", "2026-11-01T09:00:00Z", "2026-11-05T09:00:00Z"),
+    decided("LD-0006", "rejected", "2026-11-02T09:00:00Z", "2026-11-07T09:00:00Z"),
+    decided("LD-0007", "approved", "2026-11-03T09:00:00Z", "2026-11-06T09:00:00Z"),
+    lead("LD-0008", "draft", "2026-11-04T09:00:00Z"),
+  ];
+
+  it("puts pending leads in waiting, oldest submission first", () => {
+    expect(refs(queueSegments(leads).waiting)).toEqual(["LD-0002", "LD-0001"]);
+  });
+
+  it("puts needs_clarification leads in clarifying, oldest submission first", () => {
+    expect(refs(queueSegments(leads).clarifying)).toEqual(["LD-0004", "LD-0003"]);
+  });
+
+  it("puts approved and rejected leads in decided, newest decision first", () => {
+    expect(refs(queueSegments(leads).decided)).toEqual(["LD-0006", "LD-0007", "LD-0005"]);
+  });
+
+  it("leaves drafts out of every segment", () => {
+    const all = queueSegments(leads);
+    expect([...all.waiting, ...all.clarifying, ...all.decided].map((l) => l.ref)).not.toContain("LD-0008");
+  });
+
+  it("keeps a decided lead without a decision at the end instead of throwing", () => {
+    const result = queueSegments([
+      lead("LD-0009", "approved", "2026-11-01T09:00:00Z"),
+      decided("LD-0005", "approved", "2026-11-01T09:00:00Z", "2026-11-05T09:00:00Z"),
+    ]);
+    expect(refs(result.decided)).toEqual(["LD-0005", "LD-0009"]);
+  });
+
+  it("does not mutate the input", () => {
+    const copy = [...leads];
+    queueSegments(leads);
+    expect(refs(leads)).toEqual(refs(copy));
+  });
+
+  it("gives 6 waiting, 2 clarifying and 6 decided on the sample data", () => {
+    const { waiting, clarifying, decided: done } = queueSegments(SAMPLE_LEADS);
+    expect([waiting.length, clarifying.length, done.length]).toEqual([6, 2, 6]);
   });
 });

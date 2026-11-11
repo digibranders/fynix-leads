@@ -23,3 +23,20 @@ export function reviewQueue(leads: readonly Lead[]): Lead[] {
     .filter((lead) => lead.approval === "pending")
     .sort((a, b) => Date.parse(a.submittedAt) - Date.parse(b.submittedAt));
 }
+
+export type QueueSegments = { waiting: Lead[]; clarifying: Lead[]; decided: Lead[] };
+
+const bySubmitted = (a: Lead, b: Lead) => Date.parse(a.submittedAt) - Date.parse(b.submittedAt);
+// A decided lead without a decision sorts last rather than breaking the list.
+const decidedTime = (lead: Lead) => (lead.decision ? Date.parse(lead.decision.decidedAt) : Number.NEGATIVE_INFINITY);
+
+/** The three review segments. Waiting and clarifying are oldest submission first; decided is newest decision first. Drafts appear nowhere. */
+export function queueSegments(leads: readonly Lead[]): QueueSegments {
+  return {
+    waiting: leads.filter((l) => l.approval === "pending").sort(bySubmitted),
+    clarifying: leads.filter((l) => l.approval === "needs_clarification").sort(bySubmitted),
+    decided: leads
+      .filter((l) => l.approval === "approved" || l.approval === "rejected")
+      .sort((a, b) => decidedTime(b) - decidedTime(a)),
+  };
+}
