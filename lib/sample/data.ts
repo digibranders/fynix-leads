@@ -683,6 +683,7 @@ export const SAMPLE_LEADS: Lead[] = [
       human("EV-5N7W-3", at(-1, "09:30"), MEERA, "Meeting time proposed for Thu 19 Nov"),
       human("EV-5N7W-4", at(-1, "15:20"), CLIENT, "Asked for clarification"),
       human("EV-5N7W-5", at(0, "07:50"), MEERA, "Replied to the clarification request"),
+      human("EV-5N7W-6", at(0, "09:20"), CLIENT, "Asked a follow-up question"),
     ],
     thread: [
       message(
@@ -698,6 +699,13 @@ export const SAMPLE_LEADS: Lead[] = [
         "fynix",
         MEERA,
         "The prospect says the CFO confirmed the budget at the October planning meeting. We have asked for the date and who attended, and will add both to the notes.",
+      ),
+      message(
+        "TH-5N7W-3",
+        at(0, "09:20"),
+        "client",
+        CLIENT,
+        "Thanks. Please also confirm whether the CFO will join the first meeting or only the final demo.",
       ),
     ],
   },

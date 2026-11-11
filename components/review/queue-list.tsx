@@ -3,6 +3,7 @@ import { ArrowsDownUp, CheckCircle, Clock, Question, Warning, XCircle } from "@p
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Lead } from "@/lib/domain/types";
+import { clarificationState } from "@/lib/leads/thread";
 import type { QueueSegments } from "@/lib/review/queue";
 import { formatWaiting, isOverdue } from "@/lib/time/age";
 import { formatDayInZone } from "@/lib/time/zones";
@@ -177,13 +178,15 @@ function RowStatus({ lead, segment, now, viewerZone }: { lead: Lead; segment: Se
   }
 
   if (segment === "clarifying") {
+    // The client asked and Fynix answered: the ball is back with the client, so say so in plain words.
+    const answered = clarificationState(lead.thread) === "reply_received";
     return (
       <span className="shrink-0 text-right">
         <span className={cn(line, "text-blue-text")}>
           <Question aria-hidden size={15} weight="fill" />
-          Question sent
+          {answered ? "Reply received" : "Question sent"}
         </span>
-        <span className={cn(caption, "text-ink-muted")}>Awaiting reply</span>
+        <span className={cn(caption, "text-ink-muted")}>{answered ? "Review the answer" : "Awaiting reply"}</span>
         {ref}
       </span>
     );
