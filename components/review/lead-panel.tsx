@@ -197,8 +197,8 @@ function Actions({
 /** Single-key shortcuts only work while focus is inside the workspace (WCAG 2.1.4), so the hint says so. */
 function KeyHint() {
   return (
-    <p className="ml-auto hidden max-w-52 text-right text-[12.5px] leading-4 text-pretty text-ink-2 @[44rem]:block">
-      <Kbd>J</Kbd> and <Kbd>K</Kbd> move between leads. Shortcuts work while focus is in this panel.
+    <p className="ml-auto hidden max-w-56 text-right text-[12.5px] leading-4 text-pretty text-ink-2 @[44rem]:block">
+      <Kbd>J</Kbd> and <Kbd>K</Kbd> move between leads. Keys work while focus is here.
     </p>
   );
 }
