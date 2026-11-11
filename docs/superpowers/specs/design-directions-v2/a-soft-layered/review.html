@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Review queue</title><style>
+@font-face{font-family:"Geist";src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2") format("woff2");font-weight:100 900;font-style:normal}
+@font-face{font-family:"Geist Mono";src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-mono/GeistMono-Variable.woff2") format("woff2");font-weight:100 900;font-style:normal}
+:root{
+  --navy:#0C1E2E; --canvas:#F4F1EC; --peach:#E9AF88; --peach-deep:#C97E4F;
+  --t1:#0C1E2E; --t2:#42505C; --t3:#58656F;
+  --n3:rgba(12,30,46,.03); --n4:rgba(12,30,46,.04); --n5:rgba(12,30,46,.05); --n7:rgba(12,30,46,.07); --n10:rgba(12,30,46,.10);
+  --line:rgba(12,30,46,.07);
+  --ring:0 0 0 1px rgba(12,30,46,.06);
+  --shadow:0 1px 2px rgba(12,30,46,.05),0 6px 20px rgba(12,30,46,.06);
+  --sel:rgba(233,175,136,.2);
+  --amber-bg:rgba(214,138,10,.15); --amber:#7F4B00;
+  --green-bg:rgba(22,138,86,.13); --green:#0D6841;
+  --red-bg:rgba(205,52,52,.11); --red:#A82525;
+  --blue-bg:rgba(37,99,200,.11); --blue:#1D4FA3;
+  --ease:cubic-bezier(.32,.72,0,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--canvas)}
+body{font-family:"Geist",system-ui,sans-serif;font-size:15px;line-height:1.45;color:var(--t1);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;width:1440px;overflow:hidden}
+.mono{font-family:"Geist Mono",ui-monospace,monospace;font-feature-settings:"zero" 0}
+.ic{flex:none;display:block}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+ul{list-style:none}
+:focus-visible{outline:0;box-shadow:0 0 0 3px rgba(233,175,136,.7)}
+
+/* chrome */
+.app{display:grid;grid-template-columns:224px 1fr;width:1440px}
+.side{display:flex;flex-direction:column;padding:22px 12px 24px 24px;min-height:100%}
+.brand{display:flex;align-items:center;gap:10px;height:40px;padding:0 6px;margin-bottom:28px}
+.brand .mark{width:30px;height:30px;border-radius:50%;background:var(--navy);color:var(--peach);display:grid;place-items:center;font-weight:600;font-size:15px;letter-spacing:-.02em}
+.brand b{font-size:17px;font-weight:600;letter-spacing:-.015em}
+.navlabel{font-size:12px;font-weight:600;color:var(--t3);padding:0 14px;margin:0 0 8px;letter-spacing:.01em}
+.nav{display:flex;flex-direction:column;gap:4px}
+.nav a{display:flex;align-items:center;gap:11px;white-space:nowrap;height:44px;padding:0 12px 0 14px;border-radius:999px;color:var(--t2);font-weight:500;font-size:14.5px;text-decoration:none;transition:background .3s var(--ease)}
+.nav a:hover{background:var(--n4)}
+.nav a.on .ic{color:var(--peach-deep)}
+.nav a.on{background:#fff;color:var(--t1);font-weight:600;box-shadow:var(--shadow),var(--ring)}
+.nav a .ct{margin-left:auto;font-size:12px;font-weight:600;min-width:24px;height:22px;padding:0 8px;border-radius:999px;background:var(--navy);color:#F4F1EC;display:grid;place-items:center}
+.viewas{margin-top:auto;display:flex;align-items:center;gap:12px;padding:12px 12px 12px 12px;border-radius:14px;background:var(--n5)}
+.viewas .av2{width:36px;height:36px;border-radius:50%;background:#fff;box-shadow:var(--ring);display:grid;place-items:center;font-size:12px;font-weight:600}
+.viewas small{display:block;font-size:12px;color:var(--t3);line-height:1.2}
+.viewas strong{display:block;font-size:14px;font-weight:600;line-height:1.3}
+.viewas .ic{margin-left:auto;color:var(--t2)}
+
+.main{padding:0 24px 24px 0;display:flex;flex-direction:column;min-width:0}
+.top{height:72px;display:flex;align-items:center;gap:16px;flex:none}
+.top h1{font-size:24px;font-weight:600;letter-spacing:-.015em;line-height:1.15}
+.top .sub{font-size:13.5px;color:var(--t3);margin-top:3px}
+.top .sp{flex:1}
+.search{display:flex;align-items:center;gap:10px;height:42px;width:340px;padding:0 10px 0 14px;border-radius:12px;background:var(--n5);color:var(--t3);font-size:14px}
+.search span.ph{flex:1;color:var(--t3)}
+.kbd{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:6px;background:#fff;box-shadow:0 1px 0 rgba(12,30,46,.16),var(--ring);font-size:11.5px;font-weight:600;color:var(--t2);font-family:"Geist",sans-serif}
+.search .kbd{height:24px;padding:0 8px}
+.iconbtn{position:relative;width:42px;height:42px;border-radius:50%;background:#fff;box-shadow:var(--shadow),var(--ring);display:grid;place-items:center;color:var(--t1)}
+.iconbtn i{position:absolute;top:9px;right:10px;width:9px;height:9px;border-radius:50%;background:var(--peach-deep);box-shadow:0 0 0 2px #fff}
+.me{width:42px;height:42px;border-radius:50%;background:var(--navy);color:var(--peach);display:grid;place-items:center;font-weight:600;font-size:13.5px;box-shadow:0 0 0 3px var(--canvas),0 0 0 4px rgba(12,30,46,.08)}
+
+/* panels */
+.panel{background:#fff;border-radius:20px;box-shadow:var(--shadow),var(--ring);overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.ph-row{display:flex;align-items:center;gap:12px;padding:0 24px;height:68px;flex:none}
+.ph-row h2{font-size:17px;font-weight:600;letter-spacing:-.01em}
+.count{display:inline-grid;place-items:center;min-width:28px;height:26px;padding:0 9px;border-radius:999px;background:var(--navy);color:#F4F1EC;font-size:13px;font-weight:600}
+.meta{font-size:13px;color:var(--t3)}
+.sp{flex:1}
+.divider{height:1px;background:var(--line);margin:0 20px;flex:none}
+
+/* chips */
+.chip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px 0 8px;border-radius:999px;font-size:13px;font-weight:600;white-space:nowrap}
+.chip.amber{background:var(--amber-bg);color:var(--amber)}
+.chip.green{background:var(--green-bg);color:var(--green)}
+.chip.red{background:var(--red-bg);color:var(--red)}
+.chip.blue{background:var(--blue-bg);color:var(--blue)}
+.wait{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 10px 0 7px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;background:var(--n5);color:var(--t2)}
+.wait.over{background:var(--red-bg);color:var(--red)}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:10px;height:46px;padding:0 14px 0 18px;border-radius:999px;font-size:14.5px;font-weight:600;white-space:nowrap;transition:transform .3s var(--ease),background .3s var(--ease)}
+.btn:active{transform:scale(.98)}
+.btn.primary{background:var(--navy);color:#F4F1EC;box-shadow:0 1px 2px rgba(12,30,46,.25),0 6px 14px rgba(12,30,46,.2)}
+.btn.primary:hover{background:#16314A}
+.btn.secondary{background:var(--n7);color:var(--t1)}
+.btn.secondary:hover{background:var(--n10)}
+.btn.danger{background:var(--red-bg);color:var(--red)}
+.btn.danger:hover{background:rgba(205,52,52,.17)}
+.btn.small{height:38px;padding:0 16px 0 14px;font-size:13.5px;gap:8px}
+.btn .kbd{box-shadow:none;height:22px;min-width:22px;font-size:11.5px}
+.btn.primary .kbd{background:rgba(244,241,236,.18);color:#F4F1EC}
+.btn.secondary .kbd,.btn.danger .kbd{background:rgba(12,30,46,.08);color:var(--t1)}
+.btn.danger .kbd{background:rgba(205,52,52,.14);color:var(--red)}
+.av{flex:none;width:40px;height:40px;border-radius:50%;background:var(--n7);display:grid;place-items:center;font-size:13px;font-weight:600;color:var(--t1)}
+
+body{height:900px}
+.app{height:900px}
+.side{height:900px}
+.main{height:900px}
+.work{display:grid;grid-template-columns:420px 1fr;gap:20px;flex:1;min-height:0}
+.list{height:100%}
+.list .ph-row{height:auto;padding:20px 24px 14px;align-items:flex-start;flex-direction:column;gap:0}
+.list .ph-top{display:flex;align-items:center;gap:10px;width:100%}
+.list .ph-sub{font-size:13px;color:var(--t3);margin-top:4px}
+.sortpill{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;background:var(--n5);font-size:13px;font-weight:500;color:var(--t2)}
+.rows{padding:6px 8px 0;display:flex;flex-direction:column}
+.lrow{position:relative;display:flex;gap:12px;padding:17px 14px;border-radius:14px;transition:background .3s var(--ease)}
+.lrow:hover{background:var(--n3)}
+.lrow::after{content:"";position:absolute;left:14px;right:14px;bottom:0;height:1px;background:var(--line)}
+.lrow:last-child::after,.lrow.sel::after,.lrow:has(+ .sel)::after{display:none}
+.lrow.sel{background:var(--sel);border-radius:14px}
+.lrow.sel::before{content:"";position:absolute;left:0;top:16px;bottom:16px;width:4px;border-radius:0 4px 4px 0;background:var(--peach-deep)}
+.lrow.sel .av{background:var(--peach)}
+.lmain{flex:1;min-width:0}
+.l1{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.nm{font-size:15px;font-weight:500;letter-spacing:-.005em;white-space:nowrap}
+.sel .nm{font-weight:650}
+.l2{font-size:13.5px;color:var(--t2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.l3{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px;color:var(--t3);margin-top:1px}
+.l3 .ref{font-size:12px;color:var(--t3)}
+.sel .l2{color:var(--t1)}
+.note{margin:auto 8px 8px;padding:14px 16px;border-radius:14px;background:var(--n4);display:flex;gap:10px;font-size:13px;color:var(--t2);line-height:1.5}
+.note .ic{color:var(--t2);margin-top:1px}
+
+.lead{height:100%}
+.lhead{display:flex;gap:16px;padding:22px 28px 20px;align-items:flex-start}
+.lhead .av{width:56px;height:56px;font-size:18px;background:var(--peach)}
+.lhead h2{font-size:28px;font-weight:600;letter-spacing:-.02em;line-height:1.15}
+.lhead .role{font-size:15px;color:var(--t2);margin-top:3px}
+.lhead .sub{display:flex;align-items:center;gap:10px;margin-top:10px;font-size:13px;color:var(--t3)}
+.lhead .ref{height:24px;padding:0 9px;display:inline-grid;place-items:center;border-radius:8px;background:var(--n5);color:var(--t1);font-size:12.5px;font-weight:500}
+.lhead .right{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.lbody{padding:22px 28px 0;display:grid;grid-template-columns:.86fr 1.14fr;gap:18px;flex:1;align-content:start}
+.well{background:var(--n4);border-radius:14px;padding:20px 22px 22px}
+.well.wide{grid-column:1/-1}
+.wt{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.wt .ico{width:30px;height:30px;border-radius:50%;background:#fff;display:grid;place-items:center;box-shadow:var(--ring);color:var(--t1)}
+.wt h3{font-size:14.5px;font-weight:600;letter-spacing:-.005em}
+.wt .meta{margin-left:auto}
+dl.kv{display:grid;grid-template-columns:70px 1fr;row-gap:14px;column-gap:10px;font-size:14px;align-items:center}
+dl.kv dt{color:var(--t3);font-size:13px}
+dl.kv dd{color:var(--t1);font-weight:500;display:flex;align-items:center;gap:8px;min-width:0}
+dl.kv dd.strong{font-weight:600}
+.qgrid{display:grid;grid-template-columns:1fr 1fr;column-gap:40px}
+.q{padding:0 0 18px}
+.q:nth-child(n+3){padding:18px 0 0;border-top:1px solid var(--line)}
+.q .ql{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--t3);margin-bottom:6px;letter-spacing:.005em}
+.q .ql .ic{color:var(--t2)}
+.q p{font-size:15px;line-height:1.5;color:var(--t1);font-weight:450}
+.tray{flex:none;background:rgba(12,30,46,.055);padding:0 24px 0 28px;height:92px;display:flex;align-items:center;gap:10px;margin-top:auto}
+.tray .hint{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:13px;color:var(--t2);white-space:nowrap}
+.tray .hint span:last-child{margin-left:4px}
+.tray .btn{height:44px;padding:0 12px 0 16px;gap:8px;font-size:14px}
+</style></head><body>
+<div class="app">
+  <aside class="side">
+    <div class="brand"><span class="mark">F</span><b>Fynix Leads</b></div>
+    <div class="navlabel">Campaign</div>
+    <nav class="nav"><a href="#" class=""><svg class="ic " width="20" height="20" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M104,40H56A16,16,0,0,0,40,56v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,104,40Zm0,64H56V56h48v48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm0,64H152V56h48v48Zm-96,32H56a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,104,136Zm0,64H56V152h48v48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,200,136Zm0,64H152V152h48v48Z"/></svg><span>Leads</span></a><a href="#" class="on"><svg class="ic " width="20" height="20" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M224,128a8,8,0,0,1-8,8H128a8,8,0,0,1,0-16h88A8,8,0,0,1,224,128ZM128,72h88a8,8,0,0,0,0-16H128a8,8,0,0,0,0,16Zm88,112H128a8,8,0,0,0,0,16h88a8,8,0,0,0,0-16ZM82.34,42.34,56,68.69,45.66,58.34A8,8,0,0,0,34.34,69.66l16,16a8,8,0,0,0,11.32,0l32-32A8,8,0,0,0,82.34,42.34Zm0,64L56,132.69,45.66,122.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32Zm0,64L56,196.69,45.66,186.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32Z"/></svg><span>Review queue</span><span class="ct">6</span></a><a href="#" class=""><svg class="ic " width="20" height="20" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,112a8,8,0,0,1-8,8H152a8,8,0,0,1,0-16h40A8,8,0,0,1,200,112Zm-8,24H152a8,8,0,0,0,0,16h40a8,8,0,0,0,0-16Zm40-80V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56ZM216,200V56H40V200H216Zm-80.26-34a8,8,0,1,1-15.5,4c-2.63-10.26-13.06-18-24.25-18s-21.61,7.74-24.25,18a8,8,0,1,1-15.5-4,39.84,39.84,0,0,1,17.19-23.34,32,32,0,1,1,45.12,0A39.76,39.76,0,0,1,135.75,166ZM96,136a16,16,0,1,0-16-16A16,16,0,0,0,96,136Z"/></svg><span>Lead record</span></a></nav>
+    <div class="viewas">
+      <span class="av2">KL</span>
+      <div><small>Viewing as</small><strong>Client</strong></div>
+      <svg class="ic " width="18" height="18" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M181.66,170.34a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-48-48a8,8,0,0,1,11.32-11.32L128,212.69l42.34-42.35A8,8,0,0,1,181.66,170.34Zm-96-84.68L128,43.31l42.34,42.35a8,8,0,0,0,11.32-11.32l-48-48a8,8,0,0,0-11.32,0l-48,48A8,8,0,0,0,85.66,85.66Z"/></svg>
+    </div>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <div><h1>Review queue</h1><div class="sub">6 leads waiting for Kestrel Ledger</div></div>
+      <div class="sp"></div>
+      <div class="search"><svg class="ic " width="18" height="18" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"/></svg><span class="ph">Search leads, companies, refs</span><span class="kbd">Ctrl K</span></div>
+      <button class="iconbtn" aria-label="Notifications"><svg class="ic " width="20" height="20" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z"/></svg><i></i></button>
+      <div class="me">RM</div>
+    </header>
+    
+<main class="work">
+  <section class="panel list" aria-label="Waiting for review">
+    <div class="ph-row">
+      <div class="ph-top"><h2>Waiting for review</h2><span class="count">6</span><span class="sp"></span><span class="sortpill"><svg class="ic " width="15" height="15" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M117.66,170.34a8,8,0,0,1,0,11.32l-32,32a8,8,0,0,1-11.32,0l-32-32a8,8,0,0,1,11.32-11.32L72,188.69V48a8,8,0,0,1,16,0V188.69l18.34-18.35A8,8,0,0,1,117.66,170.34Zm96-96-32-32a8,8,0,0,0-11.32,0l-32,32a8,8,0,0,0,11.32,11.32L168,67.31V208a8,8,0,0,0,16,0V67.31l18.34,18.35a8,8,0,0,0,11.32-11.32Z"/></svg>Oldest first</span></div>
+      <div class="ph-sub">2 overdue, longest wait 2d 6h</div>
+    </div>
+    <div class="divider"></div>
+    <ul class="rows">
+<li class="lrow sel">
+  <span class="av">TW</span>
+  <div class="lmain">
+    <div class="l1"><span class="nm">Tom Whitcombe</span><span class="wait over"><svg class="ic " width="14" height="14" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM222.93,203.8a8.5,8.5,0,0,1-7.48,4.2H40.55a8.5,8.5,0,0,1-7.48-4.2,7.59,7.59,0,0,1,0-7.72L120.52,44.21a8.75,8.75,0,0,1,15,0l87.45,151.87A7.59,7.59,0,0,1,222.93,203.8ZM120,144V104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,180Z"/></svg>Overdue 2d 6h</span></div>
+    <div class="l2">CFO</div>
+    <div class="l3"><span>Halden Freight</span><span class="mono ref">LD-5T6C</span></div>
+  </div>
+</li>
+<li class="lrow ">
+  <span class="av">PV</span>
+  <div class="lmain">
+    <div class="l1"><span class="nm">Priyanka Venkataraman</span><span class="wait over"><svg class="ic " width="14" height="14" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM222.93,203.8a8.5,8.5,0,0,1-7.48,4.2H40.55a8.5,8.5,0,0,1-7.48-4.2,7.59,7.59,0,0,1,0-7.72L120.52,44.21a8.75,8.75,0,0,1,15,0l87.45,151.87A7.59,7.59,0,0,1,222.93,203.8ZM120,144V104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,180Z"/></svg>Overdue 1d 23h</span></div>
+    <div class="l2">Financial Controller</div>
+    <div class="l3"><span>Ashgrove Veterinary Group</span><span class="mono ref">LD-2W9H</span></div>
+  </div>
+</li>
+<li class="lrow ">
+  <span class="av">CR</span>
+  <div class="lmain">
+    <div class="l1"><span class="nm">Callum Rutherford</span><span class="wait "><svg class="ic " width="14" height="14" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/></svg>Waiting 22h</span></div>
+    <div class="l2">Finance Director</div>
+    <div class="l3"><span>Fellgate Outdoor Retail</span><span class="mono ref">LD-6B4N</span></div>
+  </div>
+</li>
+<li class="lrow ">
+  <span class="av">MD</span>
+  <div class="lmain">
+    <div class="l1"><span class="nm">Marcus Delaney</span><span class="wait "><svg class="ic " width="14" height="14" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/></svg>Waiting 20h</span></div>
+    <div class="l2">Group Finance Director</div>
+    <div class="l3"><span>Pellam Industrial Group</span><span class="mono ref">LD-8R2D</span></div>
+  </div>
+</li>
+<li class="lrow ">
+  <span class="av">AB</span>
+  <div class="lmain">
+    <div class="l1"><span class="nm">Aisling Brennan</span><span class="wait "><svg class="ic " width="14" height="14" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/></svg>Waiting 6h</span></div>
+    <div class="l2">Head of Financial Planning and Reporting</div>
+    <div class="l3"><span>Calderbrook Homes</span><span class="mono ref">LD-9F1K</span></div>
+  </div>
+</li>
+<li class="lrow ">
+  <span class="av">HO</span>
+  <div class="lmain">
+    <div class="l1"><span class="nm">Harriet Oyelaran</span><span class="wait "><svg class="ic " width="14" height="14" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/></svg>Waiting 3h</span></div>
+    <div class="l2">Head of Finance Operations</div>
+    <div class="l3"><span>Brindle &amp; Marsh</span><span class="mono ref">LD-3M7A</span></div>
+  </div>
+</li></ul>
+    <div class="note"><svg class="ic " width="18" height="18" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm16-40a8,8,0,0,1-8,8,16,16,0,0,1-16-16V128a8,8,0,0,1,0-16,16,16,0,0,1,16,16v40A8,8,0,0,1,144,176ZM112,84a12,12,0,1,1,12,12A12,12,0,0,1,112,84Z"/></svg><span>A lead is overdue once it has waited more than 24 hours for your decision.</span></div>
+  </section>
+
+  <section class="panel lead" aria-label="Lead detail">
+    <header class="lhead">
+      <span class="av">TW</span>
+      <div>
+        <h2>Tom Whitcombe</h2>
+        <div class="role">CFO at Halden Freight</div>
+        <div class="sub"><span class="mono ref">LD-5T6C</span><span>Submitted by the Fynix team, Mon 9 Nov at 4:00 am</span></div>
+      </div>
+      <div class="right">
+        <span class="chip amber"><svg class="ic " width="16" height="16" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.07,16.07,0,0,0,6.4,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16.09,16.09,0,0,0-6.35-12.77L141.27,128l52.38-39.6A16.05,16.05,0,0,0,200,75.64ZM184,216H72V180l56-42,56,42.35Zm0-140.36L128,118,72,76V40H184Z"/></svg>Pending review</span>
+        <span class="wait over"><svg class="ic " width="14" height="14" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM222.93,203.8a8.5,8.5,0,0,1-7.48,4.2H40.55a8.5,8.5,0,0,1-7.48-4.2,7.59,7.59,0,0,1,0-7.72L120.52,44.21a8.75,8.75,0,0,1,15,0l87.45,151.87A7.59,7.59,0,0,1,222.93,203.8ZM120,144V104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm20,36a12,12,0,1,1-12-12A12,12,0,0,1,140,180Z"/></svg>Overdue, waiting 2d 6h</span>
+      </div>
+    </header>
+    <div class="divider"></div>
+    <div class="lbody">
+      <div class="well">
+        <div class="wt"><span class="ico"><svg class="ic " width="17" height="17" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Z"/></svg></span><h3>Meeting</h3></div>
+        <dl class="kv">
+          <dt>Date</dt><dd class="strong">Monday 16 November</dd>
+          <dt>Time</dt><dd class="strong">11:00 am GMT</dd>
+          <dt>Length</dt><dd>45 minutes</dd>
+          <dt>With</dt><dd>Imogen Price</dd>
+          <dt>Status</dt><dd><svg class="ic " width="16" height="16" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Z"/></svg>Scheduled</dd>
+        </dl>
+      </div>
+      <div class="well">
+        <div class="wt"><span class="ico"><svg class="ic " width="17" height="17" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,112a8,8,0,0,1-8,8H152a8,8,0,0,1,0-16h40A8,8,0,0,1,200,112Zm-8,24H152a8,8,0,0,0,0,16h40a8,8,0,0,0,0-16Zm40-80V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56ZM216,200V56H40V200H216Zm-80.26-34a8,8,0,1,1-15.5,4c-2.63-10.26-13.06-18-24.25-18s-21.61,7.74-24.25,18a8,8,0,1,1-15.5-4,39.84,39.84,0,0,1,17.19-23.34,32,32,0,1,1,45.12,0A39.76,39.76,0,0,1,135.75,166ZM96,136a16,16,0,1,0-16-16A16,16,0,0,0,96,136Z"/></svg></span><h3>Contact</h3></div>
+        <dl class="kv">
+          <dt>Email</dt><dd>tom.whitcombe@haldenfreight.co.uk</dd>
+          <dt>Phone</dt><dd>+44 161 496 0254</dd>
+          <dt>LinkedIn</dt><dd>/in/tom-whitcombe-91a6d3e</dd>
+          <dt>Website</dt><dd>haldenfreight.co.uk</dd>
+          <dt>Time zone</dt><dd>London (GMT)</dd>
+        </dl>
+      </div>
+      <div class="well wide">
+        <div class="wt"><span class="ico"><svg class="ic " width="17" height="17" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M224,128a8,8,0,0,1-8,8H128a8,8,0,0,1,0-16h88A8,8,0,0,1,224,128ZM128,72h88a8,8,0,0,0,0-16H128a8,8,0,0,0,0,16Zm88,112H128a8,8,0,0,0,0,16h88a8,8,0,0,0,0-16ZM82.34,42.34,56,68.69,45.66,58.34A8,8,0,0,0,34.34,69.66l16,16a8,8,0,0,0,11.32,0l32-32A8,8,0,0,0,82.34,42.34Zm0,64L56,132.69,45.66,122.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32Zm0,64L56,196.69,45.66,186.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32Z"/></svg></span><h3>Qualification</h3><span class="meta">Budget, authority, need and timeline</span></div>
+        <div class="qgrid">
+          <div class="q"><div class="ql"><svg class="ic " width="16" height="16" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M216,64H56a8,8,0,0,1,0-16H192a8,8,0,0,0,0-16H56A24,24,0,0,0,32,56V184a24,24,0,0,0,24,24H216a16,16,0,0,0,16-16V80A16,16,0,0,0,216,64Zm0,128H56a8,8,0,0,1-8-8V78.63A23.84,23.84,0,0,0,56,80H216Zm-48-60a12,12,0,1,1,12,12A12,12,0,0,1,168,132Z"/></svg>Budget</div><p>Freight margins are thin, so spend is capped at 25,000 pounds without board approval.</p></div>
+          <div class="q"><div class="ql"><svg class="ic " width="16" height="16" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M144,157.68a68,68,0,1,0-71.9,0c-20.65,6.76-39.23,19.39-54.17,37.17a8,8,0,0,0,12.25,10.3C50.25,181.19,77.91,168,108,168s57.75,13.19,77.87,37.15a8,8,0,0,0,12.25-10.3C183.18,177.07,164.6,164.44,144,157.68ZM56,100a52,52,0,1,1,52,52A52.06,52.06,0,0,1,56,100Zm197.66,33.66-32,32a8,8,0,0,1-11.32,0l-16-16a8,8,0,0,1,11.32-11.32L216,148.69l26.34-26.35a8,8,0,0,1,11.32,11.32Z"/></svg>Authority</div><p>Has the final say on finance software, with the CEO kept informed.</p></div>
+          <div class="q"><div class="ql"><svg class="ic " width="16" height="16" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M221.87,83.16A104.1,104.1,0,1,1,195.67,49l22.67-22.68a8,8,0,0,1,11.32,11.32l-96,96a8,8,0,0,1-11.32-11.32l27.72-27.72a40,40,0,1,0,17.87,31.09,8,8,0,1,1,16-.9,56,56,0,1,1-22.38-41.65L184.3,60.39a87.88,87.88,0,1,0,23.13,29.67,8,8,0,0,1,14.44-6.9Z"/></svg>Need</div><p>Invoicing 1,800 hauliers a month still relies on manual matching.</p></div>
+          <div class="q"><div class="ql"><svg class="ic " width="16" height="16" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,40a96,96,0,1,0,96,96A96.11,96.11,0,0,0,128,40Zm0,176a80,80,0,1,1,80-80A80.09,80.09,0,0,1,128,216ZM173.66,90.34a8,8,0,0,1,0,11.32l-40,40a8,8,0,0,1-11.32-11.32l40-40A8,8,0,0,1,173.66,90.34ZM96,16a8,8,0,0,1,8-8h48a8,8,0,0,1,0,16H104A8,8,0,0,1,96,16Z"/></svg>Timeline</div><p>The contract with the current provider ends in April, so a decision is due by February.</p></div>
+        </div>
+      </div>
+    </div>
+    <div class="tray">
+      <button class="btn primary"><svg class="ic " width="20" height="20" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg>Approve<span class="kbd">A</span></button>
+      <button class="btn danger"><svg class="ic " width="20" height="20" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M205.66,194.34a8,8,0,0,1-11.32,11.32L128,139.31,61.66,205.66a8,8,0,0,1-11.32-11.32L116.69,128,50.34,61.66A8,8,0,0,1,61.66,50.34L128,116.69l66.34-66.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/></svg>Reject<span class="kbd">R</span></button>
+      <button class="btn secondary"><svg class="ic " width="20" height="20" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128ZM84,116a12,12,0,1,0,12,12A12,12,0,0,0,84,116Zm88,0a12,12,0,1,0,12,12A12,12,0,0,0,172,116Zm60,12A104,104,0,0,1,79.12,219.82L45.07,231.17a16,16,0,0,1-20.24-20.24l11.35-34.05A104,104,0,1,1,232,128Zm-16,0A88,88,0,1,0,51.81,172.06a8,8,0,0,1,.66,6.54L40,216,77.4,203.53a7.85,7.85,0,0,1,2.53-.42,8,8,0,0,1,4,1.08A88,88,0,0,0,216,128Z"/></svg>Ask for clarification<span class="kbd">C</span></button>
+      <div class="hint"><span class="kbd">J</span><span class="kbd">K</span><span>move between leads</span></div>
+    </div>
+  </section>
+</main>
+  </div>
+</div></body></html>

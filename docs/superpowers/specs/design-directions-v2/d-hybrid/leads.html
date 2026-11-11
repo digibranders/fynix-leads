@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8"><title>Fynix Leads, Leads</title>
+<meta name="viewport" content="width=1440">
+<style>
+/* Fynix Leads, direction D (hybrid): design tokens.
+   Navy shell from B, modular tonal layout from C. Structured softness:
+   zones come from tint and elevation, never from outlines.
+   Rules the tokens enforce:
+   - No 1px outlines on controls, chips, inputs or tiles.
+   - Dividers are 1px at --line (7%), inset, between rows only.
+   - Raised surfaces use a layered shadow plus an inset 1px ring at 6%.
+   - Status never relies on colour alone: every chip pairs an icon with a label. */
+
+:root {
+  /* ---------- Brand ---------- */
+  --navy: #0C1E2E;
+  --navy-hover: #13293D;       /* primary button hover */
+  --peach: #E9AF88;
+  --peach-deep: #A9602F;       /* peach as text or icon on white (4.6:1) */
+  --offwhite: #F3EFE9;         /* text and icons on navy */
+
+  /* ---------- Canvas and surfaces ---------- */
+  --canvas: #F1EDE6;           /* page background, warm neutral */
+  --surface: #FFFFFF;          /* raised panels, lifted cards, tiles on tonal panes */
+  --surface-tonal: rgba(12, 30, 46, .06);   /* list pane, left detail pane */
+  --surface-hero: var(--navy); /* the one hero tile per screen */
+  --selected: #FBF1E7;         /* selected row: pale warm peach, no pink cast */
+  --selected-marker: var(--peach);
+  --bubble-client: #F8E8D8;    /* message bubble, client side: quiet peach */
+  --bubble-fynix: var(--navy-05);  /* message bubble, Fynix side */
+
+  /* ---------- Navy alpha steps (wells, tiles, controls, dividers) ---------- */
+  --navy-03: rgba(12, 30, 46, .03);
+  --navy-04: rgba(12, 30, 46, .04);   /* tiles, wells, row hover, action tray */
+  --navy-05: rgba(12, 30, 46, .05);   /* inputs, tonal panes, segmented track */
+  --navy-06: rgba(12, 30, 46, .06);   /* inset ring on raised surfaces */
+  --navy-07: rgba(12, 30, 46, .07);   /* secondary buttons, key caps */
+  --navy-08: rgba(12, 30, 46, .08);   /* pressed state */
+  --navy-10: rgba(12, 30, 46, .10);   /* hover on secondary buttons */
+  --line: rgba(12, 30, 46, .07);      /* the only divider colour */
+  --ring: rgba(12, 30, 46, .06);
+
+  /* On-navy alpha steps (rail and hero) */
+  --on-navy-05: rgba(255, 255, 255, .05);   /* wells on navy */
+  --on-navy-07: rgba(255, 255, 255, .07);
+  --on-navy-10: rgba(255, 255, 255, .10);
+  --on-navy-text: rgba(243, 239, 233, .68);
+  --on-navy-muted: rgba(243, 239, 233, .6);
+
+  /* ---------- Text ---------- */
+  --ink: #0C1E2E;              /* primary, 16:1 on white */
+  --ink-2: #3F4D59;            /* secondary, 8.6:1 on white */
+  --muted: #56626D;            /* captions and labels, 6:1 on white, 4.6:1 on tonal */
+
+  /* ---------- Status: text, border-free soft fill, solid ---------- */
+  --amber-text: #7A4700;  --amber-soft: #FBEFD3;  --amber-solid: #D9961A;
+  --green-text: #176B3D;  --green-soft: #E0F1E7;  --green-solid: #2E9A5F;
+  --red-text:   #A3251D;  --red-soft:   #FBE6E2;  --red-solid:   #D4483D;
+  --blue-text:  #1D4E8F;  --blue-soft:  #E1ECF9;  --blue-solid:  #3B7BD0;
+
+  /* ---------- Radii ---------- */
+  --r-xs: 7px;       /* key caps */
+  --r-sm: 12px;      /* rows, inputs, wells, search */
+  --r-md: 16px;      /* tiles, lifted card, rail wells */
+  --r-lg: 22px;      /* panels, panes, hero tile */
+  --r-xl: 24px;      /* navy rail */
+  --r-pill: 999px;   /* buttons, chips, segmented control, nav items */
+
+  /* ---------- Shadow stacks ---------- */
+  --shadow-raised:   /* white panels and small tiles on canvas */
+    inset 0 0 0 1px rgba(12, 30, 46, .06),
+    0 1px 2px rgba(12, 30, 46, .04),
+    0 4px 10px -2px rgba(12, 30, 46, .05),
+    0 16px 32px -12px rgba(12, 30, 46, .09);
+  --shadow-selected: /* the lifted selected card inside a tonal pane */
+    inset 0 0 0 1px rgba(12, 30, 46, .06),
+    0 1px 2px rgba(12, 30, 46, .06),
+    0 6px 14px -3px rgba(12, 30, 46, .09),
+    0 18px 30px -12px rgba(12, 30, 46, .14);
+  --shadow-tile-lift: /* white tile sitting on a tonal pane */
+    inset 0 0 0 1px rgba(12, 30, 46, .05),
+    0 1px 2px rgba(12, 30, 46, .05),
+    0 6px 12px -6px rgba(12, 30, 46, .08);
+  --shadow-popover:
+    inset 0 0 0 1px rgba(12, 30, 46, .06),
+    0 4px 8px -2px rgba(12, 30, 46, .08),
+    0 24px 48px -12px rgba(12, 30, 46, .20);
+  --shadow-tray:     /* pinned action bar when content scrolls under it */
+    0 -1px 0 rgba(12, 30, 46, .06),
+    0 -14px 24px -14px rgba(12, 30, 46, .12);
+  --shadow-rail:     /* floating navy rail */
+    inset 0 1px 0 rgba(255, 255, 255, .06),
+    0 1px 2px rgba(12, 30, 46, .20),
+    0 14px 34px rgba(12, 30, 46, .18);
+  --shadow-hero:
+    inset 0 0 0 1px rgba(255, 255, 255, .06),
+    inset 0 1px 0 rgba(255, 255, 255, .08),
+    0 2px 4px rgba(12, 30, 46, .14),
+    0 20px 40px -14px rgba(12, 30, 46, .38);
+  --shadow-btn-primary:
+    inset 0 1px 0 rgba(255, 255, 255, .12),
+    0 1px 2px rgba(12, 30, 46, .25),
+    0 8px 16px -6px rgba(12, 30, 46, .40);
+  --shadow-nav-active: 0 4px 12px -4px rgba(233, 175, 136, .5);
+
+  /* ---------- Spacing (8px grid with a 4px half-step) ---------- */
+  --s-1: 4px;  --s-2: 8px;   --s-3: 12px;  --s-4: 16px;  --s-5: 20px;
+  --s-6: 24px; --s-8: 32px;  --s-10: 40px; --s-12: 48px;
+  --gap-modules: 16px;       /* between panels, panes and bento tiles */
+  --gap-tiles: 12px;         /* between tiles inside a panel */
+  --inset-rail: 12px;        /* rail distance from the window edge */
+  --pad-panel: 24px;         /* panel body padding */
+  --pad-tile: 16px;
+
+  /* ---------- Layout ---------- */
+  --canvas-w: 1440px;
+  --rail-w: 220px;
+  --content-left: 248px;     /* rail inset + rail width + module gap */
+  --content-right: 24px;
+  --list-pane-w: 372px;
+  --detail-pane-w: 380px;    /* record: left column */
+
+  /* ---------- Type ---------- */
+  --font-sans: "Geist", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+  --font-serif: "Geist Serif", Georgia, serif;   /* hero figure only */
+  --fw-regular: 400; --fw-medium: 500; --fw-semibold: 600;
+  --fs-caption: 12px;        /* key caps, small captions, tiny refs */
+  --fs-label: 12.5px;        /* field labels, chip text, helper text */
+  --fs-table: 13px;          /* table cells, row meta */
+  --fs-body: 14px;           /* body, buttons */
+  --fs-row-title: 14.5px;    /* names in lists */
+  --fs-value: 15px;          /* values in tiles, panel titles */
+  --fs-lead: 16px;
+  --fs-title: 28px;          /* page title on the canvas */
+  --fs-name: 34px;           /* lead name */
+  --fs-figure: 38px;         /* big numbers */
+  --fs-hero: 96px;           /* serif hero figure */
+  --lh-tight: 1.1; --lh-body: 1.5;
+  --tracking-title: -.015em;
+  --tracking-figure: -.02em;
+  --tabular: tabular-nums;
+
+  /* ---------- Row heights and control sizes ---------- */
+  --h-table-row: 50px;
+  --h-table-head: 38px;
+  --h-list-row: 96px;
+  --h-timeline-row: 40px;
+  --h-input: 44px;
+  --h-search: 40px;
+  --h-button: 44px;
+  --h-button-sm: 32px;
+  --h-nav: 42px;
+  --h-segment: 32px;
+  --h-chip: 26px;
+  --h-chip-sm: 22px;         /* table chips: smaller and softer */
+  --h-keycap: 22px;
+  --h-action-bar: 76px;
+
+  /* ---------- Motion ---------- */
+  --dur-press: 120ms;
+  --dur-hover: 180ms;
+  --dur-state: 240ms;
+  --dur-panel: 360ms;
+  --dur-slow: 520ms;
+  --ease-out: cubic-bezier(.16, 1, .3, 1);      /* default: fast start, soft landing */
+  --ease-in-out: cubic-bezier(.65, 0, .35, 1);  /* swaps and layout shifts */
+  --ease-spring: cubic-bezier(.34, 1.4, .64, 1);/* press release, count badges */
+  --press-scale: .98;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-press: 0ms; --dur-hover: 0ms; --dur-state: 0ms; --dur-panel: 0ms; --dur-slow: 0ms; }
+}
+
+@font-face{font-family:"Geist";font-weight:400;src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-sans/Geist-Regular.woff2") format("woff2")}
+@font-face{font-family:"Geist";font-weight:500;src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-sans/Geist-Medium.woff2") format("woff2")}
+@font-face{font-family:"Geist";font-weight:600;src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-sans/Geist-SemiBold.woff2") format("woff2")}
+@font-face{font-family:"Geist Mono";font-weight:400;src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-mono/GeistMono-Regular.woff2") format("woff2")}
+@font-face{font-family:"Geist Mono";font-weight:500;src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-mono/GeistMono-Medium.woff2") format("woff2")}
+@font-face{font-family:"Geist Serif";font-weight:400;src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-serif/GeistSerif-Regular.woff2") format("woff2")}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--canvas)}
+body{position:relative;overflow:hidden;width:var(--canvas-w);font-family:var(--font-sans);font-size:var(--fs-body);line-height:1.43;color:var(--ink);font-variant-numeric:var(--tabular);-webkit-font-smoothing:antialiased;caret-color:var(--navy)}
+::selection{background:rgba(233,175,136,.55);color:var(--navy)}
+.i{width:18px;height:18px;flex:none;display:block}
+.mono{font-family:var(--font-mono);font-weight:500;letter-spacing:0}
+h1{font-size:var(--fs-title);line-height:34px;font-weight:600;letter-spacing:var(--tracking-title)}
+h2{font-size:var(--fs-value);line-height:20px;font-weight:600;letter-spacing:-.005em}
+h3{font-size:var(--fs-body);line-height:20px;font-weight:600}
+a{color:inherit;text-decoration:none}
+.muted{color:var(--muted)}
+.red{color:var(--red-text)}
+
+/* ---------- navy rail ---------- */
+.rail{position:absolute;left:var(--inset-rail);top:var(--inset-rail);bottom:var(--inset-rail);width:var(--rail-w);background:var(--navy);border-radius:var(--r-xl);box-shadow:var(--shadow-rail);padding:20px 12px 12px;display:flex;flex-direction:column;color:var(--offwhite)}
+.brand{display:flex;align-items:center;gap:10px;padding:0 8px 18px;margin-bottom:14px;box-shadow:inset 0 -1px 0 var(--on-navy-07)}
+.mark{width:32px;height:32px;border-radius:10px;background:var(--peach);color:var(--navy);display:grid;place-items:center}
+.mark .i{width:19px;height:19px}
+.brand b{font-size:16px;font-weight:600;letter-spacing:-.01em}
+.nav a{display:flex;align-items:center;gap:11px;height:var(--h-nav);padding:0 14px;margin-bottom:4px;border-radius:var(--r-pill);color:var(--on-navy-text);font-size:14px;font-weight:500}
+.nav a .i{width:20px;height:20px}
+.nav a.on{background:var(--peach);color:var(--navy);font-weight:600;box-shadow:var(--shadow-nav-active)}
+.cnt{margin-left:auto;min-width:24px;height:22px;padding:0 8px;border-radius:var(--r-pill);display:grid;place-items:center;font-size:12.5px;font-weight:600;background:rgba(233,175,136,.18);color:var(--peach)}
+.nav a.on .cnt{background:var(--navy);color:var(--offwhite)}
+.camp{margin-top:20px;padding:14px;border-radius:var(--r-md);background:var(--on-navy-05)}
+.camp .lab2{font-size:12px;font-weight:500;color:var(--on-navy-muted);margin-bottom:6px}
+.camp .cn{font-size:13.5px;line-height:18px;font-weight:600}
+.camp .cb{font-size:12.5px;line-height:17px;color:var(--on-navy-text);margin-top:3px}
+.camp .cm{display:flex;flex-direction:column;gap:3px;margin-top:10px;padding-top:10px;box-shadow:inset 0 1px 0 var(--on-navy-07);font-size:12px;line-height:16px;color:var(--on-navy-text)}
+.camp .cm .mono{color:var(--peach)}
+.viewing{margin-top:auto}
+.viewing .lab{font-size:12px;font-weight:500;color:var(--on-navy-muted);padding:0 6px 8px}
+.vwell{display:flex;align-items:center;gap:10px;background:var(--on-navy-07);border-radius:var(--r-md);padding:11px}
+.vav{width:34px;height:34px;border-radius:50%;background:var(--peach);color:var(--navy);display:grid;place-items:center;font-size:12.5px;font-weight:600;flex:none}
+.vwell .nm{font-size:13.5px;font-weight:600;line-height:17px}
+.vwell .rl{font-size:12.5px;line-height:16px;color:var(--on-navy-text)}
+.vwell .i{margin-left:auto;width:16px;height:16px;color:var(--on-navy-text)}
+
+/* ---------- main column and top row ---------- */
+.main{position:absolute;left:var(--content-left);right:var(--content-right);top:0;bottom:0;padding-top:20px;display:flex;flex-direction:column}
+.top{display:flex;align-items:flex-start;justify-content:space-between;flex:none}
+.sub{color:var(--ink-2);font-size:14px;line-height:20px;margin-top:3px}
+.tools{display:flex;align-items:center;gap:10px}
+.search{display:flex;align-items:center;gap:10px;height:var(--h-search);width:300px;padding:0 8px 0 14px;border-radius:var(--r-sm);background:var(--navy-05);color:var(--muted);font-size:14px}
+.search span{flex:1}
+.k{display:inline-grid;place-items:center;min-width:22px;height:var(--h-keycap);padding:0 6px;border-radius:var(--r-xs);background:var(--navy-07);color:var(--ink-2);font-family:var(--font-mono);font-size:12px;font-weight:500;line-height:1}
+.iconbtn{position:relative;width:40px;height:40px;border-radius:50%;background:var(--navy-05);display:grid;place-items:center}
+.iconbtn .i{width:20px;height:20px}
+.iconbtn .dot{position:absolute;top:9px;right:10px;width:9px;height:9px;border-radius:50%;background:var(--peach);box-shadow:0 0 0 2px var(--canvas)}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--navy);color:var(--offwhite);display:grid;place-items:center;font-size:13px;font-weight:600}
+
+/* ---------- surfaces ---------- */
+.panel{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-raised);overflow:hidden}
+.pane{background:var(--surface-tonal);border-radius:var(--r-lg)}
+.phead{display:flex;align-items:center;gap:10px;height:56px;padding:0 20px 0 24px;flex:none}
+.phead .meta{color:var(--muted);font-size:13px}
+.push{margin-left:auto}
+.well{background:var(--navy-04);border-radius:var(--r-sm)}
+.tile{background:var(--navy-04);border-radius:var(--r-md);padding:18px 20px}
+.tile.lift{background:var(--surface);box-shadow:var(--shadow-tile-lift)}
+.tile .th{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.tile .th .ico{width:30px;height:30px;border-radius:50%;background:var(--surface);box-shadow:0 1px 2px rgba(12,30,46,.06);display:grid;place-items:center;color:var(--ink-2)}
+.tile.lift .th .ico{background:var(--navy-05);box-shadow:none}
+.tile .th .ico .i{width:17px;height:17px}
+.tile .th h3{font-size:14px}
+.dl{display:grid;grid-template-columns:76px 1fr;row-gap:10px;column-gap:12px;align-items:baseline}
+.dl dt{font-size:12.5px;line-height:20px;color:var(--muted);font-weight:500}
+.dl dd{font-size:14px;line-height:20px;font-weight:500;min-width:0}
+.dl dd small{display:block;font-size:12.5px;line-height:17px;font-weight:400;color:var(--ink-2);margin-top:1px}
+.dl dd .stat{display:inline-flex;align-items:center;gap:7px;vertical-align:top}
+.dl dd .stat .i{width:17px;height:17px;color:var(--ink-2)}
+.dl dd.nw{white-space:nowrap}
+.q .qh{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px;font-weight:600;color:var(--ink-2)}
+.q .qh .i{width:18px;height:18px}
+.q p{font-size:14px;line-height:21px}
+
+/* hero tile (navy) */
+.hero{position:relative;background:var(--surface-hero);color:var(--offwhite);border-radius:var(--r-lg);box-shadow:var(--shadow-hero);overflow:hidden}
+.hero::before{content:"";position:absolute;right:-90px;top:-110px;width:360px;height:360px;border-radius:50%;background:radial-gradient(closest-side,rgba(233,175,136,.09),rgba(233,175,136,0));pointer-events:none}
+
+/* ---------- chips ---------- */
+.chip{display:inline-flex;align-items:center;gap:6px;height:var(--h-chip);padding:0 11px 0 8px;border-radius:var(--r-pill);font-size:12.5px;font-weight:600;white-space:nowrap;line-height:1}
+.chip .i{width:15px;height:15px}
+.chip.amber{background:var(--amber-soft);color:var(--amber-text)}
+.chip.green{background:var(--green-soft);color:var(--green-text)}
+.chip.red{background:var(--red-soft);color:var(--red-text)}
+.chip.blue{background:var(--blue-soft);color:var(--blue-text)}
+.chip.neutral{background:var(--navy-07);color:var(--ink)}
+.chip.lg{height:30px;font-size:13px;padding:0 13px 0 10px}
+.chip.lg .i{width:17px;height:17px}
+.chip.sm{height:var(--h-chip-sm);gap:4px;padding:0 9px 0 6px;font-size:12px;font-weight:500}
+.chip.sm .i{width:13px;height:13px}
+.chip.sm.amber{background:rgba(233,172,52,.14)}
+.chip.sm.green{background:rgba(46,154,95,.12)}
+.chip.sm.red{background:rgba(212,72,61,.11)}
+.chip.sm.blue{background:rgba(59,123,208,.12)}
+.refchip{display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:var(--r-pill);background:var(--navy-05);color:var(--ink-2);font-family:var(--font-mono);font-weight:500;font-size:12.5px}
+
+/* ---------- buttons ---------- */
+.btn{display:inline-flex;align-items:center;gap:8px;height:var(--h-button);padding:0 9px 0 16px;border-radius:var(--r-pill);font-size:14px;font-weight:600;white-space:nowrap;transition:transform var(--dur-press) var(--ease-out),background var(--dur-hover) var(--ease-out)}
+.btn .i{width:18px;height:18px}
+.btn.nokey{padding-right:18px}
+.btn.primary{background:var(--navy);color:var(--offwhite);box-shadow:var(--shadow-btn-primary)}
+.btn.primary .k{background:rgba(255,255,255,.16);color:var(--offwhite)}
+.btn.danger{background:var(--red-soft);color:var(--red-text)}
+.btn.danger .k{background:rgba(163,37,29,.12);color:var(--red-text)}
+.btn.second{background:var(--navy-07);color:var(--ink)}
+.btn.second .k{background:var(--navy-08);color:var(--ink-2)}
+.btn:active{transform:scale(var(--press-scale))}
+.btn.primary:hover{background:var(--navy-hover)}
+.btn.danger:hover{background:#F6D5D0}
+.btn.second:hover{background:var(--navy-10)}
+.btn.sm{height:var(--h-button-sm);padding:0 14px;font-size:13px;gap:7px}
+.btn.sm .i{width:16px;height:16px}
+:focus-visible{outline:2px solid var(--navy);outline-offset:3px;border-radius:var(--r-pill)}
+
+/* ---------- inputs ---------- */
+.field{white-space:nowrap;display:flex;align-items:center;gap:10px;height:var(--h-search);padding:0 14px;border-radius:var(--r-sm);background:var(--navy-05);color:var(--muted);font-size:13.5px}
+.field:focus-within{box-shadow:0 0 0 2px var(--navy)}
+
+/* ---------- segmented ---------- */
+.seg{display:inline-flex;gap:2px;padding:3px;border-radius:var(--r-pill);background:var(--navy-05)}
+.seg .s{display:flex;align-items:center;justify-content:center;gap:7px;height:var(--h-segment);padding:0 14px;border-radius:var(--r-pill);font-size:13px;font-weight:500;color:var(--ink-2);white-space:nowrap}
+.seg .s b{font-weight:600;color:var(--muted)}
+.seg .s.on{background:var(--navy);color:var(--offwhite);font-weight:600;box-shadow:0 1px 2px rgba(12,30,46,.2)}
+.seg .s.on b{color:var(--peach)}
+.seg .s:not(.on):hover{background:var(--navy-05)}
+.seg.fill{display:flex}
+.seg.fill .s{flex:1;padding:0 8px}
+
+/* ---------- list pane rows ---------- */
+.row{position:relative;display:grid;grid-template-columns:1fr auto;column-gap:12px;align-content:center;padding:0 18px;border-radius:var(--r-md)}
+.row + .row::before{content:"";position:absolute;top:0;left:18px;right:18px;height:1px;background:var(--line)}
+.row.sel::before,.row.sel + .row::before{display:none}
+.row.sel{background:var(--surface);box-shadow:var(--shadow-selected);z-index:1}
+.row.sel::after{content:"";position:absolute;left:0;top:18px;bottom:18px;width:3px;border-radius:0 3px 3px 0;background:var(--selected-marker)}
+.row:not(.sel):hover{background:var(--navy-04)}
+.rn{font-size:var(--fs-row-title);line-height:20px;font-weight:500}
+.row.sel .rn{font-weight:600}
+.rc{font-size:13px;line-height:19px;color:var(--ink-2);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rj{font-size:13px;line-height:19px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rv{display:flex;align-items:center;justify-content:flex-end;gap:5px;font-size:14px;line-height:20px;font-weight:600;color:var(--ink-2)}
+.rv .i{width:15px;height:15px}
+.rcap{font-size:12.5px;line-height:19px;color:var(--muted);text-align:right}
+.rref{font-size:11.5px;line-height:19px;color:var(--muted);text-align:right}
+.rw.od .rv,.rw.od .rcap{color:var(--red-text)}
+.rw.od .rcap{font-weight:600}
+
+/* ---------- tray / action bar ---------- */
+.tray{flex:none;display:flex;align-items:center;gap:10px;height:var(--h-action-bar);padding:0 24px;background:var(--navy-04)}
+.hint{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-2);white-space:nowrap}
+
+/* ---------- table ---------- */
+table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:var(--fs-table)}
+thead th{height:var(--h-table-head);text-align:left;font-size:12px;font-weight:500;color:var(--muted);background:var(--navy-04);padding:0 6px;white-space:nowrap}
+thead th:first-child{border-radius:var(--r-sm) 0 0 var(--r-sm);padding-left:14px}
+thead th:last-child{border-radius:0 var(--r-sm) var(--r-sm) 0}
+tbody td{height:var(--h-table-row);padding:0 6px;vertical-align:middle;line-height:17px;box-shadow:inset 0 -1px 0 var(--line)}
+tbody td:first-child{padding-left:14px}
+tbody tr:last-child td{box-shadow:none}
+tbody tr.cur td{background:var(--selected);box-shadow:none}
+tbody tr.cur td:first-child{border-radius:var(--r-sm) 0 0 var(--r-sm)}
+tbody tr.cur td:last-child{border-radius:0 var(--r-sm) var(--r-sm) 0}
+tbody tr:not(.cur):hover td{background:var(--navy-03)}
+.pname{font-weight:600;font-size:13px;line-height:17px}
+.cell-sub{display:block;font-size:12px;line-height:16px;color:var(--muted);font-weight:400}
+td .mono{font-size:12px;color:var(--muted)}
+.mstat{display:inline-flex;align-items:center;gap:6px;color:var(--ink-2)}
+.mstat .i{width:16px;height:16px;flex:none}
+.mstat.bad{color:var(--red-text);font-weight:500}
+.nil{display:inline-block;width:10px;height:2px;border-radius:2px;background:var(--navy-10);vertical-align:middle}
+.fb{color:var(--ink-2);font-size:12px;line-height:16px}
+.when{font-weight:500;color:var(--ink);font-size:13px;line-height:17px}
+
+body{height:1200px}
+
+.camphd{display:flex;align-items:center;gap:12px;margin-top:3px;font-size:14px;color:var(--ink-2);height:20px}
+.camphd .co{color:var(--muted)}
+.camphd .dt{display:inline-flex;align-items:center;gap:7px;color:var(--muted)}
+.camphd .dt .i{width:16px;height:16px}
+.camphd .refchip{height:22px;font-size:12px;padding:0 8px}
+.bento{display:grid;grid-template-columns:520px 1fr;gap:var(--gap-modules);margin-top:18px;flex:none}
+.hero{padding:22px 26px 20px;display:flex;flex-direction:column;height:244px}
+.hero .hl{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1}
+.hero .hl b{font-size:14px;font-weight:600}
+.hero .def{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 11px 0 8px;border-radius:var(--r-pill);background:var(--on-navy-07);color:var(--on-navy-text);font-size:12.5px}
+.hero .def .i{width:14px;height:14px}
+.fig{display:flex;align-items:baseline;gap:14px;margin-top:8px;position:relative;z-index:1}
+.fig .n{font-family:var(--font-serif);font-size:var(--fs-hero);line-height:96px;letter-spacing:-.02em;font-weight:400}
+.fig .of{font-family:var(--font-serif);font-size:42px;line-height:48px;color:rgba(243,239,233,.66)}
+.fig .dl2{font-size:19px;font-weight:500;color:var(--peach);margin-left:2px}
+.pg{margin-top:auto;position:relative;z-index:1}
+.pgcap{display:flex;justify-content:space-between;font-size:12.5px;color:var(--on-navy-text);margin-bottom:10px}
+.pgcap b{font-weight:600;color:var(--offwhite)}
+.track{position:relative;height:10px;border-radius:var(--r-pill);background:var(--on-navy-10)}
+.track .fill{position:absolute;left:0;top:0;bottom:0;width:calc(3 / 72 * 100%);min-width:12px;border-radius:var(--r-pill);background:var(--peach);box-shadow:0 0 14px rgba(233,175,136,.45)}
+.track .tick{position:absolute;top:-4px;bottom:-4px;width:1px;background:rgba(255,255,255,.18)}
+.track .target{position:absolute;right:-1px;top:-6px;bottom:-6px;width:3px;border-radius:2px;background:var(--offwhite)}
+.ticks{position:relative;height:18px;margin-top:9px}
+.ticks span{position:absolute;top:0;transform:translateX(-100%);font-size:11.5px;color:var(--on-navy-muted)}
+.ticks em{font-style:normal;display:block;padding-right:0}
+.right4{display:grid;grid-template-rows:auto 1fr;gap:var(--gap-modules)}
+.month{padding:18px 22px;display:grid;grid-template-columns:auto 1fr;column-gap:26px;align-items:center}
+.month .mh{grid-column:1 / span 2;display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.month .mh h2{font-size:14.5px}
+.month .mh span{font-size:13px;color:var(--muted)}
+.month .big{display:flex;align-items:baseline;gap:8px;font-size:var(--fs-figure);line-height:40px;font-weight:600;letter-spacing:var(--tracking-figure)}
+.month .big small{font-size:14px;font-weight:500;color:var(--muted);letter-spacing:0}
+.segs{display:grid;grid-template-columns:repeat(12,1fr);gap:5px}
+.segs i{height:10px;border-radius:var(--r-pill);background:var(--navy-07)}
+.segs i.f{background:var(--navy)}
+.three{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--gap-modules)}
+.st{padding:16px 18px 16px;display:flex;flex-direction:column}
+.st .sh{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.st .sh span.l{font-size:13px;line-height:18px;font-weight:500;color:var(--ink-2)}
+.st .ib{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;flex:none}
+.st .ib .i{width:17px;height:17px}
+.st .ib.amber{background:var(--amber-soft);color:var(--amber-text)}
+.st .ib.blue{background:var(--blue-soft);color:var(--blue-text)}
+.st .ib.neutral{background:var(--navy-07);color:var(--ink-2)}
+.st .sf{display:flex;align-items:flex-end;justify-content:space-between;margin-top:auto}
+.st .num{font-size:var(--fs-figure);line-height:40px;font-weight:600;letter-spacing:var(--tracking-figure)}
+.st .cap{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;line-height:17px;color:var(--muted);padding-bottom:5px}
+.st .cap.red{color:var(--red-text);font-weight:600}
+.st .cap .i{width:14px;height:14px}
+.st .cap .mono{color:var(--ink-2);font-size:12px}
+.tablep{margin-top:var(--gap-modules);padding:0 8px 10px;flex:none}
+.tb{display:flex;align-items:center;gap:16px;height:68px;padding:0 6px 0 14px}
+.tb h2{font-size:16px}
+.tb .cn{min-width:26px;height:24px;padding:0 8px;border-radius:var(--r-pill);background:var(--navy-07);color:var(--ink-2);display:grid;place-items:center;font-size:12.5px;font-weight:600}
+.tb .meta{font-size:13px;color:var(--muted)}
+.tb .seg{margin-left:auto}
+.tb .field{width:252px}
+.tb .field .i{width:17px;height:17px}
+
+</style></head>
+<body>
+<aside class="rail">
+  <div class="brand"><div class="mark"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M227.81,66.76l-.08.09L160,139.17v55.49A16,16,0,0,1,152.87,208l-32,21.34A16,16,0,0,1,96,216V139.17L28.27,66.85l-.08-.09A16,16,0,0,1,40,40H216a16,16,0,0,1,11.84,26.76Z"/></svg></div><b>Fynix Leads</b></div>
+  <nav class="nav">
+<a class="on"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M120,56v48a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V56A16,16,0,0,1,56,40h48A16,16,0,0,1,120,56Zm80-16H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm-96,96H56a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,104,136Zm96,0H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,200,136Z"/></svg><span>Leads</span></a>
+<a class=""><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Zm0,16V152h-28.7A15.86,15.86,0,0,0,168,156.69L148.69,176H107.31L88,156.69A15.86,15.86,0,0,0,76.69,152H48V48Zm0,160H48V168H76.69L96,187.31A15.86,15.86,0,0,0,107.31,192h41.38A15.86,15.86,0,0,0,160,187.31L179.31,168H208v40Z"/></svg><span>Review queue</span><span class="cnt">6</span></a>
+<a class=""><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,112a8,8,0,0,1-8,8H152a8,8,0,0,1,0-16h40A8,8,0,0,1,200,112Zm-8,24H152a8,8,0,0,0,0,16h40a8,8,0,0,0,0-16Zm40-80V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56ZM216,200V56H40V200H216Zm-80.26-34a8,8,0,1,1-15.5,4c-2.63-10.26-13.06-18-24.25-18s-21.61,7.74-24.25,18a8,8,0,1,1-15.5-4,39.84,39.84,0,0,1,17.19-23.34,32,32,0,1,1,45.12,0A39.76,39.76,0,0,1,135.75,166ZM96,136a16,16,0,1,0-16-16A16,16,0,0,0,96,136Z"/></svg><span>Lead record</span></a>
+  </nav>
+  <div class="camp"><div class="lab2">Campaign</div><div class="cn">UK mid-market finance teams</div><div class="cb">Kestrel Ledger</div><div class="cm"><span class="mono">CMP-7Q2X</span><span>1 Sep 2026 to 28 Feb 2027</span></div></div>
+  <div class="viewing">
+    <div class="lab">Viewing as</div>
+    <div class="vwell"><div class="vav">KL</div><div><div class="nm">Kestrel Ledger</div><div class="rl">Client</div></div><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M181.66,170.34a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-48-48a8,8,0,0,1,11.32-11.32L128,212.69l42.34-42.35A8,8,0,0,1,181.66,170.34Zm-96-84.68L128,43.31l42.34,42.35a8,8,0,0,0,11.32-11.32l-48-48a8,8,0,0,0-11.32,0l-48,48A8,8,0,0,0,85.66,85.66Z"/></svg></div>
+  </div>
+</aside>
+<main class="main">
+  <header class="top"><div><h1>Leads</h1>
+    <div class="camphd"><span>UK mid-market finance teams</span><span class="co">Kestrel Ledger</span><span class="refchip">CMP-7Q2X</span><span class="dt"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Z"/></svg>1 Sep 2026 to 28 Feb 2027</span></div></div><div class="tools">
+  <div class="search"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"/></svg><span>Search leads</span><kbd class="k">Ctrl K</kbd></div>
+  <div class="iconbtn"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z"/></svg><i class="dot"></i></div>
+  <div class="avatar">KL</div>
+</div></header>
+  <div class="bento">
+    <section class="hero" aria-label="Progress toward target">
+      <div class="hl"><b>Progress toward target</b><span class="def"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm45.66,85.66-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32Z"/></svg>Approved with a completed meeting</span></div>
+      <div class="fig"><span class="n">3</span><span class="of">of 72</span><span class="dl2">delivered</span></div>
+      <div class="pg">
+        <div class="pgcap"><span>12 a month for 6 months</span><b>Target 72</b></div>
+        <div class="track"><div class="fill"></div><span class="tick" style="left:16.6667%"></span><span class="tick" style="left:33.3333%"></span><span class="tick" style="left:50.0000%"></span><span class="tick" style="left:66.6667%"></span><span class="tick" style="left:83.3333%"></span><div class="target"></div></div>
+        <div class="ticks"><span style="left:16.6667%"><em>12</em></span><span style="left:33.3333%"><em>24</em></span><span style="left:50.0000%"><em>36</em></span><span style="left:66.6667%"><em>48</em></span><span style="left:83.3333%"><em>60</em></span></div>
+      </div>
+    </section>
+    <div class="right4">
+      <section class="panel month" aria-label="This month">
+        <div class="mh"><h2>This month</h2><span>November 2026, 9 still to deliver</span></div>
+        <div class="big">3<small>of 12 delivered</small></div>
+        <div class="segs" role="img" aria-label="3 of 12 delivered"><i class="f"></i><i class="f"></i><i class="f"></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i><i class=""></i></div>
+      </section>
+      <div class="three">
+        <section class="panel st"><div class="sh"><span class="l">Awaiting client decision</span><span class="ib amber"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.08,16.08,0,0,0,6.41,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16,16,0,0,0-6.36-12.77L141.26,128l52.38-39.59A16.05,16.05,0,0,0,200,75.64Z"/></svg></span></div>
+          <div class="sf"><span class="num">6</span><span class="cap red"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z"/></svg>2 overdue</span></div></section>
+        <section class="panel st"><div class="sh"><span class="l">Clarifications to answer</span><span class="ib blue"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24ZM84,140a12,12,0,1,1,12-12A12,12,0,0,1,84,140Zm44,0a12,12,0,1,1,12-12A12,12,0,0,1,128,140Zm44,0a12,12,0,1,1,12-12A12,12,0,0,1,172,140Z"/></svg></span></div>
+          <div class="sf"><span class="num">2</span><span class="cap">Waiting on a reply</span></div></section>
+        <section class="panel st"><div class="sh"><span class="l">Replacements owed</span><span class="ib neutral"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M224,48V96a8,8,0,0,1-8,8H168a8,8,0,0,1,0-16h28.69L182.06,73.37a79.56,79.56,0,0,0-56.13-23.43h-.45A79.52,79.52,0,0,0,69.59,72.71,8,8,0,0,1,58.41,61.27a96,96,0,0,1,135,.79L208,76.69V48a8,8,0,0,1,16,0ZM186.41,183.29a80,80,0,0,1-112.47-.66L59.31,168H88a8,8,0,0,0,0-16H40a8,8,0,0,0-8,8v48a8,8,0,0,0,16,0V179.31l14.63,14.63A95.43,95.43,0,0,0,130,222.06h.53a95.36,95.36,0,0,0,67.07-27.33,8,8,0,0,0-11.18-11.44Z"/></svg></span></div>
+          <div class="sf"><span class="num">1</span><span class="cap">For <span class="mono">LD-8L4T</span></span></div></section>
+      </div>
+    </div>
+  </div>
+  <section class="panel tablep" aria-label="All leads">
+    <div class="tb"><h2>All leads</h2><span class="cn">14</span><span class="meta">Times in London (GMT)</span>
+      <div class="seg"><div class="s on">All <b>14</b></div><div class="s">Pending review <b>6</b></div><div class="s">Needs clarification <b>2</b></div><div class="s">Approved <b>4</b></div><div class="s">Rejected <b>2</b></div></div>
+      <div class="field"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"/></svg><span>Search name, company or ref</span></div></div>
+    <table>
+      <colgroup><col style="width:72px"><col style="width:162px"><col style="width:174px"><col style="width:190px"><col style="width:148px"><col style="width:100px"><col style="width:88px"><col style="width:132px"><col style="width:86px"></colgroup>
+      <thead><tr><th>Ref</th><th>Prospect</th><th>Company</th><th>Job title</th><th>Approval</th><th>Meeting status</th><th>Meeting time</th><th>Client feedback</th><th>Submitted</th></tr></thead>
+      <tbody>
+<tr class="cur">
+<td><span class="mono">LD-5T6C</span></td><td><span class="pname">Tom Whitcombe</span></td><td>Halden Freight</td><td>CFO</td>
+<td><span class="chip amber sm"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.08,16.08,0,0,0,6.41,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16,16,0,0,0-6.36-12.77L141.26,128l52.38-39.59A16.05,16.05,0,0,0,200,75.64Z"/></svg>Pending review</span></td><td><span class="mstat"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Z"/></svg>Scheduled</span></td>
+<td><span class="when">Mon 16 Nov</span><span class="cell-sub">11:00 GMT</span></td><td><span class="nil" role="img" aria-label="None"></span></td>
+<td><span class="when" style="font-weight:400">Mon 9 Nov</span><span class="cell-sub">04:00</span></td></tr>
+<tr>
+<td><span class="mono">LD-2W9H</span></td><td><span class="pname">Priyanka Venkataraman</span></td><td>Ashgrove Veterinary Group</td><td>Financial Controller</td>
+<td><span class="chip amber sm"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.08,16.08,0,0,0,6.41,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16,16,0,0,0-6.36-12.77L141.26,128l52.38-39.59A16.05,16.05,0,0,0,200,75.64Z"/></svg>Pending review</span></td><td><span class="mstat"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-38.34-85.66a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L116,164.69l42.34-42.35A8,8,0,0,1,169.66,122.34Z"/></svg>Completed</span></td>
+<td><span class="when">Mon 9 Nov</span><span class="cell-sub">09:30 GMT</span></td><td><span class="nil" role="img" aria-label="None"></span></td>
+<td><span class="when" style="font-weight:400">Mon 9 Nov</span><span class="cell-sub">11:00</span></td></tr>
+<tr>
+<td><span class="mono">LD-6B4N</span></td><td><span class="pname">Callum Rutherford</span></td><td>Fellgate Outdoor Retail</td><td>Finance Director</td>
+<td><span class="chip amber sm"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.08,16.08,0,0,0,6.41,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16,16,0,0,0-6.36-12.77L141.26,128l52.38-39.59A16.05,16.05,0,0,0,200,75.64Z"/></svg>Pending review</span></td><td><span class="mstat"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-38.34-85.66a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L116,164.69l42.34-42.35A8,8,0,0,1,169.66,122.34Z"/></svg>Completed</span></td>
+<td><span class="when">Tue 10 Nov</span><span class="cell-sub">09:30 GMT</span></td><td><span class="nil" role="img" aria-label="None"></span></td>
+<td><span class="when" style="font-weight:400">Tue 10 Nov</span><span class="cell-sub">11:30</span></td></tr>
+<tr>
+<td><span class="mono">LD-8R2D</span></td><td><span class="pname">Marcus Delaney</span></td><td>Pellam Industrial Group</td><td>Group Finance Director</td>
+<td><span class="chip amber sm"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.08,16.08,0,0,0,6.41,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16,16,0,0,0-6.36-12.77L141.26,128l52.38-39.59A16.05,16.05,0,0,0,200,75.64Z"/></svg>Pending review</span></td><td><span class="mstat"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Z"/></svg>Scheduled</span></td>
+<td><span class="when">Thu 12 Nov</span><span class="cell-sub">12:30 GMT</span></td><td><span class="nil" role="img" aria-label="None"></span></td>
+<td><span class="when" style="font-weight:400">Tue 10 Nov</span><span class="cell-sub">14:00</span></td></tr>
+<tr>
+<td><span class="mono">LD-9F1K</span></td><td><span class="pname">Aisling Brennan</span></td><td>Calderbrook Homes</td><td>Head of Financial Planning and Analysis</td>
+<td><span class="chip amber sm"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.08,16.08,0,0,0,6.41,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16,16,0,0,0-6.36-12.77L141.26,128l52.38-39.59A16.05,16.05,0,0,0,200,75.64Z"/></svg>Pending review</span></td><td><span class="mstat"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-38.34-85.66a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L116,164.69l42.34-42.35A8,8,0,0,1,169.66,122.34Z"/></svg>Completed</span></td>
+<td><span class="when">Tue 10 Nov</span><span class="cell-sub">15:00 GMT</span></td><td><span class="nil" role="img" aria-label="None"></span></td>
+<td><span class="when" style="font-weight:400">Wed 11 Nov</span><span class="cell-sub">04:00</span></td></tr>
+<tr>
+<td><span class="mono">LD-3M7A</span></td><td><span class="pname">Harriet Oyelaran</span></td><td>Brindle &amp; Marsh</td><td>Head of Finance Operations</td>
+<td><span class="chip amber sm"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.08,16.08,0,0,0,6.41,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16,16,0,0,0-6.36-12.77L141.26,128l52.38-39.59A16.05,16.05,0,0,0,200,75.64Z"/></svg>Pending review</span></td><td><span class="mstat"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Z"/></svg>Scheduled</span></td>
+<td><span class="when">Tue 17 Nov</span><span class="cell-sub">14:00 GMT</span></td><td><span class="nil" role="img" aria-label="None"></span></td>
+<td><span class="when" style="font-weight:400">Wed 11 Nov</span><span class="cell-sub">07:00</span></td></tr>
+<tr>
+<td><span class="mono">LD-4K9P</span></td><td><span class="pname">Sunita Bhatt</span></td><td>Ormerod Wholesale Foods</td><td>Finance Director</td>
+<td><span class="chip blue sm"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24ZM84,140a12,12,0,1,1,12-12A12,12,0,0,1,84,140Zm44,0a12,12,0,1,1,12-12A12,12,0,0,1,128,140Zm44,0a12,12,0,1,1,12-12A12,12,0,0,1,172,140Z"/></svg>Needs clarification</span></td><td><span class="mstat"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Z"/></svg>Scheduled</span></td>
+<td><span class="when">Wed 18 Nov</span><span class="cell-sub">15:00 GMT</span></td><td><span class="fb">Clarification requested</span></td>
+<td><span class="when" style="font-weight:400">Mon 9 Nov</span><span class="cell-sub">10:00</span></td></tr>
+<tr>
+<td><span class="mono">LD-5N7W</span></td><td><span class="pname">Jack Strachan</span></td><td>Dunmore Retail Group</td><td>Head of Treasury</td>
+<td><span class="chip blue sm"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24ZM84,140a12,12,0,1,1,12-12A12,12,0,0,1,84,140Zm44,0a12,12,0,1,1,12-12A12,12,0,0,1,128,140Zm44,0a12,12,0,1,1,12-12A12,12,0,0,1,172,140Z"/></svg>Needs clarification</span></td><td><span class="mstat"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-68-76a12,12,0,1,1-12-12A12,12,0,0,1,140,132Zm44,0a12,12,0,1,1-12-12A12,12,0,0,1,184,132ZM96,172a12,12,0,1,1-12-12A12,12,0,0,1,96,172Zm44,0a12,12,0,1,1-12-12A12,12,0,0,1,140,172Zm44,0a12,12,0,1,1-12-12A12,12,0,0,1,184,172Z"/></svg>Proposed</span></td>
+<td><span class="when">Thu 19 Nov</span><span class="cell-sub">11:30 GMT</span></td><td><span class="fb">Clarification requested</span></td>
+<td><span class="when" style="font-weight:400">Tue 10 Nov</span><span class="cell-sub">08:50</span></td></tr>
+<tr>
+<td><span class="mono">LD-6J2Z</span></td><td><span class="pname">Fiona McAllister</span></td><td>Tayside Marine Services</td><td>Head of Finance</td>
+<td><span class="chip green sm"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm45.66,85.66-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32Z"/></svg>Approved</span></td><td><span class="mstat"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Z"/></svg>Scheduled</span></td>
+<td><span class="when">Fri 13 Nov</span><span class="cell-sub">10:30 GMT</span></td><td><span class="nil" role="img" aria-label="None"></span></td>
+<td><span class="when" style="font-weight:400">Mon 9 Nov</span><span class="cell-sub">09:15</span></td></tr>
+<tr>
+<td><span class="mono">LD-4D5V</span></td><td><span class="pname">Imran Qureshi</span></td><td>Bexley Park Care Group</td><td>Director of Finance</td>
+<td><span class="chip green sm"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm45.66,85.66-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32Z"/></svg>Approved</span></td><td><span class="mstat"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-38.34-85.66a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L116,164.69l42.34-42.35A8,8,0,0,1,169.66,122.34Z"/></svg>Completed</span></td>
+<td><span class="when">Tue 10 Nov</span><span class="cell-sub">10:30 GMT</span></td><td><span class="nil" role="img" aria-label="None"></span></td>
+<td><span class="when" style="font-weight:400">Thu 5 Nov</span><span class="cell-sub">09:00</span></td></tr>
+<tr>
+<td><span class="mono">LD-1X8S</span></td><td><span class="pname">Rebecca Hallam</span></td><td>Stannard Packaging</td><td>Financial Controller</td>
+<td><span class="chip green sm"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm45.66,85.66-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32Z"/></svg>Approved</span></td><td><span class="mstat"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-38.34-85.66a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L116,164.69l42.34-42.35A8,8,0,0,1,169.66,122.34Z"/></svg>Completed</span></td>
+<td><span class="when">Mon 9 Nov</span><span class="cell-sub">13:00 GMT</span></td><td><span class="nil" role="img" aria-label="None"></span></td>
+<td><span class="when" style="font-weight:400">Mon 2 Nov</span><span class="cell-sub">10:30</span></td></tr>
+<tr>
+<td><span class="mono">LD-7C3E</span></td><td><span class="pname">Oluwaseun Adeyemi</span></td><td>Ludgate Precision Engineering</td><td>Chief Financial Officer</td>
+<td><span class="chip green sm"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm45.66,85.66-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32Z"/></svg>Approved</span></td><td><span class="mstat"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-38.34-85.66a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L116,164.69l42.34-42.35A8,8,0,0,1,169.66,122.34Z"/></svg>Completed</span></td>
+<td><span class="when">Thu 5 Nov</span><span class="cell-sub">10:00 GMT</span></td><td><span class="nil" role="img" aria-label="None"></span></td>
+<td><span class="when" style="font-weight:400">Thu 29 Oct</span><span class="cell-sub">09:30</span></td></tr>
+<tr>
+<td><span class="mono">LD-3H8Q</span></td><td><span class="pname">Gareth Pugh</span></td><td>Cwm Valley Bakeries</td><td>Financial Controller</td>
+<td><span class="chip red sm"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm37.66,130.34a8,8,0,0,1-11.32,11.32L128,139.31l-26.34,26.35a8,8,0,0,1-11.32-11.32L116.69,128,90.34,101.66a8,8,0,0,1,11.32-11.32L128,116.69l26.34-26.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/></svg>Rejected</span></td><td><span class="mstat"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-38.34-85.66a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L116,164.69l42.34-42.35A8,8,0,0,1,169.66,122.34Z"/></svg>Completed</span></td>
+<td><span class="when">Wed 28 Oct</span><span class="cell-sub">13:00 GMT</span></td><td><span class="fb">Company outside the target profile</span></td>
+<td><span class="when" style="font-weight:400">Thu 29 Oct</span><span class="cell-sub">12:00</span></td></tr>
+<tr>
+<td><span class="mono">LD-8L4T</span></td><td><span class="pname">Naomi Fitzgerald</span></td><td>Kingsbridge Mutual</td><td>Head of Finance Systems</td>
+<td><span class="chip red sm"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm37.66,130.34a8,8,0,0,1-11.32,11.32L128,139.31l-26.34,26.35a8,8,0,0,1-11.32-11.32L116.69,128,90.34,101.66a8,8,0,0,1,11.32-11.32L128,116.69l26.34-26.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/></svg>Rejected</span></td><td><span class="mstat bad"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-50.34-74.34L139.31,152l18.35,18.34a8,8,0,0,1-11.32,11.32L128,163.31l-18.34,18.35a8,8,0,0,1-11.32-11.32L116.69,152,98.34,133.66a8,8,0,0,1,11.32-11.32L128,140.69l18.34-18.35a8,8,0,0,1,11.32,11.32Z"/></svg>Prospect declined</span></td>
+<td><span class="when">Fri 6 Nov</span><span class="cell-sub">14:00 GMT</span></td><td><span class="fb">Already a customer or in talks</span></td>
+<td><span class="when" style="font-weight:400">Mon 2 Nov</span><span class="cell-sub">10:00</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+</main>
+</body></html>

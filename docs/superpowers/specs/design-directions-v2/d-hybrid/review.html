@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8"><title>Fynix Leads, Review queue</title>
+<meta name="viewport" content="width=1440">
+<style>
+/* Fynix Leads, direction D (hybrid): design tokens.
+   Navy shell from B, modular tonal layout from C. Structured softness:
+   zones come from tint and elevation, never from outlines.
+   Rules the tokens enforce:
+   - No 1px outlines on controls, chips, inputs or tiles.
+   - Dividers are 1px at --line (7%), inset, between rows only.
+   - Raised surfaces use a layered shadow plus an inset 1px ring at 6%.
+   - Status never relies on colour alone: every chip pairs an icon with a label. */
+
+:root {
+  /* ---------- Brand ---------- */
+  --navy: #0C1E2E;
+  --navy-hover: #13293D;       /* primary button hover */
+  --peach: #E9AF88;
+  --peach-deep: #A9602F;       /* peach as text or icon on white (4.6:1) */
+  --offwhite: #F3EFE9;         /* text and icons on navy */
+
+  /* ---------- Canvas and surfaces ---------- */
+  --canvas: #F1EDE6;           /* page background, warm neutral */
+  --surface: #FFFFFF;          /* raised panels, lifted cards, tiles on tonal panes */
+  --surface-tonal: rgba(12, 30, 46, .06);   /* list pane, left detail pane */
+  --surface-hero: var(--navy); /* the one hero tile per screen */
+  --selected: #FBF1E7;         /* selected row: pale warm peach, no pink cast */
+  --selected-marker: var(--peach);
+  --bubble-client: #F8E8D8;    /* message bubble, client side: quiet peach */
+  --bubble-fynix: var(--navy-05);  /* message bubble, Fynix side */
+
+  /* ---------- Navy alpha steps (wells, tiles, controls, dividers) ---------- */
+  --navy-03: rgba(12, 30, 46, .03);
+  --navy-04: rgba(12, 30, 46, .04);   /* tiles, wells, row hover, action tray */
+  --navy-05: rgba(12, 30, 46, .05);   /* inputs, tonal panes, segmented track */
+  --navy-06: rgba(12, 30, 46, .06);   /* inset ring on raised surfaces */
+  --navy-07: rgba(12, 30, 46, .07);   /* secondary buttons, key caps */
+  --navy-08: rgba(12, 30, 46, .08);   /* pressed state */
+  --navy-10: rgba(12, 30, 46, .10);   /* hover on secondary buttons */
+  --line: rgba(12, 30, 46, .07);      /* the only divider colour */
+  --ring: rgba(12, 30, 46, .06);
+
+  /* On-navy alpha steps (rail and hero) */
+  --on-navy-05: rgba(255, 255, 255, .05);   /* wells on navy */
+  --on-navy-07: rgba(255, 255, 255, .07);
+  --on-navy-10: rgba(255, 255, 255, .10);
+  --on-navy-text: rgba(243, 239, 233, .68);
+  --on-navy-muted: rgba(243, 239, 233, .6);
+
+  /* ---------- Text ---------- */
+  --ink: #0C1E2E;              /* primary, 16:1 on white */
+  --ink-2: #3F4D59;            /* secondary, 8.6:1 on white */
+  --muted: #56626D;            /* captions and labels, 6:1 on white, 4.6:1 on tonal */
+
+  /* ---------- Status: text, border-free soft fill, solid ---------- */
+  --amber-text: #7A4700;  --amber-soft: #FBEFD3;  --amber-solid: #D9961A;
+  --green-text: #176B3D;  --green-soft: #E0F1E7;  --green-solid: #2E9A5F;
+  --red-text:   #A3251D;  --red-soft:   #FBE6E2;  --red-solid:   #D4483D;
+  --blue-text:  #1D4E8F;  --blue-soft:  #E1ECF9;  --blue-solid:  #3B7BD0;
+
+  /* ---------- Radii ---------- */
+  --r-xs: 7px;       /* key caps */
+  --r-sm: 12px;      /* rows, inputs, wells, search */
+  --r-md: 16px;      /* tiles, lifted card, rail wells */
+  --r-lg: 22px;      /* panels, panes, hero tile */
+  --r-xl: 24px;      /* navy rail */
+  --r-pill: 999px;   /* buttons, chips, segmented control, nav items */
+
+  /* ---------- Shadow stacks ---------- */
+  --shadow-raised:   /* white panels and small tiles on canvas */
+    inset 0 0 0 1px rgba(12, 30, 46, .06),
+    0 1px 2px rgba(12, 30, 46, .04),
+    0 4px 10px -2px rgba(12, 30, 46, .05),
+    0 16px 32px -12px rgba(12, 30, 46, .09);
+  --shadow-selected: /* the lifted selected card inside a tonal pane */
+    inset 0 0 0 1px rgba(12, 30, 46, .06),
+    0 1px 2px rgba(12, 30, 46, .06),
+    0 6px 14px -3px rgba(12, 30, 46, .09),
+    0 18px 30px -12px rgba(12, 30, 46, .14);
+  --shadow-tile-lift: /* white tile sitting on a tonal pane */
+    inset 0 0 0 1px rgba(12, 30, 46, .05),
+    0 1px 2px rgba(12, 30, 46, .05),
+    0 6px 12px -6px rgba(12, 30, 46, .08);
+  --shadow-popover:
+    inset 0 0 0 1px rgba(12, 30, 46, .06),
+    0 4px 8px -2px rgba(12, 30, 46, .08),
+    0 24px 48px -12px rgba(12, 30, 46, .20);
+  --shadow-tray:     /* pinned action bar when content scrolls under it */
+    0 -1px 0 rgba(12, 30, 46, .06),
+    0 -14px 24px -14px rgba(12, 30, 46, .12);
+  --shadow-rail:     /* floating navy rail */
+    inset 0 1px 0 rgba(255, 255, 255, .06),
+    0 1px 2px rgba(12, 30, 46, .20),
+    0 14px 34px rgba(12, 30, 46, .18);
+  --shadow-hero:
+    inset 0 0 0 1px rgba(255, 255, 255, .06),
+    inset 0 1px 0 rgba(255, 255, 255, .08),
+    0 2px 4px rgba(12, 30, 46, .14),
+    0 20px 40px -14px rgba(12, 30, 46, .38);
+  --shadow-btn-primary:
+    inset 0 1px 0 rgba(255, 255, 255, .12),
+    0 1px 2px rgba(12, 30, 46, .25),
+    0 8px 16px -6px rgba(12, 30, 46, .40);
+  --shadow-nav-active: 0 4px 12px -4px rgba(233, 175, 136, .5);
+
+  /* ---------- Spacing (8px grid with a 4px half-step) ---------- */
+  --s-1: 4px;  --s-2: 8px;   --s-3: 12px;  --s-4: 16px;  --s-5: 20px;
+  --s-6: 24px; --s-8: 32px;  --s-10: 40px; --s-12: 48px;
+  --gap-modules: 16px;       /* between panels, panes and bento tiles */
+  --gap-tiles: 12px;         /* between tiles inside a panel */
+  --inset-rail: 12px;        /* rail distance from the window edge */
+  --pad-panel: 24px;         /* panel body padding */
+  --pad-tile: 16px;
+
+  /* ---------- Layout ---------- */
+  --canvas-w: 1440px;
+  --rail-w: 220px;
+  --content-left: 248px;     /* rail inset + rail width + module gap */
+  --content-right: 24px;
+  --list-pane-w: 372px;
+  --detail-pane-w: 380px;    /* record: left column */
+
+  /* ---------- Type ---------- */
+  --font-sans: "Geist", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+  --font-serif: "Geist Serif", Georgia, serif;   /* hero figure only */
+  --fw-regular: 400; --fw-medium: 500; --fw-semibold: 600;
+  --fs-caption: 12px;        /* key caps, small captions, tiny refs */
+  --fs-label: 12.5px;        /* field labels, chip text, helper text */
+  --fs-table: 13px;          /* table cells, row meta */
+  --fs-body: 14px;           /* body, buttons */
+  --fs-row-title: 14.5px;    /* names in lists */
+  --fs-value: 15px;          /* values in tiles, panel titles */
+  --fs-lead: 16px;
+  --fs-title: 28px;          /* page title on the canvas */
+  --fs-name: 34px;           /* lead name */
+  --fs-figure: 38px;         /* big numbers */
+  --fs-hero: 96px;           /* serif hero figure */
+  --lh-tight: 1.1; --lh-body: 1.5;
+  --tracking-title: -.015em;
+  --tracking-figure: -.02em;
+  --tabular: tabular-nums;
+
+  /* ---------- Row heights and control sizes ---------- */
+  --h-table-row: 50px;
+  --h-table-head: 38px;
+  --h-list-row: 96px;
+  --h-timeline-row: 40px;
+  --h-input: 44px;
+  --h-search: 40px;
+  --h-button: 44px;
+  --h-button-sm: 32px;
+  --h-nav: 42px;
+  --h-segment: 32px;
+  --h-chip: 26px;
+  --h-chip-sm: 22px;         /* table chips: smaller and softer */
+  --h-keycap: 22px;
+  --h-action-bar: 76px;
+
+  /* ---------- Motion ---------- */
+  --dur-press: 120ms;
+  --dur-hover: 180ms;
+  --dur-state: 240ms;
+  --dur-panel: 360ms;
+  --dur-slow: 520ms;
+  --ease-out: cubic-bezier(.16, 1, .3, 1);      /* default: fast start, soft landing */
+  --ease-in-out: cubic-bezier(.65, 0, .35, 1);  /* swaps and layout shifts */
+  --ease-spring: cubic-bezier(.34, 1.4, .64, 1);/* press release, count badges */
+  --press-scale: .98;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-press: 0ms; --dur-hover: 0ms; --dur-state: 0ms; --dur-panel: 0ms; --dur-slow: 0ms; }
+}
+
+@font-face{font-family:"Geist";font-weight:400;src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-sans/Geist-Regular.woff2") format("woff2")}
+@font-face{font-family:"Geist";font-weight:500;src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-sans/Geist-Medium.woff2") format("woff2")}
+@font-face{font-family:"Geist";font-weight:600;src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-sans/Geist-SemiBold.woff2") format("woff2")}
+@font-face{font-family:"Geist Mono";font-weight:400;src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-mono/GeistMono-Regular.woff2") format("woff2")}
+@font-face{font-family:"Geist Mono";font-weight:500;src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-mono/GeistMono-Medium.woff2") format("woff2")}
+@font-face{font-family:"Geist Serif";font-weight:400;src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-serif/GeistSerif-Regular.woff2") format("woff2")}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--canvas)}
+body{position:relative;overflow:hidden;width:var(--canvas-w);font-family:var(--font-sans);font-size:var(--fs-body);line-height:1.43;color:var(--ink);font-variant-numeric:var(--tabular);-webkit-font-smoothing:antialiased;caret-color:var(--navy)}
+::selection{background:rgba(233,175,136,.55);color:var(--navy)}
+.i{width:18px;height:18px;flex:none;display:block}
+.mono{font-family:var(--font-mono);font-weight:500;letter-spacing:0}
+h1{font-size:var(--fs-title);line-height:34px;font-weight:600;letter-spacing:var(--tracking-title)}
+h2{font-size:var(--fs-value);line-height:20px;font-weight:600;letter-spacing:-.005em}
+h3{font-size:var(--fs-body);line-height:20px;font-weight:600}
+a{color:inherit;text-decoration:none}
+.muted{color:var(--muted)}
+.red{color:var(--red-text)}
+
+/* ---------- navy rail ---------- */
+.rail{position:absolute;left:var(--inset-rail);top:var(--inset-rail);bottom:var(--inset-rail);width:var(--rail-w);background:var(--navy);border-radius:var(--r-xl);box-shadow:var(--shadow-rail);padding:20px 12px 12px;display:flex;flex-direction:column;color:var(--offwhite)}
+.brand{display:flex;align-items:center;gap:10px;padding:0 8px 18px;margin-bottom:14px;box-shadow:inset 0 -1px 0 var(--on-navy-07)}
+.mark{width:32px;height:32px;border-radius:10px;background:var(--peach);color:var(--navy);display:grid;place-items:center}
+.mark .i{width:19px;height:19px}
+.brand b{font-size:16px;font-weight:600;letter-spacing:-.01em}
+.nav a{display:flex;align-items:center;gap:11px;height:var(--h-nav);padding:0 14px;margin-bottom:4px;border-radius:var(--r-pill);color:var(--on-navy-text);font-size:14px;font-weight:500}
+.nav a .i{width:20px;height:20px}
+.nav a.on{background:var(--peach);color:var(--navy);font-weight:600;box-shadow:var(--shadow-nav-active)}
+.cnt{margin-left:auto;min-width:24px;height:22px;padding:0 8px;border-radius:var(--r-pill);display:grid;place-items:center;font-size:12.5px;font-weight:600;background:rgba(233,175,136,.18);color:var(--peach)}
+.nav a.on .cnt{background:var(--navy);color:var(--offwhite)}
+.camp{margin-top:20px;padding:14px;border-radius:var(--r-md);background:var(--on-navy-05)}
+.camp .lab2{font-size:12px;font-weight:500;color:var(--on-navy-muted);margin-bottom:6px}
+.camp .cn{font-size:13.5px;line-height:18px;font-weight:600}
+.camp .cb{font-size:12.5px;line-height:17px;color:var(--on-navy-text);margin-top:3px}
+.camp .cm{display:flex;flex-direction:column;gap:3px;margin-top:10px;padding-top:10px;box-shadow:inset 0 1px 0 var(--on-navy-07);font-size:12px;line-height:16px;color:var(--on-navy-text)}
+.camp .cm .mono{color:var(--peach)}
+.viewing{margin-top:auto}
+.viewing .lab{font-size:12px;font-weight:500;color:var(--on-navy-muted);padding:0 6px 8px}
+.vwell{display:flex;align-items:center;gap:10px;background:var(--on-navy-07);border-radius:var(--r-md);padding:11px}
+.vav{width:34px;height:34px;border-radius:50%;background:var(--peach);color:var(--navy);display:grid;place-items:center;font-size:12.5px;font-weight:600;flex:none}
+.vwell .nm{font-size:13.5px;font-weight:600;line-height:17px}
+.vwell .rl{font-size:12.5px;line-height:16px;color:var(--on-navy-text)}
+.vwell .i{margin-left:auto;width:16px;height:16px;color:var(--on-navy-text)}
+
+/* ---------- main column and top row ---------- */
+.main{position:absolute;left:var(--content-left);right:var(--content-right);top:0;bottom:0;padding-top:20px;display:flex;flex-direction:column}
+.top{display:flex;align-items:flex-start;justify-content:space-between;flex:none}
+.sub{color:var(--ink-2);font-size:14px;line-height:20px;margin-top:3px}
+.tools{display:flex;align-items:center;gap:10px}
+.search{display:flex;align-items:center;gap:10px;height:var(--h-search);width:300px;padding:0 8px 0 14px;border-radius:var(--r-sm);background:var(--navy-05);color:var(--muted);font-size:14px}
+.search span{flex:1}
+.k{display:inline-grid;place-items:center;min-width:22px;height:var(--h-keycap);padding:0 6px;border-radius:var(--r-xs);background:var(--navy-07);color:var(--ink-2);font-family:var(--font-mono);font-size:12px;font-weight:500;line-height:1}
+.iconbtn{position:relative;width:40px;height:40px;border-radius:50%;background:var(--navy-05);display:grid;place-items:center}
+.iconbtn .i{width:20px;height:20px}
+.iconbtn .dot{position:absolute;top:9px;right:10px;width:9px;height:9px;border-radius:50%;background:var(--peach);box-shadow:0 0 0 2px var(--canvas)}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--navy);color:var(--offwhite);display:grid;place-items:center;font-size:13px;font-weight:600}
+
+/* ---------- surfaces ---------- */
+.panel{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-raised);overflow:hidden}
+.pane{background:var(--surface-tonal);border-radius:var(--r-lg)}
+.phead{display:flex;align-items:center;gap:10px;height:56px;padding:0 20px 0 24px;flex:none}
+.phead .meta{color:var(--muted);font-size:13px}
+.push{margin-left:auto}
+.well{background:var(--navy-04);border-radius:var(--r-sm)}
+.tile{background:var(--navy-04);border-radius:var(--r-md);padding:18px 20px}
+.tile.lift{background:var(--surface);box-shadow:var(--shadow-tile-lift)}
+.tile .th{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+.tile .th .ico{width:30px;height:30px;border-radius:50%;background:var(--surface);box-shadow:0 1px 2px rgba(12,30,46,.06);display:grid;place-items:center;color:var(--ink-2)}
+.tile.lift .th .ico{background:var(--navy-05);box-shadow:none}
+.tile .th .ico .i{width:17px;height:17px}
+.tile .th h3{font-size:14px}
+.dl{display:grid;grid-template-columns:76px 1fr;row-gap:10px;column-gap:12px;align-items:baseline}
+.dl dt{font-size:12.5px;line-height:20px;color:var(--muted);font-weight:500}
+.dl dd{font-size:14px;line-height:20px;font-weight:500;min-width:0}
+.dl dd small{display:block;font-size:12.5px;line-height:17px;font-weight:400;color:var(--ink-2);margin-top:1px}
+.dl dd .stat{display:inline-flex;align-items:center;gap:7px;vertical-align:top}
+.dl dd .stat .i{width:17px;height:17px;color:var(--ink-2)}
+.dl dd.nw{white-space:nowrap}
+.q .qh{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px;font-weight:600;color:var(--ink-2)}
+.q .qh .i{width:18px;height:18px}
+.q p{font-size:14px;line-height:21px}
+
+/* hero tile (navy) */
+.hero{position:relative;background:var(--surface-hero);color:var(--offwhite);border-radius:var(--r-lg);box-shadow:var(--shadow-hero);overflow:hidden}
+.hero::before{content:"";position:absolute;right:-90px;top:-110px;width:360px;height:360px;border-radius:50%;background:radial-gradient(closest-side,rgba(233,175,136,.09),rgba(233,175,136,0));pointer-events:none}
+
+/* ---------- chips ---------- */
+.chip{display:inline-flex;align-items:center;gap:6px;height:var(--h-chip);padding:0 11px 0 8px;border-radius:var(--r-pill);font-size:12.5px;font-weight:600;white-space:nowrap;line-height:1}
+.chip .i{width:15px;height:15px}
+.chip.amber{background:var(--amber-soft);color:var(--amber-text)}
+.chip.green{background:var(--green-soft);color:var(--green-text)}
+.chip.red{background:var(--red-soft);color:var(--red-text)}
+.chip.blue{background:var(--blue-soft);color:var(--blue-text)}
+.chip.neutral{background:var(--navy-07);color:var(--ink)}
+.chip.lg{height:30px;font-size:13px;padding:0 13px 0 10px}
+.chip.lg .i{width:17px;height:17px}
+.chip.sm{height:var(--h-chip-sm);gap:4px;padding:0 9px 0 6px;font-size:12px;font-weight:500}
+.chip.sm .i{width:13px;height:13px}
+.chip.sm.amber{background:rgba(233,172,52,.14)}
+.chip.sm.green{background:rgba(46,154,95,.12)}
+.chip.sm.red{background:rgba(212,72,61,.11)}
+.chip.sm.blue{background:rgba(59,123,208,.12)}
+.refchip{display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:var(--r-pill);background:var(--navy-05);color:var(--ink-2);font-family:var(--font-mono);font-weight:500;font-size:12.5px}
+
+/* ---------- buttons ---------- */
+.btn{display:inline-flex;align-items:center;gap:8px;height:var(--h-button);padding:0 9px 0 16px;border-radius:var(--r-pill);font-size:14px;font-weight:600;white-space:nowrap;transition:transform var(--dur-press) var(--ease-out),background var(--dur-hover) var(--ease-out)}
+.btn .i{width:18px;height:18px}
+.btn.nokey{padding-right:18px}
+.btn.primary{background:var(--navy);color:var(--offwhite);box-shadow:var(--shadow-btn-primary)}
+.btn.primary .k{background:rgba(255,255,255,.16);color:var(--offwhite)}
+.btn.danger{background:var(--red-soft);color:var(--red-text)}
+.btn.danger .k{background:rgba(163,37,29,.12);color:var(--red-text)}
+.btn.second{background:var(--navy-07);color:var(--ink)}
+.btn.second .k{background:var(--navy-08);color:var(--ink-2)}
+.btn:active{transform:scale(var(--press-scale))}
+.btn.primary:hover{background:var(--navy-hover)}
+.btn.danger:hover{background:#F6D5D0}
+.btn.second:hover{background:var(--navy-10)}
+.btn.sm{height:var(--h-button-sm);padding:0 14px;font-size:13px;gap:7px}
+.btn.sm .i{width:16px;height:16px}
+:focus-visible{outline:2px solid var(--navy);outline-offset:3px;border-radius:var(--r-pill)}
+
+/* ---------- inputs ---------- */
+.field{white-space:nowrap;display:flex;align-items:center;gap:10px;height:var(--h-search);padding:0 14px;border-radius:var(--r-sm);background:var(--navy-05);color:var(--muted);font-size:13.5px}
+.field:focus-within{box-shadow:0 0 0 2px var(--navy)}
+
+/* ---------- segmented ---------- */
+.seg{display:inline-flex;gap:2px;padding:3px;border-radius:var(--r-pill);background:var(--navy-05)}
+.seg .s{display:flex;align-items:center;justify-content:center;gap:7px;height:var(--h-segment);padding:0 14px;border-radius:var(--r-pill);font-size:13px;font-weight:500;color:var(--ink-2);white-space:nowrap}
+.seg .s b{font-weight:600;color:var(--muted)}
+.seg .s.on{background:var(--navy);color:var(--offwhite);font-weight:600;box-shadow:0 1px 2px rgba(12,30,46,.2)}
+.seg .s.on b{color:var(--peach)}
+.seg .s:not(.on):hover{background:var(--navy-05)}
+.seg.fill{display:flex}
+.seg.fill .s{flex:1;padding:0 8px}
+
+/* ---------- list pane rows ---------- */
+.row{position:relative;display:grid;grid-template-columns:1fr auto;column-gap:12px;align-content:center;padding:0 18px;border-radius:var(--r-md)}
+.row + .row::before{content:"";position:absolute;top:0;left:18px;right:18px;height:1px;background:var(--line)}
+.row.sel::before,.row.sel + .row::before{display:none}
+.row.sel{background:var(--surface);box-shadow:var(--shadow-selected);z-index:1}
+.row.sel::after{content:"";position:absolute;left:0;top:18px;bottom:18px;width:3px;border-radius:0 3px 3px 0;background:var(--selected-marker)}
+.row:not(.sel):hover{background:var(--navy-04)}
+.rn{font-size:var(--fs-row-title);line-height:20px;font-weight:500}
+.row.sel .rn{font-weight:600}
+.rc{font-size:13px;line-height:19px;color:var(--ink-2);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rj{font-size:13px;line-height:19px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rv{display:flex;align-items:center;justify-content:flex-end;gap:5px;font-size:14px;line-height:20px;font-weight:600;color:var(--ink-2)}
+.rv .i{width:15px;height:15px}
+.rcap{font-size:12.5px;line-height:19px;color:var(--muted);text-align:right}
+.rref{font-size:11.5px;line-height:19px;color:var(--muted);text-align:right}
+.rw.od .rv,.rw.od .rcap{color:var(--red-text)}
+.rw.od .rcap{font-weight:600}
+
+/* ---------- tray / action bar ---------- */
+.tray{flex:none;display:flex;align-items:center;gap:10px;height:var(--h-action-bar);padding:0 24px;background:var(--navy-04)}
+.hint{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-2);white-space:nowrap}
+
+/* ---------- table ---------- */
+table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:var(--fs-table)}
+thead th{height:var(--h-table-head);text-align:left;font-size:12px;font-weight:500;color:var(--muted);background:var(--navy-04);padding:0 6px;white-space:nowrap}
+thead th:first-child{border-radius:var(--r-sm) 0 0 var(--r-sm);padding-left:14px}
+thead th:last-child{border-radius:0 var(--r-sm) var(--r-sm) 0}
+tbody td{height:var(--h-table-row);padding:0 6px;vertical-align:middle;line-height:17px;box-shadow:inset 0 -1px 0 var(--line)}
+tbody td:first-child{padding-left:14px}
+tbody tr:last-child td{box-shadow:none}
+tbody tr.cur td{background:var(--selected);box-shadow:none}
+tbody tr.cur td:first-child{border-radius:var(--r-sm) 0 0 var(--r-sm)}
+tbody tr.cur td:last-child{border-radius:0 var(--r-sm) var(--r-sm) 0}
+tbody tr:not(.cur):hover td{background:var(--navy-03)}
+.pname{font-weight:600;font-size:13px;line-height:17px}
+.cell-sub{display:block;font-size:12px;line-height:16px;color:var(--muted);font-weight:400}
+td .mono{font-size:12px;color:var(--muted)}
+.mstat{display:inline-flex;align-items:center;gap:6px;color:var(--ink-2)}
+.mstat .i{width:16px;height:16px;flex:none}
+.mstat.bad{color:var(--red-text);font-weight:500}
+.nil{display:inline-block;width:10px;height:2px;border-radius:2px;background:var(--navy-10);vertical-align:middle}
+.fb{color:var(--ink-2);font-size:12px;line-height:16px}
+.when{font-weight:500;color:var(--ink);font-size:13px;line-height:17px}
+
+body{height:900px}
+
+.review{display:grid;grid-template-columns:var(--list-pane-w) 1fr;gap:var(--gap-modules);flex:1;min-height:0;margin-top:16px;padding-bottom:24px}
+.listp{display:flex;flex-direction:column;min-height:0;padding:0 8px 0}
+.listp .phead{padding:0 4px 0 12px}
+.badge{min-width:28px;height:28px;padding:0 8px;border-radius:var(--r-pill);background:var(--navy);color:var(--offwhite);display:grid;place-items:center;font-size:14px;font-weight:600}
+.listp .seg{margin:0 4px 8px}
+.rows{flex:1;min-height:0;display:grid;grid-auto-rows:1fr;padding:2px 0 6px}
+.lfoot{flex:none;display:flex;align-items:center;gap:8px;height:48px;padding:0 12px;font-size:13px;color:var(--muted)}
+.lfoot .i{width:16px;height:16px;color:var(--red-text)}
+.lfoot b{color:var(--red-text);font-weight:600}
+.lead{display:flex;flex-direction:column;min-height:0}
+.lh{display:grid;grid-template-columns:1fr auto;column-gap:28px;padding:20px 28px 22px}
+.lh .l1{grid-column:1 / span 2;display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.lh h2.name{font-size:var(--fs-name);line-height:38px;font-weight:600;letter-spacing:var(--tracking-title)}
+.lh .role{font-size:16px;line-height:24px;color:var(--ink-2);margin-top:2px}
+.lh .role b{font-weight:600;color:var(--ink)}
+.lh .by{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);margin-top:10px}
+.lh .by .i{width:16px;height:16px}
+.wait{position:relative;grid-row:2;grid-column:2;text-align:right;align-self:center;padding-left:32px}
+.wait::before{content:"";position:absolute;left:0;top:4px;bottom:4px;width:1px;background:var(--line)}
+.wait .lab{font-size:12.5px;line-height:16px;font-weight:500;color:var(--muted)}
+.wait .fig{font-size:var(--fs-figure);line-height:44px;font-weight:600;letter-spacing:var(--tracking-figure);color:var(--red-text)}
+.wait .od{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;color:var(--red-text)}
+.wait .od .i{width:15px;height:15px}
+.hdiv{height:1px;background:var(--line);margin:0 28px;flex:none}
+.lbody{flex:1;min-height:0;padding:22px 28px 0;overflow:hidden}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sech{display:flex;align-items:center;gap:9px;margin:26px 0 14px;font-size:15px;font-weight:600}
+.sech .i{width:19px;height:19px;color:var(--ink-2)}
+.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.q{padding:15px 20px 16px}
+
+</style></head>
+<body>
+<aside class="rail">
+  <div class="brand"><div class="mark"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M227.81,66.76l-.08.09L160,139.17v55.49A16,16,0,0,1,152.87,208l-32,21.34A16,16,0,0,1,96,216V139.17L28.27,66.85l-.08-.09A16,16,0,0,1,40,40H216a16,16,0,0,1,11.84,26.76Z"/></svg></div><b>Fynix Leads</b></div>
+  <nav class="nav">
+<a class=""><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M104,40H56A16,16,0,0,0,40,56v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,104,40Zm0,64H56V56h48v48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm0,64H152V56h48v48Zm-96,32H56a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,104,136Zm0,64H56V152h48v48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,200,136Zm0,64H152V152h48v48Z"/></svg><span>Leads</span></a>
+<a class="on"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Zm0,176H48V168H76.69L96,187.32A15.89,15.89,0,0,0,107.31,192h41.38A15.86,15.86,0,0,0,160,187.31L179.31,168H208v40Z"/></svg><span>Review queue</span><span class="cnt">6</span></a>
+<a class=""><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,112a8,8,0,0,1-8,8H152a8,8,0,0,1,0-16h40A8,8,0,0,1,200,112Zm-8,24H152a8,8,0,0,0,0,16h40a8,8,0,0,0,0-16Zm40-80V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56ZM216,200V56H40V200H216Zm-80.26-34a8,8,0,1,1-15.5,4c-2.63-10.26-13.06-18-24.25-18s-21.61,7.74-24.25,18a8,8,0,1,1-15.5-4,39.84,39.84,0,0,1,17.19-23.34,32,32,0,1,1,45.12,0A39.76,39.76,0,0,1,135.75,166ZM96,136a16,16,0,1,0-16-16A16,16,0,0,0,96,136Z"/></svg><span>Lead record</span></a>
+  </nav>
+  <div class="camp"><div class="lab2">Campaign</div><div class="cn">UK mid-market finance teams</div><div class="cb">Kestrel Ledger</div><div class="cm"><span class="mono">CMP-7Q2X</span><span>1 Sep 2026 to 28 Feb 2027</span></div></div>
+  <div class="viewing">
+    <div class="lab">Viewing as</div>
+    <div class="vwell"><div class="vav">KL</div><div><div class="nm">Kestrel Ledger</div><div class="rl">Client</div></div><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M181.66,170.34a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-48-48a8,8,0,0,1,11.32-11.32L128,212.69l42.34-42.35A8,8,0,0,1,181.66,170.34Zm-96-84.68L128,43.31l42.34,42.35a8,8,0,0,0,11.32-11.32l-48-48a8,8,0,0,0-11.32,0l-48,48A8,8,0,0,0,85.66,85.66Z"/></svg></div>
+  </div>
+</aside>
+<main class="main">
+  <header class="top"><div><h1>Review queue</h1><div class="sub">6 leads waiting on your decision, oldest first</div></div><div class="tools">
+  <div class="search"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"/></svg><span>Search leads</span><kbd class="k">Ctrl K</kbd></div>
+  <div class="iconbtn"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z"/></svg><i class="dot"></i></div>
+  <div class="avatar">KL</div>
+</div></header>
+  <div class="review">
+    <section class="pane listp" aria-label="Leads waiting for review">
+      <div class="phead"><h2>Waiting for review</h2><span class="btn second sm nokey push"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M117.66,170.34a8,8,0,0,1,0,11.32l-32,32a8,8,0,0,1-11.32,0l-32-32a8,8,0,0,1,11.32-11.32L72,188.69V48a8,8,0,0,1,16,0V188.69l18.34-18.35A8,8,0,0,1,117.66,170.34Zm96-96-32-32a8,8,0,0,0-11.32,0l-32,32a8,8,0,0,0,11.32,11.32L168,67.31V208a8,8,0,0,0,16,0V67.31l18.34,18.35a8,8,0,0,0,11.32-11.32Z"/></svg>Oldest first</span></div>
+      <div class="seg fill"><div class="s on">Waiting <b>6</b></div><div class="s">Clarifying <b>2</b></div><div class="s">Decided <b>6</b></div></div>
+      <div class="rows">
+<div class="row sel">
+  <div><div class="rn">Tom Whitcombe</div><div class="rc">Halden Freight</div><div class="rj">CFO</div></div>
+  <div class="rw od"><div class="rv"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z"/></svg><span>2d 6h</span></div><div class="rcap">Overdue</div><div class="mono rref">LD-5T6C</div></div>
+</div>
+<div class="row">
+  <div><div class="rn">Priyanka Venkataraman</div><div class="rc">Ashgrove Veterinary Group</div><div class="rj">Financial Controller</div></div>
+  <div class="rw od"><div class="rv"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z"/></svg><span>1d 23h</span></div><div class="rcap">Overdue</div><div class="mono rref">LD-2W9H</div></div>
+</div>
+<div class="row">
+  <div><div class="rn">Callum Rutherford</div><div class="rc">Fellgate Outdoor Retail</div><div class="rj">Finance Director</div></div>
+  <div class="rw"><div class="rv"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/></svg><span>22h</span></div><div class="rcap">Waiting</div><div class="mono rref">LD-6B4N</div></div>
+</div>
+<div class="row">
+  <div><div class="rn">Marcus Delaney</div><div class="rc">Pellam Industrial Group</div><div class="rj">Group Finance Director</div></div>
+  <div class="rw"><div class="rv"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/></svg><span>20h</span></div><div class="rcap">Waiting</div><div class="mono rref">LD-8R2D</div></div>
+</div>
+<div class="row">
+  <div><div class="rn">Aisling Brennan</div><div class="rc">Calderbrook Homes</div><div class="rj">Head of Financial Planning and Analysis</div></div>
+  <div class="rw"><div class="rv"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/></svg><span>6h</span></div><div class="rcap">Waiting</div><div class="mono rref">LD-9F1K</div></div>
+</div>
+<div class="row">
+  <div><div class="rn">Harriet Oyelaran</div><div class="rc">Brindle &amp; Marsh</div><div class="rj">Head of Finance Operations</div></div>
+  <div class="rw"><div class="rv"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/></svg><span>3h</span></div><div class="rcap">Waiting</div><div class="mono rref">LD-3M7A</div></div>
+</div>
+      </div>
+      <div class="lfoot"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z"/></svg><span><b>2 overdue</b>, waiting more than 24 hours</span></div>
+    </section>
+    <section class="panel lead" aria-label="Lead LD-5T6C">
+      <div class="lh">
+        <div class="l1"><span class="chip amber lg"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.08,16.08,0,0,0,6.41,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16,16,0,0,0-6.36-12.77L141.26,128l52.38-39.59A16.05,16.05,0,0,0,200,75.64Z"/></svg>Pending review</span><span class="refchip">LD-5T6C</span><a class="btn second sm nokey push">Open lead record<svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,64V168a8,8,0,0,1-16,0V83.31L69.66,197.66a8,8,0,0,1-11.32-11.32L172.69,72H88a8,8,0,0,1,0-16H192A8,8,0,0,1,200,64Z"/></svg></a></div>
+        <div><h2 class="name">Tom Whitcombe</h2><div class="role"><b>CFO</b> at Halden Freight</div>
+        <div class="by"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M244.8,150.4a8,8,0,0,1-11.2-1.6A51.6,51.6,0,0,0,192,128a8,8,0,0,1-7.37-4.89,8,8,0,0,1,0-6.22A8,8,0,0,1,192,112a24,24,0,1,0-23.24-30,8,8,0,1,1-15.5-4A40,40,0,1,1,219,117.51a67.94,67.94,0,0,1,27.43,21.68A8,8,0,0,1,244.8,150.4ZM190.92,212a8,8,0,1,1-13.84,8,57,57,0,0,0-98.16,0,8,8,0,1,1-13.84-8,72.06,72.06,0,0,1,33.74-29.92,48,48,0,1,1,58.36,0A72.06,72.06,0,0,1,190.92,212ZM128,176a32,32,0,1,0-32-32A32,32,0,0,0,128,176ZM72,120a8,8,0,0,0-8-8A24,24,0,1,1,87.24,82a8,8,0,1,0,15.5-4A40,40,0,1,0,37,117.51,67.94,67.94,0,0,0,9.6,139.19a8,8,0,1,0,12.8,9.61A51.6,51.6,0,0,1,64,128,8,8,0,0,0,72,120Z"/></svg>Submitted by the Fynix team on Mon 9 Nov, 04:00 GMT</div></div>
+        <div class="wait"><div class="lab">Waiting</div><div class="fig">2d 6h</div><div class="od"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z"/></svg>Overdue</div></div>
+      </div>
+      <div class="hdiv"></div>
+      <div class="lbody">
+        <div class="two">
+          <div class="tile"><div class="th"><span class="ico"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Z"/></svg></span><h3>Meeting</h3></div>
+            <dl class="dl">
+              <dt>When</dt><dd>Mon 16 Nov, 11:00 am<small>London time (GMT)</small></dd>
+              <dt>Status</dt><dd><span class="stat"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Z"/></svg>Scheduled</span></dd>
+              <dt>With</dt><dd>Imogen Price</dd>
+              <dt>Length</dt><dd>45 minutes</dd>
+            </dl></div>
+          <div class="tile"><div class="th"><span class="ico"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,112a8,8,0,0,1-8,8H152a8,8,0,0,1,0-16h40A8,8,0,0,1,200,112Zm-8,24H152a8,8,0,0,0,0,16h40a8,8,0,0,0,0-16Zm40-80V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56ZM216,200V56H40V200H216Zm-80.26-34a8,8,0,1,1-15.5,4c-2.63-10.26-13.06-18-24.25-18s-21.61,7.74-24.25,18a8,8,0,1,1-15.5-4,39.84,39.84,0,0,1,17.19-23.34,32,32,0,1,1,45.12,0A39.76,39.76,0,0,1,135.75,166ZM96,136a16,16,0,1,0-16-16A16,16,0,0,0,96,136Z"/></svg></span><h3>Contact</h3></div>
+            <dl class="dl">
+              <dt>Email</dt><dd class="nw" style="font-size:13px">tom.whitcombe@haldenfreight.co.uk</dd>
+              <dt>Phone</dt><dd>+44 161 496 0254</dd>
+              <dt>LinkedIn</dt><dd class="nw">in/tom-whitcombe-91a6d3e</dd>
+              <dt>Time zone</dt><dd>London, GMT</dd>
+            </dl></div>
+        </div>
+        <div class="sech"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M32,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H40A8,8,0,0,1,32,64Zm8,72h72a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16Zm88,48H40a8,8,0,0,0,0,16h88a8,8,0,0,0,0-16Zm109.66,13.66a8,8,0,0,1-11.32,0L206,177.36A40,40,0,1,1,217.36,166l20.3,20.3A8,8,0,0,1,237.66,197.66ZM184,168a24,24,0,1,0-24-24A24,24,0,0,0,184,168Z"/></svg>Qualification</div>
+        <div class="qgrid">
+          <div class="tile q"><div class="qh"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M216,64H56a8,8,0,0,1,0-16H192a8,8,0,0,0,0-16H56A24,24,0,0,0,32,56V184a24,24,0,0,0,24,24H216a16,16,0,0,0,16-16V80A16,16,0,0,0,216,64Zm0,128H56a8,8,0,0,1-8-8V78.63A23.84,23.84,0,0,0,56,80H216Zm-48-60a12,12,0,1,1,12,12A12,12,0,0,1,168,132Z"/></svg>Budget</div><p>Freight margins are thin, so spend is capped at 25,000 pounds without board approval.</p></div>
+          <div class="tile q"><div class="qh"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M225.86,102.82c-3.77-3.94-7.67-8-9.14-11.57-1.36-3.27-1.44-8.69-1.52-13.94-.15-9.76-.31-20.82-8-28.51s-18.75-7.85-28.51-8c-5.25-.08-10.67-.16-13.94-1.52-3.56-1.47-7.63-5.37-11.57-9.14C146.28,23.51,138.44,16,128,16s-18.27,7.51-25.18,14.14c-3.94,3.77-8,7.67-11.57,9.14C88,40.64,82.56,40.72,77.31,40.8c-9.76.15-20.82.31-28.51,8S41,67.55,40.8,77.31c-.08,5.25-.16,10.67-1.52,13.94-1.47,3.56-5.37,7.63-9.14,11.57C23.51,109.72,16,117.56,16,128s7.51,18.27,14.14,25.18c3.77,3.94,7.67,8,9.14,11.57,1.36,3.27,1.44,8.69,1.52,13.94.15,9.76.31,20.82,8,28.51s18.75,7.85,28.51,8c5.25.08,10.67.16,13.94,1.52,3.56,1.47,7.63,5.37,11.57,9.14C109.72,232.49,117.56,240,128,240s18.27-7.51,25.18-14.14c3.94-3.77,8-7.67,11.57-9.14,3.27-1.36,8.69-1.44,13.94-1.52,9.76-.15,20.82-.31,28.51-8s7.85-18.75,8-28.51c.08-5.25.16-10.67,1.52-13.94,1.47-3.56,5.37-7.63,9.14-11.57C232.49,146.28,240,138.44,240,128S232.49,109.73,225.86,102.82Zm-11.55,39.29c-4.79,5-9.75,10.17-12.38,16.52-2.52,6.1-2.63,13.07-2.73,19.82-.1,7-.21,14.33-3.32,17.43s-10.39,3.22-17.43,3.32c-6.75.1-13.72.21-19.82,2.73-6.35,2.63-11.52,7.59-16.52,12.38S132,224,128,224s-9.15-4.92-14.11-9.69-10.17-9.75-16.52-12.38c-6.1-2.52-13.07-2.63-19.82-2.73-7-.1-14.33-.21-17.43-3.32s-3.22-10.39-3.32-17.43c-.1-6.75-.21-13.72-2.73-19.82-2.63-6.35-7.59-11.52-12.38-16.52S32,132,32,128s4.92-9.15,9.69-14.11,9.75-10.17,12.38-16.52c2.52-6.1,2.63-13.07,2.73-19.82.1-7,.21-14.33,3.32-17.43S70.51,56.9,77.55,56.8c6.75-.1,13.72-.21,19.82-2.73,6.35-2.63,11.52-7.59,16.52-12.38S124,32,128,32s9.15,4.92,14.11,9.69,10.17,9.75,16.52,12.38c6.1,2.52,13.07,2.63,19.82,2.73,7,.1,14.33.21,17.43,3.32s3.22,10.39,3.32,17.43c.1,6.75.21,13.72,2.73,19.82,2.63,6.35,7.59,11.52,12.38,16.52S224,124,224,128,219.08,137.15,214.31,142.11ZM173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34Z"/></svg>Authority</div><p>Has the final say on finance software, with the CEO kept informed.</p></div>
+          <div class="tile q"><div class="qh"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M221.87,83.16A104.1,104.1,0,1,1,195.67,49l22.67-22.68a8,8,0,0,1,11.32,11.32l-96,96a8,8,0,0,1-11.32-11.32l27.72-27.72a40,40,0,1,0,17.87,31.09,8,8,0,1,1,16-.9,56,56,0,1,1-22.38-41.65L184.3,60.39a87.88,87.88,0,1,0,23.13,29.67,8,8,0,0,1,14.44-6.9Z"/></svg>Need</div><p>Invoicing 1,800 hauliers a month still relies on manual matching.</p></div>
+          <div class="tile q"><div class="qh"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M42.76,50A8,8,0,0,0,40,56V224a8,8,0,0,0,16,0V179.77c26.79-21.16,49.87-9.75,76.45,3.41,16.4,8.11,34.06,16.85,53,16.85,13.93,0,28.54-4.75,43.82-18a8,8,0,0,0,2.76-6V56A8,8,0,0,0,218.76,50c-28,24.23-51.72,12.49-79.21-1.12C111.07,34.76,78.78,18.79,42.76,50ZM216,172.25c-26.79,21.16-49.87,9.74-76.45-3.41-25-12.35-52.81-26.13-83.55-8.4V59.79c26.79-21.16,49.87-9.75,76.45,3.4,25,12.35,52.82,26.13,83.55,8.4Z"/></svg>Timeline</div><p>The contract with the current provider ends in April, so a decision is due by February.</p></div>
+        </div>
+      </div>
+      <div class="tray">
+        <a class="btn primary"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></svg>Approve<kbd class="k">A</kbd></a>
+        <a class="btn danger"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208.49,191.51a12,12,0,0,1-17,17L128,145,64.49,208.49a12,12,0,0,1-17-17L111,128,47.51,64.49a12,12,0,0,1,17-17L128,111l63.51-63.52a12,12,0,0,1,17,17L145,128Z"/></svg>Reject<kbd class="k">R</kbd></a>
+        <a class="btn second"><svg class="i" viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M120,128a16,16,0,1,1-16-16A16,16,0,0,1,120,128Zm32-16a16,16,0,1,0,16,16A16,16,0,0,0,152,112Zm84,16A108,108,0,0,1,78.77,224.15L46.34,235A20,20,0,0,1,21,209.66l10.81-32.43A108,108,0,1,1,236,128Zm-24,0A84,84,0,1,0,55.27,170.06a12,12,0,0,1,1,9.81l-9.93,29.79,29.79-9.93a12.1,12.1,0,0,1,3.8-.62,12,12,0,0,1,6,1.62A84,84,0,0,0,212,128Z"/></svg>Ask for clarification<kbd class="k">C</kbd></a>
+        <div class="hint"><kbd class="k">J</kbd>and<kbd class="k">K</kbd>move between leads</div>
+      </div>
+    </section>
+  </div>
+</main>
+</body></html>

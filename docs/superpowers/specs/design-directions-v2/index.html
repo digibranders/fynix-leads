@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fynix Leads design directions</title>
+<style>
+  :root { --ink:#0C1E2E; --muted:#58656F; --canvas:#E9EBEE; --peach:#E9AF88; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--canvas); color:var(--ink); font:15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+  main { max-width:1280px; margin:0 auto; padding:48px 32px 64px; }
+  h1 { font-size:28px; letter-spacing:-0.01em; margin:0 0 8px; }
+  p.lead { color:var(--muted); margin:0 0 40px; max-width:60ch; }
+  .grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:24px; }
+  @media (max-width:980px) { .grid { grid-template-columns:1fr; } }
+  section { background:#fff; border-radius:20px; padding:24px; box-shadow:0 1px 2px rgba(12,30,46,.05), 0 6px 20px rgba(12,30,46,.06); }
+  h2 { font-size:18px; margin:0 0 4px; }
+  section p { color:var(--muted); margin:0 0 20px; font-size:14px; }
+  a.shot { display:block; margin-bottom:16px; text-decoration:none; color:inherit; }
+  a.shot img { width:100%; display:block; border-radius:12px; background:var(--canvas); box-shadow:0 1px 2px rgba(12,30,46,.08), 0 4px 12px rgba(12,30,46,.08); transition:transform .18s ease-out; }
+  a.shot:hover img { transform:translateY(-2px); }
+  a.shot span { display:block; margin-top:10px; font-weight:600; font-size:14px; }
+  a.shot span small { font-weight:400; color:var(--muted); }
+  @media (prefers-reduced-motion:reduce) { a.shot img { transition:none; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Fynix Leads design directions</h1>
+  <p class="lead">Three directions for the same two screens: the client review queue and the leads overview. Click an image to open the full-size page. Each page is built for a 1440px wide window, so open it in a full-width browser tab.</p>
+  <h2 style="font-size:22px;margin:0 0 16px">D. Hybrid, your choice</h2>
+  <div class="grid" style="margin-bottom:48px">
+    <section>
+      <h2>Review queue</h2>
+      <p>Navy rail, tonal list pane, lifted selected lead, tiles, action tray.</p>
+      <a class="shot" href="d-hybrid/review.html"><img src="d-hybrid/review.png" alt="Hybrid, review queue"><span>Open page</span></a>
+    </section>
+    <section>
+      <h2>Lead record</h2>
+      <p>Details as tiles, activity timeline, message thread with the Fynix team.</p>
+      <a class="shot" href="d-hybrid/record.html"><img src="d-hybrid/record.png" alt="Hybrid, lead record"><span>Open page</span></a>
+    </section>
+    <section>
+      <h2>Leads overview</h2>
+      <p>Navy progress tile, key figures, the full lead table.</p>
+      <a class="shot" href="d-hybrid/leads.html"><img src="d-hybrid/leads.png" alt="Hybrid, leads overview"><span>Open page</span></a>
+    </section>
+  </div>
+  <h2 style="font-size:22px;margin:0 0 16px">The three earlier directions</h2>
+  <div class="grid">
+    <section>
+      <h2>A. Soft layered</h2>
+      <p>Light panels on a warm canvas, a light sidebar, a tinted action tray.</p>
+      <a class="shot" href="a-soft-layered/review.html"><img src="a-soft-layered/review.png" alt="Direction A, review queue"><span>Review queue <small>open page</small></span></a>
+      <a class="shot" href="a-soft-layered/leads.html"><img src="a-soft-layered/leads.png" alt="Direction A, leads overview"><span>Leads overview <small>open page</small></span></a>
+    </section>
+    <section>
+      <h2>B. Navy shell</h2>
+      <p>A floating navy sidebar with a peach active pill, structured light content.</p>
+      <a class="shot" href="b-navy-shell/review.html"><img src="b-navy-shell/review.png" alt="Direction B, review queue"><span>Review queue <small>open page</small></span></a>
+      <a class="shot" href="b-navy-shell/leads.html"><img src="b-navy-shell/leads.png" alt="Direction B, leads overview"><span>Leads overview <small>open page</small></span></a>
+    </section>
+    <section>
+      <h2>C. Modular workspace</h2>
+      <p>Tonal panes and tiles, a lifted selected lead, a navy progress tile.</p>
+      <a class="shot" href="c-modular-workspace/review.html"><img src="c-modular-workspace/review.png" alt="Direction C, review queue"><span>Review queue <small>open page</small></span></a>
+      <a class="shot" href="c-modular-workspace/leads.html"><img src="c-modular-workspace/leads.png" alt="Direction C, leads overview"><span>Leads overview <small>open page</small></span></a>
+    </section>
+  </div>
+</main>
+</body>
+</html>

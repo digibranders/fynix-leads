@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8"><title>Fynix Leads, Review queue</title>
+<meta name="viewport" content="width=1440">
+<style>
+@font-face{font-family:"Geist";font-weight:400;src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-sans/Geist-Regular.woff2") format("woff2")}
+@font-face{font-family:"Geist";font-weight:500;src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-sans/Geist-Medium.woff2") format("woff2")}
+@font-face{font-family:"Geist";font-weight:600;src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-sans/Geist-SemiBold.woff2") format("woff2")}
+@font-face{font-family:"Geist Mono";font-weight:400;src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-mono/GeistMono-Regular.woff2") format("woff2")}
+@font-face{font-family:"Geist Mono";font-weight:500;src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-mono/GeistMono-Medium.woff2") format("woff2")}
+:root{
+  --canvas:#F3EFE9; --surface:#FFFFFF; --navy:#0C1E2E; --peach:#E9AF88; --offwhite:#F3EFE9;
+  --ink:#0C1E2E; --ink-2:#44515C; --muted:#5B6771;
+  --tint-4:rgba(12,30,46,.04); --tint-5:rgba(12,30,46,.05); --tint-7:rgba(12,30,46,.07);
+  --line:rgba(12,30,46,.07); --ring:rgba(12,30,46,.06);
+  --sel:rgba(233,175,136,.22);
+  --red:#A3251D; --red-bg:#FAE3DF; --amber:#7A4700; --amber-bg:#FBEACA; --green:#176B3D; --green-bg:#DCF0E3; --blue:#1D4E8F; --blue-bg:#DCE8F8;
+  --shadow:0 0 0 1px rgba(12,30,46,.06),0 1px 2px rgba(12,30,46,.05),0 6px 18px rgba(12,30,46,.05);
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--canvas)}
+body{position:relative;overflow:hidden;font-family:"Geist",system-ui,sans-serif;font-size:14px;line-height:1.43;color:var(--ink);font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;caret-color:var(--navy)}
+::selection{background:rgba(233,175,136,.55);color:var(--navy)}
+.i{width:18px;height:18px;flex:none;display:block}
+.mono{font-family:"Geist Mono",ui-monospace,monospace;font-weight:500;letter-spacing:0}
+h1{font-size:26px;line-height:32px;font-weight:600;letter-spacing:-.01em}
+h2{font-size:15px;line-height:20px;font-weight:600;letter-spacing:-.005em}
+h3{font-size:14px;line-height:20px;font-weight:600}
+
+/* sidebar */
+.side{position:absolute;left:12px;top:12px;bottom:12px;width:232px;background:var(--navy);border-radius:24px;box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 12px 32px rgba(12,30,46,.16);padding:22px 14px 14px;display:flex;flex-direction:column;color:var(--offwhite)}
+.brand{display:flex;align-items:center;gap:12px;padding:0 8px 22px;margin-bottom:18px;border-bottom:1px solid rgba(255,255,255,.07)}
+.mark{width:34px;height:34px;border-radius:11px;background:var(--peach);color:var(--navy);display:grid;place-items:center}
+.mark .i{width:20px;height:20px}
+.brand b{font-size:17px;font-weight:600;letter-spacing:-.01em}
+.nav a{display:flex;align-items:center;gap:12px;height:44px;padding:0 14px;margin-bottom:4px;border-radius:999px;color:rgba(243,239,233,.68);font-size:14.5px;font-weight:500;text-decoration:none}
+.nav a .i{width:20px;height:20px}
+.nav a.on{background:var(--peach);color:var(--navy);font-weight:600;box-shadow:0 4px 12px -4px rgba(233,175,136,.5)}
+.nav a.hov{background:rgba(255,255,255,.06);color:var(--offwhite)}
+.cnt{margin-left:auto;min-width:24px;height:22px;padding:0 8px;border-radius:999px;display:grid;place-items:center;font-size:12.5px;font-weight:600;background:rgba(233,175,136,.18);color:var(--peach)}
+.nav a.on .cnt{background:var(--navy);color:var(--offwhite)}
+.camp-well{margin:22px 0 0;padding:14px 14px 15px;border-radius:16px;background:rgba(255,255,255,.05)}
+.camp-well .lab2{font-size:12px;font-weight:500;color:rgba(243,239,233,.6);margin-bottom:6px}
+.camp-well .cn{font-size:14px;line-height:19px;font-weight:600;color:var(--offwhite)}
+.camp-well .cb{font-size:12.5px;line-height:17px;color:rgba(243,239,233,.68);margin-top:4px}
+.camp-well .cm{display:flex;flex-direction:column;align-items:flex-start;gap:3px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07);font-size:12px;line-height:16px;color:rgba(243,239,233,.68)}
+.camp-well .cm .mono{color:var(--peach);font-size:12px}
+.viewing{margin-top:auto}
+.viewing .lab{font-size:12px;font-weight:500;color:rgba(243,239,233,.6);padding:0 6px 8px}
+.vwell{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.07);border-radius:16px;padding:12px}
+.vav{width:36px;height:36px;border-radius:50%;background:var(--peach);color:var(--navy);display:grid;place-items:center;font-size:13px;font-weight:600;flex:none}
+.vwell .nm{font-size:14px;font-weight:600;line-height:18px;color:var(--offwhite)}
+.vwell .rl{font-size:12.5px;line-height:16px;color:rgba(243,239,233,.64)}
+.vwell .i{margin-left:auto;color:rgba(243,239,233,.64);width:16px;height:16px}
+
+/* top bar */
+.main{position:absolute;left:260px;right:24px;top:0;bottom:0;padding-top:20px;display:flex;flex-direction:column}
+.top{display:flex;align-items:flex-start;justify-content:space-between;flex:none}
+.tools{display:flex;align-items:center;gap:10px}
+.search{display:flex;align-items:center;gap:10px;height:40px;width:300px;padding:0 8px 0 14px;border-radius:10px;background:var(--tint-5);color:var(--muted);font-size:14px}
+.search .i{width:18px;height:18px}
+.search span{flex:1}
+.k{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:6px;background:var(--tint-7);color:var(--ink-2);font-family:"Geist Mono",monospace;font-size:12px;font-weight:500;line-height:1}
+.iconbtn{position:relative;width:40px;height:40px;border-radius:50%;background:var(--tint-5);display:grid;place-items:center;color:var(--ink)}
+.iconbtn .i{width:20px;height:20px}
+.iconbtn .dot{position:absolute;top:9px;right:10px;width:9px;height:9px;border-radius:50%;background:var(--peach);box-shadow:0 0 0 2px var(--canvas)}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--navy);color:var(--offwhite);display:grid;place-items:center;font-size:13px;font-weight:600}
+.sub{color:var(--ink-2);font-size:14px;line-height:20px;margin-top:2px}
+
+/* panels */
+.panel{background:var(--surface);border-radius:18px;box-shadow:var(--shadow);overflow:hidden}
+.phead{display:flex;align-items:center;gap:10px;height:56px;padding:0 16px 0 22px;border-bottom:1px solid var(--line);flex:none}
+.phead .meta{color:var(--muted);font-size:13px}
+.phead .push{margin-left:auto}
+.btn-sm{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 14px;border-radius:999px;background:var(--tint-7);color:var(--ink);font-size:13px;font-weight:600;white-space:nowrap}
+.btn-sm .i{width:16px;height:16px}
+
+/* chips */
+.chip{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 10px 0 7px;border-radius:999px;font-size:12.5px;font-weight:600;white-space:nowrap;line-height:1}
+.chip .i{width:15px;height:15px}
+.chip.amber{background:var(--amber-bg);color:var(--amber)}
+.chip.green{background:var(--green-bg);color:var(--green)}
+.chip.red{background:var(--red-bg);color:var(--red)}
+.chip.blue{background:var(--blue-bg);color:var(--blue)}
+.chip.neutral{background:var(--tint-7);color:var(--ink)}
+.chip.lg{height:28px;font-size:13px;padding:0 12px 0 9px}
+.chip.lg .i{width:16px;height:16px}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 9px 0 16px;border-radius:999px;font-size:14px;font-weight:600;white-space:nowrap;transition:transform .3s var(--ease)}
+.btn .i{width:18px;height:18px}
+.btn.primary{background:var(--navy);color:var(--offwhite);box-shadow:0 1px 2px rgba(12,30,46,.25),0 8px 16px -6px rgba(12,30,46,.4),inset 0 1px 0 rgba(255,255,255,.1)}
+.btn.primary .k{background:rgba(255,255,255,.16);color:var(--offwhite)}
+.btn.danger{background:var(--red-bg);color:var(--red)}
+.btn.danger .k{background:rgba(163,37,29,.12);color:var(--red)}
+.btn.second{background:var(--tint-7);color:var(--ink)}
+.btn.second .k{background:rgba(12,30,46,.08);color:var(--ink-2)}
+.btn:active{transform:scale(.98)}
+.btn.primary:hover{background:#13293D}.btn.danger:hover{background:#F6D5D0}.btn.second:hover{background:rgba(12,30,46,.1)}
+.nav a:not(.on):hover{background:rgba(255,255,255,.06);color:var(--offwhite)}
+.row:not(.sel):hover{background:var(--tint-4)}
+tbody tr:not(.sel):hover td{background:var(--tint-4)}
+.btn-sm:hover,.iconbtn:hover{background:rgba(12,30,46,.1)}
+:focus-visible{outline:2px solid var(--navy);outline-offset:3px;border-radius:999px}
+
+/* label / value grid */
+.lab{font-size:12.5px;line-height:16px;font-weight:500;color:var(--muted);margin-bottom:5px}
+.val{font-size:14.5px;line-height:20px;font-weight:500}
+.val small{display:block;font-size:13px;line-height:18px;font-weight:400;color:var(--ink-2);margin-top:1px}
+.well{background:var(--tint-4);border-radius:12px}
+.red-t{color:var(--red)}
+
+body{width:1440px;height:900px}
+
+.review{display:grid;grid-template-columns:384px 1fr;gap:16px;flex:1;min-height:0;margin-top:16px;padding-bottom:16px}
+.listp{display:flex;flex-direction:column;min-height:0}
+.listp .phead h2{display:flex;align-items:center;gap:10px}
+.big{min-width:28px;height:28px;padding:0 8px;border-radius:999px;background:var(--navy);color:var(--offwhite);display:grid;place-items:center;font-size:14px;font-weight:600}
+.tabs{display:flex;gap:2px;margin:14px 16px 6px;padding:4px;border-radius:999px;background:var(--tint-5);flex:none}
+.tab{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;height:32px;border-radius:999px;font-size:13px;font-weight:500;color:var(--ink-2);white-space:nowrap}
+.tab b{font-weight:600}
+.tab.on{background:var(--navy);color:var(--offwhite);font-weight:600}
+.rows{flex:1;padding:4px 8px 8px;min-height:0;overflow:hidden;display:grid;grid-auto-rows:1fr}
+.row{position:relative;display:grid;grid-template-columns:40px 1fr auto;gap:12px;padding:0 12px;border-radius:10px;align-items:center}
+.row + .row::before{content:"";position:absolute;top:0;left:12px;right:12px;height:1px;background:var(--line)}
+.row.sel::before,.row.sel + .row::before{display:none}
+.row.sel{background:var(--sel)}
+.row.hov{background:var(--tint-4)}
+.av{width:40px;height:40px;border-radius:50%;background:var(--tint-5);color:var(--ink-2);display:grid;place-items:center;font-size:13px;font-weight:600}
+.row.sel .av{background:var(--navy);color:var(--offwhite)}
+.rt{min-width:0}
+.rn{font-size:14.5px;line-height:20px;font-weight:500}
+.row.sel .rn{font-weight:600}
+.rj{font-size:13px;line-height:18px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rc{font-size:13px;line-height:18px;color:var(--ink-2);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rr{font-size:11.5px;line-height:16px;color:var(--muted);margin-top:3px}
+.rw{text-align:right;min-width:64px}
+.rv{display:flex;align-items:center;justify-content:flex-end;gap:5px;font-size:14px;line-height:20px;font-weight:600;color:var(--ink-2)}
+.rv .i{width:15px;height:15px}
+.rcap{font-size:12px;line-height:16px;color:var(--muted)}
+.rw.od .rv,.rw.od .rcap{color:var(--red)}
+.rw.od .rcap{font-weight:600}
+.lfoot{flex:none;display:flex;align-items:center;gap:8px;padding:0 22px;height:48px;background:var(--tint-4);border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+.lfoot .i{width:16px;height:16px;color:var(--red)}
+.lfoot b{color:var(--red);font-weight:600}
+
+.lead{display:flex;flex-direction:column;min-height:0}
+.band{background:rgba(12,30,46,.045);padding:14px 20px 20px 24px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:1fr auto;column-gap:24px;flex:none}
+.band .l1{grid-column:1 / span 2;display:flex;align-items:center;gap:10px;margin-bottom:10px;min-height:32px}
+.band .l1 .btn-sm{background:rgba(12,30,46,.07)}
+.band .ref{font-size:13px;color:var(--ink-2)}
+.band h2.name{font-size:30px;line-height:34px;font-weight:600;letter-spacing:-.015em}
+.band .role{font-size:15px;line-height:22px;color:var(--ink-2);margin-top:2px}
+.band .role b{font-weight:600;color:var(--ink)}
+.band .by{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);margin-top:10px}
+.band .by .i{width:16px;height:16px}
+.wait{grid-row:2 / span 3;grid-column:2;text-align:right;align-self:center;padding-left:28px;border-left:1px solid var(--line)}
+.wait .lab{margin-bottom:2px}
+.wait .fig{font-size:36px;line-height:40px;font-weight:600;letter-spacing:-.02em;color:var(--red)}
+.wait .od{display:inline-flex;align-items:center;gap:5px;margin-top:4px;font-size:13px;font-weight:600;color:var(--red)}
+.wait .od .i{width:15px;height:15px}
+.lbody{flex:1;min-height:0;padding:0 24px;overflow:hidden}
+.sec{padding:18px 0 19px;border-top:1px solid var(--line)}
+.sec:first-child{border-top:0}
+.sech{display:flex;align-items:center;gap:9px;margin-bottom:12px}
+.sech .i{width:20px;height:20px;color:var(--ink-2)}
+.sech .push{margin-left:auto}
+.mgrid{display:grid;grid-template-columns:1.45fr 1fr 1fr .8fr;gap:20px;padding:14px 20px 15px}
+.mgrid .val.big2{font-size:16px}
+.stat{display:inline-flex;align-items:center;gap:7px}
+.stat .i{width:18px;height:18px;color:var(--ink-2)}
+.cgrid{display:grid;grid-template-columns:max-content max-content max-content;justify-content:space-between;gap:12px}
+.ci{display:flex;align-items:center;gap:10px;min-width:0}
+.ci .tile{width:34px;height:34px;border-radius:11px;background:var(--tint-5);display:grid;place-items:center;flex:none;color:var(--ink-2)}
+.ci .tile .i{width:20px;height:20px}
+.ci .val{font-size:13.5px;white-space:nowrap}
+.qgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.q{padding:13px 18px 15px}
+.q .qh{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:13px;font-weight:600;color:var(--ink-2)}
+.q .qh .i{width:18px;height:18px}
+.q p{font-size:14px;line-height:21px;color:var(--ink)}
+.actions{flex:none;position:relative;z-index:2;background:#fff;border-top:1px solid var(--line);box-shadow:0 -10px 22px -10px rgba(12,30,46,.08);padding:16px 24px;display:flex;align-items:center;gap:8px}
+.hint{margin-left:auto;display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--ink-2);white-space:nowrap}
+</style></head>
+<body>
+
+<aside class="side">
+  <div class="brand"><div class="mark"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M227.81,66.76l-.08.09L160,139.17v55.49A16,16,0,0,1,152.87,208l-32,21.34A16,16,0,0,1,96,216V139.17L28.27,66.85l-.08-.09A16,16,0,0,1,40,40H216a16,16,0,0,1,11.84,26.76Z"/></svg></div><b>Fynix Leads</b></div>
+  <nav class="nav">
+    <a class=""><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M104,40H56A16,16,0,0,0,40,56v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,104,40Zm0,64H56V56h48v48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm0,64H152V56h48v48Zm-96,32H56a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,104,136Zm0,64H56V152h48v48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,200,136Zm0,64H152V152h48v48Z"/></svg><span>Leads</span></a>
+    <a class="on"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Zm0,176H48V168H76.69L96,187.32A15.89,15.89,0,0,0,107.31,192h41.38A15.86,15.86,0,0,0,160,187.31L179.31,168H208v40Z"/></svg><span>Review queue</span><span class="cnt">6</span></a>
+    <a class=""><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,112a8,8,0,0,1-8,8H152a8,8,0,0,1,0-16h40A8,8,0,0,1,200,112Zm-8,24H152a8,8,0,0,0,0,16h40a8,8,0,0,0,0-16Zm40-80V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56ZM216,200V56H40V200H216Zm-80.26-34a8,8,0,1,1-15.5,4c-2.63-10.26-13.06-18-24.25-18s-21.61,7.74-24.25,18a8,8,0,1,1-15.5-4,39.84,39.84,0,0,1,17.19-23.34,32,32,0,1,1,45.12,0A39.76,39.76,0,0,1,135.75,166ZM96,136a16,16,0,1,0-16-16A16,16,0,0,0,96,136Z"/></svg><span>Lead record</span></a>
+  </nav>
+  <div class="camp-well"><div class="lab2">Campaign</div><div class="cn">UK mid-market finance teams</div><div class="cb">Kestrel Ledger</div><div class="cm"><span class="mono">CMP-7Q2X</span><span>1 Sep 2026 to 28 Feb 2027</span></div></div>
+  <div class="viewing">
+    <div class="lab">Viewing as</div>
+    <div class="vwell"><div class="vav">KL</div><div><div class="nm">Kestrel Ledger</div><div class="rl">Client</div></div><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M181.66,170.34a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-48-48a8,8,0,0,1,11.32-11.32L128,212.69l42.34-42.35A8,8,0,0,1,181.66,170.34Zm-96-84.68L128,43.31l42.34,42.35a8,8,0,0,0,11.32-11.32l-48-48a8,8,0,0,0-11.32,0l-48,48A8,8,0,0,0,85.66,85.66Z"/></svg></div>
+  </div>
+</aside>
+<main class="main">
+  <header class="top">
+    <div><h1>Review queue</h1><div class="sub">6 leads waiting on your decision, oldest first</div></div>
+    
+<div class="tools">
+  <div class="search"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"/></svg><span>Search leads</span><kbd class="k">Ctrl K</kbd></div>
+  <div class="iconbtn"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z"/></svg><i class="dot"></i></div>
+  <div class="avatar">KL</div>
+</div>
+  </header>
+  <div class="review">
+    <section class="panel listp" aria-label="Leads waiting for review">
+      <div class="phead"><h2>Waiting for review</h2><span class="big">6</span><span class="btn-sm push"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M117.66,170.34a8,8,0,0,1,0,11.32l-32,32a8,8,0,0,1-11.32,0l-32-32a8,8,0,0,1,11.32-11.32L72,188.69V48a8,8,0,0,1,16,0V188.69l18.34-18.35A8,8,0,0,1,117.66,170.34Zm96-96-32-32a8,8,0,0,0-11.32,0l-32,32a8,8,0,0,0,11.32,11.32L168,67.31V208a8,8,0,0,0,16,0V67.31l18.34,18.35a8,8,0,0,0,11.32-11.32Z"/></svg>Oldest first</span></div>
+      <div class="tabs"><div class="tab on">Waiting <b>6</b></div><div class="tab">Clarifying <b>2</b></div><div class="tab">Decided <b>6</b></div></div>
+      <div class="rows">
+<div class="row sel">
+  <div class="av">TW</div>
+  <div class="rt"><div class="rn">Tom Whitcombe</div><div class="rj">CFO</div><div class="rc">Halden Freight</div></div>
+  <div class="rw od"><div class="rv"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z"/></svg><span>2d 6h</span></div><div class="rcap">Overdue</div><div class="mono rr">LD-5T6C</div></div>
+</div>
+<div class="row ">
+  <div class="av">PV</div>
+  <div class="rt"><div class="rn">Priyanka Venkataraman</div><div class="rj">Financial Controller</div><div class="rc">Ashgrove Veterinary Group</div></div>
+  <div class="rw od"><div class="rv"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z"/></svg><span>1d 23h</span></div><div class="rcap">Overdue</div><div class="mono rr">LD-2W9H</div></div>
+</div>
+<div class="row ">
+  <div class="av">CR</div>
+  <div class="rt"><div class="rn">Callum Rutherford</div><div class="rj">Finance Director</div><div class="rc">Fellgate Outdoor Retail</div></div>
+  <div class="rw "><div class="rv"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/></svg><span>22h</span></div><div class="rcap">Waiting</div><div class="mono rr">LD-6B4N</div></div>
+</div>
+<div class="row ">
+  <div class="av">MD</div>
+  <div class="rt"><div class="rn">Marcus Delaney</div><div class="rj">Group Finance Director</div><div class="rc">Pellam Industrial Group</div></div>
+  <div class="rw "><div class="rv"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/></svg><span>20h</span></div><div class="rcap">Waiting</div><div class="mono rr">LD-8R2D</div></div>
+</div>
+<div class="row ">
+  <div class="av">AB</div>
+  <div class="rt"><div class="rn">Aisling Brennan</div><div class="rj">Head of Financial Planning and Analysis</div><div class="rc">Calderbrook Homes</div></div>
+  <div class="rw "><div class="rv"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/></svg><span>6h</span></div><div class="rcap">Waiting</div><div class="mono rr">LD-9F1K</div></div>
+</div>
+<div class="row ">
+  <div class="av">HO</div>
+  <div class="rt"><div class="rn">Harriet Oyelaran</div><div class="rj">Head of Finance Operations</div><div class="rc">Brindle &amp; Marsh</div></div>
+  <div class="rw "><div class="rv"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/></svg><span>3h</span></div><div class="rcap">Waiting</div><div class="mono rr">LD-3M7A</div></div>
+</div></div>
+      <div class="lfoot"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z"/></svg><span><b>2 overdue</b>, waiting more than 24 hours</span></div>
+    </section>
+
+    <section class="panel lead" aria-label="Lead LD-5T6C">
+      <div class="band">
+        <div class="l1"><span class="chip amber lg"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.08,16.08,0,0,0,6.41,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16,16,0,0,0-6.36-12.77L141.26,128l52.38-39.59A16.05,16.05,0,0,0,200,75.64Z"/></svg>Pending review</span><span class="mono ref">LD-5T6C</span><span class="btn-sm" style="margin-left:auto">Open lead record<svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,64V168a8,8,0,0,1-16,0V83.31L69.66,197.66a8,8,0,0,1-11.32-11.32L172.69,72H88a8,8,0,0,1,0-16H192A8,8,0,0,1,200,64Z"/></svg></span></div>
+        <div style="grid-column:1"><h2 class="name">Tom Whitcombe</h2>
+        <div class="role"><b>CFO</b> at Halden Freight</div>
+        <div class="by"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M244.8,150.4a8,8,0,0,1-11.2-1.6A51.6,51.6,0,0,0,192,128a8,8,0,0,1-7.37-4.89,8,8,0,0,1,0-6.22A8,8,0,0,1,192,112a24,24,0,1,0-23.24-30,8,8,0,1,1-15.5-4A40,40,0,1,1,219,117.51a67.94,67.94,0,0,1,27.43,21.68A8,8,0,0,1,244.8,150.4ZM190.92,212a8,8,0,1,1-13.84,8,57,57,0,0,0-98.16,0,8,8,0,1,1-13.84-8,72.06,72.06,0,0,1,33.74-29.92,48,48,0,1,1,58.36,0A72.06,72.06,0,0,1,190.92,212ZM128,176a32,32,0,1,0-32-32A32,32,0,0,0,128,176ZM72,120a8,8,0,0,0-8-8A24,24,0,1,1,87.24,82a8,8,0,1,0,15.5-4A40,40,0,1,0,37,117.51,67.94,67.94,0,0,0,9.6,139.19a8,8,0,1,0,12.8,9.61A51.6,51.6,0,0,1,64,128,8,8,0,0,0,72,120Z"/></svg>Submitted by the Fynix team on Mon 9 Nov, 04:00 GMT</div></div>
+        <div class="wait"><div class="lab">Waiting</div><div class="fig">2d 6h</div><div class="od"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z"/></svg>Overdue</div></div>
+      </div>
+      <div class="lbody">
+        <div class="sec">
+          <div class="sech"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Z"/></svg><h3>Meeting</h3></div>
+          <div class="well mgrid">
+            <div><div class="lab">When</div><div class="val big2">Mon 16 Nov<small>11:00 am GMT</small></div></div>
+            <div><div class="lab">Status</div><div class="val stat"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-38.34-85.66a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L116,164.69l42.34-42.35A8,8,0,0,1,169.66,122.34Z"/></svg>Scheduled</div></div>
+            <div><div class="lab">With</div><div class="val">Imogen Price</div></div>
+            <div><div class="lab">Length</div><div class="val">45 minutes</div></div>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="sech"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,112a8,8,0,0,1-8,8H152a8,8,0,0,1,0-16h40A8,8,0,0,1,200,112Zm-8,24H152a8,8,0,0,0,0,16h40a8,8,0,0,0,0-16Zm40-80V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56ZM216,200V56H40V200H216Zm-80.26-34a8,8,0,1,1-15.5,4c-2.63-10.26-13.06-18-24.25-18s-21.61,7.74-24.25,18a8,8,0,1,1-15.5-4,39.84,39.84,0,0,1,17.19-23.34,32,32,0,1,1,45.12,0A39.76,39.76,0,0,1,135.75,166ZM96,136a16,16,0,1,0-16-16A16,16,0,0,0,96,136Z"/></svg><h3>Contact</h3></div>
+          <div class="cgrid">
+            <div class="ci"><div class="tile"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M224,48H32a8,8,0,0,0-8,8V192a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V56A8,8,0,0,0,224,48Zm-96,85.15L52.57,64H203.43ZM98.71,128,40,181.81V74.19Zm11.84,10.85,12,11.05a8,8,0,0,0,10.82,0l12-11.05,58,53.15H52.57ZM157.29,128,216,74.18V181.82Z"/></svg></div><div><div class="lab" style="margin-bottom:1px">Email</div><div class="val">tom.whitcombe@haldenfreight.co.uk</div></div></div>
+            <div class="ci"><div class="tile"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M222.37,158.46l-47.11-21.11-.13-.06a16,16,0,0,0-15.17,1.4,8.12,8.12,0,0,0-.75.56L134.87,160c-15.42-7.49-31.34-23.29-38.83-38.51l20.78-24.71c.2-.25.39-.5.57-.77a16,16,0,0,0,1.32-15.06l0-.12L97.54,33.64a16,16,0,0,0-16.62-9.52A56.26,56.26,0,0,0,32,80c0,79.4,64.6,144,144,144a56.26,56.26,0,0,0,55.88-48.92A16,16,0,0,0,222.37,158.46ZM176,208A128.14,128.14,0,0,1,48,80,40.2,40.2,0,0,1,82.87,40a.61.61,0,0,0,0,.12l21,47L83.2,111.86a6.13,6.13,0,0,0-.57.77,16,16,0,0,0-1,15.7c9.06,18.53,27.73,37.06,46.46,46.11a16,16,0,0,0,15.75-1.14,8.44,8.44,0,0,0,.74-.56L168.89,152l47,21.05h0s.08,0,.11,0A40.21,40.21,0,0,1,176,208Z"/></svg></div><div><div class="lab" style="margin-bottom:1px">Phone</div><div class="val">+44 161 496 0254</div></div></div>
+            <div class="ci"><div class="tile"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M216,24H40A16,16,0,0,0,24,40V216a16,16,0,0,0,16,16H216a16,16,0,0,0,16-16V40A16,16,0,0,0,216,24Zm0,192H40V40H216V216ZM96,112v64a8,8,0,0,1-16,0V112a8,8,0,0,1,16,0Zm88,28v36a8,8,0,0,1-16,0V140a20,20,0,0,0-40,0v36a8,8,0,0,1-16,0V112a8,8,0,0,1,15.79-1.78A36,36,0,0,1,184,140ZM100,84A12,12,0,1,1,88,72,12,12,0,0,1,100,84Z"/></svg></div><div><div class="lab" style="margin-bottom:1px">LinkedIn</div><div class="val">in/tom-whitcombe-91a6d3e</div></div></div>
+          </div>
+        </div>
+        <div class="sec">
+          <div class="sech"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M32,64a8,8,0,0,1,8-8H216a8,8,0,0,1,0,16H40A8,8,0,0,1,32,64Zm8,72h72a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16Zm88,48H40a8,8,0,0,0,0,16h88a8,8,0,0,0,0-16Zm109.66,13.66a8,8,0,0,1-11.32,0L206,177.36A40,40,0,1,1,217.36,166l20.3,20.3A8,8,0,0,1,237.66,197.66ZM184,168a24,24,0,1,0-24-24A24,24,0,0,0,184,168Z"/></svg><h3>Qualification</h3></div>
+          <div class="qgrid">
+            <div class="well q"><div class="qh"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M216,64H56a8,8,0,0,1,0-16H192a8,8,0,0,0,0-16H56A24,24,0,0,0,32,56V184a24,24,0,0,0,24,24H216a16,16,0,0,0,16-16V80A16,16,0,0,0,216,64Zm0,128H56a8,8,0,0,1-8-8V78.63A23.84,23.84,0,0,0,56,80H216Zm-48-60a12,12,0,1,1,12,12A12,12,0,0,1,168,132Z"/></svg>Budget</div><p>Freight margins are thin, so spend is capped at 25,000 pounds without board approval.</p></div>
+            <div class="well q"><div class="qh"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M225.86,102.82c-3.77-3.94-7.67-8-9.14-11.57-1.36-3.27-1.44-8.69-1.52-13.94-.15-9.76-.31-20.82-8-28.51s-18.75-7.85-28.51-8c-5.25-.08-10.67-.16-13.94-1.52-3.56-1.47-7.63-5.37-11.57-9.14C146.28,23.51,138.44,16,128,16s-18.27,7.51-25.18,14.14c-3.94,3.77-8,7.67-11.57,9.14C88,40.64,82.56,40.72,77.31,40.8c-9.76.15-20.82.31-28.51,8S41,67.55,40.8,77.31c-.08,5.25-.16,10.67-1.52,13.94-1.47,3.56-5.37,7.63-9.14,11.57C23.51,109.72,16,117.56,16,128s7.51,18.27,14.14,25.18c3.77,3.94,7.67,8,9.14,11.57,1.36,3.27,1.44,8.69,1.52,13.94.15,9.76.31,20.82,8,28.51s18.75,7.85,28.51,8c5.25.08,10.67.16,13.94,1.52,3.56,1.47,7.63,5.37,11.57,9.14C109.72,232.49,117.56,240,128,240s18.27-7.51,25.18-14.14c3.94-3.77,8-7.67,11.57-9.14,3.27-1.36,8.69-1.44,13.94-1.52,9.76-.15,20.82-.31,28.51-8s7.85-18.75,8-28.51c.08-5.25.16-10.67,1.52-13.94,1.47-3.56,5.37-7.63,9.14-11.57C232.49,146.28,240,138.44,240,128S232.49,109.73,225.86,102.82Zm-11.55,39.29c-4.79,5-9.75,10.17-12.38,16.52-2.52,6.1-2.63,13.07-2.73,19.82-.1,7-.21,14.33-3.32,17.43s-10.39,3.22-17.43,3.32c-6.75.1-13.72.21-19.82,2.73-6.35,2.63-11.52,7.59-16.52,12.38S132,224,128,224s-9.15-4.92-14.11-9.69-10.17-9.75-16.52-12.38c-6.1-2.52-13.07-2.63-19.82-2.73-7-.1-14.33-.21-17.43-3.32s-3.22-10.39-3.32-17.43c-.1-6.75-.21-13.72-2.73-19.82-2.63-6.35-7.59-11.52-12.38-16.52S32,132,32,128s4.92-9.15,9.69-14.11,9.75-10.17,12.38-16.52c2.52-6.1,2.63-13.07,2.73-19.82.1-7,.21-14.33,3.32-17.43S70.51,56.9,77.55,56.8c6.75-.1,13.72-.21,19.82-2.73,6.35-2.63,11.52-7.59,16.52-12.38S124,32,128,32s9.15,4.92,14.11,9.69,10.17,9.75,16.52,12.38c6.1,2.52,13.07,2.63,19.82,2.73,7,.1,14.33.21,17.43,3.32s3.22,10.39,3.32,17.43c.1,6.75.21,13.72,2.73,19.82,2.63,6.35,7.59,11.52,12.38,16.52S224,124,224,128,219.08,137.15,214.31,142.11ZM173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34Z"/></svg>Authority</div><p>Has the final say on finance software, with the CEO kept informed.</p></div>
+            <div class="well q"><div class="qh"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M221.87,83.16A104.1,104.1,0,1,1,195.67,49l22.67-22.68a8,8,0,0,1,11.32,11.32l-96,96a8,8,0,0,1-11.32-11.32l27.72-27.72a40,40,0,1,0,17.87,31.09,8,8,0,1,1,16-.9,56,56,0,1,1-22.38-41.65L184.3,60.39a87.88,87.88,0,1,0,23.13,29.67,8,8,0,0,1,14.44-6.9Z"/></svg>Need</div><p>Invoicing 1,800 hauliers a month still relies on manual matching.</p></div>
+            <div class="well q"><div class="qh"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-68-76a12,12,0,1,1-12-12A12,12,0,0,1,140,132Zm44,0a12,12,0,1,1-12-12A12,12,0,0,1,184,132ZM96,172a12,12,0,1,1-12-12A12,12,0,0,1,96,172Zm44,0a12,12,0,1,1-12-12A12,12,0,0,1,140,172Zm44,0a12,12,0,1,1-12-12A12,12,0,0,1,184,172Z"/></svg>Timeline</div><p>The contract with the current provider ends in April, so a decision is due by February.</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="actions">
+        <a class="btn primary"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></svg>Approve<kbd class="k">A</kbd></a>
+        <a class="btn danger"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208.49,191.51a12,12,0,0,1-17,17L128,145,64.49,208.49a12,12,0,0,1-17-17L111,128,47.51,64.49a12,12,0,0,1,17-17L128,111l63.51-63.52a12,12,0,0,1,17,17L145,128Z"/></svg>Reject<kbd class="k">R</kbd></a>
+        <a class="btn second"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128ZM84,116a12,12,0,1,0,12,12A12,12,0,0,0,84,116Zm88,0a12,12,0,1,0,12,12A12,12,0,0,0,172,116Zm60,12A104,104,0,0,1,79.12,219.82L45.07,231.17a16,16,0,0,1-20.24-20.24l11.35-34.05A104,104,0,1,1,232,128Zm-16,0A88,88,0,1,0,51.81,172.06a8,8,0,0,1,.66,6.54L40,216,77.4,203.53a7.85,7.85,0,0,1,2.53-.42,8,8,0,0,1,4,1.08A88,88,0,0,0,216,128Z"/></svg>Ask for clarification<kbd class="k">C</kbd></a>
+        <div class="hint"><kbd class="k">J</kbd>and<kbd class="k">K</kbd>move between leads</div>
+      </div>
+    </section>
+  </div>
+</main></body></html>

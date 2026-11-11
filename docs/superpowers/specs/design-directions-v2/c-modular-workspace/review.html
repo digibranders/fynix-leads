@@ -1,0 +1,256 @@
+<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><title>Fynix Leads, Review queue</title>
+<style>
+@font-face{font-family:"Geist";src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2") format("woff2");font-weight:100 900;font-display:block}
+@font-face{font-family:"Geist Mono";src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-mono/GeistMono-Variable.woff2") format("woff2");font-weight:100 900;font-display:block}
+@font-face{font-family:"Geist Serif";src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-serif/GeistSerifVF.woff2") format("woff2");font-weight:100 900;font-display:block}
+:root{
+  --canvas:#EEECE7; --ink:#0C1E2E; --ink-2:#2B3D4E; --muted:#4F5D69;
+  --peach:#E9AF88; --peach-tint:rgba(233,175,136,.30); --peach-ink:#7A3F18;
+  --t4:rgba(12,30,46,.04); --t5:rgba(12,30,46,.05); --t6:rgba(12,30,46,.06); --t8:rgba(12,30,46,.08);
+  --line:rgba(12,30,46,.07);
+  --ring:0 0 0 1px rgba(12,30,46,.06);
+  --raise:0 0 0 1px rgba(12,30,46,.06),0 1px 2px rgba(12,30,46,.04),0 6px 16px rgba(12,30,46,.05),0 24px 56px rgba(12,30,46,.07);
+  --raise-sm:0 0 0 1px rgba(12,30,46,.05),0 1px 2px rgba(12,30,46,.06),0 6px 14px rgba(12,30,46,.08);
+  --r-xl:22px; --r-l:20px; --r-m:16px; --r-s:14px; --r-xs:12px;
+  --red:#A62A1C; --red-bg:#FADEDA; --amber:#7A4800; --amber-bg:#FBEBCB; --green:#14603A; --green-bg:#DAEFE1; --blue:#1A4C96; --blue-bg:#DBE7F8;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--canvas)}
+body{width:1440px;height:900px;overflow:hidden;font:400 15px/1.45 "Geist",system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;text-rendering:optimizeLegibility}
+::selection{background:var(--peach-tint)}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+.ic{flex:none;display:block}
+.mono{font-family:"Geist Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.serif{font-family:"Geist Serif","Geist",serif}
+
+.app{display:grid;grid-template-columns:190px 1fr;height:900px}
+.nav{padding:20px 10px 20px 20px;display:flex;flex-direction:column;min-width:0}
+.brand{display:flex;align-items:center;gap:10px;height:40px;font-weight:600;font-size:16px;letter-spacing:-.01em}
+.brand-mark{width:32px;height:32px;border-radius:10px;background:var(--ink);color:var(--peach);display:grid;place-items:center;font:600 17px/1 "Geist";letter-spacing:-.02em}
+.nav-list{margin-top:32px;display:flex;flex-direction:column;gap:4px}
+.nav-item{display:flex;align-items:center;gap:9px;height:44px;padding:0 10px;border-radius:var(--r-xs);font-weight:500;font-size:14px;white-space:nowrap;color:var(--ink-2);transition:background .2s cubic-bezier(.16,1,.3,1)}
+.nav-item:hover{background:var(--t5)}
+.nav-item.on{background:var(--peach-tint);color:var(--ink);font-weight:600}
+.nav-item .count{margin-left:auto;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:var(--ink);color:#fff;font-size:12px;font-weight:600;display:grid;place-items:center}
+.nav-foot{margin-top:auto}
+.nav-foot .lbl{font-size:12px;color:var(--muted);padding:0 4px 8px}
+.switch{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px 10px;border-radius:var(--r-s);background:var(--t6)}
+.switch:hover{background:var(--t8)}
+.switch .av{width:32px;height:32px;border-radius:50%;background:var(--ink);color:var(--peach);display:grid;place-items:center;font-size:12px;font-weight:600}
+.switch .who{display:flex;flex-direction:column;line-height:1.25;min-width:0}
+.switch .who b{font-size:14px;font-weight:600}
+.switch .who span{font-size:12px;color:var(--muted);white-space:nowrap}
+.switch .ic{margin-left:auto;color:var(--muted)}
+
+.main{padding:20px 20px 20px 0;display:flex;flex-direction:column;min-width:0;min-height:0}
+.top{display:flex;align-items:center;justify-content:space-between;gap:24px}
+.title{font-family:"Geist Serif","Geist",serif;font-weight:400;font-size:32px;line-height:36px;letter-spacing:-.015em}
+.sub{display:flex;align-items:center;gap:10px;margin-top:4px;font-size:13.5px;color:var(--muted)}
+.sub b{font-weight:500;color:var(--ink-2)}
+.refpill{font:500 12px/1 "Geist Mono";padding:5px 8px;border-radius:8px;background:var(--t6);color:var(--ink-2)}
+.tools{display:flex;align-items:center;gap:12px}
+.search{display:flex;align-items:center;gap:10px;height:40px;padding:0 8px 0 14px;border-radius:var(--r-xs);background:var(--t6);color:var(--muted);font-size:14px;width:300px}
+.search span{flex:1}
+.search:focus-within{box-shadow:0 0 0 3px var(--peach-tint);background:#fff}
+.kbd{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:7px;font:600 11.5px/1 "Geist Mono";background:var(--t8);color:inherit;letter-spacing:0}
+.round{position:relative;width:40px;height:40px;border-radius:50%;background:var(--t6);display:grid;place-items:center;color:var(--ink)}
+.round:hover{background:var(--t8)}
+.round i{position:absolute;top:9px;right:10px;width:9px;height:9px;border-radius:50%;background:#E0703A;box-shadow:0 0 0 2px var(--canvas)}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--ink);color:var(--peach);display:grid;place-items:center;font-size:13px;font-weight:600}
+
+.chip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 11px 0 8px;border-radius:999px;font-weight:600;font-size:12.5px;line-height:1;white-space:nowrap}
+.chip.pending{background:var(--amber-bg);color:var(--amber)}
+.chip.approved{background:var(--green-bg);color:var(--green)}
+.chip.rejected{background:var(--red-bg);color:var(--red)}
+.chip.clar{background:var(--blue-bg);color:var(--blue)}
+.chip.lg{height:32px;font-size:13.5px;padding:0 14px 0 11px;gap:7px}
+
+.main{gap:16px}
+.work{flex:1;min-height:0;display:grid;grid-template-columns:348px 1fr;gap:16px}
+.pane{background:var(--t5);border-radius:var(--r-l);padding:12px;display:flex;flex-direction:column;min-height:0;min-width:0}
+.pane-head{padding:8px 8px 12px;display:flex;flex-direction:column;gap:6px}
+.pane-head .row{display:flex;align-items:center;justify-content:space-between}
+.pane-head h2{font-size:16px;font-weight:600;letter-spacing:-.01em}
+.bigcount{min-width:32px;height:28px;padding:0 10px;border-radius:999px;background:var(--ink);color:#fff;font-weight:600;font-size:14px;display:grid;place-items:center}
+.pane-head p{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.pane-head p b{font-weight:600;color:var(--red);display:inline-flex;align-items:center;gap:4px}
+.qlist{list-style:none;display:flex;flex-direction:column;gap:0}
+.qrow{position:relative;padding:18px 16px 18px;border-radius:var(--r-s);display:grid;grid-template-columns:1fr auto;column-gap:8px;row-gap:1px;cursor:pointer;transition:background .25s cubic-bezier(.16,1,.3,1)}
+.qrow:not(.sel):hover{background:var(--t4)}
+.qrow:not(.sel)::after{content:"";position:absolute;left:16px;right:16px;bottom:0;height:1px;background:var(--line)}
+.qrow.pre::after,.qrow:last-child::after{display:none}
+.qrow.sel{background:#fff;box-shadow:var(--raise-sm);margin:2px 0 6px;z-index:1}
+.qrow.sel::before{content:"";position:absolute;left:5px;top:50%;width:4px;height:36px;margin-top:-18px;border-radius:2px;background:var(--peach)}
+.q1{grid-column:1/-1;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.qn{font-size:15px;font-weight:600;letter-spacing:-.005em}
+.qw{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:500;color:var(--muted)}
+.qw.over{color:var(--red);font-weight:600}
+.q2{grid-column:1/-1;display:flex;justify-content:space-between;align-items:baseline;font-size:13.5px;font-weight:500;color:var(--ink-2)}
+.q2 .mono{font-size:12px;font-weight:400;color:var(--muted)}
+.q3{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;color:var(--muted);min-height:22px;margin-top:1px}
+.od{display:inline-flex;align-items:center;gap:4px;height:22px;padding:0 9px 0 7px;border-radius:999px;background:var(--red-bg);color:var(--red);font-weight:600;font-size:12px}
+.pane-foot{margin-top:auto;padding:10px 8px 4px;font-size:12.5px;color:var(--muted);display:flex;justify-content:space-between}
+
+.detail{background:#fff;border-radius:var(--r-xl);box-shadow:var(--raise);display:flex;flex-direction:column;min-height:0;min-width:0;overflow:hidden}
+.d-body{flex:1;padding:32px 32px 0}
+.d-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px}
+.d-name{font-size:30px;line-height:36px;font-weight:600;letter-spacing:-.025em}
+.d-role{margin-top:2px;font-size:15.5px;color:var(--ink-2)}
+.d-role b{font-weight:600}
+.d-meta{display:flex;align-items:center;gap:12px;margin-top:14px;font-size:13.5px;color:var(--muted)}
+.d-status{display:flex;flex-direction:column;align-items:flex-end;gap:10px}
+.d-wait{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:600;color:var(--red)}
+.d-wait span{font-weight:500;color:var(--muted)}
+.d-rule{height:1px;background:var(--line);margin:20px 0 20px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.tile{background:var(--t4);border-radius:var(--r-m);padding:20px}
+.tile-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.tile-ico{width:32px;height:32px;border-radius:50%;background:#fff;display:grid;place-items:center;box-shadow:0 0 0 1px rgba(12,30,46,.05),0 1px 2px rgba(12,30,46,.05)}
+.tile-head h3{font-size:15px;font-weight:600;letter-spacing:-.005em}
+.kv{display:grid;grid-template-columns:68px 1fr;row-gap:10px;column-gap:12px;font-size:14px;align-items:baseline}
+.kv dt{font-size:13px;color:var(--muted)}
+.kv dd{font-weight:500;min-width:0}
+.kv dd small{display:block;font-weight:400;font-size:12.5px;color:var(--muted);margin-top:1px}
+.kv dd .with-ic{display:inline-flex;align-items:center;gap:6px}
+.qual-head{display:flex;align-items:baseline;gap:10px;margin:24px 0 12px}
+.qual-head h3{font-size:15px;font-weight:600;letter-spacing:-.005em}
+.qual-head span{font-size:13px;color:var(--muted)}
+.qual{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.mini{background:var(--t4);border-radius:var(--r-m);padding:16px}
+.mini-head{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--ink-2);margin-bottom:6px}
+.mini-head .ic{color:var(--ink)}
+.mini p{font-size:14px;line-height:1.45;color:var(--ink)}
+
+.actions{display:flex;align-items:center;gap:12px;padding:20px 32px;margin-top:24px;background:var(--t4);box-shadow:inset 0 1px 0 var(--line)}
+.btn{display:inline-flex;align-items:center;gap:10px;height:48px;padding:0 14px 0 20px;border-radius:999px;font-weight:600;font-size:15px;white-space:nowrap;transition:transform .2s cubic-bezier(.16,1,.3,1),background .2s}
+.btn:active{transform:scale(.98)}
+.btn:focus-visible{outline:none;box-shadow:0 0 0 3px #fff,0 0 0 6px var(--peach)}
+.btn .kbd{margin-left:4px}
+.btn.primary{background:var(--ink);color:#fff;box-shadow:0 1px 2px rgba(12,30,46,.2),0 8px 18px rgba(12,30,46,.18)}
+.btn.primary .kbd{background:rgba(255,255,255,.18);color:#fff}
+.btn.primary:hover{background:#17314a}
+.btn.danger{background:var(--red-bg);color:var(--red)}
+.btn.danger .kbd{background:rgba(166,42,28,.14)}
+.btn.danger:hover{background:#F5D0CB}
+.btn.soft{background:var(--t8);color:var(--ink)}
+.btn.soft .kbd{background:rgba(12,30,46,.1)}
+.btn.soft:hover{background:rgba(12,30,46,.12)}
+.hint{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.hint .kbd{background:var(--t8);color:var(--ink-2)}
+</style></head><body>
+<div class="app">
+
+<aside class="nav">
+  <div class="brand"><div class="brand-mark">F</div>Fynix Leads</div>
+  <nav class="nav-list">
+    <a class="nav-item "><svg class="ic " width="20" height="20" viewBox="0 0 256 256" aria-hidden="true"><use href="#SquaresFour-regular"/></svg>Leads</a>
+    <a class="nav-item on"><svg class="ic " width="20" height="20" viewBox="0 0 256 256" aria-hidden="true"><use href="#ListChecks-bold"/></svg>Review queue<span class="count">6</span></a>
+    <a class="nav-item"><svg class="ic " width="20" height="20" viewBox="0 0 256 256" aria-hidden="true"><use href="#IdentificationCard-regular"/></svg>Lead record</a>
+  </nav>
+  <div class="nav-foot">
+    <div class="lbl">Viewing as</div>
+    <button class="switch"><div class="av">KL</div><div class="who"><b>Client</b><span>Kestrel Ledger</span></div><svg class="ic " width="16" height="16" viewBox="0 0 256 256" aria-hidden="true"><use href="#CaretUpDown-regular"/></svg></button>
+  </div>
+</aside>
+<main class="main">
+  <header class="top">
+    <div><h1 class="title">Review queue</h1>
+      <div class="sub"><b>Kestrel Ledger</b>UK mid-market finance teams<span class="refpill">CMP-7Q2X</span></div></div>
+    
+<div class="tools">
+  <label class="search"><svg class="ic " width="18" height="18" viewBox="0 0 256 256" aria-hidden="true"><use href="#MagnifyingGlass-regular"/></svg><span>Search leads</span><kbd class="kbd">Ctrl K</kbd></label>
+  <button class="round" aria-label="Notifications"><svg class="ic " width="20" height="20" viewBox="0 0 256 256" aria-hidden="true"><use href="#Bell-regular"/></svg><i></i></button>
+  <div class="avatar">KL</div>
+</div>
+  </header>
+  <div class="work">
+    <section class="pane" aria-label="Leads waiting for review">
+      <div class="pane-head">
+        <div class="row"><h2>Waiting for review</h2><span class="bigcount">6</span></div>
+        <p><b><svg class="ic " width="14" height="14" viewBox="0 0 256 256" aria-hidden="true"><use href="#Warning-fill"/></svg>2 overdue</b>Oldest first</p>
+      </div>
+      <ul class="qlist">
+<li class="qrow sel " aria-current="true">
+  <div class="q1"><span class="qn">Tom Whitcombe</span><span class="qw over"><svg class="ic " width="15" height="15" viewBox="0 0 256 256" aria-hidden="true"><use href="#Warning-fill"/></svg>2d 6h</span></div>
+  <div class="q2"><span>Halden Freight</span><span class="mono">LD-5T6C</span></div>
+  <div class="q3"><span>CFO</span><span class="od"><svg class="ic " width="12" height="12" viewBox="0 0 256 256" aria-hidden="true"><use href="#Warning-fill"/></svg>Overdue</span></div>
+</li>
+<li class="qrow  " >
+  <div class="q1"><span class="qn">Priyanka Venkataraman</span><span class="qw over"><svg class="ic " width="15" height="15" viewBox="0 0 256 256" aria-hidden="true"><use href="#Warning-fill"/></svg>1d 23h</span></div>
+  <div class="q2"><span>Ashgrove Veterinary Group</span><span class="mono">LD-2W9H</span></div>
+  <div class="q3"><span>Financial Controller</span><span class="od"><svg class="ic " width="12" height="12" viewBox="0 0 256 256" aria-hidden="true"><use href="#Warning-fill"/></svg>Overdue</span></div>
+</li>
+<li class="qrow  " >
+  <div class="q1"><span class="qn">Callum Rutherford</span><span class="qw "><svg class="ic " width="15" height="15" viewBox="0 0 256 256" aria-hidden="true"><use href="#Clock-regular"/></svg>22h</span></div>
+  <div class="q2"><span>Fellgate Outdoor Retail</span><span class="mono">LD-6B4N</span></div>
+  <div class="q3"><span>Finance Director</span></div>
+</li>
+<li class="qrow  " >
+  <div class="q1"><span class="qn">Marcus Delaney</span><span class="qw "><svg class="ic " width="15" height="15" viewBox="0 0 256 256" aria-hidden="true"><use href="#Clock-regular"/></svg>20h</span></div>
+  <div class="q2"><span>Pellam Industrial Group</span><span class="mono">LD-8R2D</span></div>
+  <div class="q3"><span>Group Finance Director</span></div>
+</li>
+<li class="qrow  " >
+  <div class="q1"><span class="qn">Aisling Brennan</span><span class="qw "><svg class="ic " width="15" height="15" viewBox="0 0 256 256" aria-hidden="true"><use href="#Clock-regular"/></svg>6h</span></div>
+  <div class="q2"><span>Calderbrook Homes</span><span class="mono">LD-9F1K</span></div>
+  <div class="q3"><span>Head of Financial Planning and Analysis</span></div>
+</li>
+<li class="qrow  " >
+  <div class="q1"><span class="qn">Harriet Oyelaran</span><span class="qw "><svg class="ic " width="15" height="15" viewBox="0 0 256 256" aria-hidden="true"><use href="#Clock-regular"/></svg>3h</span></div>
+  <div class="q2"><span>Brindle & Marsh</span><span class="mono">LD-3M7A</span></div>
+  <div class="q3"><span>Head of Finance Operations</span></div>
+</li></ul>
+      <div class="pane-foot"><span>All 6 waiting leads shown</span></div>
+    </section>
+    <section class="detail" aria-label="Lead detail">
+      <div class="d-body">
+        <div class="d-head">
+          <div>
+            <h2 class="d-name">Tom Whitcombe</h2>
+            <p class="d-role"><b>CFO</b> at Halden Freight</p>
+            <div class="d-meta"><span class="refpill">LD-5T6C</span><span>Submitted by the Fynix team on Mon 9 Nov, 04:00 GMT</span></div>
+          </div>
+          <div class="d-status">
+            <span class="chip pending lg"><svg class="ic " width="18" height="18" viewBox="0 0 256 256" aria-hidden="true"><use href="#HourglassMedium-fill"/></svg>Pending review</span>
+            <span class="d-wait"><svg class="ic " width="16" height="16" viewBox="0 0 256 256" aria-hidden="true"><use href="#Warning-fill"/></svg>Waiting 2d 6h<span>Overdue</span></span>
+          </div>
+        </div>
+        <div class="d-rule"></div>
+        <div class="tiles">
+          <div class="tile">
+            <div class="tile-head"><div class="tile-ico"><svg class="ic " width="18" height="18" viewBox="0 0 256 256" aria-hidden="true"><use href="#CalendarCheck-regular"/></svg></div><h3>Meeting</h3></div>
+            <dl class="kv">
+              <dt>When</dt><dd>Mon 16 Nov, 11:00 am GMT<small>Shown in your time zone, London</small></dd>
+              <dt>Status</dt><dd><span class="with-ic"><svg class="ic " width="16" height="16" viewBox="0 0 256 256" aria-hidden="true"><use href="#CalendarBlank-regular"/></svg>Scheduled</span></dd>
+              <dt>With</dt><dd>Imogen Price</dd>
+              <dt>Duration</dt><dd>45 minutes</dd>
+            </dl>
+          </div>
+          <div class="tile">
+            <div class="tile-head"><div class="tile-ico"><svg class="ic " width="18" height="18" viewBox="0 0 256 256" aria-hidden="true"><use href="#AddressBook-regular"/></svg></div><h3>Contact</h3></div>
+            <dl class="kv">
+              <dt>Email</dt><dd>tom.whitcombe@haldenfreight.co.uk</dd>
+              <dt>Phone</dt><dd>+44 161 496 0254</dd>
+              <dt>LinkedIn</dt><dd>in/tom-whitcombe-91a6d3e</dd>
+              <dt>Time zone</dt><dd>London, GMT</dd>
+            </dl>
+          </div>
+        </div>
+        <div class="qual-head"><h3>Qualification</h3><span>Four answers recorded by the Fynix team</span></div>
+        <div class="qual">
+          <div class="mini"><div class="mini-head"><svg class="ic " width="18" height="18" viewBox="0 0 256 256" aria-hidden="true"><use href="#CurrencyGbp-regular"/></svg>Budget</div><p>Freight margins are thin, so spend is capped at 25,000 pounds without board approval.</p></div>
+          <div class="mini"><div class="mini-head"><svg class="ic " width="18" height="18" viewBox="0 0 256 256" aria-hidden="true"><use href="#SealCheck-regular"/></svg>Authority</div><p>Has the final say on finance software, with the CEO kept informed.</p></div>
+          <div class="mini"><div class="mini-head"><svg class="ic " width="18" height="18" viewBox="0 0 256 256" aria-hidden="true"><use href="#Target-regular"/></svg>Need</div><p>Invoicing 1,800 hauliers a month still relies on manual matching.</p></div>
+          <div class="mini"><div class="mini-head"><svg class="ic " width="18" height="18" viewBox="0 0 256 256" aria-hidden="true"><use href="#Flag-regular"/></svg>Timeline</div><p>The contract with the current provider ends in April, so a decision is due by February.</p></div>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn primary"><svg class="ic " width="18" height="18" viewBox="0 0 256 256" aria-hidden="true"><use href="#Check-bold"/></svg>Approve<span class="kbd">A</span></button>
+        <button class="btn danger"><svg class="ic " width="18" height="18" viewBox="0 0 256 256" aria-hidden="true"><use href="#X-bold"/></svg>Reject<span class="kbd">R</span></button>
+        <button class="btn soft"><svg class="ic " width="20" height="20" viewBox="0 0 256 256" aria-hidden="true"><use href="#ChatCircleDots-regular"/></svg>Ask for clarification<span class="kbd">C</span></button>
+        <div class="hint"><span class="kbd">J</span><span class="kbd">K</span>move between leads</div>
+      </div>
+    </section>
+  </div>
+</main></div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="MagnifyingGlass-regular" viewBox="0 0 256 256" fill="currentColor"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"/></symbol><symbol id="Bell-regular" viewBox="0 0 256 256" fill="currentColor"><path d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z"/></symbol><symbol id="SquaresFour-regular" viewBox="0 0 256 256" fill="currentColor"><path d="M104,40H56A16,16,0,0,0,40,56v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,104,40Zm0,64H56V56h48v48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm0,64H152V56h48v48Zm-96,32H56a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,104,136Zm0,64H56V152h48v48Zm96-64H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,200,136Zm0,64H152V152h48v48Z"/></symbol><symbol id="ListChecks-bold" viewBox="0 0 256 256" fill="currentColor"><path d="M228,128a12,12,0,0,1-12,12H128a12,12,0,0,1,0-24h88A12,12,0,0,1,228,128ZM128,76h88a12,12,0,0,0,0-24H128a12,12,0,0,0,0,24Zm88,104H128a12,12,0,0,0,0,24h88a12,12,0,0,0,0-24ZM79.51,39.51,56,63l-7.51-7.52a12,12,0,0,0-17,17l16,16a12,12,0,0,0,17,0l32-32a12,12,0,0,0-17-17Zm0,64L56,127l-7.51-7.52a12,12,0,1,0-17,17l16,16a12,12,0,0,0,17,0l32-32a12,12,0,0,0-17-17Zm0,64L56,191l-7.51-7.52a12,12,0,1,0-17,17l16,16a12,12,0,0,0,17,0l32-32a12,12,0,0,0-17-17Z"/></symbol><symbol id="IdentificationCard-regular" viewBox="0 0 256 256" fill="currentColor"><path d="M200,112a8,8,0,0,1-8,8H152a8,8,0,0,1,0-16h40A8,8,0,0,1,200,112Zm-8,24H152a8,8,0,0,0,0,16h40a8,8,0,0,0,0-16Zm40-80V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56ZM216,200V56H40V200H216Zm-80.26-34a8,8,0,1,1-15.5,4c-2.63-10.26-13.06-18-24.25-18s-21.61,7.74-24.25,18a8,8,0,1,1-15.5-4,39.84,39.84,0,0,1,17.19-23.34,32,32,0,1,1,45.12,0A39.76,39.76,0,0,1,135.75,166ZM96,136a16,16,0,1,0-16-16A16,16,0,0,0,96,136Z"/></symbol><symbol id="CaretUpDown-regular" viewBox="0 0 256 256" fill="currentColor"><path d="M181.66,170.34a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-48-48a8,8,0,0,1,11.32-11.32L128,212.69l42.34-42.35A8,8,0,0,1,181.66,170.34Zm-96-84.68L128,43.31l42.34,42.35a8,8,0,0,0,11.32-11.32l-48-48a8,8,0,0,0-11.32,0l-48,48A8,8,0,0,0,85.66,85.66Z"/></symbol><symbol id="Warning-fill" viewBox="0 0 256 256" fill="currentColor"><path d="M236.8,188.09,149.35,36.22h0a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z"/></symbol><symbol id="Clock-regular" viewBox="0 0 256 256" fill="currentColor"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm64-88a8,8,0,0,1-8,8H128a8,8,0,0,1-8-8V72a8,8,0,0,1,16,0v48h48A8,8,0,0,1,192,128Z"/></symbol><symbol id="HourglassMedium-fill" viewBox="0 0 256 256" fill="currentColor"><path d="M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.07,16.07,0,0,0,6.4,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16.09,16.09,0,0,0-6.35-12.77L141.27,128l52.38-39.59A16.09,16.09,0,0,0,200,75.64ZM184,180.36V216H72V180l48-36v24a8,8,0,0,0,16,0V144.08Zm0-104.72L178.23,80H77.33L72,76V40H184Z"/></symbol><symbol id="CalendarCheck-regular" viewBox="0 0 256 256" fill="currentColor"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-38.34-85.66a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L116,164.69l42.34-42.35A8,8,0,0,1,169.66,122.34Z"/></symbol><symbol id="CalendarBlank-regular" viewBox="0 0 256 256" fill="currentColor"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Z"/></symbol><symbol id="AddressBook-regular" viewBox="0 0 256 256" fill="currentColor"><path d="M83.19,174.4a8,8,0,0,0,11.21-1.6,52,52,0,0,1,83.2,0,8,8,0,1,0,12.8-9.6A67.88,67.88,0,0,0,163,141.51a40,40,0,1,0-53.94,0A67.88,67.88,0,0,0,81.6,163.2,8,8,0,0,0,83.19,174.4ZM112,112a24,24,0,1,1,24,24A24,24,0,0,1,112,112Zm96-88H64A16,16,0,0,0,48,40V64H32a8,8,0,0,0,0,16H48v40H32a8,8,0,0,0,0,16H48v40H32a8,8,0,0,0,0,16H48v24a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V40A16,16,0,0,0,208,24Zm0,192H64V40H208Z"/></symbol><symbol id="CurrencyGbp-regular" viewBox="0 0 256 256" fill="currentColor"><path d="M192,208a8,8,0,0,1-8,8H56a8,8,0,0,1,0-16h4a28,28,0,0,0,28-28V136H56a8,8,0,0,1,0-16H88V84a52,52,0,0,1,85.08-40.12A8,8,0,1,1,162.9,56.22,36,36,0,0,0,104,84v36h32a8,8,0,0,1,0,16H104v36a43.82,43.82,0,0,1-10.08,28H184A8,8,0,0,1,192,208Z"/></symbol><symbol id="SealCheck-regular" viewBox="0 0 256 256" fill="currentColor"><path d="M225.86,102.82c-3.77-3.94-7.67-8-9.14-11.57-1.36-3.27-1.44-8.69-1.52-13.94-.15-9.76-.31-20.82-8-28.51s-18.75-7.85-28.51-8c-5.25-.08-10.67-.16-13.94-1.52-3.56-1.47-7.63-5.37-11.57-9.14C146.28,23.51,138.44,16,128,16s-18.27,7.51-25.18,14.14c-3.94,3.77-8,7.67-11.57,9.14C88,40.64,82.56,40.72,77.31,40.8c-9.76.15-20.82.31-28.51,8S41,67.55,40.8,77.31c-.08,5.25-.16,10.67-1.52,13.94-1.47,3.56-5.37,7.63-9.14,11.57C23.51,109.72,16,117.56,16,128s7.51,18.27,14.14,25.18c3.77,3.94,7.67,8,9.14,11.57,1.36,3.27,1.44,8.69,1.52,13.94.15,9.76.31,20.82,8,28.51s18.75,7.85,28.51,8c5.25.08,10.67.16,13.94,1.52,3.56,1.47,7.63,5.37,11.57,9.14C109.72,232.49,117.56,240,128,240s18.27-7.51,25.18-14.14c3.94-3.77,8-7.67,11.57-9.14,3.27-1.36,8.69-1.44,13.94-1.52,9.76-.15,20.82-.31,28.51-8s7.85-18.75,8-28.51c.08-5.25.16-10.67,1.52-13.94,1.47-3.56,5.37-7.63,9.14-11.57C232.49,146.28,240,138.44,240,128S232.49,109.73,225.86,102.82Zm-11.55,39.29c-4.79,5-9.75,10.17-12.38,16.52-2.52,6.1-2.63,13.07-2.73,19.82-.1,7-.21,14.33-3.32,17.43s-10.39,3.22-17.43,3.32c-6.75.1-13.72.21-19.82,2.73-6.35,2.63-11.52,7.59-16.52,12.38S132,224,128,224s-9.15-4.92-14.11-9.69-10.17-9.75-16.52-12.38c-6.1-2.52-13.07-2.63-19.82-2.73-7-.1-14.33-.21-17.43-3.32s-3.22-10.39-3.32-17.43c-.1-6.75-.21-13.72-2.73-19.82-2.63-6.35-7.59-11.52-12.38-16.52S32,132,32,128s4.92-9.15,9.69-14.11,9.75-10.17,12.38-16.52c2.52-6.1,2.63-13.07,2.73-19.82.1-7,.21-14.33,3.32-17.43S70.51,56.9,77.55,56.8c6.75-.1,13.72-.21,19.82-2.73,6.35-2.63,11.52-7.59,16.52-12.38S124,32,128,32s9.15,4.92,14.11,9.69,10.17,9.75,16.52,12.38c6.1,2.52,13.07,2.63,19.82,2.73,7,.1,14.33.21,17.43,3.32s3.22,10.39,3.32,17.43c.1,6.75.21,13.72,2.73,19.82,2.63,6.35,7.59,11.52,12.38,16.52S224,124,224,128,219.08,137.15,214.31,142.11ZM173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34Z"/></symbol><symbol id="Target-regular" viewBox="0 0 256 256" fill="currentColor"><path d="M221.87,83.16A104.1,104.1,0,1,1,195.67,49l22.67-22.68a8,8,0,0,1,11.32,11.32l-96,96a8,8,0,0,1-11.32-11.32l27.72-27.72a40,40,0,1,0,17.87,31.09,8,8,0,1,1,16-.9,56,56,0,1,1-22.38-41.65L184.3,60.39a87.88,87.88,0,1,0,23.13,29.67,8,8,0,0,1,14.44-6.9Z"/></symbol><symbol id="Flag-regular" viewBox="0 0 256 256" fill="currentColor"><path d="M42.76,50A8,8,0,0,0,40,56V224a8,8,0,0,0,16,0V179.77c26.79-21.16,49.87-9.75,76.45,3.41,16.4,8.11,34.06,16.85,53,16.85,13.93,0,28.54-4.75,43.82-18a8,8,0,0,0,2.76-6V56A8,8,0,0,0,218.76,50c-28,24.23-51.72,12.49-79.21-1.12C111.07,34.76,78.78,18.79,42.76,50ZM216,172.25c-26.79,21.16-49.87,9.74-76.45-3.41-25-12.35-52.81-26.13-83.55-8.4V59.79c26.79-21.16,49.87-9.75,76.45,3.4,25,12.35,52.82,26.13,83.55,8.4Z"/></symbol><symbol id="Check-bold" viewBox="0 0 256 256" fill="currentColor"><path d="M232.49,80.49l-128,128a12,12,0,0,1-17,0l-56-56a12,12,0,1,1,17-17L96,183,215.51,63.51a12,12,0,0,1,17,17Z"/></symbol><symbol id="X-bold" viewBox="0 0 256 256" fill="currentColor"><path d="M208.49,191.51a12,12,0,0,1-17,17L128,145,64.49,208.49a12,12,0,0,1-17-17L111,128,47.51,64.49a12,12,0,0,1,17-17L128,111l63.51-63.52a12,12,0,0,1,17,17L145,128Z"/></symbol><symbol id="ChatCircleDots-regular" viewBox="0 0 256 256" fill="currentColor"><path d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128ZM84,116a12,12,0,1,0,12,12A12,12,0,0,0,84,116Zm88,0a12,12,0,1,0,12,12A12,12,0,0,0,172,116Zm60,12A104,104,0,0,1,79.12,219.82L45.07,231.17a16,16,0,0,1-20.24-20.24l11.35-34.05A104,104,0,1,1,232,128Zm-16,0A88,88,0,1,0,51.81,172.06a8,8,0,0,1,.66,6.54L40,216,77.4,203.53a7.85,7.85,0,0,1,2.53-.42,8,8,0,0,1,4,1.08A88,88,0,0,0,216,128Z"/></symbol><symbol id="SquaresFour-bold" viewBox="0 0 256 256" fill="currentColor"><path d="M100,36H56A20,20,0,0,0,36,56v44a20,20,0,0,0,20,20h44a20,20,0,0,0,20-20V56A20,20,0,0,0,100,36ZM96,96H60V60H96ZM200,36H156a20,20,0,0,0-20,20v44a20,20,0,0,0,20,20h44a20,20,0,0,0,20-20V56A20,20,0,0,0,200,36Zm-4,60H160V60h36Zm-96,40H56a20,20,0,0,0-20,20v44a20,20,0,0,0,20,20h44a20,20,0,0,0,20-20V156A20,20,0,0,0,100,136Zm-4,60H60V160H96Zm104-60H156a20,20,0,0,0-20,20v44a20,20,0,0,0,20,20h44a20,20,0,0,0,20-20V156A20,20,0,0,0,200,136Zm-4,60H160V160h36Z"/></symbol><symbol id="ListChecks-regular" viewBox="0 0 256 256" fill="currentColor"><path d="M224,128a8,8,0,0,1-8,8H128a8,8,0,0,1,0-16h88A8,8,0,0,1,224,128ZM128,72h88a8,8,0,0,0,0-16H128a8,8,0,0,0,0,16Zm88,112H128a8,8,0,0,0,0,16h88a8,8,0,0,0,0-16ZM82.34,42.34,56,68.69,45.66,58.34A8,8,0,0,0,34.34,69.66l16,16a8,8,0,0,0,11.32,0l32-32A8,8,0,0,0,82.34,42.34Zm0,64L56,132.69,45.66,122.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32Zm0,64L56,196.69,45.66,186.34a8,8,0,0,0-11.32,11.32l16,16a8,8,0,0,0,11.32,0l32-32a8,8,0,0,0-11.32-11.32Z"/></symbol><symbol id="CheckCircle-regular" viewBox="0 0 256 256" fill="currentColor"><path d="M173.66,98.34a8,8,0,0,1,0,11.32l-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35A8,8,0,0,1,173.66,98.34ZM232,128A104,104,0,1,1,128,24,104.11,104.11,0,0,1,232,128Zm-16,0a88,88,0,1,0-88,88A88.1,88.1,0,0,0,216,128Z"/></symbol><symbol id="ChatCircleDots-fill" viewBox="0 0 256 256" fill="currentColor"><path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24ZM84,140a12,12,0,1,1,12-12A12,12,0,0,1,84,140Zm44,0a12,12,0,1,1,12-12A12,12,0,0,1,128,140Zm44,0a12,12,0,1,1,12-12A12,12,0,0,1,172,140Z"/></symbol><symbol id="ArrowsClockwise-regular" viewBox="0 0 256 256" fill="currentColor"><path d="M224,48V96a8,8,0,0,1-8,8H168a8,8,0,0,1,0-16h28.69L182.06,73.37a79.56,79.56,0,0,0-56.13-23.43h-.45A79.52,79.52,0,0,0,69.59,72.71,8,8,0,0,1,58.41,61.27a96,96,0,0,1,135,.79L208,76.69V48a8,8,0,0,1,16,0ZM186.41,183.29a80,80,0,0,1-112.47-.66L59.31,168H88a8,8,0,0,0,0-16H40a8,8,0,0,0-8,8v48a8,8,0,0,0,16,0V179.31l14.63,14.63A95.43,95.43,0,0,0,130,222.06h.53a95.36,95.36,0,0,0,67.07-27.33,8,8,0,0,0-11.18-11.44Z"/></symbol><symbol id="CalendarDots-regular" viewBox="0 0 256 256" fill="currentColor"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-68-76a12,12,0,1,1-12-12A12,12,0,0,1,140,132Zm44,0a12,12,0,1,1-12-12A12,12,0,0,1,184,132ZM96,172a12,12,0,1,1-12-12A12,12,0,0,1,96,172Zm44,0a12,12,0,1,1-12-12A12,12,0,0,1,140,172Zm44,0a12,12,0,1,1-12-12A12,12,0,0,1,184,172Z"/></symbol><symbol id="CheckCircle-fill" viewBox="0 0 256 256" fill="currentColor"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm45.66,85.66-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32Z"/></symbol><symbol id="XCircle-fill" viewBox="0 0 256 256" fill="currentColor"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm37.66,130.34a8,8,0,0,1-11.32,11.32L128,139.31l-26.34,26.35a8,8,0,0,1-11.32-11.32L116.69,128,90.34,101.66a8,8,0,0,1,11.32-11.32L128,116.69l26.34-26.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/></symbol><symbol id="CalendarX-regular" viewBox="0 0 256 256" fill="currentColor"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-50.34-74.34L139.31,152l18.35,18.34a8,8,0,0,1-11.32,11.32L128,163.31l-18.34,18.35a8,8,0,0,1-11.32-11.32L116.69,152,98.34,133.66a8,8,0,0,1,11.32-11.32L128,140.69l18.34-18.35a8,8,0,0,1,11.32,11.32Z"/></symbol></svg></body></html>

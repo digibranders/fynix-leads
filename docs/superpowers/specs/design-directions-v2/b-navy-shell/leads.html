@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8"><title>Fynix Leads, Leads</title>
+<meta name="viewport" content="width=1440">
+<style>
+@font-face{font-family:"Geist";font-weight:400;src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-sans/Geist-Regular.woff2") format("woff2")}
+@font-face{font-family:"Geist";font-weight:500;src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-sans/Geist-Medium.woff2") format("woff2")}
+@font-face{font-family:"Geist";font-weight:600;src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-sans/Geist-SemiBold.woff2") format("woff2")}
+@font-face{font-family:"Geist Mono";font-weight:400;src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-mono/GeistMono-Regular.woff2") format("woff2")}
+@font-face{font-family:"Geist Mono";font-weight:500;src:url("file:///Users/a12345/Desktop/AI/Fynix%20Digital/fynix-leads/node_modules/geist/dist/fonts/geist-mono/GeistMono-Medium.woff2") format("woff2")}
+:root{
+  --canvas:#F3EFE9; --surface:#FFFFFF; --navy:#0C1E2E; --peach:#E9AF88; --offwhite:#F3EFE9;
+  --ink:#0C1E2E; --ink-2:#44515C; --muted:#5B6771;
+  --tint-4:rgba(12,30,46,.04); --tint-5:rgba(12,30,46,.05); --tint-7:rgba(12,30,46,.07);
+  --line:rgba(12,30,46,.07); --ring:rgba(12,30,46,.06);
+  --sel:rgba(233,175,136,.22);
+  --red:#A3251D; --red-bg:#FAE3DF; --amber:#7A4700; --amber-bg:#FBEACA; --green:#176B3D; --green-bg:#DCF0E3; --blue:#1D4E8F; --blue-bg:#DCE8F8;
+  --shadow:0 0 0 1px rgba(12,30,46,.06),0 1px 2px rgba(12,30,46,.05),0 6px 18px rgba(12,30,46,.05);
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--canvas)}
+body{position:relative;overflow:hidden;font-family:"Geist",system-ui,sans-serif;font-size:14px;line-height:1.43;color:var(--ink);font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;caret-color:var(--navy)}
+::selection{background:rgba(233,175,136,.55);color:var(--navy)}
+.i{width:18px;height:18px;flex:none;display:block}
+.mono{font-family:"Geist Mono",ui-monospace,monospace;font-weight:500;letter-spacing:0}
+h1{font-size:26px;line-height:32px;font-weight:600;letter-spacing:-.01em}
+h2{font-size:15px;line-height:20px;font-weight:600;letter-spacing:-.005em}
+h3{font-size:14px;line-height:20px;font-weight:600}
+
+/* sidebar */
+.side{position:absolute;left:12px;top:12px;bottom:12px;width:232px;background:var(--navy);border-radius:24px;box-shadow:inset 0 1px 0 rgba(255,255,255,.06),0 12px 32px rgba(12,30,46,.16);padding:22px 14px 14px;display:flex;flex-direction:column;color:var(--offwhite)}
+.brand{display:flex;align-items:center;gap:12px;padding:0 8px 22px;margin-bottom:18px;border-bottom:1px solid rgba(255,255,255,.07)}
+.mark{width:34px;height:34px;border-radius:11px;background:var(--peach);color:var(--navy);display:grid;place-items:center}
+.mark .i{width:20px;height:20px}
+.brand b{font-size:17px;font-weight:600;letter-spacing:-.01em}
+.nav a{display:flex;align-items:center;gap:12px;height:44px;padding:0 14px;margin-bottom:4px;border-radius:999px;color:rgba(243,239,233,.68);font-size:14.5px;font-weight:500;text-decoration:none}
+.nav a .i{width:20px;height:20px}
+.nav a.on{background:var(--peach);color:var(--navy);font-weight:600;box-shadow:0 4px 12px -4px rgba(233,175,136,.5)}
+.nav a.hov{background:rgba(255,255,255,.06);color:var(--offwhite)}
+.cnt{margin-left:auto;min-width:24px;height:22px;padding:0 8px;border-radius:999px;display:grid;place-items:center;font-size:12.5px;font-weight:600;background:rgba(233,175,136,.18);color:var(--peach)}
+.nav a.on .cnt{background:var(--navy);color:var(--offwhite)}
+.camp-well{margin:22px 0 0;padding:14px 14px 15px;border-radius:16px;background:rgba(255,255,255,.05)}
+.camp-well .lab2{font-size:12px;font-weight:500;color:rgba(243,239,233,.6);margin-bottom:6px}
+.camp-well .cn{font-size:14px;line-height:19px;font-weight:600;color:var(--offwhite)}
+.camp-well .cb{font-size:12.5px;line-height:17px;color:rgba(243,239,233,.68);margin-top:4px}
+.camp-well .cm{display:flex;flex-direction:column;align-items:flex-start;gap:3px;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.07);font-size:12px;line-height:16px;color:rgba(243,239,233,.68)}
+.camp-well .cm .mono{color:var(--peach);font-size:12px}
+.viewing{margin-top:auto}
+.viewing .lab{font-size:12px;font-weight:500;color:rgba(243,239,233,.6);padding:0 6px 8px}
+.vwell{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.07);border-radius:16px;padding:12px}
+.vav{width:36px;height:36px;border-radius:50%;background:var(--peach);color:var(--navy);display:grid;place-items:center;font-size:13px;font-weight:600;flex:none}
+.vwell .nm{font-size:14px;font-weight:600;line-height:18px;color:var(--offwhite)}
+.vwell .rl{font-size:12.5px;line-height:16px;color:rgba(243,239,233,.64)}
+.vwell .i{margin-left:auto;color:rgba(243,239,233,.64);width:16px;height:16px}
+
+/* top bar */
+.main{position:absolute;left:260px;right:24px;top:0;bottom:0;padding-top:20px;display:flex;flex-direction:column}
+.top{display:flex;align-items:flex-start;justify-content:space-between;flex:none}
+.tools{display:flex;align-items:center;gap:10px}
+.search{display:flex;align-items:center;gap:10px;height:40px;width:300px;padding:0 8px 0 14px;border-radius:10px;background:var(--tint-5);color:var(--muted);font-size:14px}
+.search .i{width:18px;height:18px}
+.search span{flex:1}
+.k{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:6px;background:var(--tint-7);color:var(--ink-2);font-family:"Geist Mono",monospace;font-size:12px;font-weight:500;line-height:1}
+.iconbtn{position:relative;width:40px;height:40px;border-radius:50%;background:var(--tint-5);display:grid;place-items:center;color:var(--ink)}
+.iconbtn .i{width:20px;height:20px}
+.iconbtn .dot{position:absolute;top:9px;right:10px;width:9px;height:9px;border-radius:50%;background:var(--peach);box-shadow:0 0 0 2px var(--canvas)}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--navy);color:var(--offwhite);display:grid;place-items:center;font-size:13px;font-weight:600}
+.sub{color:var(--ink-2);font-size:14px;line-height:20px;margin-top:2px}
+
+/* panels */
+.panel{background:var(--surface);border-radius:18px;box-shadow:var(--shadow);overflow:hidden}
+.phead{display:flex;align-items:center;gap:10px;height:56px;padding:0 16px 0 22px;border-bottom:1px solid var(--line);flex:none}
+.phead .meta{color:var(--muted);font-size:13px}
+.phead .push{margin-left:auto}
+.btn-sm{display:inline-flex;align-items:center;gap:7px;height:32px;padding:0 14px;border-radius:999px;background:var(--tint-7);color:var(--ink);font-size:13px;font-weight:600;white-space:nowrap}
+.btn-sm .i{width:16px;height:16px}
+
+/* chips */
+.chip{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 10px 0 7px;border-radius:999px;font-size:12.5px;font-weight:600;white-space:nowrap;line-height:1}
+.chip .i{width:15px;height:15px}
+.chip.amber{background:var(--amber-bg);color:var(--amber)}
+.chip.green{background:var(--green-bg);color:var(--green)}
+.chip.red{background:var(--red-bg);color:var(--red)}
+.chip.blue{background:var(--blue-bg);color:var(--blue)}
+.chip.neutral{background:var(--tint-7);color:var(--ink)}
+.chip.lg{height:28px;font-size:13px;padding:0 12px 0 9px}
+.chip.lg .i{width:16px;height:16px}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 9px 0 16px;border-radius:999px;font-size:14px;font-weight:600;white-space:nowrap;transition:transform .3s var(--ease)}
+.btn .i{width:18px;height:18px}
+.btn.primary{background:var(--navy);color:var(--offwhite);box-shadow:0 1px 2px rgba(12,30,46,.25),0 8px 16px -6px rgba(12,30,46,.4),inset 0 1px 0 rgba(255,255,255,.1)}
+.btn.primary .k{background:rgba(255,255,255,.16);color:var(--offwhite)}
+.btn.danger{background:var(--red-bg);color:var(--red)}
+.btn.danger .k{background:rgba(163,37,29,.12);color:var(--red)}
+.btn.second{background:var(--tint-7);color:var(--ink)}
+.btn.second .k{background:rgba(12,30,46,.08);color:var(--ink-2)}
+.btn:active{transform:scale(.98)}
+.btn.primary:hover{background:#13293D}.btn.danger:hover{background:#F6D5D0}.btn.second:hover{background:rgba(12,30,46,.1)}
+.nav a:not(.on):hover{background:rgba(255,255,255,.06);color:var(--offwhite)}
+.row:not(.sel):hover{background:var(--tint-4)}
+tbody tr:not(.sel):hover td{background:var(--tint-4)}
+.btn-sm:hover,.iconbtn:hover{background:rgba(12,30,46,.1)}
+:focus-visible{outline:2px solid var(--navy);outline-offset:3px;border-radius:999px}
+
+/* label / value grid */
+.lab{font-size:12.5px;line-height:16px;font-weight:500;color:var(--muted);margin-bottom:5px}
+.val{font-size:14.5px;line-height:20px;font-weight:500}
+.val small{display:block;font-size:13px;line-height:18px;font-weight:400;color:var(--ink-2);margin-top:1px}
+.well{background:var(--tint-4);border-radius:12px}
+.red-t{color:var(--red)}
+
+body{width:1440px;height:1200px}
+
+.main{padding-top:20px}
+.camp{display:flex;align-items:center;gap:14px;margin-top:5px;font-size:14px;line-height:20px;color:var(--ink-2)}
+.camp b{font-size:15px;font-weight:600;color:var(--ink)}
+.camp .sep{width:1px;height:14px;background:rgba(12,30,46,.16)}
+.camp .ref{font-size:12.5px;padding:2px 8px;border-radius:6px;background:var(--tint-5);color:var(--ink-2)}
+.camp .dt{display:inline-flex;align-items:center;gap:6px}
+.camp .dt .i{width:16px;height:16px}
+.kpis{display:grid;grid-template-columns:1.62fr 1fr;gap:16px;margin-top:16px;flex:none}
+.prog{display:grid;grid-template-columns:1fr 1fr;flex:1}
+.pcol{padding:16px 24px 20px}
+.pcol + .pcol{border-left:1px solid var(--line)}
+.pcol .top2{display:flex;justify-content:space-between;align-items:baseline}
+.pcol .pl{font-size:13px;font-weight:500;color:var(--muted)}
+.pcol .pp{font-size:12.5px;color:var(--muted)}
+.figline{display:flex;align-items:baseline;gap:8px;margin:2px 0 12px}
+.figline .f{font-size:40px;line-height:44px;font-weight:600;letter-spacing:-.02em}
+.figline .o{font-size:20px;line-height:24px;color:var(--muted);font-weight:500}
+.bar{position:relative;height:10px;border-radius:999px;background:var(--tint-7)}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:var(--navy)}
+.bar u{position:absolute;right:0;top:-5px;width:2px;height:20px;border-radius:2px;background:var(--navy);opacity:.55}
+.bcap{display:flex;justify-content:space-between;margin-top:11px;font-size:13px;color:var(--ink-2)}
+.bcap b{font-weight:600;color:var(--ink)}
+.bcap span:last-child{color:var(--muted)}
+.fig3{padding:4px 12px 6px}
+.fr{display:flex;align-items:center;gap:14px;padding:8px 12px;position:relative}
+.fr + .fr::before{content:"";position:absolute;top:0;left:12px;right:12px;height:1px;background:var(--line)}
+.fr .tile{width:34px;height:34px;border-radius:11px;background:var(--tint-5);display:grid;place-items:center;color:var(--ink-2);flex:none}
+.fr .tile .i{width:20px;height:20px}
+.fr .tx{flex:1;min-width:0}
+.fr .t1{font-size:14px;line-height:19px;font-weight:600}
+.fr .t2{font-size:12.5px;line-height:17px;color:var(--muted)}
+.fr .n{font-size:28px;line-height:32px;font-weight:600;letter-spacing:-.02em}
+.tp{margin-top:14px;display:flex;flex-direction:column;flex:none}
+.tbar{display:flex;align-items:center;gap:14px;padding:0 22px;height:60px;border-bottom:1px solid var(--line)}
+.tbar .search{width:250px;height:36px;margin-left:6px}
+.seg{display:flex;gap:2px;padding:3px;border-radius:999px;background:var(--tint-5)}
+.seg div{display:flex;align-items:center;gap:6px;height:30px;padding:0 13px;border-radius:999px;font-size:13px;font-weight:500;color:var(--ink-2);white-space:nowrap}
+.seg b{font-weight:600}
+.seg .on{background:var(--navy);color:var(--offwhite);font-weight:600}
+.count{margin-left:auto;font-size:13px;color:var(--muted)}
+.count b{color:var(--ink);font-weight:600}
+.tw{padding:8px 8px 8px}
+table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:13.5px;line-height:18px}
+thead th{height:36px;padding:0 8px;text-align:left;font-size:12px;font-weight:600;color:var(--muted);background:var(--tint-5);white-space:nowrap}
+thead th:first-child{border-radius:10px 0 0 10px;padding-left:14px}
+thead th:last-child{border-radius:0 10px 10px 0}
+thead th.sorted{color:var(--ink)}
+thead th .si{display:inline-flex;align-items:center;gap:4px}
+thead th .i{width:13px;height:13px}
+tbody td{height:52px;padding:0 8px;border-bottom:1px solid var(--line);vertical-align:middle;overflow:hidden}
+tbody td:first-child{padding-left:14px}
+tbody tr:last-child td{border-bottom:0}
+td.ref{font-size:12px;color:var(--ink-2)}
+td.nm{font-weight:500;font-size:14px;white-space:nowrap}
+td.muted{color:var(--ink-2)}
+td .sm{font-size:12.5px;color:var(--muted)}
+td.empty{color:var(--muted)}
+.ms{display:inline-flex;align-items:center;gap:7px;color:var(--ink-2);font-weight:500;line-height:17px}
+.ms .i{width:16px;height:16px;flex:none}
+.ms.bad{color:var(--red);font-weight:600}
+tbody tr.sel td{background:var(--sel);border-bottom-color:transparent}
+tbody tr.sel td:first-child{border-radius:10px 0 0 10px}
+tbody tr.sel td:last-child{border-radius:0 10px 10px 0}
+tbody tr.sel td.nm{font-weight:600}
+tbody tr.hov td{background:var(--tint-4);border-bottom-color:transparent}
+tbody tr.hov td:first-child{border-radius:10px 0 0 10px}
+tbody tr.hov td:last-child{border-radius:0 10px 10px 0}
+tbody tr:has(+ tr.sel) td,tbody tr:has(+ tr.hov) td{border-bottom-color:transparent}
+</style></head>
+<body>
+
+<aside class="side">
+  <div class="brand"><div class="mark"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M227.81,66.76l-.08.09L160,139.17v55.49A16,16,0,0,1,152.87,208l-32,21.34A16,16,0,0,1,96,216V139.17L28.27,66.85l-.08-.09A16,16,0,0,1,40,40H216a16,16,0,0,1,11.84,26.76Z"/></svg></div><b>Fynix Leads</b></div>
+  <nav class="nav">
+    <a class="on"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M120,56v48a16,16,0,0,1-16,16H56a16,16,0,0,1-16-16V56A16,16,0,0,1,56,40h48A16,16,0,0,1,120,56Zm80-16H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm-96,96H56a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,104,136Zm96,0H152a16,16,0,0,0-16,16v48a16,16,0,0,0,16,16h48a16,16,0,0,0,16-16V152A16,16,0,0,0,200,136Z"/></svg><span>Leads</span></a>
+    <a class=""><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32Zm0,16V152h-28.7A15.86,15.86,0,0,0,168,156.69L148.69,176H107.31L88,156.69A15.86,15.86,0,0,0,76.69,152H48V48Zm0,160H48V168H76.69L96,187.31A15.86,15.86,0,0,0,107.31,192h41.38A15.86,15.86,0,0,0,160,187.31L179.31,168H208v40Z"/></svg><span>Review queue</span><span class="cnt">6</span></a>
+    <a class=""><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,112a8,8,0,0,1-8,8H152a8,8,0,0,1,0-16h40A8,8,0,0,1,200,112Zm-8,24H152a8,8,0,0,0,0,16h40a8,8,0,0,0,0-16Zm40-80V200a16,16,0,0,1-16,16H40a16,16,0,0,1-16-16V56A16,16,0,0,1,40,40H216A16,16,0,0,1,232,56ZM216,200V56H40V200H216Zm-80.26-34a8,8,0,1,1-15.5,4c-2.63-10.26-13.06-18-24.25-18s-21.61,7.74-24.25,18a8,8,0,1,1-15.5-4,39.84,39.84,0,0,1,17.19-23.34,32,32,0,1,1,45.12,0A39.76,39.76,0,0,1,135.75,166ZM96,136a16,16,0,1,0-16-16A16,16,0,0,0,96,136Z"/></svg><span>Lead record</span></a>
+  </nav>
+  <div class="camp-well"><div class="lab2">Campaign</div><div class="cn">UK mid-market finance teams</div><div class="cb">Kestrel Ledger</div><div class="cm"><span class="mono">CMP-7Q2X</span><span>1 Sep 2026 to 28 Feb 2027</span></div></div>
+  <div class="viewing">
+    <div class="lab">Viewing as</div>
+    <div class="vwell"><div class="vav">FD</div><div><div class="nm">Fynix team</div><div class="rl">Agency</div></div><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M181.66,170.34a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-48-48a8,8,0,0,1,11.32-11.32L128,212.69l42.34-42.35A8,8,0,0,1,181.66,170.34Zm-96-84.68L128,43.31l42.34,42.35a8,8,0,0,0,11.32-11.32l-48-48a8,8,0,0,0-11.32,0l-48,48A8,8,0,0,0,85.66,85.66Z"/></svg></div>
+  </div>
+</aside>
+<main class="main">
+  <header class="top">
+    <div><h1>Leads</h1>
+      <div class="camp"><b>UK mid-market finance teams</b><i class="sep"></i><span>Kestrel Ledger</span><i class="sep"></i><span class="mono ref">CMP-7Q2X</span><i class="sep"></i><span class="dt"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Z"/></svg>1 Sep 2026 to 28 Feb 2027</span></div>
+    </div>
+    
+<div class="tools">
+  <div class="search"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"/></svg><span>Search leads</span><kbd class="k">Ctrl K</kbd></div>
+  <div class="iconbtn"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M221.8,175.94C216.25,166.38,208,139.33,208,104a80,80,0,1,0-160,0c0,35.34-8.26,62.38-13.81,71.94A16,16,0,0,0,48,200H88.81a40,40,0,0,0,78.38,0H208a16,16,0,0,0,13.8-24.06ZM128,216a24,24,0,0,1-22.62-16h45.24A24,24,0,0,1,128,216ZM48,184c7.7-13.24,16-43.92,16-80a64,64,0,1,1,128,0c0,36.05,8.28,66.73,16,80Z"/></svg><i class="dot"></i></div>
+  <div class="avatar">FD</div>
+</div>
+  </header>
+
+  <section class="kpis">
+    <div class="panel" style="display:flex;flex-direction:column">
+      <div class="phead"><h2>Progress toward target</h2><span class="meta">Delivered means approved with a completed meeting</span></div>
+      <div class="prog">
+        <div class="pcol">
+          <div class="top2"><span class="pl">Delivered this month</span><span class="pp">November 2026</span></div>
+          <div class="figline"><span class="f">3</span><span class="o">of 12</span></div>
+          <div class="bar"><i style="width:25%"></i><u></u></div>
+          <div class="bcap"><span><b>9 to go</b> by 30 Nov</span><span>Target 12</span></div>
+        </div>
+        <div class="pcol">
+          <div class="top2"><span class="pl">Delivered to date</span><span class="pp">Since 1 Sep 2026</span></div>
+          <div class="figline"><span class="f">3</span><span class="o">of 72</span></div>
+          <div class="bar"><i style="width:4.17%"></i><u></u></div>
+          <div class="bcap"><span><b>69 to go</b> by 28 Feb 2027</span><span>Target 72</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel" style="display:flex;flex-direction:column">
+      <div class="phead"><h2>Open items</h2></div>
+      <div class="fig3">
+        <div class="fr"><div class="tile"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.07,16.07,0,0,0,6.4,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16.09,16.09,0,0,0-6.35-12.77L141.27,128l52.38-39.6A16.05,16.05,0,0,0,200,75.64ZM184,216H72V180l56-42,56,42.35Zm0-140.36L128,118,72,76V40H184Z"/></svg></div><div class="tx"><div class="t1">Awaiting client decision</div><div class="t2">2 are overdue</div></div><div class="n">6</div></div>
+        <div class="fr"><div class="tile"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M140,128a12,12,0,1,1-12-12A12,12,0,0,1,140,128ZM84,116a12,12,0,1,0,12,12A12,12,0,0,0,84,116Zm88,0a12,12,0,1,0,12,12A12,12,0,0,0,172,116Zm60,12A104,104,0,0,1,79.12,219.82L45.07,231.17a16,16,0,0,1-20.24-20.24l11.35-34.05A104,104,0,1,1,232,128Zm-16,0A88,88,0,1,0,51.81,172.06a8,8,0,0,1,.66,6.54L40,216,77.4,203.53a7.85,7.85,0,0,1,2.53-.42,8,8,0,0,1,4,1.08A88,88,0,0,0,216,128Z"/></svg></div><div class="tx"><div class="t1">Clarifications to answer</div><div class="t2">2 open, both replied to</div></div><div class="n">0</div></div>
+        <div class="fr"><div class="tile"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M224,48V96a8,8,0,0,1-8,8H168a8,8,0,0,1,0-16h28.69L182.06,73.37a79.56,79.56,0,0,0-56.13-23.43h-.45A79.52,79.52,0,0,0,69.59,72.71,8,8,0,0,1,58.41,61.27a96,96,0,0,1,135,.79L208,76.69V48a8,8,0,0,1,16,0ZM186.41,183.29a80,80,0,0,1-112.47-.66L59.31,168H88a8,8,0,0,0,0-16H40a8,8,0,0,0-8,8v48a8,8,0,0,0,16,0V179.31l14.63,14.63A95.43,95.43,0,0,0,130,222.06h.53a95.36,95.36,0,0,0,67.07-27.33,8,8,0,0,0-11.18-11.44Z"/></svg></div><div class="tx"><div class="t1">Replacements owed</div><div class="t2">For LD-8L4T</div></div><div class="n">1</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel tp" aria-label="All leads">
+    <div class="tbar"><h2>All leads</h2>
+      <div class="search"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M229.66,218.34l-50.07-50.06a88.11,88.11,0,1,0-11.31,11.31l50.06,50.07a8,8,0,0,0,11.32-11.32ZM40,112a72,72,0,1,1,72,72A72.08,72.08,0,0,1,40,112Z"/></svg><span>Search name, company or ref</span></div>
+      <div class="seg"><div class="on">All <b>14</b></div><div>Pending review <b>6</b></div><div>Needs clarification <b>2</b></div><div>Approved <b>4</b></div><div>Rejected <b>2</b></div></div>
+      <div class="count">Showing <b>14</b> of <b>14</b></div>
+    </div>
+    <div class="tw">
+      <table>
+        <colgroup><col style="width:76px"><col style="width:174px"><col style="width:130px"><col style="width:140px"><col style="width:164px"><col style="width:128px"><col style="width:94px"><col style="width:142px"><col style="width:92px"></colgroup>
+        <thead><tr><th>Ref</th><th>Prospect</th><th>Company</th><th>Job title</th><th class="sorted"><span class="si">Approval<svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208.49,152.49l-72,72a12,12,0,0,1-17,0l-72-72a12,12,0,0,1,17-17L116,187V40a12,12,0,0,1,24,0V187l51.51-51.52a12,12,0,0,1,17,17Z"/></svg></span></th><th>Meeting status</th><th>Meeting time</th><th>Client feedback</th><th>Submitted</th></tr></thead>
+        <tbody>
+<tr class="sel">
+  <td class="mono ref">LD-5T6C</td>
+  <td class="nm">Tom Whitcombe</td>
+  <td>Halden Freight</td>
+  <td class="muted">CFO</td>
+  <td><span class="chip amber"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.08,16.08,0,0,0,6.41,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16,16,0,0,0-6.36-12.77L141.26,128l52.38-39.59A16.05,16.05,0,0,0,200,75.64Z"/></svg>Pending review</span></td>
+  <td><span class="ms "><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-38.34-85.66a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L116,164.69l42.34-42.35A8,8,0,0,1,169.66,122.34Z"/></svg><span>Scheduled</span></span></td>
+  <td><div>Mon 16 Nov</div><div class="sm">11:00 GMT</div></td>
+  <td class="empty"></td>
+  <td><div>Mon 9 Nov</div><div class="sm">04:00</div></td>
+</tr>
+<tr class="">
+  <td class="mono ref">LD-2W9H</td>
+  <td class="nm">Priyanka Venkataraman</td>
+  <td>Ashgrove Veterinary Group</td>
+  <td class="muted">Financial Controller</td>
+  <td><span class="chip amber"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.08,16.08,0,0,0,6.41,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16,16,0,0,0-6.36-12.77L141.26,128l52.38-39.59A16.05,16.05,0,0,0,200,75.64Z"/></svg>Pending review</span></td>
+  <td><span class="ms "><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg><span>Completed</span></span></td>
+  <td><div>Mon 9 Nov</div><div class="sm">09:30 GMT</div></td>
+  <td class="empty"></td>
+  <td><div>Mon 9 Nov</div><div class="sm">11:00</div></td>
+</tr>
+<tr class="">
+  <td class="mono ref">LD-6B4N</td>
+  <td class="nm">Callum Rutherford</td>
+  <td>Fellgate Outdoor Retail</td>
+  <td class="muted">Finance Director</td>
+  <td><span class="chip amber"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.08,16.08,0,0,0,6.41,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16,16,0,0,0-6.36-12.77L141.26,128l52.38-39.59A16.05,16.05,0,0,0,200,75.64Z"/></svg>Pending review</span></td>
+  <td><span class="ms "><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg><span>Completed</span></span></td>
+  <td><div>Tue 10 Nov</div><div class="sm">09:30 GMT</div></td>
+  <td class="empty"></td>
+  <td><div>Tue 10 Nov</div><div class="sm">11:30</div></td>
+</tr>
+<tr class="">
+  <td class="mono ref">LD-8R2D</td>
+  <td class="nm">Marcus Delaney</td>
+  <td>Pellam Industrial Group</td>
+  <td class="muted">Group Finance Director</td>
+  <td><span class="chip amber"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.08,16.08,0,0,0,6.41,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16,16,0,0,0-6.36-12.77L141.26,128l52.38-39.59A16.05,16.05,0,0,0,200,75.64Z"/></svg>Pending review</span></td>
+  <td><span class="ms "><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-38.34-85.66a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L116,164.69l42.34-42.35A8,8,0,0,1,169.66,122.34Z"/></svg><span>Scheduled</span></span></td>
+  <td><div>Thu 12 Nov</div><div class="sm">12:30 GMT</div></td>
+  <td class="empty"></td>
+  <td><div>Tue 10 Nov</div><div class="sm">14:00</div></td>
+</tr>
+<tr class="">
+  <td class="mono ref">LD-9F1K</td>
+  <td class="nm">Aisling Brennan</td>
+  <td>Calderbrook Homes</td>
+  <td class="muted">Head of Financial Planning and Analysis</td>
+  <td><span class="chip amber"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.08,16.08,0,0,0,6.41,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16,16,0,0,0-6.36-12.77L141.26,128l52.38-39.59A16.05,16.05,0,0,0,200,75.64Z"/></svg>Pending review</span></td>
+  <td><span class="ms "><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg><span>Completed</span></span></td>
+  <td><div>Tue 10 Nov</div><div class="sm">15:00 GMT</div></td>
+  <td class="empty"></td>
+  <td><div>Wed 11 Nov</div><div class="sm">04:00</div></td>
+</tr>
+<tr class="">
+  <td class="mono ref">LD-3M7A</td>
+  <td class="nm">Harriet Oyelaran</td>
+  <td>Brindle &amp; Marsh</td>
+  <td class="muted">Head of Finance Operations</td>
+  <td><span class="chip amber"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M200,75.64V40a16,16,0,0,0-16-16H72A16,16,0,0,0,56,40V76a16.08,16.08,0,0,0,6.41,12.8L114.67,128,62.4,167.2A16.07,16.07,0,0,0,56,180v36a16,16,0,0,0,16,16H184a16,16,0,0,0,16-16V180.36a16,16,0,0,0-6.36-12.77L141.26,128l52.38-39.59A16.05,16.05,0,0,0,200,75.64Z"/></svg>Pending review</span></td>
+  <td><span class="ms "><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-38.34-85.66a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L116,164.69l42.34-42.35A8,8,0,0,1,169.66,122.34Z"/></svg><span>Scheduled</span></span></td>
+  <td><div>Tue 17 Nov</div><div class="sm">14:00 GMT</div></td>
+  <td class="empty"></td>
+  <td><div>Wed 11 Nov</div><div class="sm">07:00</div></td>
+</tr>
+<tr class="">
+  <td class="mono ref">LD-4K9P</td>
+  <td class="nm">Sunita Bhatt</td>
+  <td>Ormerod Wholesale Foods</td>
+  <td class="muted">Finance Director</td>
+  <td><span class="chip blue"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24ZM84,140a12,12,0,1,1,12-12A12,12,0,0,1,84,140Zm44,0a12,12,0,1,1,12-12A12,12,0,0,1,128,140Zm44,0a12,12,0,1,1,12-12A12,12,0,0,1,172,140Z"/></svg>Needs clarification</span></td>
+  <td><span class="ms "><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-38.34-85.66a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L116,164.69l42.34-42.35A8,8,0,0,1,169.66,122.34Z"/></svg><span>Scheduled</span></span></td>
+  <td><div>Wed 18 Nov</div><div class="sm">15:00 GMT</div></td>
+  <td class="">Clarification requested</td>
+  <td><div>Mon 9 Nov</div><div class="sm">10:00</div></td>
+</tr>
+<tr class="">
+  <td class="mono ref">LD-5N7W</td>
+  <td class="nm">Jack Strachan</td>
+  <td>Dunmore Retail Group</td>
+  <td class="muted">Head of Treasury</td>
+  <td><span class="chip blue"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24ZM84,140a12,12,0,1,1,12-12A12,12,0,0,1,84,140Zm44,0a12,12,0,1,1,12-12A12,12,0,0,1,128,140Zm44,0a12,12,0,1,1,12-12A12,12,0,0,1,172,140Z"/></svg>Needs clarification</span></td>
+  <td><span class="ms "><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-68-76a12,12,0,1,1-12-12A12,12,0,0,1,140,132Zm44,0a12,12,0,1,1-12-12A12,12,0,0,1,184,132ZM96,172a12,12,0,1,1-12-12A12,12,0,0,1,96,172Zm44,0a12,12,0,1,1-12-12A12,12,0,0,1,140,172Zm44,0a12,12,0,1,1-12-12A12,12,0,0,1,184,172Z"/></svg><span>Time proposed</span></span></td>
+  <td><div>Thu 19 Nov</div><div class="sm">11:30 GMT</div></td>
+  <td class="">Clarification requested</td>
+  <td><div>Tue 10 Nov</div><div class="sm">08:50</div></td>
+</tr>
+<tr class="">
+  <td class="mono ref">LD-7C3E</td>
+  <td class="nm">Oluwaseun Adeyemi</td>
+  <td>Ludgate Precision Engineering</td>
+  <td class="muted">Chief Financial Officer</td>
+  <td><span class="chip green"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm45.66,85.66-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32Z"/></svg>Approved</span></td>
+  <td><span class="ms "><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg><span>Completed</span></span></td>
+  <td><div>Thu 5 Nov</div><div class="sm">10:00 GMT</div></td>
+  <td class="empty"></td>
+  <td><div>Thu 29 Oct</div><div class="sm">09:30</div></td>
+</tr>
+<tr class="">
+  <td class="mono ref">LD-1X8S</td>
+  <td class="nm">Rebecca Hallam</td>
+  <td>Stannard Packaging</td>
+  <td class="muted">Financial Controller</td>
+  <td><span class="chip green"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm45.66,85.66-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32Z"/></svg>Approved</span></td>
+  <td><span class="ms "><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg><span>Completed</span></span></td>
+  <td><div>Mon 9 Nov</div><div class="sm">13:00 GMT</div></td>
+  <td class="empty"></td>
+  <td><div>Mon 2 Nov</div><div class="sm">10:30</div></td>
+</tr>
+<tr class="">
+  <td class="mono ref">LD-4D5V</td>
+  <td class="nm">Imran Qureshi</td>
+  <td>Bexley Park Care Group</td>
+  <td class="muted">Director of Finance</td>
+  <td><span class="chip green"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm45.66,85.66-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32Z"/></svg>Approved</span></td>
+  <td><span class="ms "><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg><span>Completed</span></span></td>
+  <td><div>Tue 10 Nov</div><div class="sm">10:30 GMT</div></td>
+  <td class="empty"></td>
+  <td><div>Thu 5 Nov</div><div class="sm">09:00</div></td>
+</tr>
+<tr class="">
+  <td class="mono ref">LD-6J2Z</td>
+  <td class="nm">Fiona McAllister</td>
+  <td>Tayside Marine Services</td>
+  <td class="muted">Head of Finance</td>
+  <td><span class="chip green"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm45.66,85.66-56,56a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L112,148.69l50.34-50.35a8,8,0,0,1,11.32,11.32Z"/></svg>Approved</span></td>
+  <td><span class="ms "><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-38.34-85.66a8,8,0,0,1,0,11.32l-48,48a8,8,0,0,1-11.32,0l-24-24a8,8,0,0,1,11.32-11.32L116,164.69l42.34-42.35A8,8,0,0,1,169.66,122.34Z"/></svg><span>Scheduled</span></span></td>
+  <td><div>Fri 13 Nov</div><div class="sm">10:30 GMT</div></td>
+  <td class="empty"></td>
+  <td><div>Mon 9 Nov</div><div class="sm">09:15</div></td>
+</tr>
+<tr class="">
+  <td class="mono ref">LD-3H8Q</td>
+  <td class="nm">Gareth Pugh</td>
+  <td>Cwm Valley Bakeries</td>
+  <td class="muted">Financial Controller</td>
+  <td><span class="chip red"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm37.66,130.34a8,8,0,0,1-11.32,11.32L128,139.31l-26.34,26.35a8,8,0,0,1-11.32-11.32L116.69,128,90.34,101.66a8,8,0,0,1,11.32-11.32L128,116.69l26.34-26.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/></svg>Rejected</span></td>
+  <td><span class="ms "><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg><span>Completed</span></span></td>
+  <td><div>Wed 28 Oct</div><div class="sm">13:00 GMT</div></td>
+  <td class="">Outside the target profile</td>
+  <td><div>Thu 29 Oct</div><div class="sm">12:00</div></td>
+</tr>
+<tr class="">
+  <td class="mono ref">LD-8L4T</td>
+  <td class="nm">Naomi Fitzgerald</td>
+  <td>Kingsbridge Mutual</td>
+  <td class="muted">Head of Finance Systems</td>
+  <td><span class="chip red"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm37.66,130.34a8,8,0,0,1-11.32,11.32L128,139.31l-26.34,26.35a8,8,0,0,1-11.32-11.32L116.69,128,90.34,101.66a8,8,0,0,1,11.32-11.32L128,116.69l26.34-26.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/></svg>Rejected</span></td>
+  <td><span class="ms bad"><svg class="i " viewBox="0 0 256 256" fill="currentColor" aria-hidden="true"><path d="M208,32H184V24a8,8,0,0,0-16,0v8H88V24a8,8,0,0,0-16,0v8H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V48A16,16,0,0,0,208,32ZM72,48v8a8,8,0,0,0,16,0V48h80v8a8,8,0,0,0,16,0V48h24V80H48V48ZM208,208H48V96H208V208Zm-50.34-74.34L139.31,152l18.35,18.34a8,8,0,0,1-11.32,11.32L128,163.31l-18.34,18.35a8,8,0,0,1-11.32-11.32L116.69,152,98.34,133.66a8,8,0,0,1,11.32-11.32L128,140.69l18.34-18.35a8,8,0,0,1,11.32,11.32Z"/></svg><span>Prospect declined</span></span></td>
+  <td><div>Fri 6 Nov</div><div class="sm">14:00 GMT</div></td>
+  <td class="">Already a customer or in talks</td>
+  <td><div>Mon 2 Nov</div><div class="sm">10:00</div></td>
+</tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main></body></html>
