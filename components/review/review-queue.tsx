@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { ArrowSquareOut, CaretLeft } from "@phosphor-icons/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CaretLeft } from "@phosphor-icons/react";
+import Link from "next/link";
 import { toast } from "sonner";
+import { LeadDetails } from "@/components/leads/lead-details";
 import { StatusBadge } from "@/components/status/status-badge";
-import { TimeInZones } from "@/components/time/time-in-zones";
 import { WaitingAge } from "@/components/time/waiting-age";
+import { useIsDesktop } from "@/components/shell/use-is-desktop";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import type { Lead } from "@/lib/domain/types";
@@ -25,21 +27,6 @@ type Props = {
 type Dialog = "reject" | "clarify" | null;
 
 const UNDO_MS = 6000;
-const DESKTOP_QUERY = "(min-width: 1024px)";
-
-function subscribeDesktop(onChange: () => void): () => void {
-  const query = window.matchMedia(DESKTOP_QUERY);
-  query.addEventListener("change", onChange);
-  return () => query.removeEventListener("change", onChange);
-}
-
-const useIsDesktop = (): boolean =>
-  useSyncExternalStore(
-    subscribeDesktop,
-    () => window.matchMedia(DESKTOP_QUERY).matches,
-    () => true,
-  );
-
 export function ReviewQueue({ leads, now, viewerZone }: Props) {
   const nowDate = useMemo(() => new Date(now), [now]);
   const initialQueue = useMemo(() => reviewQueue(leads), [leads]);
@@ -235,15 +222,6 @@ function QueueRow({
   );
 }
 
-function Field({ label, className, children }: { label: string; className?: string; children: React.ReactNode }) {
-  return (
-    <div className={`flex flex-col gap-1 ${className ?? ""}`}>
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="text-sm break-words">{children}</dd>
-    </div>
-  );
-}
-
 function LeadPane({
   lead,
   now,
@@ -263,11 +241,9 @@ function LeadPane({
   onClarify: () => void;
   className?: string;
 }) {
-  const { prospect, bant } = lead;
-  const meeting = lead.meetings[0];
+  const { prospect } = lead;
   const submitted = new Date(lead.submittedAt);
   const headingId = `lead-${lead.ref}-name`;
-  const meetingStart = meeting ? new Date(meeting.startsAt) : null;
 
   return (
     <section aria-labelledby={headingId} className={`flex min-h-0 min-w-0 flex-col ${className ?? ""}`}>
@@ -289,67 +265,18 @@ function LeadPane({
           <p className="text-sm text-muted-foreground">
             {prospect.title} at {prospect.company}
           </p>
-          <p className="font-mono text-xs text-muted-foreground">{lead.ref}</p>
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+            <p className="font-mono text-xs text-muted-foreground">{lead.ref}</p>
+            <Link
+              href={`/client/leads/${lead.ref}`}
+              className="rounded-sm text-sm text-primary underline underline-offset-4 outline-none hover:text-navy-hover focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              Open full record
+            </Link>
+          </div>
         </header>
 
-        <section aria-labelledby="meeting-heading" className="flex flex-col gap-3 border-t pt-5">
-          <h3 id="meeting-heading" className="text-sm font-medium">
-            Meeting
-          </h3>
-          {meeting && meetingStart ? (
-            <dl className="grid grid-cols-2 gap-x-8 gap-y-4 xl:grid-cols-[auto_auto_auto] xl:justify-start">
-              <Field label="When" className="col-span-2 xl:col-span-1">
-                <TimeInZones
-                  at={meetingStart}
-                  viewerZone={viewerZone}
-                  other={prospect.zone === viewerZone ? undefined : { zone: prospect.zone, label: "the prospect" }}
-                />
-              </Field>
-              <Field label="Status">
-                <StatusBadge kind="meeting" status={meeting.status} />
-              </Field>
-              <Field label="With">
-                {meeting.repName}, {meeting.durationMinutes} minutes
-              </Field>
-            </dl>
-          ) : (
-            <p className="text-sm text-muted-foreground">No meeting is booked for this lead.</p>
-          )}
-        </section>
-
-        <section aria-labelledby="prospect-heading" className="flex flex-col gap-3 border-t pt-5">
-          <h3 id="prospect-heading" className="text-sm font-medium">
-            Prospect
-          </h3>
-          <dl className="grid grid-cols-2 gap-x-8 gap-y-4 xl:grid-cols-[auto_auto_auto] xl:justify-start">
-            <Field label="Email" className="col-span-2 xl:col-span-1">{prospect.email}</Field>
-            <Field label="Phone">{prospect.phone}</Field>
-            <Field label="LinkedIn">
-              <a
-                href={prospect.linkedinUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 rounded-sm text-primary underline underline-offset-4 outline-none hover:text-navy-hover focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                View profile
-                <ArrowSquareOut aria-hidden size={14} />
-                <span className="sr-only">(opens in a new tab)</span>
-              </a>
-            </Field>
-          </dl>
-        </section>
-
-        <section aria-labelledby="qualification-heading" className="flex flex-col gap-3 border-t pt-5">
-          <h3 id="qualification-heading" className="text-sm font-medium">
-            Qualification
-          </h3>
-          <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2">
-            <Field label="Budget">{bant.budget}</Field>
-            <Field label="Authority">{bant.authority}</Field>
-            <Field label="Need">{bant.need}</Field>
-            <Field label="Timeline">{bant.timeline}</Field>
-          </dl>
-        </section>
+        <LeadDetails lead={lead} viewerZone={viewerZone} now={now} />
 
         <footer className="flex flex-col gap-1 border-t pt-5 text-xs text-muted-foreground">
           <p>

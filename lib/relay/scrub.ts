@@ -21,7 +21,8 @@ function digitCount(s: string): number {
  *
  * shortcut: pattern matching only. It misses spelled-out details ("jane at company dot com"), bare domains
  * without www (example.co.uk), and numbers with no leading +, 0 or bracket (such as 98765 43210). It can also
- * remove a long number that is not a phone number, and two numbers separated only by a space count as one. Upgrade by adding a Fynix review step before relay.
+ * remove a long number that is not a phone number, and two numbers separated only by a space count as one.
+ * Upgrade by adding a Fynix review step before relay.
  */
 export function scrubContactDetails(input: string): ScrubResult {
   let removed = 0;

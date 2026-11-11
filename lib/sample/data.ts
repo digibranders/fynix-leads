@@ -609,6 +609,8 @@ export const SAMPLE_LEADS: Lead[] = [
     activity: [
       human("EV-4K9P-1", at(-2, "10:00"), AARAV, "Submitted for review"),
       system("EV-4K9P-2", at(-2, "10:01"), "Notification email delivered"),
+      system("EV-4K9P-7", at(-2, "10:02"), "Meeting invitation sent to the prospect"),
+      system("EV-4K9P-8", at(-2, "10:03"), "Prospect opened the meeting invitation"),
       human("EV-4K9P-3", at(-1, "09:10"), CLIENT, "Asked for clarification"),
       human("EV-4K9P-4", at(-1, "11:00"), AARAV, "Replied to the clarification request"),
       human("EV-4K9P-5", at(-1, "13:30"), CLIENT, "Asked a follow-up question"),

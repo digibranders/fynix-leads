@@ -32,6 +32,20 @@ export function formatInZone(date: Date, timeZone: string): string {
   return `${parts.weekday} ${parts.day} ${parts.month}, ${parts.hour}:${parts.minute} ${parts.dayPeriod.toLowerCase()} ${zoneAbbreviation(date, timeZone)}`;
 }
 
+/** "Thu 12 Nov" in the given IANA time zone. */
+export function formatDayInZone(date: Date, timeZone: string): string {
+  const get = (type: string) =>
+    part(date, timeZone, "en-US", { weekday: "short", day: "numeric", month: "short" }, type);
+  return `${get("weekday")} ${get("day")} ${get("month")}`;
+}
+
+/** "3:00 pm" in the given IANA time zone, without the zone name. */
+export function formatTimeInZone(date: Date, timeZone: string): string {
+  const get = (type: string) =>
+    part(date, timeZone, "en-US", { hour: "numeric", minute: "2-digit", hour12: true }, type);
+  return `${get("hour")}:${get("minute")} ${get("dayPeriod").toLowerCase()}`;
+}
+
 /** Spec section 9: warn when a time falls before 8 am or from 7 pm in that zone. */
 export function isOutsideWorkingHours(date: Date, timeZone: string, startHour = 8, endHour = 19): boolean {
   const hour = Number(part(date, timeZone, "en-US", { hour: "numeric", hourCycle: "h23" }, "hour"));
