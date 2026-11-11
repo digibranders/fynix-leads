@@ -14,6 +14,9 @@ import type { Lead } from "@/lib/domain/types";
 import { formatDayInZone, formatInZone, formatTimeInZone, isOutsideWorkingHours, zoneAbbreviation } from "@/lib/time/zones";
 import { cn } from "@/lib/utils";
 
+/** Tile titles are h2 where the page title is the only heading above them (the lead record) and h3 under a lead heading (the review panel). */
+export type HeadingLevel = 2 | 3;
+
 /** `on-white` sits on a white panel (navy 4% tile). `on-tonal` sits on a tonal pane (white tile that lifts). */
 export type TileTone = "on-white" | "on-tonal";
 
@@ -38,21 +41,34 @@ function Tile({ tone = "on-white", className, children, ...rest }: TileProps) {
 /** Tiles on a tonal pane sit in a narrow column and get more air than tiles on a white panel. */
 const tilePad = (tone: TileTone): string => (tone === "on-tonal" ? "px-[22px] py-5" : "px-5 py-[18px]");
 
-function TileTitle({ id, icon: Glyph, tone, children }: { id: string; icon: Icon; tone: TileTone; children: string }) {
+function TileTitle({
+  id,
+  icon: Glyph,
+  tone,
+  level,
+  children,
+}: {
+  id: string;
+  icon: Icon;
+  tone: TileTone;
+  level: HeadingLevel;
+  children: string;
+}) {
+  const Heading = level === 2 ? "h2" : "h3";
   return (
     <div className={cn("flex items-center gap-[9px]", tone === "on-tonal" ? "mb-3.5" : "mb-2.5")}>
       <span
         aria-hidden
         className={cn(
           "grid size-[30px] shrink-0 place-items-center rounded-full text-ink-2",
-          tone === "on-white" ? "bg-surface shadow-[0_1px_2px_rgba(12,30,46,0.06)]" : "bg-navy-05",
+          tone === "on-white" ? "bg-surface shadow-disc" : "bg-navy-05",
         )}
       >
         <Glyph size={17} />
       </span>
-      <h3 id={id} className="text-[14px] leading-5 font-semibold">
+      <Heading id={id} className="text-[14px] leading-5 font-semibold">
         {children}
-      </h3>
+      </Heading>
     </div>
   );
 }
@@ -93,9 +109,9 @@ const Note = ({ children, warn = false }: { children: React.ReactNode; warn?: bo
 /** "Europe/London" becomes "London", "America/New_York" becomes "New York". */
 const cityOf = (zone: string): string => (zone.split("/").pop() ?? zone).replaceAll("_", " ");
 
-type Props = { lead: Lead; viewerZone: string; now: Date; tone?: TileTone; className?: string };
+type Props = { lead: Lead; viewerZone: string; now: Date; tone?: TileTone; headingLevel?: HeadingLevel; className?: string };
 
-export function MeetingTile({ lead, viewerZone, tone = "on-white", className }: Props) {
+export function MeetingTile({ lead, viewerZone, tone = "on-white", headingLevel = 3, className }: Props) {
   const meeting = lead.meetings[0];
   const at = meeting ? new Date(meeting.startsAt) : null;
   const prospectZone = lead.prospect.zone;
@@ -104,7 +120,7 @@ export function MeetingTile({ lead, viewerZone, tone = "on-white", className }: 
 
   return (
     <Tile tone={tone} aria-labelledby={`${lead.ref}-meeting`} className={cn(tilePad(tone), className)}>
-      <TileTitle id={`${lead.ref}-meeting`} icon={CalendarBlank} tone={tone}>
+      <TileTitle id={`${lead.ref}-meeting`} icon={CalendarBlank} tone={tone} level={headingLevel}>
         Meeting
       </TileTitle>
       {meeting && at ? (
@@ -147,7 +163,7 @@ function linkedinHandle(url: string): string {
   }
 }
 
-export function ContactTile({ lead, now, tone = "on-white", className }: Props) {
+export function ContactTile({ lead, now, tone = "on-white", headingLevel = 3, className }: Props) {
   const { prospect } = lead;
   const at = lead.meetings[0] ? new Date(lead.meetings[0].startsAt) : now;
   // A narrow tile may break the address after the @ instead of in the middle of a word. -1 when there is no @, which keeps it whole.
@@ -155,7 +171,7 @@ export function ContactTile({ lead, now, tone = "on-white", className }: Props) 
 
   return (
     <Tile tone={tone} aria-labelledby={`${lead.ref}-contact`} className={cn(tilePad(tone), className)}>
-      <TileTitle id={`${lead.ref}-contact`} icon={IdentificationCard} tone={tone}>
+      <TileTitle id={`${lead.ref}-contact`} icon={IdentificationCard} tone={tone} level={headingLevel}>
         Contact
       </TileTitle>
       <Details tone={tone}>
@@ -193,7 +209,14 @@ const QUALIFICATION = [
 ] as const;
 
 /** Four BANT tiles. The caller sets the grid with `className`, for example `@xl:grid-cols-2`. */
-export function QualificationTiles({ lead, tone = "on-white", className }: Pick<Props, "lead" | "tone" | "className">) {
+export function QualificationTiles({
+  lead,
+  tone = "on-white",
+  headingLevel = 3,
+  className,
+}: Pick<Props, "lead" | "tone" | "headingLevel" | "className">) {
+  // The group title sits at `headingLevel`, so each answer is one level deeper.
+  const Heading = headingLevel === 2 ? "h3" : "h4";
   return (
     <div className={cn("grid grid-cols-1 gap-3", className)}>
       {QUALIFICATION.map(({ key, label, icon: Glyph }) => (
@@ -203,10 +226,10 @@ export function QualificationTiles({ lead, tone = "on-white", className }: Pick<
           aria-labelledby={`${lead.ref}-${key}`}
           className={tone === "on-tonal" ? "px-[22px] pt-5 pb-[21px]" : "px-5 pt-[15px] pb-4"}
         >
-          <h4 id={`${lead.ref}-${key}`} className="mb-1.5 flex items-center gap-2 text-[13px] leading-[18px] font-semibold text-ink-2">
+          <Heading id={`${lead.ref}-${key}`} className="mb-1.5 flex items-center gap-2 text-[13px] leading-[18px] font-semibold text-ink-2">
             <Glyph aria-hidden size={18} />
             {label}
-          </h4>
+          </Heading>
           <p className="text-[14px] leading-[21px] text-pretty">{lead.bant[key]}</p>
         </Tile>
       ))}

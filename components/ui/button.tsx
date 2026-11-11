@@ -8,7 +8,7 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-primary text-primary-foreground shadow-btn-primary hover:bg-navy-hover [&_kbd]:bg-white/16 [&_kbd]:text-offwhite",
+          "bg-primary text-primary-foreground shadow-btn-primary hover:bg-navy-hover [&_kbd]:bg-on-navy-16 [&_kbd]:text-offwhite",
         secondary:
           "bg-navy-07 text-foreground hover:bg-navy-10 aria-expanded:bg-navy-10 [&_kbd]:bg-navy-08 [&_kbd]:text-ink-2",
         destructive:
@@ -19,11 +19,11 @@ const buttonVariants = cva(
       size: {
         default:
           "h-11 gap-2 px-[18px] has-[kbd]:pr-[9px] has-[kbd]:pl-4 [&_svg:not([class*='size-'])]:size-[18px]",
-        sm: "h-8 gap-[7px] px-3.5 text-[13px] has-[kbd]:pr-2 [&_svg:not([class*='size-'])]:size-4",
-        xs: "h-7 gap-1.5 px-3 text-xs has-[kbd]:pr-1.5 [&_svg:not([class*='size-'])]:size-3.5",
+        sm: "h-8 max-md:h-10 gap-[7px] px-3.5 text-[13px] has-[kbd]:pr-2 [&_svg:not([class*='size-'])]:size-4",
+        xs: "h-7 max-md:h-10 gap-1.5 px-3 text-xs has-[kbd]:pr-1.5 [&_svg:not([class*='size-'])]:size-3.5",
         icon: "size-10 [&_svg:not([class*='size-'])]:size-5",
-        "icon-sm": "size-8 [&_svg:not([class*='size-'])]:size-4",
-        "icon-xs": "size-7 [&_svg:not([class*='size-'])]:size-3.5",
+        "icon-sm": "size-8 max-md:size-10 [&_svg:not([class*='size-'])]:size-4",
+        "icon-xs": "size-7 max-md:size-10 [&_svg:not([class*='size-'])]:size-3.5",
       },
     },
     defaultVariants: {

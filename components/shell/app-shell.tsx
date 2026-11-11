@@ -21,7 +21,7 @@ export function AppShell({ children, searchLeads }: { children: React.ReactNode;
         Skip to content
       </a>
 
-      <aside className="fixed inset-y-3 left-3 z-30 flex w-[72px] flex-col overflow-hidden rounded-xl bg-navy shadow-rail max-md:hidden lg:w-[220px]">
+      <aside aria-label="Sidebar" className="fixed inset-y-3 left-3 z-30 flex w-[72px] flex-col overflow-hidden rounded-xl bg-navy shadow-rail max-md:hidden lg:w-[220px]">
         <RailPanel role={roleFromPath(pathname)} pathname={pathname} collapsing />
       </aside>
 

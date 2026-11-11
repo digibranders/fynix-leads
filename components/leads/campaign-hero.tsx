@@ -16,7 +16,7 @@ export function CampaignHero({ delivered, totalTarget, monthlyTarget }: Props) {
   return (
     <section
       aria-label="Progress toward target"
-      className="relative flex min-h-[244px] flex-col xl:h-[244px] overflow-hidden rounded-lg bg-navy px-[26px] pt-[22px] pb-5 text-offwhite shadow-hero before:pointer-events-none before:absolute before:-top-[110px] before:-right-[90px] before:size-[360px] before:rounded-full before:bg-[radial-gradient(closest-side,rgba(233,175,136,0.09),rgba(233,175,136,0))]"
+      className="relative flex min-h-[244px] flex-col xl:h-[244px] overflow-hidden rounded-lg bg-navy px-[26px] pt-[22px] pb-5 text-offwhite shadow-hero before:pointer-events-none before:absolute before:-top-[110px] before:-right-[90px] before:size-[360px] before:rounded-full before:bg-(image:--hero-glow)"
     >
       <div className="relative z-10 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <h2 className="text-body font-semibold">Progress toward target</h2>
@@ -45,11 +45,11 @@ export function CampaignHero({ delivered, totalTarget, monthlyTarget }: Props) {
           className="relative h-2.5 rounded-full bg-on-navy-10"
         >
           <div
-            className="absolute inset-y-0 left-0 min-w-3 rounded-full bg-peach shadow-[0_0_14px_rgba(233,175,136,0.45)]"
+            className="absolute inset-y-0 left-0 min-w-3 rounded-full bg-peach shadow-glow"
             style={{ width: pct(delivered) }}
           />
           {ticks.map((tick) => (
-            <span key={tick} aria-hidden className="absolute -top-1 -bottom-1 w-px bg-white/[0.18]" style={{ left: pct(tick) }} />
+            <span key={tick} aria-hidden className="absolute -top-1 -bottom-1 w-px bg-on-navy-16" style={{ left: pct(tick) }} />
           ))}
           <span aria-hidden className="absolute -top-1.5 -right-px -bottom-1.5 w-[3px] rounded-[2px] bg-offwhite" />
         </div>

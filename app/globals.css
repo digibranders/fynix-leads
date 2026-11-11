@@ -47,6 +47,7 @@
   --on-navy-05: rgba(255, 255, 255, 0.05);
   --on-navy-07: rgba(255, 255, 255, 0.07);
   --on-navy-10: rgba(255, 255, 255, 0.1);
+  --on-navy-16: rgba(255, 255, 255, 0.16);
   --on-navy-text: rgba(243, 239, 233, 0.68);
   --on-navy-muted: rgba(243, 239, 233, 0.6);
 
@@ -184,6 +185,7 @@
   --color-on-navy-05: var(--on-navy-05);
   --color-on-navy-07: var(--on-navy-07);
   --color-on-navy-10: var(--on-navy-10);
+  --color-on-navy-16: var(--on-navy-16);
   --color-on-navy-text: var(--on-navy-text);
   --color-on-navy-muted: var(--on-navy-muted);
 
@@ -281,6 +283,10 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 1px 2px rgba(12, 30, 46, 0.25),
     0 8px 16px -6px rgba(12, 30, 46, 0.4);
   --shadow-nav-active: 0 4px 12px -4px rgba(233, 175, 136, 0.5);
+  --shadow-disc: 0 1px 2px rgba(12, 30, 46, 0.06); /* the 30px icon disc on a navy 4% tile */
+  --shadow-segment: 0 1px 2px rgba(12, 30, 46, 0.2); /* the active segment of the segmented control */
+  --shadow-glow: 0 0 14px rgba(233, 175, 136, 0.45); /* the peach progress fill on the hero tile */
+  --hero-glow: radial-gradient(closest-side, rgba(233, 175, 136, 0.09), rgba(233, 175, 136, 0)); /* the only gradient: a soft corner glow on the hero tile */
 
   /* Type scale (size and line height). Tailwind text-xs and text-sm stay for 12px and 14px. */
   --text-caption: 12px;
@@ -320,6 +326,7 @@
   }
   html {
     @apply font-sans;
+    color-scheme: light; /* native controls, scrollbars and form fields stay light */
   }
   body {
     background: var(--canvas);
@@ -337,6 +344,12 @@
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
+  }
+  a,
+  button,
+  [role="button"],
+  [role="tab"] {
+    touch-action: manipulation; /* no double-tap zoom delay on controls */
   }
   :focus-visible {
     outline: 2px solid var(--ring);
@@ -356,6 +369,8 @@
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important; /* an infinite loop at 0.01ms would flicker, so the skeleton pulse stops */
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

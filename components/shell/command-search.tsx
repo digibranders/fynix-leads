@@ -52,7 +52,7 @@ export function CommandSearch({ role }: { role: Role }) {
         variant="ghost"
         size="icon"
         onClick={() => setOpen(true)}
-        aria-label="Search"
+        aria-label="Search leads"
         aria-keyshortcuts="Control+K Meta+K"
         className="rounded-sm bg-navy-05 text-[14px] font-normal text-ink-muted hover:bg-navy-07 lg:w-[220px] lg:justify-start lg:gap-2.5 lg:px-3.5 lg:pr-2 xl:w-[300px]"
       >
@@ -67,7 +67,7 @@ export function CommandSearch({ role }: { role: Role }) {
         description="Find a screen or a lead by reference or prospect name."
         className="sm:max-w-lg"
       >
-        <Command loop>
+        <Command loop label="Search leads and screens">
           <CommandInput placeholder={role === "client" ? "Search screens and leads" : "Search screens"} />
           <CommandList>
             <CommandEmpty>No screen or lead matches that search.</CommandEmpty>
