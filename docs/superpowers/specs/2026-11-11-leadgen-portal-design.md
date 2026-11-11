@@ -318,7 +318,7 @@ Code layout: domain logic (lifecycle, delivered rule, scrubbing, visibility) liv
 | # | Question | Blocks |
 |---|---|---|
 | 1 | Can one lead have more than one meeting? (asking your seniors) | Meeting UI only, model is ready for both |
-| 2 | Which month does a delivered lead count toward: meeting, approval or submission month? | Monthly dashboards and target emails |
+| 2 | Which month does a delivered lead count toward: meeting, approval or submission month? And in which time zone is that month read (the prototype uses the campaign zone, Europe/London)? | Monthly dashboards and target emails |
 | 3 | Decided 2026-11-11: agency users join Meet as named guests under their Fynix alias. No paid seats | |
 | 4 | Do you have drafts of the terms for the client, the agency and Fynix, including non-circumvention? | First sign-in |
 | 5 | Will prospects include people in the EU or UK (GDPR), or only India (DPDPA) and elsewhere? | Retention and consent rules |

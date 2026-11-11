@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDayInZone, formatInZone, formatTimeInZone, isOutsideWorkingHours, zoneAbbreviation } from "./zones";
+import { formatDayInZone, formatInZone, formatTimeInZone, isOutsideWorkingHours, monthInZone, zoneAbbreviation } from "./zones";
 
 const t = new Date("2026-11-12T09:30:00Z");
 
@@ -38,5 +38,15 @@ describe("isOutsideWorkingHours", () => {
     expect(isOutsideWorkingHours(t, "America/New_York")).toBe(true); // 4:30 am
     expect(isOutsideWorkingHours(t, "Asia/Kolkata")).toBe(false); // 3:00 pm
     expect(isOutsideWorkingHours(new Date("2026-11-12T13:30:00Z"), "Asia/Kolkata")).toBe(true); // 7:00 pm
+  });
+});
+
+describe("monthInZone", () => {
+  it("gives YYYY-MM for the calendar month in that zone", () => {
+    const d = new Date("2026-07-31T23:30:00Z");
+    expect(monthInZone(d, "UTC")).toBe("2026-07");
+    expect(monthInZone(d, "Europe/London")).toBe("2026-08");
+    expect(monthInZone(new Date("2026-12-31T20:00:00Z"), "Asia/Kolkata")).toBe("2027-01");
+    expect(monthInZone(new Date("2026-01-01T02:00:00Z"), "America/New_York")).toBe("2025-12");
   });
 });

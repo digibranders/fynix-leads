@@ -241,7 +241,7 @@ The agency never sees client rep names, emails or people, so the two roles never
 
 ## Open question
 
-Which month a delivered lead counts toward is undecided (spec section 16, item 2). The prototype uses the month of the earliest completed meeting. The rule lives in one function, `lib/domain/counting-month.ts`, so changing the answer is a one-file change.
+Which month a delivered lead counts toward is undecided (spec section 16, item 2), and so is the time zone the month is read in. The prototype uses the month of the earliest completed meeting, read in the campaign zone (`CAMPAIGN_ZONE`, Europe/London). The rule lives in one function, `lib/domain/counting-month.ts`, so changing either answer is a one-file change.
 
 ## Accessibility notes
 

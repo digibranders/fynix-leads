@@ -2,6 +2,7 @@ import { countingMonth } from "@/lib/domain/counting-month";
 import type { Lead } from "@/lib/domain/types";
 import { lastMessageSide } from "@/lib/leads/thread";
 import { isOverdue } from "@/lib/time/age";
+import { monthInZone } from "@/lib/time/zones";
 
 export type CampaignStats = {
   deliveredThisMonth: number;
@@ -12,16 +13,16 @@ export type CampaignStats = {
   replacementsOwed: number;
 };
 
-/** Rejected leads that no other lead replaces, in input order. */
+/** Rejected leads that no other lead replaces, in input order. A draft replacement does not count: the debt stands until the agency submits it. */
 export function replacementsOwedRefs(leads: readonly Pick<Lead, "ref" | "approval" | "replacesRef">[]): string[] {
-  const replaced = new Set(leads.flatMap((l) => (l.replacesRef ? [l.replacesRef] : [])));
+  const replaced = new Set(leads.flatMap((l) => (l.replacesRef && l.approval !== "draft" ? [l.replacesRef] : [])));
   return leads.filter((l) => l.approval === "rejected" && !replaced.has(l.ref)).map((l) => l.ref);
 }
 
-/** Counts for the agency overview. Compute on the server from the full leads and pass the plain numbers down. */
-export function campaignStats(leads: readonly Lead[], now: Date): CampaignStats {
-  const thisMonth = now.toISOString().slice(0, 7);
-  const months = leads.map(countingMonth);
+/** Counts for the agency overview. Compute on the server from the full leads and pass the plain numbers down. Months are read in `zone`, the campaign time zone. */
+export function campaignStats(leads: readonly Lead[], now: Date, zone: string): CampaignStats {
+  const thisMonth = monthInZone(now, zone);
+  const months = leads.map((l) => countingMonth(l, zone));
   const pending = leads.filter((l) => l.approval === "pending");
 
   return {

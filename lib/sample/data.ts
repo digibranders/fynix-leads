@@ -4,7 +4,7 @@ import { SAMPLE_CAMPAIGN, SAMPLE_NOW } from "./campaign";
 
 // Campaign facts, the fixed "now" and the viewer zones live in ./campaign so shared client code can import
 // them without pulling in the leads (which carry client rep names). Re-exported here for server code.
-export { SAMPLE_CAMPAIGN, SAMPLE_NOW, VIEWER_ZONES } from "./campaign";
+export { CAMPAIGN_ZONE, SAMPLE_CAMPAIGN, SAMPLE_NOW, VIEWER_ZONES } from "./campaign";
 
 /** Client reps. They appear only as `Meeting.repName`, never in activity or thread text. */
 export const SAMPLE_REPS = ["Imogen Price", "Daniel Okafor", "Priya Raman"] as const;

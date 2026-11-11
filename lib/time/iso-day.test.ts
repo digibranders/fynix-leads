@@ -12,8 +12,13 @@ describe("formatIsoDay", () => {
 });
 
 describe("formatMonthYear", () => {
-  it("names the UTC month", () => {
-    expect(formatMonthYear(new Date("2026-11-11T10:00:00Z"))).toBe("November 2026");
-    expect(formatMonthYear(new Date("2026-12-31T23:59:00Z"))).toBe("December 2026");
+  it("names the month in the given zone", () => {
+    expect(formatMonthYear(new Date("2026-11-11T10:00:00Z"), "UTC")).toBe("November 2026");
+    expect(formatMonthYear(new Date("2026-12-31T23:59:00Z"), "UTC")).toBe("December 2026");
+  });
+  it("can differ from UTC near a month end", () => {
+    const d = new Date("2026-07-31T23:30:00Z");
+    expect(formatMonthYear(d, "UTC")).toBe("July 2026");
+    expect(formatMonthYear(d, "Europe/London")).toBe("August 2026");
   });
 });

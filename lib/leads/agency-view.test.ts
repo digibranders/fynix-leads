@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Lead } from "@/lib/domain/types";
 import { SAMPLE_LEADS, SAMPLE_REPS } from "@/lib/sample/data";
-import { primaryMeeting, toAgencyView, type AgencyLead } from "./agency-view";
+import { toAgencyView, type AgencyLead } from "./agency-view";
 
 describe("toAgencyView", () => {
   const views = SAMPLE_LEADS.map(toAgencyView);
@@ -53,20 +53,6 @@ describe("toAgencyView", () => {
     // @ts-expect-error repName is not part of the agency shape
     void meeting.repName;
     expect(meeting).toBeDefined();
-  });
-});
-
-describe("primaryMeeting", () => {
-  const m = (id: string, status: AgencyLead["meetings"][number]["status"], startsAt: string) => ({ id, status, startsAt, durationMinutes: 30 });
-
-  it("is undefined without meetings", () => expect(primaryMeeting([])).toBeUndefined());
-  it("prefers the earliest completed meeting", () => {
-    const list = [m("a", "scheduled", "2026-11-20T10:00:00Z"), m("b", "completed", "2026-11-05T10:00:00Z"), m("c", "completed", "2026-11-03T10:00:00Z")];
-    expect(primaryMeeting(list)?.id).toBe("c");
-  });
-  it("otherwise takes the most recently added meeting", () => {
-    const list = [m("a", "cancelled", "2026-11-02T10:00:00Z"), m("b", "scheduled", "2026-11-20T10:00:00Z")];
-    expect(primaryMeeting(list)?.id).toBe("b");
   });
 });
 

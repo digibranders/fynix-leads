@@ -6,7 +6,8 @@ import { createColumnHelper, tableFeatures, useTable } from "@tanstack/react-tab
 import { StatusBadge } from "@/components/status/status-badge";
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { REJECTION_REASONS } from "@/lib/domain/rejection-reasons";
-import { primaryMeeting, type AgencyLead } from "@/lib/leads/agency-view";
+import { primaryMeeting } from "@/lib/domain/primary-meeting";
+import type { AgencyLead } from "@/lib/leads/agency-view";
 import type { LeadSort, SortKey } from "@/lib/leads/filter";
 import { formatDayInZone, formatTimeInZone } from "@/lib/time/zones";
 import { cn } from "@/lib/utils";

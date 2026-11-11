@@ -127,7 +127,7 @@ export function LeadPanel({ lead, segment, now, viewerZone, onBack, onApprove, o
 
           <div className="px-4 pt-[22px] pb-6 lg:px-7">
             <div className="grid grid-cols-1 gap-3 @[40rem]:grid-cols-2">
-              <MeetingTile lead={lead} viewerZone={viewerZone} now={now} />
+              <MeetingTile lead={lead} viewerZone={viewerZone} />
               <ContactTile lead={lead} viewerZone={viewerZone} now={now} />
             </div>
             <h3 className="mt-[26px] mb-3.5 flex items-center gap-[9px] text-[15px] font-semibold">

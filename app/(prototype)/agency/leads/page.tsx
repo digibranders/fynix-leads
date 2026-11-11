@@ -6,7 +6,7 @@ import { MonthTile, StatTiles } from "@/components/leads/stat-tiles";
 import { PageHeader } from "@/components/shell/page-header";
 import { campaignStats, replacementsOwedRefs } from "@/lib/campaign/stats";
 import { toAgencyView } from "@/lib/leads/agency-view";
-import { SAMPLE_CAMPAIGN, SAMPLE_LEADS, SAMPLE_NOW, VIEWER_ZONES } from "@/lib/sample/data";
+import { CAMPAIGN_ZONE, SAMPLE_CAMPAIGN, SAMPLE_LEADS, SAMPLE_NOW, VIEWER_ZONES } from "@/lib/sample/data";
 import { formatIsoDay, formatMonthYear } from "@/lib/time/iso-day";
 
 export const metadata: Metadata = { title: "Leads" };
@@ -14,7 +14,7 @@ export const metadata: Metadata = { title: "Leads" };
 export default function AgencyLeadsPage() {
   // Everything below runs on the server. Only the role-shaped leads and plain numbers cross to the browser.
   const leads = SAMPLE_LEADS.map(toAgencyView);
-  const stats = campaignStats(SAMPLE_LEADS, SAMPLE_NOW);
+  const stats = campaignStats(SAMPLE_LEADS, SAMPLE_NOW, CAMPAIGN_ZONE);
   const replacementRefs = replacementsOwedRefs(SAMPLE_LEADS);
   const { name, brand, ref, startsOn, endsOn, monthlyTarget, totalTarget } = SAMPLE_CAMPAIGN;
 
@@ -38,7 +38,7 @@ export default function AgencyLeadsPage() {
       <div className="grid gap-4 xl:grid-cols-[minmax(0,520px)_minmax(0,1fr)]">
         <CampaignHero delivered={stats.deliveredToDate} totalTarget={totalTarget} monthlyTarget={monthlyTarget} />
         <div className="grid gap-4 xl:grid-rows-[auto_1fr]">
-          <MonthTile delivered={stats.deliveredThisMonth} target={monthlyTarget} monthLabel={formatMonthYear(SAMPLE_NOW)} />
+          <MonthTile delivered={stats.deliveredThisMonth} target={monthlyTarget} monthLabel={formatMonthYear(SAMPLE_NOW, CAMPAIGN_ZONE)} />
           <StatTiles stats={stats} replacementRefs={replacementRefs} />
         </div>
       </div>

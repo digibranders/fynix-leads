@@ -21,14 +21,6 @@ export type AgencyLead = {
   lastMessageSide: ThreadSide | null;
 };
 
-type AgencyMeeting = AgencyLead["meetings"][number];
-
-/** The meeting a table row shows: the earliest completed one, else the most recently added. */
-export function primaryMeeting(meetings: readonly AgencyMeeting[]): AgencyMeeting | undefined {
-  const completed = meetings.filter((m) => m.status === "completed").sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt));
-  return completed[0] ?? meetings[meetings.length - 1];
-}
-
 export function toAgencyView(lead: Lead): AgencyLead {
   const { prospect, decision } = lead;
   return {

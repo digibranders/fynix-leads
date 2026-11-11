@@ -18,7 +18,7 @@ export function LeadDetails({ lead, viewerZone, now, className }: Props) {
   return (
     <aside aria-label="Lead details" className={cn("rounded-lg bg-tonal p-3", className)}>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-1">
-        <MeetingTile lead={lead} viewerZone={viewerZone} now={now} tone="on-tonal" headingLevel={2} />
+        <MeetingTile lead={lead} viewerZone={viewerZone} tone="on-tonal" headingLevel={2} />
         <ContactTile lead={lead} viewerZone={viewerZone} now={now} tone="on-tonal" headingLevel={2} />
         <h2 className="flex items-center gap-2 px-2 pt-3.5 text-[13px] font-semibold text-ink-2 md:col-span-2 lg:col-span-1">
           <ListMagnifyingGlass aria-hidden size={17} />

@@ -7,7 +7,7 @@ export function formatIsoDay(isoDate: string): string {
   return `${Number(match[3])} ${MONTHS[Number(match[2]) - 1]} ${match[1]}`;
 }
 
-/** "November 2026" for the UTC month of a date. */
-export function formatMonthYear(date: Date): string {
-  return new Intl.DateTimeFormat("en-US", { timeZone: "UTC", month: "long", year: "numeric" }).format(date);
+/** "November 2026" for the month a date falls in, in the given IANA time zone. */
+export function formatMonthYear(date: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-US", { timeZone, month: "long", year: "numeric" }).format(date);
 }

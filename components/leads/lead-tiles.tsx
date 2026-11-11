@@ -10,6 +10,7 @@ import {
   Warning,
 } from "@phosphor-icons/react/dist/ssr";
 import { StatusBadge } from "@/components/status/status-badge";
+import { primaryMeeting } from "@/lib/domain/primary-meeting";
 import type { Lead } from "@/lib/domain/types";
 import { formatDayInZone, formatInZone, formatTimeInZone, isOutsideWorkingHours, zoneAbbreviation } from "@/lib/time/zones";
 import { cn } from "@/lib/utils";
@@ -109,10 +110,10 @@ const Note = ({ children, warn = false }: { children: React.ReactNode; warn?: bo
 /** "Europe/London" becomes "London", "America/New_York" becomes "New York". */
 const cityOf = (zone: string): string => (zone.split("/").pop() ?? zone).replaceAll("_", " ");
 
-type Props = { lead: Lead; viewerZone: string; now: Date; tone?: TileTone; headingLevel?: HeadingLevel; className?: string };
+type Props = { lead: Lead; viewerZone: string; tone?: TileTone; headingLevel?: HeadingLevel; className?: string };
 
 export function MeetingTile({ lead, viewerZone, tone = "on-white", headingLevel = 3, className }: Props) {
-  const meeting = lead.meetings[0];
+  const meeting = primaryMeeting(lead.meetings);
   const at = meeting ? new Date(meeting.startsAt) : null;
   const prospectZone = lead.prospect.zone;
   const offHours =
@@ -163,9 +164,10 @@ function linkedinHandle(url: string): string {
   }
 }
 
-export function ContactTile({ lead, now, tone = "on-white", headingLevel = 3, className }: Props) {
+export function ContactTile({ lead, now, tone = "on-white", headingLevel = 3, className }: Props & { now: Date }) {
   const { prospect } = lead;
-  const at = lead.meetings[0] ? new Date(lead.meetings[0].startsAt) : now;
+  const meeting = primaryMeeting(lead.meetings);
+  const at = meeting ? new Date(meeting.startsAt) : now;
   // A narrow tile may break the address after the @ instead of in the middle of a word. -1 when there is no @, which keeps it whole.
   const atSign = prospect.email.indexOf("@");
 

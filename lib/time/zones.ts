@@ -51,3 +51,9 @@ export function isOutsideWorkingHours(date: Date, timeZone: string, startHour = 
   const hour = Number(part(date, timeZone, "en-US", { hour: "numeric", hourCycle: "h23" }, "hour"));
   return hour < startHour || hour >= endHour;
 }
+
+/** "2026-08" for the calendar month a moment falls in, in the given IANA time zone. */
+export function monthInZone(date: Date, timeZone: string): string {
+  const get = (type: string) => part(date, timeZone, "en-US", { year: "numeric", month: "2-digit" }, type);
+  return `${get("year")}-${get("month")}`;
+}
