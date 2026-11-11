@@ -1,3 +1,4 @@
+import "server-only";
 import type { ActivityEvent, Lead, ThreadMessage } from "@/lib/domain/types";
 
 import { SAMPLE_CAMPAIGN, SAMPLE_NOW } from "./campaign";
