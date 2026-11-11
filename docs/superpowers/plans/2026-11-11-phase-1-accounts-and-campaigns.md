@@ -19,6 +19,8 @@
 | D5 | The app runs at `leads.fynix.digital`. The admin lives at `/admin` on the same host. Routing is host-agnostic so a separate admin host later is configuration only. | Owner, confirmed 2026-11-11 |
 | D6 | Local development uses the Postgres 16 already running on this machine (databases `fynix_leads` and `fynix_leads_test`). Production Postgres is on the Firstfold VPS (phase 6). | Checked 2026-11-11 |
 | D7 | Phase 1 includes transactional email (invites, password reset) through an outbox, which the spec had placed in phase 4. Invites cannot work without it. Notification emails stay in phase 4. | Plan |
+| D8 | Nothing is deleted: Fynix has select, insert and update only on organisations and campaigns, and records are archived by status. | Owner, 2026-11-12 |
+| D9 | The agency sees the client's brand name only, not its legal name. | Owner, 2026-11-12 |
 
 ## 2. What the spike proved (PostgreSQL 16, throwaway database)
 
@@ -70,14 +72,14 @@
 
 | Table | Holds | Fynix | Client | Agency |
 |---|---|---|---|---|
-| `organisation` | public ref, kind (`fynix`, `client`, `agency`), name, brand name, status | all | own row | own row, plus the client organisations of its campaigns (ref, name, brand name only) |
+| `organisation` | public ref, kind (`fynix`, `client`, `agency`), name, brand name, status | all | own row | own row only; never a client organisation row (it would need a client id). It reads the client's brand name from a copied column on `campaign` |
 | Better Auth tables | user, session, account, verification | all | none | none |
 | `member` | user, organisation, role in organisation (`member`, `manager`), display name | all | organisation-mates | organisation-mates |
 | `agency_alias` | agency member, alias display name (the Fynix name the client sees) | all | read through snapshots only | own |
 | `invite` | organisation, email, role, token hash, expiry, redeemed, revoked, created by | all | none | none |
 | `terms_document` | party kind, version, title, body, status, published at | all | current version for its party | current version for its party |
 | `terms_acceptance` | user, document, accepted at, network address | all | own | own |
-| `campaign` | ref `CMP-XXXX`, name, client org, agency org, dates, targets, requirements, BANT criteria, instructions, internal notes, status | all | all except agency org and internal notes | all except client org and internal notes |
+| `campaign` | ref `CMP-XXXX`, name, client org, agency org, client brand name (copied by a trigger), dates, targets, requirements, BANT criteria, instructions, internal notes, status | all | all except agency org and internal notes | all except client org and internal notes |
 | `audit_log` | actor, role, action, subject, before, after, time (append only: insert and select, no update or delete for any role) | read, insert | none | none |
 | `email_outbox` | recipient, template, payload without links, status, attempts, provider id, times | all | none | none |
 | `rate_limit` | key hash, window, count | none | none | none (public role only) |
@@ -118,6 +120,7 @@ Each sub-phase ends with lint, typecheck, tests (including integration) and buil
 
 ## 8. Risks
 
+- Row-level security protects against query bugs, not against SQL injection into a tenant connection: a tenant role can set its own scope variable. The organisation ids it would need are random UUIDs it cannot read. Accepted, documented in `CLAUDE.md` (1A plan, open question 2).
 - Column-level grants and Drizzle: untyped selects fail by design, so typed per-role column lists are required and must be generated from one source to avoid drift.
 - Better Auth quirks (section 3) can silently succeed when they should fail; each is covered by a test.
 - Default views bypass row-level security; the `security_invoker` test must exist before the first view.
