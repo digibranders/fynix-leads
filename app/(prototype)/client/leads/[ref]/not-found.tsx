@@ -10,7 +10,7 @@ export default function LeadNotFound() {
           No lead has that reference. Check the reference in the address, or open the lead from the review queue.
         </p>
       </div>
-      <Button variant="outline" nativeButton={false} render={<Link href="/client/review" />}>
+      <Button variant="secondary" nativeButton={false} render={<Link href="/client/review" />}>
         Back to review queue
       </Button>
     </div>

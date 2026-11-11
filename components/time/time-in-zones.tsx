@@ -16,12 +16,12 @@ export function TimeInZones({ at, viewerZone, other }: Props) {
         {formatInZone(at, viewerZone)}
       </time>
       {other && (
-        <span className="text-xs text-muted-foreground">
+        <span className="text-xs text-ink-muted">
           {formatInZone(at, other.zone)} for {other.label}
         </span>
       )}
       {offHours && (
-        <span className="inline-flex items-center gap-1 text-xs text-tone-pending">
+        <span className="inline-flex items-center gap-1 text-xs text-amber-text">
           <Warning aria-hidden size={12} weight="fill" />
           Outside working hours for one side
         </span>

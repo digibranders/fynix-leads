@@ -293,27 +293,26 @@ function LeadPane({
 
       <div className="sticky bottom-0 flex flex-col gap-2 border-t bg-card px-4 py-3 lg:static lg:px-6">
         <div className="grid grid-cols-2 gap-2 lg:flex">
-          <Button onClick={onApprove} data-review-action="approve" aria-keyshortcuts="A" className="max-lg:h-11 lg:h-9">
+          <Button onClick={onApprove} data-review-action="approve" aria-keyshortcuts="A">
             Approve
-            <Kbd className="hidden bg-primary-foreground/15 text-primary-foreground lg:inline-flex">A</Kbd>
+            <Kbd className="hidden lg:inline-grid">A</Kbd>
           </Button>
           <Button
-            variant="outline"
+            variant="destructive"
             onClick={onReject}
             data-review-action="reject" aria-keyshortcuts="R"
-            className="text-tone-rejected hover:bg-tone-rejected-surface hover:text-tone-rejected max-lg:h-11 lg:h-9"
           >
             Reject
-            <Kbd className="hidden lg:inline-flex">R</Kbd>
+            <Kbd className="hidden lg:inline-grid">R</Kbd>
           </Button>
           <Button
             variant="secondary"
             onClick={onClarify}
             data-review-action="clarify" aria-keyshortcuts="C"
-            className="col-span-2 max-lg:h-11 lg:h-9"
+            className="col-span-2"
           >
             Ask for clarification
-            <Kbd className="hidden lg:inline-flex">C</Kbd>
+            <Kbd className="hidden lg:inline-grid">C</Kbd>
           </Button>
         </div>
         <p className="hidden text-xs text-muted-foreground lg:block">

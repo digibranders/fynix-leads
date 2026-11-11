@@ -33,7 +33,7 @@ export function NavLinks({ role, pathname, collapsible = false, onNavigate }: Pr
                   : "h-10 px-2.5",
                 active
                   ? "bg-sidebar-accent font-medium text-primary"
-                  : "text-sidebar-foreground hover:bg-[var(--gray-3)] hover:text-foreground",
+                  : "text-sidebar-foreground hover:bg-navy-07 hover:text-foreground",
               )}
             >
               <Glyph aria-hidden size={18} weight="regular" className="shrink-0" />

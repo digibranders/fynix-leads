@@ -11,7 +11,7 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
     >
       <table
         data-slot="table"
-        className={cn("w-full caption-bottom text-table", className)}
+        className={cn("w-full caption-bottom border-separate border-spacing-0 text-[13px] leading-[17px]", className)}
         {...props}
       />
     </div>
@@ -22,7 +22,7 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b", className)}
+      className={cn("[&_th:first-child]:rounded-l-sm [&_th:first-child]:pl-3.5 [&_th:last-child]:rounded-r-sm", className)}
       {...props}
     />
   )
@@ -32,7 +32,7 @@ function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
   return (
     <tbody
       data-slot="table-body"
-      className={cn("[&_tr:last-child]:border-0", className)}
+      className={cn("[&_tr:last-child>td]:shadow-none", className)}
       {...props}
     />
   )
@@ -43,7 +43,7 @@ function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
     <tfoot
       data-slot="table-footer"
       className={cn(
-        "border-t bg-muted/50 font-medium [&>tr]:last:border-b-0",
+        "bg-navy-04 font-medium [&_td:first-child]:rounded-l-sm [&_td:last-child]:rounded-r-sm",
         className
       )}
       {...props}
@@ -56,7 +56,7 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
     <tr
       data-slot="table-row"
       className={cn(
-        "border-b transition-colors hover:bg-muted/50 has-aria-expanded:bg-muted/50 data-[state=selected]:bg-muted",
+        "transition-colors [&>td]:shadow-[inset_0_-1px_0_var(--line)] [&>td:first-child]:pl-3.5 hover:[&>td]:bg-navy-03 has-aria-expanded:[&>td]:bg-navy-03 data-[state=selected]:[&>td]:bg-selected data-[state=selected]:[&>td]:shadow-none data-[state=selected]:hover:[&>td]:bg-selected data-[state=selected]:[&>td:first-child]:rounded-l-sm data-[state=selected]:[&>td:last-child]:rounded-r-sm",
         className
       )}
       {...props}
@@ -69,7 +69,7 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
     <th
       data-slot="table-head"
       className={cn(
-        "h-9 px-3 text-left align-middle text-xs font-medium whitespace-nowrap text-muted-foreground [&:has([role=checkbox])]:pr-0",
+        "h-[38px] bg-navy-04 px-1.5 text-left align-middle text-xs font-medium whitespace-nowrap text-muted-foreground [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}
@@ -82,7 +82,7 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
     <td
       data-slot="table-cell"
       className={cn(
-        "h-10 px-3 py-0 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
+        "h-[50px] px-1.5 py-0 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0",
         className
       )}
       {...props}

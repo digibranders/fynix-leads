@@ -121,7 +121,7 @@ export function LeadRecord({ lead, now, viewerZone }: Props) {
       <div className="flex flex-col gap-1.5">
         <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
           <h2 className="text-xl font-semibold">{lead.prospect.name}</h2>
-          <StatusBadge kind="approval" status={approval} />
+          <StatusBadge kind="approval" status={approval} size="md" />
         </div>
         <p className="text-sm text-muted-foreground">
           {lead.prospect.title} at {lead.prospect.company}
@@ -129,7 +129,7 @@ export function LeadRecord({ lead, now, viewerZone }: Props) {
         <p className="font-mono text-xs text-muted-foreground">{lead.ref}</p>
         {delivered && (
           <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <CheckCircle aria-hidden size={16} className="shrink-0 text-tone-approved" />
+            <CheckCircle aria-hidden size={16} className="shrink-0 text-green-text" />
             <span>
               <span className="font-medium text-foreground">Delivered.</span> Approved and meeting completed.
             </span>
@@ -139,14 +139,13 @@ export function LeadRecord({ lead, now, viewerZone }: Props) {
 
       {canDecide && (
         <div className="grid grid-cols-2 gap-2 lg:flex">
-          <Button onClick={approve} className="max-lg:h-11 lg:h-9">
+          <Button onClick={approve}>
             Approve
           </Button>
           <Button
-            variant="outline"
+            variant="destructive"
             onClick={() => setRejectOpen(true)}
             data-review-action="reject"
-            className="text-tone-rejected hover:bg-tone-rejected-surface hover:text-tone-rejected max-lg:h-11 lg:h-9"
           >
             Reject
           </Button>

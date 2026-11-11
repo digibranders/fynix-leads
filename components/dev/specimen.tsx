@@ -1,24 +1,30 @@
 import { cn } from "@/lib/utils";
 
-/** A numbered-free section of the design system page: a plain h2 and its content. */
+/** One module of the design system page: a white panel with a plain title and its content. */
 export function Section({
   id,
   title,
   note,
   children,
+  className,
 }: {
   id: string;
   title: string;
   note?: string;
   children: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <section id={id} aria-labelledby={`${id}-heading`} className="scroll-mt-6 border-t pt-8">
-      <h2 id={`${id}-heading`} className="text-base font-semibold">
+    <section
+      id={id}
+      aria-labelledby={`${id}-heading`}
+      className={cn("scroll-mt-6 rounded-lg bg-surface p-6 shadow-raised", className)}
+    >
+      <h2 id={`${id}-heading`} className="text-value font-semibold">
         {title}
       </h2>
-      {note && <p className="mt-1 max-w-prose text-sm text-muted-foreground">{note}</p>}
-      <div className="mt-5">{children}</div>
+      {note && <p className="mt-1 max-w-prose text-[13px] text-ink-muted">{note}</p>}
+      <div className="mt-6">{children}</div>
     </section>
   );
 }
@@ -27,16 +33,19 @@ export function Section({
 export function Specimen({
   caption,
   children,
+  fill = false,
   className,
 }: {
   caption: string;
   children: React.ReactNode;
+  /** Stretch the specimen to the width of its cell. */
+  fill?: boolean;
   className?: string;
 }) {
   return (
-    <figure className={cn("flex h-full flex-col items-start gap-2", className)}>
-      <div className="max-w-full">{children}</div>
-      <figcaption className="mt-auto text-xs text-muted-foreground">{caption}</figcaption>
+    <figure className={cn("flex h-full flex-col items-start gap-2", fill && "w-full", className)}>
+      <div className={cn("max-w-full", fill && "w-full")}>{children}</div>
+      <figcaption className="mt-auto text-xs text-ink-muted">{caption}</figcaption>
     </figure>
   );
 }
@@ -53,7 +62,7 @@ export function Group({
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-sm font-medium">{title}</h3>
+      <h3 className="text-sm font-semibold text-ink-2">{title}</h3>
       <div className={cn("flex flex-wrap items-start gap-x-6 gap-y-4", className)}>{children}</div>
     </div>
   );

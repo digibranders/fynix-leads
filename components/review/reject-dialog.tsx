@@ -107,7 +107,7 @@ function RejectForm({ leadRef, prospectName, onConfirm }: Omit<Props, "open" | "
       </div>
 
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="secondary" type="button" />}>Cancel</DialogClose>
         <Button type="submit" variant="destructive" disabled={reason === null}>
           Reject lead
         </Button>

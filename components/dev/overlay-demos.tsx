@@ -2,6 +2,7 @@
 
 import { Copy, DotsThree, FileText, XCircle } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
+import { Kbd } from "@/components/ui/kbd";
 import {
   Dialog,
   DialogClose,
@@ -36,7 +37,7 @@ export function OverlayDemos() {
     <div className="grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-3 lg:grid-cols-5">
       <Specimen caption="Dialog">
         <Dialog>
-          <DialogTrigger render={<Button variant="outline" />}>Open dialog</DialogTrigger>
+          <DialogTrigger render={<Button variant="secondary" />}>Open dialog</DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Approve LD-4K9P</DialogTitle>
@@ -45,8 +46,8 @@ export function OverlayDemos() {
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
-              <DialogClose render={<Button />}>Approve</DialogClose>
+              <DialogClose render={<Button variant="secondary" />}>Cancel</DialogClose>
+              <DialogClose render={<Button />}>Approve <Kbd>A</Kbd></DialogClose>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -54,8 +55,8 @@ export function OverlayDemos() {
 
       <Specimen caption="Dropdown menu">
         <DropdownMenu>
-          <DropdownMenuTrigger render={<Button variant="outline" size="icon" aria-label="Row actions" />}>
-            <DotsThree aria-hidden weight="bold" className="size-4" />
+          <DropdownMenuTrigger render={<Button variant="secondary" size="icon" aria-label="Row actions" />}>
+            <DotsThree aria-hidden weight="bold" />
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-48">
             <DropdownMenuItem>
@@ -77,7 +78,7 @@ export function OverlayDemos() {
 
       <Specimen caption="Popover">
         <Popover>
-          <PopoverTrigger render={<Button variant="outline" />}>Open popover</PopoverTrigger>
+          <PopoverTrigger render={<Button variant="secondary" />}>Open popover</PopoverTrigger>
           <PopoverContent align="start">
             <PopoverHeader>
               <PopoverTitle>Waiting more than 24 hours</PopoverTitle>
@@ -91,10 +92,12 @@ export function OverlayDemos() {
 
       <Specimen caption="Tooltip">
         <Tooltip>
-          <TooltipTrigger render={<Button variant="outline" size="icon" aria-label="Copy reference" />}>
-            <Copy aria-hidden className="size-4" />
+          <TooltipTrigger render={<Button variant="secondary" size="icon" aria-label="Copy reference" />}>
+            <Copy aria-hidden />
           </TooltipTrigger>
-          <TooltipContent>Copy reference</TooltipContent>
+          <TooltipContent>
+            Copy reference <Kbd>C</Kbd>
+          </TooltipContent>
         </Tooltip>
       </Specimen>
 

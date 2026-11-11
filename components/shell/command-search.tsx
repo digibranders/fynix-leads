@@ -48,7 +48,7 @@ export function CommandSearch({ role }: { role: Role }) {
   return (
     <>
       <Button
-        variant="outline"
+        variant="secondary"
         onClick={() => setOpen(true)}
         aria-label="Search"
         className="font-normal text-muted-foreground max-sm:size-10 max-sm:px-0 sm:w-52 sm:justify-start sm:gap-2"

@@ -10,14 +10,14 @@ const LINKS = [
 export default function Home() {
   return (
     <main className="mx-auto w-full max-w-xl px-4 py-12 md:py-20">
-      <h1 className="text-xl font-semibold tracking-tight">Fynix Leads</h1>
+      <h1 className="text-title font-semibold tracking-title">Fynix Leads</h1>
       <p className="mt-2 text-sm text-muted-foreground">Clickable prototype with sample data. Nothing here is saved.</p>
-      <ul className="mt-8 divide-y overflow-hidden rounded-lg border bg-card">
+      <ul className="mt-8 divide-y divide-line overflow-hidden rounded-lg bg-card shadow-raised">
         {LINKS.map((link) => (
           <li key={link.href}>
             <Link
               href={link.href}
-              className="flex min-h-11 items-center justify-between gap-4 px-3 py-2 text-sm outline-none transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/50"
+              className="flex min-h-11 items-center justify-between gap-4 px-3 py-2 text-sm outline-none transition-colors hover:bg-navy-04 focus-visible:bg-navy-04 focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/50"
             >
               <span className="font-medium">{link.label}</span>
               <span className="font-mono text-xs text-muted-foreground">{link.href}</span>

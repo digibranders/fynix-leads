@@ -13,6 +13,8 @@ import {
   XCircle,
 } from "@phosphor-icons/react/dist/ssr";
 import type { Icon } from "@phosphor-icons/react";
+import { Badge, type badgeVariants } from "@/components/ui/badge";
+import type { VariantProps } from "class-variance-authority";
 import {
   approvalLabel,
   approvalTone,
@@ -23,6 +25,8 @@ import {
   type StatusTone,
 } from "@/lib/domain/status";
 import { cn } from "@/lib/utils";
+
+type BadgeVariant = NonNullable<VariantProps<typeof badgeVariants>["variant"]>;
 
 const APPROVAL_ICON: Record<ApprovalStatus, Icon> = {
   draft: NotePencil,
@@ -43,37 +47,47 @@ const MEETING_ICON: Record<MeetingStatus, Icon> = {
   cancelled: Prohibit,
 };
 
-const TONE_CLASS: Record<StatusTone, string> = {
-  neutral: "text-muted-foreground",
-  pending: "bg-tone-pending-surface text-tone-pending border-tone-pending-border",
-  approved: "bg-tone-approved-surface text-tone-approved border-tone-approved-border",
-  rejected: "bg-tone-rejected-surface text-tone-rejected border-tone-rejected-border",
-  clarify: "bg-tone-clarify-surface text-tone-clarify border-tone-clarify-border",
-  problem: "text-tone-problem",
+const APPROVAL_VARIANT: Record<StatusTone, BadgeVariant> = {
+  neutral: "quiet",
+  pending: "amber",
+  approved: "green",
+  rejected: "red",
+  clarify: "blue",
+  problem: "red",
 };
 
 type Props =
-  | { kind: "approval"; status: ApprovalStatus; className?: string }
+  | { kind: "approval"; status: ApprovalStatus; size?: "sm" | "md"; className?: string }
   | { kind: "meeting"; status: MeetingStatus; className?: string };
 
+/** Approval is a soft chip (22px "sm" in tables, 26px "md" in headers). Meeting status is quiet icon plus text; problems turn red. */
 export function StatusBadge(props: Props) {
-  const isApproval = props.kind === "approval";
-  const tone = isApproval ? approvalTone(props.status) : meetingTone(props.status);
-  const label = isApproval ? approvalLabel(props.status) : meetingLabel(props.status);
-  const Glyph = isApproval ? APPROVAL_ICON[props.status] : MEETING_ICON[props.status];
-  // Approval chips are filled; meeting status is quiet text so the two never compete for colour.
-  const chip = isApproval && tone !== "neutral";
+  if (props.kind === "approval") {
+    const Glyph = APPROVAL_ICON[props.status];
+    const small = props.size === "sm";
+    return (
+      <Badge
+        variant={APPROVAL_VARIANT[approvalTone(props.status)]}
+        size={small ? "sm" : "default"}
+        className={props.className}
+      >
+        <Glyph aria-hidden weight="fill" />
+        {approvalLabel(props.status)}
+      </Badge>
+    );
+  }
+  const Glyph = MEETING_ICON[props.status];
+  const problem = meetingTone(props.status) === "problem";
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 whitespace-nowrap text-table font-medium",
-        chip && "h-6 rounded-md border px-2",
-        TONE_CLASS[tone],
+        "inline-flex items-center gap-1.5 text-[13px] leading-[17px] whitespace-nowrap",
+        problem ? "font-medium text-red-text" : "text-ink-2",
         props.className,
       )}
     >
-      <Glyph aria-hidden size={14} weight={chip ? "fill" : "regular"} />
-      {label}
+      <Glyph aria-hidden size={16} weight="regular" className="shrink-0" />
+      {meetingLabel(props.status)}
     </span>
   );
 }

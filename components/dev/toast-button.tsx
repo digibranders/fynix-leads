@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 export function ToastButton() {
   return (
     <Button
-      variant="outline"
+      variant="secondary"
       onClick={() =>
         toast("Lead LD-4K9P approved", {
           description: "The agency sees this as a decision from Client.",

@@ -83,7 +83,7 @@ function ClarifyForm({
       </Field>
 
       <DialogFooter>
-        <DialogClose render={<Button variant="outline" type="button" />}>Cancel</DialogClose>
+        <DialogClose render={<Button variant="secondary" type="button" />}>Cancel</DialogClose>
         <Button type="submit">Send question</Button>
       </DialogFooter>
     </form>

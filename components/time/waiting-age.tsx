@@ -5,7 +5,7 @@ export function WaitingAge({ since, now }: { since: Date; now: Date }) {
   const overdue = isOverdue(since, now);
   return (
     <span
-      className={cn("text-table tabular-nums", overdue ? "font-semibold text-tone-pending" : "text-muted-foreground")}
+      className={cn("text-[13px] tabular-nums", overdue ? "font-semibold text-red-text" : "text-ink-muted")}
       title={overdue ? "Waiting more than 24 hours" : undefined}
     >
       {formatWaiting(since, now)}
