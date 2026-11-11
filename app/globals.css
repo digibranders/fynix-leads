@@ -2,168 +2,356 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* Light only in v1. Kept so generated dark: classes stay inert instead of following the OS setting. */
+/* Light only. Kept so shadcn's generated dark: classes stay inert; the app never applies .dark. */
 @custom-variant dark (&:is(.dark *));
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
-}
-
-/* Warm neutral scale, built for this portal. 1 = app background, 12 = primary text. */
+/*
+  Fynix Leads design tokens: the hybrid language ("structured softness").
+  Authoritative source: docs/superpowers/specs/design-directions-v2/d-hybrid/tokens.css.
+  Rules the tokens enforce:
+  - No 1px outlines on controls, chips, inputs or tiles.
+  - Dividers are 1px at --line (7%), inset, between rows only.
+  - Raised surfaces use a layered shadow plus an inset 1px ring at 6%.
+  - Status never relies on colour alone: every chip pairs an icon with a label.
+*/
 :root {
-  --gray-1: #fcfcfb;
-  --gray-2: #f7f6f4;
-  --gray-3: #f0efec;
-  --gray-4: #e9e7e3;
-  --gray-5: #e1dfda;
-  --gray-6: #d6d3cd;
-  --gray-7: #c5c1ba;
-  --gray-8: #a9a49c;
-  --gray-9: #8a857d;
-  --gray-10: #6e6a63;
-  --gray-11: #4f4b45;
-  --gray-12: #1f1d1a;
-
-  /* Fynix colours */
+  /* Brand */
   --navy: #0c1e2e;
-  --navy-hover: #172d40;
+  --navy-hover: #13293d;
   --peach: #e9af88;
-  --peach-subtle: #fbede3;
+  --peach-deep: #a9602f; /* peach as text or icon on white only (4.8:1) */
+  --offwhite: #f3efe9; /* text and icons on navy */
 
-  /* Approval status tones: text, surface, border */
-  --tone-pending: #8a5a12;
-  --tone-pending-surface: #fbf1de;
-  --tone-pending-border: #eed9ae;
-  --tone-approved: #2d6a4a;
-  --tone-approved-surface: #e8f2ec;
-  --tone-approved-border: #c6dfcf;
-  --tone-rejected: #9b3530;
-  --tone-rejected-surface: #fbecea;
-  --tone-rejected-border: #f0cbc7;
-  --tone-clarify: #2f5679;
-  --tone-clarify-surface: #e9f0f6;
-  --tone-clarify-border: #c8d8e7;
-  --tone-problem: #9b3530;
+  /* Canvas and surfaces */
+  --canvas: #f1ede6;
+  --surface: #ffffff;
+  --surface-tonal: rgba(12, 30, 46, 0.06);
+  --surface-hero: var(--navy);
+  --selected: #fbf1e7;
+  --selected-marker: var(--peach);
+  --bubble-client: #f8e8d8;
+  --bubble-fynix: var(--navy-05);
 
-  /* shadcn semantic variables, mapped to the scale above */
-  --background: var(--gray-1);
-  --foreground: var(--gray-12);
-  --card: #ffffff;
-  --card-foreground: var(--gray-12);
-  --popover: #ffffff;
-  --popover-foreground: var(--gray-12);
+  /* Navy alpha steps (wells, tiles, controls, dividers) */
+  --navy-03: rgba(12, 30, 46, 0.03);
+  --navy-04: rgba(12, 30, 46, 0.04);
+  --navy-05: rgba(12, 30, 46, 0.05);
+  --navy-06: rgba(12, 30, 46, 0.06);
+  --navy-07: rgba(12, 30, 46, 0.07);
+  --navy-08: rgba(12, 30, 46, 0.08);
+  --navy-10: rgba(12, 30, 46, 0.1);
+  --line: rgba(12, 30, 46, 0.07); /* the only divider colour */
+  --scrim: rgba(12, 30, 46, 0.3);
+
+  /* On-navy alpha steps (rail and hero) */
+  --on-navy-05: rgba(255, 255, 255, 0.05);
+  --on-navy-07: rgba(255, 255, 255, 0.07);
+  --on-navy-10: rgba(255, 255, 255, 0.1);
+  --on-navy-text: rgba(243, 239, 233, 0.68);
+  --on-navy-muted: rgba(243, 239, 233, 0.6);
+
+  /* Text */
+  --ink: #0c1e2e;
+  --ink-2: #3f4d59;
+  --ink-muted: #56626d;
+
+  /* Status: text, border-free soft fill, solid */
+  --amber-text: #7a4700;
+  --amber-soft: #fbefd3;
+  --amber-solid: #d9961a;
+  --green-text: #176b3d;
+  --green-soft: #e0f1e7;
+  --green-solid: #2e9a5f;
+  --red-text: #a3251d;
+  --red-soft: #fbe6e2;
+  --red-soft-hover: #f6d5d0;
+  --red-solid: #d4483d;
+  --blue-text: #1d4e8f;
+  --blue-soft: #e1ecf9;
+  --blue-solid: #3b7bd0;
+
+  /* Spacing (8px grid with a 4px half-step) and layout */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+  --gap-modules: 16px; /* between panels, panes and bento tiles */
+  --gap-tiles: 12px; /* between tiles inside a panel */
+  --inset-rail: 12px;
+  --pad-panel: 24px;
+  --pad-tile: 16px;
+  --canvas-w: 1440px;
+  --rail-w: 220px;
+  --content-left: 248px; /* rail inset + rail width + module gap */
+  --content-right: 24px;
+  --list-pane-w: 372px;
+  --detail-pane-w: 380px;
+
+  /* Row heights and control sizes */
+  --h-table-row: 50px;
+  --h-table-head: 38px;
+  --h-list-row: 96px;
+  --h-timeline-row: 40px;
+  --h-input: 44px;
+  --h-search: 40px;
+  --h-button: 44px;
+  --h-button-sm: 32px;
+  --h-nav: 42px;
+  --h-segment: 32px;
+  --h-chip: 26px;
+  --h-chip-sm: 22px;
+  --h-keycap: 22px;
+  --h-action-bar: 76px;
+
+  /* Motion */
+  --dur-press: 120ms;
+  --dur-hover: 180ms;
+  --dur-state: 240ms;
+  --dur-panel: 360ms;
+  --dur-slow: 520ms;
+  --press-scale: 0.98;
+
+  /* shadcn semantic variables, mapped onto the tokens above */
+  --background: var(--canvas);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
   --primary: var(--navy);
-  --primary-foreground: var(--gray-1);
-  --secondary: var(--gray-3);
-  --secondary-foreground: var(--gray-12);
-  --muted: var(--gray-2);
-  --muted-foreground: var(--gray-10);
-  --accent: var(--gray-3); /* shadcn "accent" is the hover surface, not the brand accent */
-  --accent-foreground: var(--gray-12);
-  --destructive: var(--tone-rejected);
-  --border: var(--gray-5);
-  --input: var(--gray-6);
+  --primary-foreground: var(--offwhite);
+  --secondary: var(--navy-07);
+  --secondary-foreground: var(--ink);
+  --muted: var(--navy-05);
+  --muted-foreground: var(--ink-muted);
+  --accent: var(--navy-07); /* shadcn "accent" is the hover surface, not the brand accent */
+  --accent-foreground: var(--ink);
+  --destructive: var(--red-text);
+  --border: var(--line);
+  --input: var(--navy-05);
   --ring: var(--navy);
-  --radius: 0.5rem; /* lg = 8px panels, md = 6px controls */
 
   --chart-1: var(--navy);
-  --chart-2: var(--gray-8);
+  --chart-2: var(--ink-muted);
   --chart-3: var(--peach);
-  --chart-4: var(--tone-approved);
-  --chart-5: var(--tone-pending);
+  --chart-4: var(--green-solid);
+  --chart-5: var(--amber-solid);
 
-  --sidebar: var(--gray-2);
-  --sidebar-foreground: var(--gray-11);
+  /* Sidebar stays tonal until the navy rail lands in the shell task; the rail uses the on-navy tokens directly. */
+  --sidebar: var(--canvas);
+  --sidebar-foreground: var(--ink-2);
   --sidebar-primary: var(--navy);
-  --sidebar-primary-foreground: var(--gray-1);
-  --sidebar-accent: var(--gray-4);
-  --sidebar-accent-foreground: var(--gray-12);
-  --sidebar-border: var(--gray-5);
+  --sidebar-primary-foreground: var(--offwhite);
+  --sidebar-accent: var(--navy-07);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--line);
   --sidebar-ring: var(--navy);
 }
 
+/* Colours and fonts reference variables, so they are inlined. */
 @theme inline {
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
-  --text-table: 0.8125rem;
-  --text-table--line-height: 1.25rem;
+  --font-sans: var(--font-geist-sans), "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), "Geist Mono", ui-monospace, monospace;
+  --font-serif: var(--font-geist-serif), "Geist Serif", Georgia, serif; /* the hero figure only */
+  --font-heading: var(--font-sans);
+
+  /* Brand and surfaces */
   --color-navy: var(--navy);
   --color-navy-hover: var(--navy-hover);
   --color-peach: var(--peach);
-  --color-peach-subtle: var(--peach-subtle);
-  --color-tone-pending: var(--tone-pending);
-  --color-tone-pending-surface: var(--tone-pending-surface);
-  --color-tone-pending-border: var(--tone-pending-border);
-  --color-tone-approved: var(--tone-approved);
-  --color-tone-approved-surface: var(--tone-approved-surface);
-  --color-tone-approved-border: var(--tone-approved-border);
-  --color-tone-rejected: var(--tone-rejected);
-  --color-tone-rejected-surface: var(--tone-rejected-surface);
-  --color-tone-rejected-border: var(--tone-rejected-border);
-  --color-tone-clarify: var(--tone-clarify);
-  --color-tone-clarify-surface: var(--tone-clarify-surface);
-  --color-tone-clarify-border: var(--tone-clarify-border);
-  --color-tone-problem: var(--tone-problem);
+  --color-peach-deep: var(--peach-deep);
+  --color-offwhite: var(--offwhite);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-tonal: var(--surface-tonal);
+  --color-selected: var(--selected);
+  --color-bubble-client: var(--bubble-client);
+  --color-bubble-fynix: var(--bubble-fynix);
+  --color-scrim: var(--scrim);
+  --color-line: var(--line);
+  --color-navy-03: var(--navy-03);
+  --color-navy-04: var(--navy-04);
+  --color-navy-05: var(--navy-05);
+  --color-navy-06: var(--navy-06);
+  --color-navy-07: var(--navy-07);
+  --color-navy-08: var(--navy-08);
+  --color-navy-10: var(--navy-10);
+  --color-on-navy-05: var(--on-navy-05);
+  --color-on-navy-07: var(--on-navy-07);
+  --color-on-navy-10: var(--on-navy-10);
+  --color-on-navy-text: var(--on-navy-text);
+  --color-on-navy-muted: var(--on-navy-muted);
+
+  /* Text */
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-muted: var(--ink-muted);
+
+  /* Status: text-*, bg-*-soft, bg-*-solid */
+  --color-amber-text: var(--amber-text);
+  --color-amber-soft: var(--amber-soft);
+  --color-amber-solid: var(--amber-solid);
+  --color-green-text: var(--green-text);
+  --color-green-soft: var(--green-soft);
+  --color-green-solid: var(--green-solid);
+  --color-red-text: var(--red-text);
+  --color-red-soft: var(--red-soft);
+  --color-red-soft-hover: var(--red-soft-hover);
+  --color-red-solid: var(--red-solid);
+  --color-blue-text: var(--blue-text);
+  --color-blue-soft: var(--blue-soft);
+  --color-blue-solid: var(--blue-solid);
+
+  /* shadcn semantic colours */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Every transition without an explicit duration gets the hover duration and the soft-landing curve. */
+  --default-transition-duration: var(--dur-hover);
+  --default-transition-timing-function: var(--ease-out);
+}
+
+/* Literal values are emitted as real variables so arbitrary utilities like shadow-(--shadow-popover) work. */
+@theme static {
+  /* Radii: 7 key caps, 12 rows and inputs, 16 tiles and lifted cards, 22 panels, 24 rail, rounded-full for controls */
+  --radius-xs: 7px;
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 24px;
+  --radius-2xl: 28px;
+  --radius-3xl: 32px;
+  --radius-4xl: 40px;
+
+  /* Shadow stacks */
+  --shadow-raised:
+    inset 0 0 0 1px rgba(12, 30, 46, 0.06), 0 1px 2px rgba(12, 30, 46, 0.04),
+    0 4px 10px -2px rgba(12, 30, 46, 0.05), 0 16px 32px -12px rgba(12, 30, 46, 0.09);
+  --shadow-selected:
+    inset 0 0 0 1px rgba(12, 30, 46, 0.06), 0 1px 2px rgba(12, 30, 46, 0.06),
+    0 6px 14px -3px rgba(12, 30, 46, 0.09), 0 18px 30px -12px rgba(12, 30, 46, 0.14);
+  --shadow-tile-lift:
+    inset 0 0 0 1px rgba(12, 30, 46, 0.05), 0 1px 2px rgba(12, 30, 46, 0.05),
+    0 6px 12px -6px rgba(12, 30, 46, 0.08);
+  --shadow-popover:
+    inset 0 0 0 1px rgba(12, 30, 46, 0.06), 0 4px 8px -2px rgba(12, 30, 46, 0.08),
+    0 24px 48px -12px rgba(12, 30, 46, 0.2);
+  --shadow-tray: 0 -1px 0 rgba(12, 30, 46, 0.06), 0 -14px 24px -14px rgba(12, 30, 46, 0.12);
+  --shadow-rail:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 2px rgba(12, 30, 46, 0.2),
+    0 14px 34px rgba(12, 30, 46, 0.18);
+  --shadow-hero:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 2px 4px rgba(12, 30, 46, 0.14), 0 20px 40px -14px rgba(12, 30, 46, 0.38);
+  --shadow-btn-primary:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 1px 2px rgba(12, 30, 46, 0.25),
+    0 8px 16px -6px rgba(12, 30, 46, 0.4);
+  --shadow-nav-active: 0 4px 12px -4px rgba(233, 175, 136, 0.5);
+
+  /* Type scale (size and line height). Tailwind text-xs and text-sm stay for 12px and 14px. */
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+  --text-label: 12.5px;
+  --text-label--line-height: 17px;
+  --text-table: 13px;
+  --text-table--line-height: 17px;
+  --text-body: 14px;
+  --text-body--line-height: 20px;
+  --text-row: 14.5px;
+  --text-row--line-height: 20px;
+  --text-value: 15px;
+  --text-value--line-height: 20px;
+  --text-lead: 16px;
+  --text-lead--line-height: 24px;
+  --text-title: 28px;
+  --text-title--line-height: 34px;
+  --text-name: 34px;
+  --text-name--line-height: 38px;
+  --text-figure: 38px;
+  --text-figure--line-height: 40px;
+  --text-hero: 96px;
+  --text-hero--line-height: 96px;
+  --tracking-title: -0.015em;
+  --tracking-figure: -0.02em;
+
+  /* Easing: soft landing by default, a gentle overshoot for press release and count badges */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground text-sm antialiased;
-    font-variant-numeric: tabular-nums;
-  }
-  ::selection {
-    background: var(--peach-subtle);
-  }
-  button:not(:disabled), [role="button"]:not(:disabled) {
-    cursor: pointer;
+    @apply border-border;
   }
   html {
     @apply font-sans;
   }
+  body {
+    background: var(--canvas);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.43;
+    font-variant-numeric: tabular-nums;
+    caret-color: var(--navy);
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background: rgba(233, 175, 136, 0.55);
+    color: var(--navy);
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-press: 0ms;
+    --dur-hover: 0ms;
+    --dur-state: 0ms;
+    --dur-panel: 0ms;
+    --dur-slow: 0ms;
+  }
   *,
   *::before,
   *::after {
