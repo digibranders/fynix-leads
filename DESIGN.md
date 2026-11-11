@@ -73,7 +73,7 @@ Contrast is the WCAG ratio of the text colour on the stated background.
 | `--navy-10` | 10% | Secondary button hover |
 | `--line` | 7% | The only divider (`--border`) |
 
-On navy (rail and hero): `--on-navy-05`, `--on-navy-07`, `--on-navy-10` (white at 5, 7 and 10%) for wells and tracks, `--on-navy-text` (offwhite 68%, 7.4 on navy) and `--on-navy-muted` (offwhite 60%, 6.1 on navy) for text.
+On navy (rail and hero): `--on-navy-05`, `--on-navy-07`, `--on-navy-10`, `--on-navy-16` (white at 5, 7, 10 and 16%) for wells, tracks, key caps and ticks, `--on-navy-text` (offwhite 68%, 7.4 on navy) and `--on-navy-muted` (offwhite 60%, 6.1 on navy) for text.
 
 ### Status
 
@@ -113,7 +113,7 @@ Each status has a text colour, a border-free soft fill and a solid for icons, ba
 | `text-figure` | 38 / 40, tracking `-0.02em` | Big numbers |
 | `text-hero` | 96 / 96 in `font-serif`, tracking `-0.02em` | The hero figure |
 
-Caveat: `cn` (the class merger) treats unknown `text-*` classes as colours, so `cn("text-table", "text-ink-2")` drops `text-table`. Inside components that merge classes, write the size as `text-[13px]`; in plain markup the named utilities are safe.
+**Gotcha, `cn` and `text-*` sizes.** `cn` (the class merger in `lib/utils.ts`) treats unknown `text-*` classes as colours, so `cn("text-table", "text-ink-2")` silently drops `text-table`. Inside any component that passes classes through `cn` (all of `components/ui`, and anything with a `className` prop), write the size as `text-[13px]`. In plain markup, such as a page or a component that never merges, the named utilities are safe.
 
 ## Shape and radii
 
@@ -125,6 +125,8 @@ Caveat: `cn` (the class merger) treats unknown `text-*` classes as colours, so `
 | 22px | `rounded-lg` | Panels, panes, hero tile |
 | 24px | `rounded-xl` | Navy rail, dialogs, sheets |
 | pill | `rounded-full` | Buttons, chips, segmented control, nav items, avatars |
+
+Details below the scale are allowed for four things only: the 10px peach brand mark in the rail, the 6px tight corner of a message bubble, the 3px selected marker and the 2px progress tick and empty-cell bar.
 
 Concentric rule: a child inside a rounded parent uses the parent radius minus its padding, so corners stay parallel.
 
@@ -143,6 +145,11 @@ Depth is tinted navy, layered and soft. Never pure black, never a single hard dr
 | `shadow-hero` | The navy hero tile |
 | `shadow-btn-primary` | Primary buttons |
 | `shadow-nav-active` | The peach active nav pill |
+| `shadow-disc` | The 30px icon disc on a navy 4% tile |
+| `shadow-segment` | The active segment of the segmented control |
+| `shadow-glow` | The peach progress fill on the hero tile |
+
+Inset 1px dividers written as `shadow-[inset_0_1px_0_var(--line)]` (or `--on-navy-07` on navy) are the divider line, not a shadow. The 2px canvas ring around the bell's peach dot is a cut-out, not an outline.
 
 ## Spacing and layout
 
@@ -176,7 +183,7 @@ Depth is tinted navy, layered and soft. Never pure black, never a single hard dr
 - **Tonal pane.** `bg-tonal rounded-lg`. Holds lists and the record detail column. Rows sit flat on it.
 - **Lifted card.** The selected row: `bg-surface rounded-md shadow-selected` with a 3px peach marker at the left edge. The rows around it drop their divider.
 - **Tile.** `bg-navy-04 rounded-md`, padding 18 by 20: a 30px icon disc, a title and a definition list. On a tonal pane the tile is white with `shadow-tile-lift` and a navy 5% icon disc.
-- **Hero tile.** Navy, radius 22, `shadow-hero`, one per screen. The figure is the only Geist Serif text: `text-hero` with a smaller serif "of 72" and a peach unit word. Progress track `--on-navy-10` with a peach fill and an offwhite target marker. A soft peach glow in one corner is the only gradient allowed in the app and it never sits under data.
+- **Hero tile.** Navy, radius 22, `shadow-hero`, one per screen. The figure is the only Geist Serif text: `text-hero` with a smaller serif "of 72" and a peach unit word. Progress track `--on-navy-10` with a peach fill and an offwhite target marker. A soft peach glow in one corner (`--hero-glow`, a radial gradient) is the only gradient allowed in the app and it never sits under data. The peach progress fill carries a matching soft halo (`shadow-glow`).
 - **Buttons.** Pills. 44px default, 32px small, 28px extra small; icon sizes 40, 32 and 28. Primary navy with `shadow-btn-primary`, secondary navy 7%, destructive red soft with red text, ghost with a navy 7% hover. No outlines. A key cap can sit inside, on the right, with a tint matched to the button. Press scales to 0.98.
 - **Input.** `bg-navy-05`, radius 12, 44px, no outline. Focus shows a 2px navy ring and nothing else. Invalid shows the red soft fill and a red ring.
 - **Chips.** Pills, 26px (headers) and 22px (tables), icon plus label, soft tinted fill with coloured text, no border. A neutral chip is navy 7%. A count badge is navy with offwhite text.
@@ -189,6 +196,60 @@ Depth is tinted navy, layered and soft. Never pure black, never a single hard dr
 - **Key caps.** `kbd`: navy 7%, radius 7, 22px high, Geist Mono 12px.
 - **Segmented control.** Tabs list: pill track navy 5%, padding 3, 2px gap. The active segment is navy with offwhite text and a count in peach.
 - **Toast.** White, radius 16, `shadow-popover`, no border. The Undo action is a small secondary pill.
+
+## Approved exceptions
+
+The mockups are the authority, so these deliberate departures from the rules above are part of the design. Anything else that breaks a rule is a bug.
+
+- **Icon discs on the three small stat tiles** (awaiting decision, clarifications, replacements owed) on the agency screen. Each is a 30px disc beside a title, and the figure stands alone. A metric tile without a status has no disc.
+- **The 30px `lg` chip** (`Badge size="lg"`) is used once per screen, for the approval status in the lead record header. Headers elsewhere use the 26px chip and tables the 22px chip.
+- **The serif hero figure.** Geist Serif at 96px for the delivered count, and the smaller "of 72". Nothing else is serif.
+- **The hero glow.** The peach corner glow and the halo on the progress fill, as written under Components.
+- **Brand choices the detector flags.** `impeccable detect` reports the cream canvas, Geist, the peach shadow under the active rail pill (`shadow-nav-active`) and the halo on the progress fill, a tile on a panel as "card inside card", and the `--ease-spring` token. All are in the approved mockups and kept on purpose. The tile on a panel is the two-level nesting the four depths allow.
+- **Text scale outside the named utilities.** A few components write sizes as `text-[13px]`, `text-[14.5px]` and similar because of the `cn` gotcha. They match the named scale.
+
+## Component inventory
+
+| Piece | File |
+|---|---|
+| App shell, skip link, floating rail | `components/shell/app-shell.tsx`, `rail.tsx`, `nav-links.tsx`, `nav-config.ts` |
+| View switcher, phone menu sheet | `components/shell/role-switcher.tsx`, `mobile-nav.tsx` |
+| Page header, search palette, bell | `components/shell/page-header.tsx`, `command-search.tsx`, `search-leads.tsx`, `notifications.tsx` |
+| 404 and error pages (outside the shell) | `app/not-found.tsx`, `app/error.tsx`, `components/shell/message-page.tsx` |
+| Panel | `components/leads/panel.tsx` |
+| Tonal pane and lifted card (review list) | `components/review/queue-list.tsx`, `review-queue.tsx` |
+| Lead panel with action bar, dialogs, shortcuts | `components/review/lead-panel.tsx`, `reject-dialog.tsx`, `clarify-dialog.tsx`, `use-review-keys.ts`, `review-subtitle.tsx` |
+| Tiles (meeting, contact, qualification) and the tonal detail column | `components/leads/lead-tiles.tsx`, `lead-details.tsx` |
+| Stat tiles and hero tile | `components/leads/stat-tiles.tsx`, `campaign-hero.tsx` |
+| Lead record | `components/leads/lead-record.tsx`, `activity-timeline.tsx`, `relay-thread.tsx` |
+| Leads table, filter and toolbar | `components/leads/leads-table.tsx`, `agency-leads-view.tsx`, `components/ui/table.tsx` |
+| Chips | `components/ui/badge.tsx`, `components/status/status-badge.tsx` |
+| Bar with a target tick, time in two zones, waiting age (shown on the design system page until the phase 1 screens use them) | `components/charts/bullet-graph.tsx`, `components/time/time-in-zones.tsx`, `waiting-age.tsx` |
+| Skeletons (shown under States on the design system page) | `components/review/review-queue-skeleton.tsx`, `components/leads/leads-table-skeleton.tsx` |
+| Buttons, inputs, tabs, dialogs, sheets, menus, toasts | `components/ui/*` (shadcn on Base UI, restyled) |
+| Specimen helpers for `/dev/system` | `components/dev/*` |
+
+`components/ui` also holds `avatar`, `card`, `scroll-area` and `separator`, restyled but not used by a screen yet.
+
+## Isolation rule
+
+The agency never sees client rep names, emails or people, so the two roles never share the full lead data.
+
+- Agency screens receive only role-shaped data from `lib/leads/agency-view.ts` (`toAgencyView`), built on the server. Its fields are listed one by one; never spread a source lead into it.
+- Shared client code (everything under `components/` and `lib/` except `lib/sample/`) must never import `lib/sample/data`. Only server files (the route pages and the prototype layout) do.
+- `lib/sample/isolation.test.ts` fails if a component or a lib module imports it.
+
+## Open question
+
+Which month a delivered lead counts toward is undecided (spec section 16, item 2). The prototype uses the month of the earliest completed meeting. The rule lives in one function, `lib/domain/counting-month.ts`, so changing the answer is a one-file change.
+
+## Accessibility notes
+
+- One `h1` per page and no skipped levels. Tile titles are `h2` in the lead record and `h3` under a lead name in the review panel (`headingLevel` on the tiles).
+- Every control shows a focus ring (2px navy; offwhite on the rail). Icon-only controls carry an `aria-label`, and the search button's name contains its visible text.
+- Under 768px every button, tab and menu item is at least 40px tall.
+- Reduced motion zeroes durations and stops looping animation, including the skeleton pulse.
+- Layout switches by CSS only, so the server markup is already right on a phone.
 
 ## Status rules
 
@@ -223,7 +284,7 @@ Depth is tinted navy, layered and soft. Never pure black, never a single hard dr
 - More than two nested surface levels.
 - Decorative gradients, neon, glass on data, purple, emoji.
 - Hand-drawn icons. Phosphor only.
-- An icon tile on every metric.
+- An icon tile on every metric. The approved exception is below: three small stat tiles carry a disc beside the title, never around the number.
 - A sparkline in every card.
 - Gauges or donuts for target versus actual. Use a bar with a target tick.
 - Trend arrows without a stated comparison.
