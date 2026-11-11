@@ -326,6 +326,8 @@ Code layout: domain logic (lifecycle, delivered rule, scrubbing, visibility) liv
 | 7 | Is email plus in-app enough for v1, or is WhatsApp needed? | Notifications |
 | 8 | Which domain: `leads.fynix.digital` or another? | Deploy |
 | 9 | Decided 2026-11-11: free slots are set per client rep | |
+| 10 | Decided 2026-11-11: the Fynix admin signs in with a password only for now. A second factor (TOTP or passkey) must be added before any real client or agency data is entered | Admin sign-in (phase 1 gate G1) |
+| 11 | The app runs at leads.fynix.digital. The admin is planned at /admin on the same host (the owner's reply to the admin address question was that host). To confirm | Admin location (phase 1 gate G4) |
 
 ## 17. Build phases
 
