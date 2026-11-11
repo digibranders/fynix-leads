@@ -8,6 +8,7 @@ import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/compon
 import { REJECTION_REASONS } from "@/lib/domain/rejection-reasons";
 import { primaryMeeting } from "@/lib/domain/primary-meeting";
 import type { AgencyLead } from "@/lib/leads/agency-view";
+import { clarificationNote } from "@/lib/leads/feedback";
 import type { LeadSort, SortKey } from "@/lib/leads/filter";
 import { formatDayInZone, formatTimeInZone } from "@/lib/time/zones";
 import { cn } from "@/lib/utils";
@@ -42,12 +43,11 @@ function None() {
 /** What the client told the agency: the rejection reason and note, or an open clarification. Null when there is nothing to say. */
 function feedbackOf(lead: AgencyLead): React.ReactNode | null {
   if (lead.approval === "needs_clarification") {
+    const note = clarificationNote(lead.lastMessageSide);
     return (
       <>
         <span className="block text-caption text-ink-2">Clarification requested</span>
-        <span className="block text-caption text-ink-muted">
-          {lead.lastMessageSide === "client" ? "Waiting on your reply" : "You replied"}
-        </span>
+        {note && <span className="block text-caption text-ink-muted">{note}</span>}
       </>
     );
   }

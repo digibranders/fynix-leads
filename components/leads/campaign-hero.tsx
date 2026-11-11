@@ -1,4 +1,5 @@
 import { CheckCircle } from "@phosphor-icons/react/dist/ssr";
+import { barPercent, progressTicks } from "@/lib/campaign/progress";
 
 type Props = {
   delivered: number;
@@ -8,10 +9,10 @@ type Props = {
 
 /** The one navy hero tile of the agency overview. The serif figure is the only Geist Serif text in the app. */
 export function CampaignHero({ delivered, totalTarget, monthlyTarget }: Props) {
-  const months = Math.round(totalTarget / monthlyTarget);
-  const pct = (n: number) => `${(n / totalTarget) * 100}%`;
+  const months = monthlyTarget > 0 ? Math.round(totalTarget / monthlyTarget) : 0;
+  const pct = (n: number) => `${barPercent(n, totalTarget)}%`;
   // A numeral every full month: 12, 24, ... below the target, which has its own marker.
-  const ticks = Array.from({ length: Math.ceil(totalTarget / monthlyTarget) - 1 }, (_, i) => (i + 1) * monthlyTarget);
+  const ticks = progressTicks(totalTarget, monthlyTarget);
 
   return (
     <section

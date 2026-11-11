@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import type { Lead } from "@/lib/domain/types";
 import { relayText } from "@/lib/relay/relay-text";
 import { resetPendingCount, setPendingCount } from "@/lib/review/pending-store";
-import { queueSegments, removeByRef } from "@/lib/review/queue";
+import { decisionTime, queueSegments, removeByRef } from "@/lib/review/queue";
 import { ClarifyDialog } from "./clarify-dialog";
 import { LeadPanel } from "./lead-panel";
 import { QueueList, type Segment } from "./queue-list";
@@ -92,8 +92,9 @@ export function ReviewQueue({ leads: initialLeads, now, viewerZone }: Props) {
     });
   }
 
-  // A decision made now sorts newest even if the sample clock is ahead of the real one.
-  const decidedAt = () => new Date(Math.max(Date.now(), nowDate.getTime())).toISOString();
+  // Decisions use the fixed sample clock like everything else in the prototype. Each one is a second later, so it sorts newest.
+  const decisions = useRef(0);
+  const decidedAt = () => decisionTime(nowDate, ++decisions.current);
 
   function approve() {
     if (!selected || segment === "decided") return;

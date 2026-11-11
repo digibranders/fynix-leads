@@ -34,3 +34,8 @@ export function queueSegments(leads: readonly Lead[]): QueueSegments {
       .sort((a, b) => decidedTime(b) - decidedTime(a)),
   };
 }
+
+/** The time stamped on a decision made in this session: the fixed prototype clock plus one second per decision, so a later decision sorts newer. */
+export function decisionTime(now: Date, sequence: number): string {
+  return new Date(now.getTime() + sequence * 1000).toISOString();
+}

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ApprovalStatus } from "@/lib/domain/status";
 import type { Lead } from "@/lib/domain/types";
 import { SAMPLE_LEADS } from "@/lib/sample/data";
-import { queueSegments, removeByRef, reviewQueue } from "./queue";
+import { decisionTime, queueSegments, removeByRef, reviewQueue } from "./queue";
 
 const item = (ref: string) => ({ ref });
 const refs = (items: readonly { ref: string }[]) => items.map((i) => i.ref);
@@ -150,5 +150,20 @@ describe("queueSegments", () => {
   it("gives 6 waiting, 2 clarifying and 6 decided on the sample data", () => {
     const { waiting, clarifying, decided: done } = queueSegments(SAMPLE_LEADS);
     expect([waiting.length, clarifying.length, done.length]).toEqual([6, 2, 6]);
+  });
+});
+
+describe("decisionTime", () => {
+  const now = new Date("2026-11-11T10:00:00Z");
+
+  it("builds on the fixed clock, not the real one", () => {
+    expect(decisionTime(now, 0)).toBe("2026-11-11T10:00:00.000Z");
+    expect(decisionTime(now, 1)).toBe("2026-11-11T10:00:01.000Z");
+  });
+
+  it("sorts a later decision above an earlier one in the Decided segment", () => {
+    const decided = (ref: string, at: string): Lead => ({ ...lead(ref, "approved", "2026-11-01T09:00:00Z"), decision: { outcome: "approved", decidedAt: at } });
+    const ordered = queueSegments([decided("LD-0001", decisionTime(now, 1)), decided("LD-0002", decisionTime(now, 2))]).decided;
+    expect(refs(ordered)).toEqual(["LD-0002", "LD-0001"]);
   });
 });

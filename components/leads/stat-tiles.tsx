@@ -1,5 +1,6 @@
 import type { Icon } from "@phosphor-icons/react";
 import { ArrowsClockwise, ChatCircleDots, Hourglass, Warning } from "@phosphor-icons/react/dist/ssr";
+import { pillCount } from "@/lib/campaign/progress";
 import type { CampaignStats } from "@/lib/campaign/stats";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +16,7 @@ type MonthProps = {
 /** The white "This month" tile: a figure and a bar of one pill per lead owed that month. */
 export function MonthTile({ delivered, target, monthLabel }: MonthProps) {
   const remaining = Math.max(target - delivered, 0);
+  const pills = pillCount(target);
   return (
     <section
       aria-label="This month"
@@ -34,9 +36,9 @@ export function MonthTile({ delivered, target, monthLabel }: MonthProps) {
         role="img"
         aria-label={`${delivered} of ${target} delivered`}
         className="grid gap-[5px]"
-        style={{ gridTemplateColumns: `repeat(${target}, minmax(0, 1fr))` }}
+        style={pills > 0 ? { gridTemplateColumns: `repeat(${pills}, minmax(0, 1fr))` } : undefined}
       >
-        {Array.from({ length: target }, (_, i) => (
+        {Array.from({ length: pills }, (_, i) => (
           <i key={i} className={cn("h-2.5 rounded-full", i < delivered ? "bg-navy" : "bg-navy-07")} />
         ))}
       </div>
