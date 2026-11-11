@@ -6,7 +6,8 @@ export type TimelineItem =
   /** A run of consecutive system events, newest first. */
   | { kind: "system"; events: ActivityEvent[] };
 
-export type DayGroup = { key: string; label: string; items: TimelineItem[] };
+/** `at` is the time of the group's newest event. */
+export type DayGroup = { key: string; label: string; at: Date; items: TimelineItem[] };
 
 function dayKey(date: Date, timeZone: string): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
@@ -24,7 +25,7 @@ export function groupActivity(events: readonly ActivityEvent[], timeZone: string
     const key = dayKey(date, timeZone);
     let group = groups[groups.length - 1];
     if (!group || group.key !== key) {
-      group = { key, label: formatDayInZone(date, timeZone), items: [] };
+      group = { key, label: formatDayInZone(date, timeZone), at: date, items: [] };
       groups.push(group);
     }
     const last = group.items[group.items.length - 1];
@@ -32,4 +33,10 @@ export function groupActivity(events: readonly ActivityEvent[], timeZone: string
     else group.items.push(event.kind === "system" ? { kind: "system", events: [event] } : { kind: "event", event });
   }
   return groups;
+}
+
+/** "Today" with the date underneath for the viewer's current day, the short date for any other day. */
+export function dayHeading(date: Date, now: Date, timeZone: string): { title: string; sub?: string } {
+  const label = formatDayInZone(date, timeZone);
+  return dayKey(date, timeZone) === dayKey(now, timeZone) ? { title: "Today", sub: label } : { title: label };
 }
