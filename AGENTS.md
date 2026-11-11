@@ -17,3 +17,4 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Fonts come from `next/font/google`, set up in `app/layout.tsx` (Geist is the scaffold default).
 - Next 16 renames `middleware` to `proxy`, drops `next lint` (the `lint` script runs `eslint`), and uses Turbopack by default. A custom `webpack` config fails `next build` unless you pass `--webpack`.
 - Node 20.9 or newer is required. This machine runs Node 24.
+- shadcn/ui runs on Base UI (`@base-ui/react`, style `base-nova`) with Phosphor icons: `components.json` sets `"iconLibrary": "phosphor"`, so `shadcn add` writes `@phosphor-icons/react` imports directly. `lucide-react` is not installed; use Phosphor only. `cn` in `lib/utils.ts` re-exports the `cn` package. The `shadcn` skill lives in `.claude/skills/shadcn`.
