@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Info, PaperPlaneTilt } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -28,6 +28,7 @@ function messageTime(at: Date, now: Date, viewerZone: string): string {
 }
 
 export function RelayThread({ messages, now, viewerZone, onSend }: Props) {
+  const messageId = useId();
   const [draft, setDraft] = useState("");
   const [notice, setNotice] = useState("");
   const [announcement, setAnnouncement] = useState({ text: "", count: 0 });
@@ -96,12 +97,12 @@ export function RelayThread({ messages, now, viewerZone, onSend }: Props) {
 
       <form ref={formRef} onSubmit={submit} className="relative px-6 pt-3.5 pb-[18px]">
         <span aria-hidden className="absolute top-0 right-6 left-6 h-px bg-line" />
-        <Label htmlFor="relay-message" className="mb-2 leading-4">
+        <Label htmlFor={messageId} className="mb-2 leading-4">
           Message to the Fynix team
         </Label>
         <Textarea
           ref={inputRef}
-          id="relay-message"
+          id={messageId}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           rows={2}

@@ -1,8 +1,7 @@
+import { useId } from "react";
 import { cn } from "@/lib/utils";
 
 type Props = {
-  /** Id of the heading, so the panel is a named landmark. */
-  id: string;
   title: string;
   /** Muted text after the title, for example a count or who the thread is between. */
   meta?: string;
@@ -13,7 +12,9 @@ type Props = {
 };
 
 /** A white raised panel with a titled header row. The `@container` lets the content adapt to the panel width, not the window. */
-export function Panel({ id, title, meta, className, headClassName, children }: Props) {
+export function Panel({ title, meta, className, headClassName, children }: Props) {
+  // Cached pages stay in the DOM, so a fixed id would repeat across records.
+  const id = useId();
   return (
     <section
       aria-labelledby={id}

@@ -1,3 +1,4 @@
+import { useId } from "react";
 import type { Icon } from "@phosphor-icons/react";
 import {
   ArrowSquareOut,
@@ -113,6 +114,7 @@ const cityOf = (zone: string): string => (zone.split("/").pop() ?? zone).replace
 type Props = { lead: Lead; viewerZone: string; tone?: TileTone; headingLevel?: HeadingLevel; className?: string };
 
 export function MeetingTile({ lead, viewerZone, tone = "on-white", headingLevel = 3, className }: Props) {
+  const titleId = useId();
   const meeting = primaryMeeting(lead.meetings);
   const at = meeting ? new Date(meeting.startsAt) : null;
   const prospectZone = lead.prospect.zone;
@@ -120,8 +122,8 @@ export function MeetingTile({ lead, viewerZone, tone = "on-white", headingLevel 
     at !== null && (isOutsideWorkingHours(at, viewerZone) || isOutsideWorkingHours(at, prospectZone));
 
   return (
-    <Tile tone={tone} aria-labelledby={`${lead.ref}-meeting`} className={cn(tilePad(tone), className)}>
-      <TileTitle id={`${lead.ref}-meeting`} icon={CalendarBlank} tone={tone} level={headingLevel}>
+    <Tile tone={tone} aria-labelledby={titleId} className={cn(tilePad(tone), className)}>
+      <TileTitle id={titleId} icon={CalendarBlank} tone={tone} level={headingLevel}>
         Meeting
       </TileTitle>
       {meeting && at ? (
@@ -165,6 +167,7 @@ function linkedinHandle(url: string): string {
 }
 
 export function ContactTile({ lead, now, tone = "on-white", headingLevel = 3, className }: Props & { now: Date }) {
+  const titleId = useId();
   const { prospect } = lead;
   const meeting = primaryMeeting(lead.meetings);
   const at = meeting ? new Date(meeting.startsAt) : now;
@@ -172,8 +175,8 @@ export function ContactTile({ lead, now, tone = "on-white", headingLevel = 3, cl
   const atSign = prospect.email.indexOf("@");
 
   return (
-    <Tile tone={tone} aria-labelledby={`${lead.ref}-contact`} className={cn(tilePad(tone), className)}>
-      <TileTitle id={`${lead.ref}-contact`} icon={IdentificationCard} tone={tone} level={headingLevel}>
+    <Tile tone={tone} aria-labelledby={titleId} className={cn(tilePad(tone), className)}>
+      <TileTitle id={titleId} icon={IdentificationCard} tone={tone} level={headingLevel}>
         Contact
       </TileTitle>
       <Details tone={tone}>
@@ -219,16 +222,18 @@ export function QualificationTiles({
 }: Pick<Props, "lead" | "tone" | "headingLevel" | "className">) {
   // The group title sits at `headingLevel`, so each answer is one level deeper.
   const Heading = headingLevel === 2 ? "h3" : "h4";
+  // Cached pages stay in the DOM, so the same lead can be on screen twice and a fixed id would repeat.
+  const idPrefix = useId();
   return (
     <div className={cn("grid grid-cols-1 gap-3", className)}>
       {QUALIFICATION.map(({ key, label, icon: Glyph }) => (
         <Tile
           key={key}
           tone={tone}
-          aria-labelledby={`${lead.ref}-${key}`}
+          aria-labelledby={`${idPrefix}-${key}`}
           className={tone === "on-tonal" ? "px-[22px] pt-5 pb-[21px]" : "px-5 pt-[15px] pb-4"}
         >
-          <Heading id={`${lead.ref}-${key}`} className="mb-1.5 flex items-center gap-2 text-[13px] leading-[18px] font-semibold text-ink-2">
+          <Heading id={`${idPrefix}-${key}`} className="mb-1.5 flex items-center gap-2 text-[13px] leading-[18px] font-semibold text-ink-2">
             <Glyph aria-hidden size={18} />
             {label}
           </Heading>
