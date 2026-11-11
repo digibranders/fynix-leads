@@ -1,0 +1,72 @@
+# The checks that must pass before code reaches main or development.
+#
+# One job: the checks share one install and the whole run takes a few minutes, so splitting them would pay the
+# install cost several times for no gain.
+name: CI
+
+on:
+  # Every pull request, whatever it targets, so a PR stacked on another branch still gets checked.
+  pull_request:
+  # Pushes only to the shared branches. A feature branch is already covered by its pull request.
+  push:
+    branches: [main, development]
+
+# A new push to the same branch makes the previous run irrelevant, so stop it.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # Before setup-node, which needs pnpm on PATH to resolve the store it caches.
+      # The version comes from packageManager in package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      # Includes the isolation test that fails if shared client code imports the sample data.
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      # CLAUDE.md copy rule: no em or en dashes in app text, source or design docs.
+      - name: Copy rules (no em or en dashes)
+        run: |
+          node -e '
+            const fs = require("fs"), path = require("path");
+            const bad = [];
+            const scan = (f) => { if (/[–—]/.test(fs.readFileSync(f, "utf8"))) bad.push(f); };
+            const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).forEach((e) => {
+              const f = path.join(d, e.name);
+              if (e.isDirectory()) walk(f);
+              else if (/\.(tsx?|css|md)$/.test(f)) scan(f);
+            });
+            ["app", "components", "lib"].forEach(walk);
+            ["DESIGN.md", "CLAUDE.md", "README.md"].forEach(scan);
+            if (bad.length) { console.error("Dashes found in:\n" + bad.join("\n")); process.exit(1); }
+            console.log("No em or en dashes.");
+          '
