@@ -1,13 +1,17 @@
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 const ROWS = 6;
 
 /** Loading shape for the review queue: the tonal list pane and the white lead panel, without content. */
-export function ReviewQueueSkeleton() {
+export function ReviewQueueSkeleton({ className }: { className?: string }) {
   return (
     <div
       aria-busy="true"
-      className="grid grid-cols-1 gap-4 lg:h-[calc(100dvh-117px)] lg:min-h-[560px] lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[372px_minmax(0,1fr)]"
+      className={cn(
+        "grid grid-cols-1 gap-4 lg:h-[calc(100dvh-117px)] lg:min-h-[560px] lg:grid-cols-[320px_minmax(0,1fr)] xl:grid-cols-[372px_minmax(0,1fr)]",
+        className,
+      )}
     >
       <div className="flex min-h-0 flex-col rounded-lg bg-tonal px-2 max-lg:pb-2">
         <div className="flex h-14 items-center justify-between pr-1 pl-3">

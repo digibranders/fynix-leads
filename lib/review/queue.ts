@@ -11,12 +11,6 @@ export function removeByRef<T extends { ref: string }>(items: readonly T[], ref:
   return { items: remaining, nextRef: neighbour?.ref ?? null, index };
 }
 
-/** Put an item back at an index (clamped to the list length). Does not mutate the input. */
-export function insertAt<T>(items: readonly T[], item: T, index: number): T[] {
-  const at = Math.min(Math.max(index, 0), items.length);
-  return [...items.slice(0, at), item, ...items.slice(at)];
-}
-
 /** The review queue: pending leads only, oldest submission first. */
 export function reviewQueue(leads: readonly Lead[]): Lead[] {
   return leads

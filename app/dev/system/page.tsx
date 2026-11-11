@@ -14,6 +14,8 @@ import { BulletGraph } from "@/components/charts/bullet-graph";
 import { Field } from "@/components/dev/field";
 import { OverlayDemos } from "@/components/dev/overlay-demos";
 import { Group, Section, Specimen } from "@/components/dev/specimen";
+import { LeadsTableSkeleton } from "@/components/leads/leads-table-skeleton";
+import { ReviewQueueSkeleton } from "@/components/review/review-queue-skeleton";
 import { StatusBadge } from "@/components/status/status-badge";
 import { TimeInZones } from "@/components/time/time-in-zones";
 import { WaitingAge } from "@/components/time/waiting-age";
@@ -21,7 +23,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,7 +31,7 @@ import { APPROVAL_STATUSES, MEETING_STATUSES } from "@/lib/domain/status";
 import { SAMPLE_LEADS, SAMPLE_NOW, VIEWER_ZONES } from "@/lib/sample/data";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Design system | Fynix Leads" };
+export const metadata: Metadata = { title: "Design system" };
 
 const SECTIONS = [
   ["depths", "Depths"],
@@ -82,6 +83,7 @@ const ON_NAVY: Swatch[] = [
   { token: "--on-navy-05", value: "white 5%" },
   { token: "--on-navy-07", value: "white 7%" },
   { token: "--on-navy-10", value: "white 10%" },
+  { token: "--on-navy-16", value: "white 16%", note: "key cap, tick" },
   { token: "--on-navy-text", value: "offwhite 68%" },
   { token: "--on-navy-muted", value: "offwhite 60%" },
 ];
@@ -244,7 +246,7 @@ function Tile({ title, icon, rows }: { title: string; icon: React.ReactNode; row
   return (
     <div className="rounded-md bg-navy-04 px-5 py-[18px]">
       <div className="mb-3 flex items-center gap-[9px]">
-        <span className="grid size-[30px] place-items-center rounded-full bg-surface text-ink-2 shadow-[0_1px_2px_rgba(12,30,46,0.06)]">
+        <span className="grid size-[30px] place-items-center rounded-full bg-surface text-ink-2 shadow-disc">
           {icon}
         </span>
         <h3 className="text-sm font-semibold">{title}</h3>
@@ -267,7 +269,7 @@ export default function DesignSystemPage() {
       <header className="flex flex-col gap-3 py-6 md:py-8">
         <Link
           href="/"
-          className="inline-flex h-8 w-fit items-center gap-2 rounded-full bg-navy-05 pr-3.5 pl-2.5 text-[13px] font-medium text-ink-2 transition-colors hover:bg-navy-07"
+          className="inline-flex h-8 w-fit items-center gap-2 rounded-full bg-navy-05 pr-3.5 pl-2.5 max-md:h-10 text-[13px] font-medium text-ink-2 transition-colors hover:bg-navy-07"
         >
           <ArrowLeft aria-hidden size={16} />
           Back to index
@@ -282,7 +284,7 @@ export default function DesignSystemPage() {
               <li key={id}>
                 <a
                   href={`#${id}`}
-                  className="inline-flex h-8 items-center rounded-full bg-navy-05 px-3.5 text-[13px] font-medium text-ink-2 transition-colors hover:bg-navy-07"
+                  className="inline-flex h-8 items-center rounded-full bg-navy-05 px-3.5 text-[13px] font-medium text-ink-2 transition-colors hover:bg-navy-07 max-md:h-10"
                 >
                   {label}
                 </a>
@@ -798,7 +800,7 @@ export default function DesignSystemPage() {
                 <div className="relative flex w-full flex-col gap-6 overflow-hidden rounded-lg bg-navy p-6 text-offwhite shadow-hero">
                   <span
                     aria-hidden
-                    className="pointer-events-none absolute -top-28 -right-20 size-[360px] rounded-full bg-[radial-gradient(closest-side,rgba(233,175,136,0.09),rgba(233,175,136,0))]"
+                    className="pointer-events-none absolute -top-28 -right-20 size-[360px] rounded-full bg-(image:--hero-glow)"
                   />
                   <div className="relative flex items-center justify-between gap-3">
                     <b className="text-sm font-semibold">Progress toward target</b>
@@ -989,7 +991,7 @@ export default function DesignSystemPage() {
         <Section
           id="states"
           title="States"
-          note="Every screen needs an empty, a loading and an error state. The skeleton keeps the layout of the table it stands in for."
+          note="Every screen needs an empty, a loading and an error state. Each skeleton keeps the layout of the screen it stands in for: the leads table and the review queue."
         >
           <div className="flex flex-col gap-7">
             <Group title="Empty" className="block">
@@ -1002,32 +1004,14 @@ export default function DesignSystemPage() {
               </div>
             </Group>
             <Group title="Loading" className="block">
-              <div role="status" aria-busy="true">
+              <div role="status" className="flex flex-col gap-6">
                 <span className="sr-only">Loading leads</span>
-                <LeadTable>
-                  {[0, 1, 2, 3].map((row) => (
-                    <TableRow key={row}>
-                      <TableCell>
-                        <Skeleton className="h-3.5 w-16" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-3.5 w-28" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-3.5 w-32" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-[22px] w-28 rounded-full" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-3.5 w-20" />
-                      </TableCell>
-                      <TableCell>
-                        <Skeleton className="h-3.5 w-10" />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </LeadTable>
+                <div className="rounded-lg bg-canvas p-4">
+                  <LeadsTableSkeleton />
+                </div>
+                <div className="rounded-lg bg-canvas p-4">
+                  <ReviewQueueSkeleton className="lg:h-[460px] lg:min-h-0" />
+                </div>
               </div>
             </Group>
             <Group title="Error" className="block">

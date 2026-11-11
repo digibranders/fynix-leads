@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ApprovalStatus } from "@/lib/domain/status";
 import type { Lead } from "@/lib/domain/types";
 import { SAMPLE_LEADS } from "@/lib/sample/data";
-import { insertAt, queueSegments, removeByRef, reviewQueue } from "./queue";
+import { queueSegments, removeByRef, reviewQueue } from "./queue";
 
 const item = (ref: string) => ({ ref });
 const refs = (items: readonly { ref: string }[]) => items.map((i) => i.ref);
@@ -71,33 +71,6 @@ describe("removeByRef", () => {
   it("does not mutate the input", () => {
     removeByRef(list, "B");
     expect(refs(list)).toEqual(["A", "B", "C"]);
-  });
-});
-
-describe("insertAt", () => {
-  const list = [item("A"), item("C")];
-
-  it("restores an item at its original index", () => {
-    expect(refs(insertAt(list, item("B"), 1))).toEqual(["A", "B", "C"]);
-  });
-
-  it("clamps an index past the end", () => {
-    expect(refs(insertAt(list, item("D"), 99))).toEqual(["A", "C", "D"]);
-  });
-
-  it("clamps a negative index to the start", () => {
-    expect(refs(insertAt(list, item("Z"), -5))).toEqual(["Z", "A", "C"]);
-  });
-
-  it("does not mutate the input", () => {
-    insertAt(list, item("B"), 1);
-    expect(refs(list)).toEqual(["A", "C"]);
-  });
-
-  it("round-trips with removeByRef", () => {
-    const original = [item("A"), item("B"), item("C")];
-    const removed = removeByRef(original, "B");
-    expect(insertAt(removed.items, item("B"), removed.index)).toEqual(original);
   });
 });
 
