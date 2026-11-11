@@ -74,7 +74,7 @@ The client believes Fynix does the work. The agency works on behalf of Fynix.
 
 ### Fynix aliases
 
-Every agency user has a **Fynix alias**: a display name such as "Rahul, Fynix" and, if needed, a Fynix email address. Anything the client sees about an agency user uses the alias. Agency users sign in with their own email, which the client never sees.
+Every agency user has a **Fynix alias**: a display name such as "Rahul, Fynix". There are no paid Fynix accounts for agency users. Anything the client sees about an agency user uses the alias, including the name shown in Google Meet (section 9). Agency users sign in with their own email, which the client never sees.
 
 ### Override
 
@@ -107,7 +107,7 @@ All times are stored in UTC (`timestamptz`). Every user has a time zone on their
 |---|---|---|
 | `organisation` | kind (`fynix`, `client`, `agency`), name, brand name, status | Brand name is what the agency sees |
 | `user` | org, name, email, time zone, role in org (`member`, `manager`), status | |
-| `agency_alias` | user, display name, alias email | One per agency user |
+| `agency_alias` | user, display name | One per agency user |
 | `invite` | email, org, expires at, used at | Single use, 7 day expiry |
 | `terms_version` / `terms_acceptance` | party kind, version, text; user, version, accepted at, IP | |
 | `campaign` | public ref, name, client org, agency org, start, end, monthly target, total target, geography, industries, company size, ICP, job titles, seniority, technologies, BANT criteria, instructions, internal notes, status | One agency per campaign |
@@ -117,7 +117,7 @@ All times are stored in UTC (`timestamptz`). Every user has a time zone on their
 | `rejection_reason` | code, label, active | Preset list managed by Fynix |
 | `meeting` | lead, status, starts at, ends at, proposed by, accepted by, Google event ID, Meet link, outcome, outcome note, rescheduled by | See the open question in section 16 |
 | `meeting_proposal` | meeting, proposed slots (1 to 3), status | |
-| `availability_slot` | client user, starts at, ends at, recurring rule (nullable) | Client free slots |
+| `availability_slot` | client user, starts at, ends at, recurring rule (nullable) | Free slots, set per client rep |
 | `thread_message` | lead, channel (`relay`, `client_fynix`, `agency_fynix`), author, body original, body scrubbed, created at | |
 | `activity` | subject (campaign or lead), actor, actor role, action, before, after, visible to (set of roles), created at | Append only |
 | `notification` | user, event, subject, read at | In-app centre |
@@ -176,10 +176,14 @@ A duplicate blocks submission and names the existing lead's ref (if the agency c
 
 ### Flow
 
-1. The agency proposes up to 3 times, or picks one of the client's published free slots.
-2. If it picks a free slot, the meeting is scheduled at once. Otherwise the client accepts one of the proposed times (or declines with a note) in the portal or from the email.
-3. On scheduling, the server creates a Google Calendar event with a Meet link from a Fynix Google Workspace account (`meetings@fynix.digital`, through a service account with domain-wide delegation). Guests: the prospect, the client rep, and the agency user's Fynix identity (open question 3). `guestsCanSeeOtherGuests` is off.
-4. Reschedules update the same event. Old times stay in the activity history.
+1. Each client rep publishes their own free slots. The agency picks a rep's free slot, or proposes up to 3 times to a rep.
+2. If it picks a free slot, the meeting is scheduled at once. Otherwise the rep accepts one of the proposed times (or declines with a note) in the portal or from the email.
+3. On scheduling, the server creates a Google Calendar event with a Meet link from a Fynix Google Workspace account (`meetings@fynix.digital`, through a service account with domain-wide delegation). Calendar guests: the prospect and the client rep only. `guestsCanSeeOtherGuests` is off.
+4. The agency user is **not** a calendar guest. The portal shows them the time and the Meet link, and emails both to their own address from the portal. They join as a guest, not signed in to Google, under their Fynix alias name. The email and the meeting page say this plainly, and the agency terms require it.
+5. The Meet space's access type is set to open (Google Meet API), so nobody has to admit the agency user or the prospect. To verify in phase 3: that the Meet API allows this on Fynix's Workspace plan.
+6. Reschedules update the same event. Old times stay in the activity history.
+
+Known limit: if an agency user joins while signed in to their own Google account, Meet shows their real name. The portal cannot prevent that. The terms and the join instructions cover it.
 
 ### Time display
 
@@ -263,7 +267,7 @@ The portal has its own design system. It takes Fynix's colours, not the website'
 - **Client review queue**: a triage inbox. One lead at a time with all its fields and the meeting. Keys: `A` approve, `R` reject (preset reason list plus optional note), `C` clarify. The next lead opens after each decision. Each row shows how long it has waited.
 - **Lead record**: fields in a side panel. The main area is the activity timeline, with system events collapsed so people's actions stand out, and the relayed thread.
 - **Lead table**: two status columns (approval, meeting), saved filters, column chooser, bulk export.
-- **Meeting picker**: the client's free slots as a week grid in the viewer's zone, plus "propose other times".
+- **Meeting picker**: choose a client rep, see that rep's free slots as a week grid in the viewer's zone, plus "propose other times".
 - **Empty, loading and error states** for every screen. Skeletons match the final layout.
 
 ### Not allowed
@@ -315,13 +319,13 @@ Code layout: domain logic (lifecycle, delivered rule, scrubbing, visibility) liv
 |---|---|---|
 | 1 | Can one lead have more than one meeting? (asking your seniors) | Meeting UI only, model is ready for both |
 | 2 | Which month does a delivered lead count toward: meeting, approval or submission month? | Monthly dashboards and target emails |
-| 3 | Agency SDRs join meetings as Fynix. Do they get real `fynix.digital` Google Workspace accounts (paid seats), or join as named guests? | Meeting invites |
+| 3 | Decided 2026-11-11: agency users join Meet as named guests under their Fynix alias. No paid seats | |
 | 4 | Do you have drafts of the terms for the client, the agency and Fynix, including non-circumvention? | First sign-in |
 | 5 | Will prospects include people in the EU or UK (GDPR), or only India (DPDPA) and elsewhere? | Retention and consent rules |
 | 6 | Will the agency attach files to leads (call recordings, notes)? | Storage |
 | 7 | Is email plus in-app enough for v1, or is WhatsApp needed? | Notifications |
 | 8 | Which domain: `leads.fynix.digital` or another? | Deploy |
-| 9 | Should the client be able to edit its free slots per rep, or one shared calendar per client? | Meeting picker |
+| 9 | Decided 2026-11-11: free slots are set per client rep | |
 
 ## 17. Build phases
 
