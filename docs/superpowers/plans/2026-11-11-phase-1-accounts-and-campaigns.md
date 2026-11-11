@@ -16,7 +16,7 @@
 | D2 | Terms: a versioned accept-on-first-sign-in gate with clearly marked placeholder text. Lawyer-approved text replaces it **before any real user is invited** (gate G2). | Owner, 2026-11-11 |
 | D3 | The Fynix admin signs in with a password only for now. This departs from spec section 12 (TOTP). Gate G1: a second factor (TOTP or passkey) is added **before any real client or agency data is entered**. The auth design leaves room for it. | Owner, 2026-11-11 |
 | D4 | Email sender is `hello@fynix.digital` (already verified in Brevo). In development mail is only written to the outbox table; nothing is sent. | Owner, 2026-11-11 |
-| D5 | The app runs at `leads.fynix.digital`. The owner answered the admin-location question with that address, so the admin is planned at `/admin` on the same host. **To confirm.** Routing is host-agnostic so a separate admin host later is configuration only. | Owner reply, interpretation mine |
+| D5 | The app runs at `leads.fynix.digital`. The admin lives at `/admin` on the same host. Routing is host-agnostic so a separate admin host later is configuration only. | Owner, confirmed 2026-11-11 |
 | D6 | Local development uses the Postgres 16 already running on this machine (databases `fynix_leads` and `fynix_leads_test`). Production Postgres is on the Firstfold VPS (phase 6). | Checked 2026-11-11 |
 | D7 | Phase 1 includes transactional email (invites, password reset) through an outbox, which the spec had placed in phase 4. Invites cannot work without it. Notification emails stay in phase 4. | Plan |
 
@@ -113,7 +113,7 @@ Each sub-phase ends with lint, typecheck, tests (including integration) and buil
 | G1 | Second factor for the Fynix admin before any real client or agency data is entered |
 | G2 | Lawyer-approved terms replace the placeholder text before any real user is invited |
 | G3 | A Brevo API key for this app, and `hello@fynix.digital` confirmed as the sender, before invites are sent for real |
-| G4 | The admin address decision (D5) confirmed |
+| G4 | Closed 2026-11-11: the admin is at `/admin` on `leads.fynix.digital` |
 | Open | Meetings per lead (seniors), the month and time zone a delivered lead counts toward (single function `lib/domain/counting-month.ts`), GDPR scope for EU or UK prospects (affects retention fields from phase 2), attachments, WhatsApp |
 
 ## 8. Risks
