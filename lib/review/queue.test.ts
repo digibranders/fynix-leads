@@ -1,0 +1,126 @@
+import { describe, expect, it } from "vitest";
+import type { ApprovalStatus } from "@/lib/domain/status";
+import type { Lead } from "@/lib/domain/types";
+import { insertAt, removeByRef, reviewQueue } from "./queue";
+
+const item = (ref: string) => ({ ref });
+const refs = (items: readonly { ref: string }[]) => items.map((i) => i.ref);
+
+function lead(ref: string, approval: ApprovalStatus, submittedAt: string): Lead {
+  return {
+    ref,
+    campaignRef: "CMP-TEST",
+    approval,
+    submittedAt,
+    prospect: {
+      name: "Test Person",
+      title: "Title",
+      company: "Company",
+      companyDomain: "example.test",
+      email: "test@example.test",
+      phone: "+44 20 0000 0000",
+      linkedinUrl: "https://www.linkedin.com/in/test",
+      zone: "Europe/London",
+    },
+    bant: { budget: "b", authority: "a", need: "n", timeline: "t" },
+    meetings: [],
+    activity: [],
+    thread: [],
+  };
+}
+
+describe("removeByRef", () => {
+  const list = [item("A"), item("B"), item("C")];
+
+  it("selects the next item when a middle item is removed", () => {
+    const result = removeByRef(list, "B");
+    expect(refs(result.items)).toEqual(["A", "C"]);
+    expect(result.nextRef).toBe("C");
+    expect(result.index).toBe(1);
+  });
+
+  it("selects the next item when the first item is removed", () => {
+    const result = removeByRef(list, "A");
+    expect(refs(result.items)).toEqual(["B", "C"]);
+    expect(result.nextRef).toBe("B");
+    expect(result.index).toBe(0);
+  });
+
+  it("selects the previous item when the last item is removed", () => {
+    const result = removeByRef(list, "C");
+    expect(refs(result.items)).toEqual(["A", "B"]);
+    expect(result.nextRef).toBe("B");
+    expect(result.index).toBe(2);
+  });
+
+  it("gives a null nextRef when the only item is removed", () => {
+    const result = removeByRef([item("A")], "A");
+    expect(result.items).toEqual([]);
+    expect(result.nextRef).toBeNull();
+    expect(result.index).toBe(0);
+  });
+
+  it("returns the same items for an unknown ref", () => {
+    const result = removeByRef(list, "Z");
+    expect(result.items).toEqual(list);
+    expect(result.nextRef).toBeNull();
+    expect(result.index).toBe(-1);
+  });
+
+  it("does not mutate the input", () => {
+    removeByRef(list, "B");
+    expect(refs(list)).toEqual(["A", "B", "C"]);
+  });
+});
+
+describe("insertAt", () => {
+  const list = [item("A"), item("C")];
+
+  it("restores an item at its original index", () => {
+    expect(refs(insertAt(list, item("B"), 1))).toEqual(["A", "B", "C"]);
+  });
+
+  it("clamps an index past the end", () => {
+    expect(refs(insertAt(list, item("D"), 99))).toEqual(["A", "C", "D"]);
+  });
+
+  it("clamps a negative index to the start", () => {
+    expect(refs(insertAt(list, item("Z"), -5))).toEqual(["Z", "A", "C"]);
+  });
+
+  it("does not mutate the input", () => {
+    insertAt(list, item("B"), 1);
+    expect(refs(list)).toEqual(["A", "C"]);
+  });
+
+  it("round-trips with removeByRef", () => {
+    const original = [item("A"), item("B"), item("C")];
+    const removed = removeByRef(original, "B");
+    expect(insertAt(removed.items, item("B"), removed.index)).toEqual(original);
+  });
+});
+
+describe("reviewQueue", () => {
+  it("keeps only pending leads, oldest submission first", () => {
+    const leads = [
+      lead("LD-0001", "pending", "2026-11-11T09:00:00Z"),
+      lead("LD-0002", "approved", "2026-11-01T09:00:00Z"),
+      lead("LD-0003", "pending", "2026-11-09T09:00:00Z"),
+      lead("LD-0004", "needs_clarification", "2026-11-02T09:00:00Z"),
+      lead("LD-0005", "rejected", "2026-11-03T09:00:00Z"),
+      lead("LD-0006", "draft", "2026-11-04T09:00:00Z"),
+      lead("LD-0007", "pending", "2026-11-10T09:00:00Z"),
+    ];
+    expect(refs(reviewQueue(leads))).toEqual(["LD-0003", "LD-0007", "LD-0001"]);
+  });
+
+  it("does not mutate the input", () => {
+    const leads = [lead("LD-0001", "pending", "2026-11-11T09:00:00Z"), lead("LD-0002", "pending", "2026-11-09T09:00:00Z")];
+    reviewQueue(leads);
+    expect(refs(leads)).toEqual(["LD-0001", "LD-0002"]);
+  });
+
+  it("returns an empty list when nothing is pending", () => {
+    expect(reviewQueue([lead("LD-0001", "approved", "2026-11-01T09:00:00Z")])).toEqual([]);
+  });
+});
