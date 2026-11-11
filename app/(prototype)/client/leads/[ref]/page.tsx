@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { LeadRecord } from "@/components/leads/lead-record";
@@ -7,6 +8,11 @@ import { SAMPLE_LEADS, SAMPLE_NOW, VIEWER_ZONES } from "@/lib/sample/data";
 // Prototype data is static, so every sample lead is prerendered. Unknown refs render on demand and reach notFound().
 export function generateStaticParams(): { ref: string }[] {
   return SAMPLE_LEADS.map((l) => ({ ref: l.ref }));
+}
+
+export async function generateMetadata({ params }: PageProps<"/client/leads/[ref]">): Promise<Metadata> {
+  const { ref } = await params;
+  return { title: SAMPLE_LEADS.some((l) => l.ref === ref) ? `Lead ${ref}` : "Lead not found" };
 }
 
 async function Record({ params }: { params: PageProps<"/client/leads/[ref]">["params"] }) {

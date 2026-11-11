@@ -7,7 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Fynix Leads",
+  title: { default: "Fynix Leads", template: "%s | Fynix Leads" },
   description: "Lead generation tracking for Fynix campaigns.",
   robots: { index: false, follow: false },
 };

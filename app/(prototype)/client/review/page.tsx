@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { ReviewQueue } from "@/components/review/review-queue";
 import { ReviewSubtitle } from "@/components/review/review-subtitle";
 import { PageHeader } from "@/components/shell/page-header";
 import { SAMPLE_LEADS, SAMPLE_NOW, VIEWER_ZONES } from "@/lib/sample/data";
+
+export const metadata: Metadata = { title: "Review queue" };
 
 export default function ReviewQueuePage() {
   return (

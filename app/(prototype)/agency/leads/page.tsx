@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { CalendarBlank } from "@phosphor-icons/react/dist/ssr";
 import { AgencyLeadsView } from "@/components/leads/agency-leads-view";
 import { CampaignHero } from "@/components/leads/campaign-hero";
@@ -7,6 +8,8 @@ import { campaignStats, replacementsOwedRefs } from "@/lib/campaign/stats";
 import { toAgencyView } from "@/lib/leads/agency-view";
 import { SAMPLE_CAMPAIGN, SAMPLE_LEADS, SAMPLE_NOW, VIEWER_ZONES } from "@/lib/sample/data";
 import { formatIsoDay, formatMonthYear } from "@/lib/time/iso-day";
+
+export const metadata: Metadata = { title: "Leads" };
 
 export default function AgencyLeadsPage() {
   // Everything below runs on the server. Only the role-shaped leads and plain numbers cross to the browser.
