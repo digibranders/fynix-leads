@@ -1376,7 +1376,7 @@ git add -A && git commit -m "Add the agency lead table prototype"
 - [ ] **Step 5: Copy scan:**
 
 ```bash
-node -e 'const fs=require("fs"),p=require("path");const bad=[];const check=f=>{if(/[–—]/.test(fs.readFileSync(f,"utf8")))bad.push(f)};const walk=d=>fs.readdirSync(d,{withFileTypes:true}).forEach(e=>{const f=p.join(d,e.name);e.isDirectory()?walk(f):/\.(tsx?|css|md)$/.test(f)&&check(f)});["app","components","lib"].forEach(walk);check("DESIGN.md");console.log(bad.length?"dashes in: "+bad.join(", "):"no dashes")'
+node -e 'const fs=require("fs"),p=require("path");const bad=[];const check=f=>{if(/[\u2013\u2014]/.test(fs.readFileSync(f,"utf8")))bad.push(f)};const walk=d=>fs.readdirSync(d,{withFileTypes:true}).forEach(e=>{const f=p.join(d,e.name);e.isDirectory()?walk(f):/\.(tsx?|css|md)$/.test(f)&&check(f)});["app","components","lib"].forEach(walk);check("DESIGN.md");console.log(bad.length?"dashes in: "+bad.join(", "):"no dashes")'
 ```
 
 Expected: `no dashes`.
