@@ -13,8 +13,7 @@ export function useReviewKeys(handlers: Handlers, enabled: boolean): void {
       // A held key must not approve the whole queue.
       if (e.repeat) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      const target = e.target as HTMLElement | null;
-      if (target?.closest("input, textarea, select, [contenteditable=true], [role=dialog]")) return;
+      if (e.target instanceof Element && e.target.closest("input, textarea, select, [contenteditable=true], [role=dialog]")) return;
       const action = KEYS[e.key.toLowerCase()];
       if (!action) return;
       e.preventDefault();

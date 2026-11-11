@@ -30,7 +30,7 @@ export function RejectDialog({ open, onOpenChange, ...formProps }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         finalFocus={() => document.querySelector<HTMLElement>('[data-review-action="reject"]')}
-        className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-md"
+        className="max-h-[calc(100dvh-2rem)] grid-rows-[auto_minmax(0,1fr)_auto] gap-5 p-6 sm:max-w-[480px]"
       >
         {/* The form mounts with the dialog, so its state starts empty every time it opens. */}
         <RejectForm {...formProps} />
@@ -65,7 +65,7 @@ function RejectForm({ leadRef, prospectName, onConfirm }: Omit<Props, "open" | "
         </DialogDescription>
       </DialogHeader>
 
-      <div className="-mx-4 flex min-h-0 flex-col gap-4 overflow-y-auto px-4 py-0.5">
+      <div className="-mx-2 flex min-h-0 flex-col gap-4 overflow-y-auto px-2 py-0.5">
         <div className="flex flex-col gap-1.5">
           <span id="reject-reason-label" className="text-sm font-medium">
             Reason
@@ -74,12 +74,12 @@ function RejectForm({ leadRef, prospectName, onConfirm }: Omit<Props, "open" | "
             aria-labelledby="reject-reason-label"
             value={reason ?? ""}
             onValueChange={(value) => setReason(value as RejectionReasonCode)}
-            className="gap-0.5"
+            className="gap-1"
           >
             {REJECTION_REASONS.map((r) => (
               <Label
                 key={r.code}
-                className="min-h-10 cursor-pointer lg:min-h-8 gap-2.5 rounded-md px-2 py-1.5 font-normal transition-colors hover:bg-accent"
+                className="min-h-11 cursor-pointer gap-3 rounded-sm px-3.5 py-2.5 text-[14px] leading-5 font-medium transition-colors hover:bg-navy-04 has-data-checked:bg-selected has-data-checked:font-semibold"
               >
                 <RadioGroupItem value={r.code} />
                 {r.label}

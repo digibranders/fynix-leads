@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePendingCount } from "@/lib/review/use-pending-count";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { isActive, NAV, type Role } from "./nav-config";
@@ -14,18 +15,20 @@ type Props = {
 };
 
 export function NavLinks({ role, pathname, collapsing = false, onNavigate }: Props) {
+  const pending = usePendingCount();
   return (
     <nav aria-label="Main">
       <ul className="flex flex-col gap-1">
         {NAV[role].map((item) => {
           const active = isActive(item, pathname);
           const Glyph = item.icon;
-          const hasCount = item.count !== undefined;
+          const count = item.showsPendingCount ? pending : undefined;
+          const hasCount = count !== undefined && count > 0;
           const link = (
             <Link
               href={item.href}
               aria-current={active ? "page" : undefined}
-              aria-label={collapsing ? (hasCount ? `${item.label}, ${item.count}` : item.label) : undefined}
+              aria-label={collapsing ? (hasCount ? `${item.label}, ${count}` : item.label) : undefined}
               onClick={onNavigate}
               className={cn(
                 "flex h-[42px] items-center gap-[11px] rounded-full px-3.5 text-[14px] font-medium outline-offwhite transition-[background-color,color,box-shadow] duration-(--dur-hover)",
@@ -45,7 +48,7 @@ export function NavLinks({ role, pathname, collapsing = false, onNavigate }: Pro
                     active ? "bg-navy text-offwhite" : "bg-peach/18 text-peach",
                   )}
                 >
-                  {item.count}
+                  {count}
                 </span>
               )}
             </Link>
@@ -57,7 +60,7 @@ export function NavLinks({ role, pathname, collapsing = false, onNavigate }: Pro
                   <TooltipTrigger render={link} />
                   <TooltipContent side="right" sideOffset={10} className="lg:hidden">
                     {item.label}
-                    {hasCount && <span className="text-ink-muted">{item.count}</span>}
+                    {hasCount && <span className="text-ink-muted">{count}</span>}
                   </TooltipContent>
                 </Tooltip>
               ) : (

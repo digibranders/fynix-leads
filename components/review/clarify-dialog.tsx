@@ -29,7 +29,7 @@ export function ClarifyDialog({ open, onOpenChange, ...formProps }: Props) {
       <DialogContent
         initialFocus={questionRef}
         finalFocus={() => document.querySelector<HTMLElement>('[data-review-action="clarify"]')}
-        className="sm:max-w-md"
+        className="gap-5 p-6 sm:max-w-[480px]"
       >
         {/* The form mounts with the dialog, so its state starts empty every time it opens. */}
         <ClarifyForm {...formProps} questionRef={questionRef} />

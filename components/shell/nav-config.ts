@@ -1,7 +1,6 @@
 import type { Icon } from "@phosphor-icons/react";
 import { IdentificationCard, ListChecks, Table } from "@phosphor-icons/react/dist/ssr";
-import { reviewQueue } from "@/lib/review/queue";
-import { SAMPLE_CAMPAIGN, SAMPLE_LEADS } from "@/lib/sample/data";
+import { SAMPLE_CAMPAIGN } from "@/lib/sample/data";
 
 export type Role = "client" | "agency";
 
@@ -11,13 +10,13 @@ export type NavItem = {
   icon: Icon;
   /** Path prefix that keeps the item active on deeper routes. Defaults to `href`. */
   match?: string;
-  /** A count shown beside the label, for example the leads waiting for review. */
-  count?: number;
+  /** Shows the live count of leads waiting for review beside the label. */
+  showsPendingCount?: boolean;
 };
 
 export const NAV: Record<Role, NavItem[]> = {
   client: [
-    { href: "/client/review", label: "Review queue", icon: ListChecks, count: reviewQueue(SAMPLE_LEADS).length },
+    { href: "/client/review", label: "Review queue", icon: ListChecks, showsPendingCount: true },
     { href: "/client/leads/LD-4K9P", label: "Lead record", icon: IdentificationCard, match: "/client/leads/" },
   ],
   agency: [{ href: "/agency/leads", label: "Leads", icon: Table }],

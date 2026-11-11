@@ -9,7 +9,7 @@ import { Notifications } from "./notifications";
 type Props = {
   title: string;
   /** Facts from the data only, never marketing copy. */
-  subtitle?: string;
+  subtitle?: React.ReactNode;
   /** Page buttons. They sit to the left of the search, bell and avatar. */
   actions?: React.ReactNode;
 };
