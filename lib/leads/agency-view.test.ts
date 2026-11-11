@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { Lead } from "@/lib/domain/types";
 import { SAMPLE_LEADS, SAMPLE_REPS } from "@/lib/sample/data";
 import { primaryMeeting, toAgencyView, type AgencyLead } from "./agency-view";
 
@@ -66,5 +67,21 @@ describe("primaryMeeting", () => {
   it("otherwise takes the most recently added meeting", () => {
     const list = [m("a", "cancelled", "2026-11-02T10:00:00Z"), m("b", "scheduled", "2026-11-20T10:00:00Z")];
     expect(primaryMeeting(list)?.id).toBe("b");
+  });
+});
+
+describe("toAgencyView scrubs relayed text again", () => {
+  const base = SAMPLE_LEADS.find((l) => l.ref === "LD-8L4T")!;
+  const withNote = (note: string): Lead => ({ ...base, decision: { ...base.decision!, note } });
+
+  it("removes an email, a phone and a link from a decision note", () => {
+    const view = toAgencyView(withNote("Speak to imogen.price@kestrel.example or +44 20 7946 0958, see calendly.com/imogen"));
+    expect(view.decision?.note).toBe("Speak to [removed] or [removed], see [removed]");
+    expect(JSON.stringify(view)).not.toMatch(/kestrel\.example|7946|calendly/);
+  });
+
+  it("keeps a clean note and drops an empty one", () => {
+    expect(toAgencyView(withNote("Under 30 staff.")).decision?.note).toBe("Under 30 staff.");
+    expect(toAgencyView(withNote("")).decision?.note).toBeUndefined();
   });
 });

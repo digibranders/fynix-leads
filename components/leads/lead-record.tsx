@@ -16,7 +16,7 @@ import { isDelivered } from "@/lib/domain/delivered";
 import { REJECTION_REASONS, type RejectionReasonCode } from "@/lib/domain/rejection-reasons";
 import type { ActivityEvent, Decision, Lead, ThreadMessage } from "@/lib/domain/types";
 import type { ApprovalStatus } from "@/lib/domain/status";
-import { scrubContactDetails } from "@/lib/relay/scrub";
+import { relayText } from "@/lib/relay/relay-text";
 import { getSnapshot, resetPendingCount, setPendingCount } from "@/lib/review/pending-store";
 import { formatInZone } from "@/lib/time/zones";
 import { cn } from "@/lib/utils";
@@ -117,7 +117,7 @@ export function LeadRecord({ lead, now, viewerZone }: Props) {
     const label = reasonLabel(reason) ?? "";
     const text = reason === "other" ? "Rejected: other reason" : `Rejected: ${lowerFirst(label)}`;
     // A rejection note is relayed text, so it is scrubbed like a message.
-    const scrubbed = scrubContactDetails(note).text;
+    const scrubbed = relayText(note).text;
     decide(
       { outcome: "rejected", reasonCode: reason, note: scrubbed || undefined, decidedAt: now },
       text,
@@ -133,7 +133,7 @@ export function LeadRecord({ lead, now, viewerZone }: Props) {
         at: new Date(nowDate.getTime() + (list.length + 1) * MINUTE_MS).toISOString(),
         author: "Client",
         side: "client",
-        body: text,
+        body: relayText(text).text,
       },
     ]);
   }

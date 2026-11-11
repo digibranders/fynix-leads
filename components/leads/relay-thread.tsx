@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { ThreadMessage } from "@/lib/domain/types";
 import { dayHeading } from "@/lib/leads/activity";
-import { scrubContactDetails } from "@/lib/relay/scrub";
+import { relayText } from "@/lib/relay/relay-text";
 import { formatDayInZone, formatTimeInZone } from "@/lib/time/zones";
 import { cn } from "@/lib/utils";
 
@@ -46,7 +46,7 @@ export function RelayThread({ messages, now, viewerZone, onSend }: Props) {
   function submit(e: React.SyntheticEvent) {
     e.preventDefault();
     if (draft.trim() === "") return;
-    const { text, removed } = scrubContactDetails(draft.trim());
+    const { text, removed } = relayText(draft);
     onSend(text);
     setDraft("");
     // The Send button disables itself, so focus goes back to the box for the next message.

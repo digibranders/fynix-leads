@@ -1,5 +1,6 @@
 import type { ApprovalStatus, MeetingStatus } from "@/lib/domain/status";
 import type { Decision, Lead } from "@/lib/domain/types";
+import { relayText } from "@/lib/relay/relay-text";
 import { lastMessageSide, type ThreadSide } from "./thread";
 
 /**
@@ -38,7 +39,13 @@ export function toAgencyView(lead: Lead): AgencyLead {
     prospect: { name: prospect.name, title: prospect.title, company: prospect.company, companyDomain: prospect.companyDomain },
     meetings: lead.meetings.map((m) => ({ id: m.id, status: m.status, startsAt: m.startsAt, durationMinutes: m.durationMinutes })),
     decision: decision
-      ? { outcome: decision.outcome, reasonCode: decision.reasonCode, note: decision.note, decidedAt: decision.decidedAt }
+      ? {
+          outcome: decision.outcome,
+          reasonCode: decision.reasonCode,
+          // Scrubbed again here as defence in depth: the note was written by the client and relayed to the agency.
+          note: relayText(decision.note ?? "").text || undefined,
+          decidedAt: decision.decidedAt,
+        }
       : undefined,
     replacesRef: lead.replacesRef,
     lastMessageSide: lastMessageSide(lead.thread),

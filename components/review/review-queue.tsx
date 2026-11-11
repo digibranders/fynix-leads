@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { Lead } from "@/lib/domain/types";
+import { relayText } from "@/lib/relay/relay-text";
 import { resetPendingCount, setPendingCount } from "@/lib/review/pending-store";
 import { queueSegments, removeByRef } from "@/lib/review/queue";
 import { ClarifyDialog } from "./clarify-dialog";
@@ -106,13 +107,15 @@ export function ReviewQueue({ leads: initialLeads, now, viewerZone }: Props) {
     const applied: Lead = {
       ...selected,
       approval: "rejected",
-      decision: { outcome: "rejected", reasonCode, note: note || undefined, decidedAt: decidedAt() },
+      decision: { outcome: "rejected", reasonCode, note: relayText(note).text || undefined, decidedAt: decidedAt() },
     };
     decide(selected, applied, `Rejected ${selected.ref}`);
   }
 
-  function confirmClarify() {
+  function confirmClarify(question: string) {
     if (!selected || segment !== "waiting") return;
+    // Dropped in phase 0, but never held raw: the question is relayed text like a rejection note.
+    void relayText(question);
     decide(selected, { ...selected, approval: "needs_clarification" }, `Question sent for ${selected.ref}`);
   }
 
