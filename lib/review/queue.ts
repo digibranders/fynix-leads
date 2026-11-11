@@ -11,13 +11,6 @@ export function removeByRef<T extends { ref: string }>(items: readonly T[], ref:
   return { items: remaining, nextRef: neighbour?.ref ?? null, index };
 }
 
-/** The review queue: pending leads only, oldest submission first. */
-export function reviewQueue(leads: readonly Lead[]): Lead[] {
-  return leads
-    .filter((lead) => lead.approval === "pending")
-    .sort((a, b) => Date.parse(a.submittedAt) - Date.parse(b.submittedAt));
-}
-
 export type QueueSegments = { waiting: Lead[]; clarifying: Lead[]; decided: Lead[] };
 
 const bySubmitted = (a: Lead, b: Lead) => Date.parse(a.submittedAt) - Date.parse(b.submittedAt);

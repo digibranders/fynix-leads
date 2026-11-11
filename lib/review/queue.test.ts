@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ApprovalStatus } from "@/lib/domain/status";
 import type { Lead } from "@/lib/domain/types";
 import { SAMPLE_LEADS } from "@/lib/sample/data";
-import { decisionTime, queueSegments, removeByRef, reviewQueue } from "./queue";
+import { decisionTime, queueSegments, removeByRef } from "./queue";
 
 const item = (ref: string) => ({ ref });
 const refs = (items: readonly { ref: string }[]) => items.map((i) => i.ref);
@@ -71,31 +71,6 @@ describe("removeByRef", () => {
   it("does not mutate the input", () => {
     removeByRef(list, "B");
     expect(refs(list)).toEqual(["A", "B", "C"]);
-  });
-});
-
-describe("reviewQueue", () => {
-  it("keeps only pending leads, oldest submission first", () => {
-    const leads = [
-      lead("LD-0001", "pending", "2026-11-11T09:00:00Z"),
-      lead("LD-0002", "approved", "2026-11-01T09:00:00Z"),
-      lead("LD-0003", "pending", "2026-11-09T09:00:00Z"),
-      lead("LD-0004", "needs_clarification", "2026-11-02T09:00:00Z"),
-      lead("LD-0005", "rejected", "2026-11-03T09:00:00Z"),
-      lead("LD-0006", "draft", "2026-11-04T09:00:00Z"),
-      lead("LD-0007", "pending", "2026-11-10T09:00:00Z"),
-    ];
-    expect(refs(reviewQueue(leads))).toEqual(["LD-0003", "LD-0007", "LD-0001"]);
-  });
-
-  it("does not mutate the input", () => {
-    const leads = [lead("LD-0001", "pending", "2026-11-11T09:00:00Z"), lead("LD-0002", "pending", "2026-11-09T09:00:00Z")];
-    reviewQueue(leads);
-    expect(refs(leads)).toEqual(["LD-0001", "LD-0002"]);
-  });
-
-  it("returns an empty list when nothing is pending", () => {
-    expect(reviewQueue([lead("LD-0001", "approved", "2026-11-01T09:00:00Z")])).toEqual([]);
   });
 });
 

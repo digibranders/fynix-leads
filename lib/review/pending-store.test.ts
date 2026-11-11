@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SAMPLE_LEADS } from "@/lib/sample/data";
-import { reviewQueue } from "./queue";
+import { queueSegments } from "./queue";
 import { getServerSnapshot, getSnapshot, resetPendingCount, setPendingCount, subscribe } from "./pending-store";
 
 afterEach(() => resetPendingCount());
 
 describe("pending store", () => {
   it("starts at the number of pending sample leads", () => {
-    expect(getSnapshot()).toBe(reviewQueue(SAMPLE_LEADS).length);
-    expect(getServerSnapshot()).toBe(reviewQueue(SAMPLE_LEADS).length);
+    expect(getSnapshot()).toBe(queueSegments(SAMPLE_LEADS).waiting.length);
+    expect(getServerSnapshot()).toBe(queueSegments(SAMPLE_LEADS).waiting.length);
   });
 
   it("updates the snapshot and notifies subscribers", () => {
@@ -40,7 +40,7 @@ describe("pending store", () => {
     const listener = vi.fn();
     const unsubscribe = subscribe(listener);
     resetPendingCount();
-    expect(getSnapshot()).toBe(reviewQueue(SAMPLE_LEADS).length);
+    expect(getSnapshot()).toBe(queueSegments(SAMPLE_LEADS).waiting.length);
     expect(listener).toHaveBeenCalledTimes(1);
     unsubscribe();
   });

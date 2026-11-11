@@ -90,7 +90,7 @@ Each status has a text colour, a border-free soft fill and a solid for icons, ba
 
 ### shadcn mapping
 
-`--background` canvas, `--foreground` ink, `--card` and `--popover` surface, `--primary` navy, `--primary-foreground` offwhite, `--secondary` navy 7%, `--muted` navy 5%, `--muted-foreground` ink-muted, `--accent` navy 7%, `--destructive` red text, `--border` the 7% line, `--input` navy 5%, `--ring` navy. The `--sidebar*` set stays tonal (canvas, ink-2, navy 7%) until the navy rail replaces the old sidebar; the rail itself uses the on-navy tokens.
+`--background` canvas, `--foreground` ink, `--card` and `--popover` surface, `--primary` navy, `--primary-foreground` offwhite, `--secondary` navy 7%, `--muted` navy 5%, `--muted-foreground` ink-muted, `--accent` navy 7%, `--destructive` red text, `--border` the 7% line, `--input` navy 5%, `--ring` navy. The `--sidebar*` set stays tonal (canvas, ink-2, navy 7%) for the shadcn components that read it; the navy rail itself uses the on-navy tokens.
 
 ## Type
 

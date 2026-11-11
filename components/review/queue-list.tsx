@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 export type Segment = keyof QueueSegments;
 
-export const SEGMENT_COPY: Record<Segment, { tab: string; title: string; order: string; empty: string }> = {
+const SEGMENT_COPY: Record<Segment, { tab: string; title: string; order: string; empty: string }> = {
   waiting: { tab: "Waiting", title: "Waiting for review", order: "Oldest first", empty: "No leads are waiting for review." },
   clarifying: { tab: "Clarifying", title: "Waiting for answers", order: "Oldest first", empty: "No questions are open." },
   decided: { tab: "Decided", title: "Decided", order: "Newest first", empty: "No leads have been decided yet." },

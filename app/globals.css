@@ -143,7 +143,7 @@
   --chart-4: var(--green-solid);
   --chart-5: var(--amber-solid);
 
-  /* Sidebar stays tonal until the navy rail lands in the shell task; the rail uses the on-navy tokens directly. */
+  /* Sidebar tokens stay tonal for the shadcn components that read them. The navy rail uses the on-navy tokens directly. */
   --sidebar: var(--canvas);
   --sidebar-foreground: var(--ink-2);
   --sidebar-primary: var(--navy);

@@ -1,3 +1,4 @@
+import type { RejectionReasonCode } from "./rejection-reasons";
 import type { ApprovalStatus, MeetingStatus } from "./status";
 
 export type Prospect = {
@@ -24,7 +25,7 @@ export type Meeting = {
 
 export type Decision = {
   outcome: "approved" | "rejected";
-  reasonCode?: string;
+  reasonCode?: RejectionReasonCode;
   note?: string;
   decidedAt: string;
 };

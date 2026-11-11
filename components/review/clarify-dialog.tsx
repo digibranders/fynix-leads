@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Field } from "@/components/dev/field";
+import { Field } from "@/components/ui/field";
 
 type Props = {
   open: boolean;

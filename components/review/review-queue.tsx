@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import type { RejectionReasonCode } from "@/lib/domain/rejection-reasons";
 import type { Lead } from "@/lib/domain/types";
 import { relayText } from "@/lib/relay/relay-text";
 import { resetPendingCount, setPendingCount } from "@/lib/review/pending-store";
@@ -103,7 +104,7 @@ export function ReviewQueue({ leads: initialLeads, now, viewerZone }: Props) {
   }
 
   // Phase 0 keeps no data: the question is collected by its dialog and then dropped. The reason and note stay for the Decided summary.
-  function confirmReject(reasonCode: string, note: string) {
+  function confirmReject(reasonCode: RejectionReasonCode, note: string) {
     if (!selected || segment === "decided") return;
     const applied: Lead = {
       ...selected,
