@@ -1,24 +1,31 @@
 import { ListMagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
 import type { Lead } from "@/lib/domain/types";
+import { cn } from "@/lib/utils";
 import { ContactTile, MeetingTile, QualificationTiles } from "./lead-tiles";
 
 type Props = {
   lead: Lead;
   viewerZone: string;
   now: Date;
+  className?: string;
 };
 
-/** Meeting, contact and qualification tiles for the lead record. The review queue lays the same tiles out itself. */
-export function LeadDetails({ lead, viewerZone, now }: Props) {
+/**
+ * The tonal detail pane: lifted white tiles for meeting, contact and the four qualification answers.
+ * One column from `lg` (the left pane), two columns from `md` below that, one column on a phone.
+ */
+export function LeadDetails({ lead, viewerZone, now, className }: Props) {
   return (
-    <div className="flex flex-col gap-3">
-      <MeetingTile lead={lead} viewerZone={viewerZone} now={now} />
-      <ContactTile lead={lead} viewerZone={viewerZone} now={now} />
-      <h3 className="mt-3 flex items-center gap-[9px] text-[15px] font-semibold">
-        <ListMagnifyingGlass aria-hidden size={19} className="text-ink-2" />
-        Qualification
-      </h3>
-      <QualificationTiles lead={lead} className="sm:grid-cols-2" />
-    </div>
+    <aside aria-label="Lead details" className={cn("rounded-lg bg-tonal p-3", className)}>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-1">
+        <MeetingTile lead={lead} viewerZone={viewerZone} now={now} tone="on-tonal" />
+        <ContactTile lead={lead} viewerZone={viewerZone} now={now} tone="on-tonal" />
+        <h3 className="flex items-center gap-2 px-2 pt-3.5 text-[13px] font-semibold text-ink-2 md:col-span-2 lg:col-span-1">
+          <ListMagnifyingGlass aria-hidden size={17} />
+          Qualification
+        </h3>
+        <QualificationTiles lead={lead} tone="on-tonal" className="md:col-span-2 md:grid-cols-2 lg:col-span-1 lg:grid-cols-1" />
+      </div>
+    </aside>
   );
 }

@@ -1,16 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Info, PaperPlaneTilt } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
-import { Field } from "@/components/dev/field";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { ThreadMessage } from "@/lib/domain/types";
+import { dayHeading } from "@/lib/leads/activity";
 import { scrubContactDetails } from "@/lib/relay/scrub";
 import { formatDayInZone, formatTimeInZone } from "@/lib/time/zones";
 import { cn } from "@/lib/utils";
 
 type Props = {
   messages: ThreadMessage[];
+  now: Date;
   viewerZone: string;
   /** Receives the text after contact details were removed. */
   onSend: (text: string) => void;
@@ -18,7 +21,13 @@ type Props = {
 
 const removedNotice = (n: number): string => `We removed ${n} contact detail${n === 1 ? "" : "s"} from this message.`;
 
-export function RelayThread({ messages, viewerZone, onSend }: Props) {
+/** "Today, 8:20 am" for the current day, else "Tue 10 Nov, 9:10 am". */
+function messageTime(at: Date, now: Date, viewerZone: string): string {
+  const day = dayHeading(at, now, viewerZone).title === "Today" ? "Today" : formatDayInZone(at, viewerZone);
+  return `${day}, ${formatTimeInZone(at, viewerZone)}`;
+}
+
+export function RelayThread({ messages, now, viewerZone, onSend }: Props) {
   const [draft, setDraft] = useState("");
   const [notice, setNotice] = useState("");
   const [announcement, setAnnouncement] = useState({ text: "", count: 0 });
@@ -48,56 +57,64 @@ export function RelayThread({ messages, viewerZone, onSend }: Props) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {messages.length === 0 ? (
-        <div className="flex flex-col gap-1">
-          <p className="text-sm font-medium">No messages yet</p>
-          <p className="max-w-prose text-sm text-pretty text-muted-foreground">
-            Use this thread to ask the Fynix team about this lead. Their replies appear here.
-          </p>
-        </div>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {messages.map((m) => {
-            const own = m.side === "client";
-            const at = new Date(m.at);
-            return (
-              <li key={m.id} className={cn("flex", own ? "justify-end" : "justify-start")}>
-                <div
-                  className={cn(
-                    "flex max-w-[85%] min-w-0 flex-col gap-1 rounded-lg px-3 py-2.5",
-                    own ? "bg-muted" : "border bg-card",
-                  )}
-                >
-                  <p className="flex flex-wrap items-baseline gap-x-2 text-xs">
-                    <span className="font-medium text-foreground">{m.author}</span>
-                    <time dateTime={m.at} className="text-muted-foreground">
-                      {formatDayInZone(at, viewerZone)}, {formatTimeInZone(at, viewerZone)}
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex flex-1 flex-col gap-3 px-6 pt-1.5 pb-5">
+        {messages.length === 0 ? (
+          <div className="flex flex-col gap-1 py-6">
+            <p className="text-[15px] font-semibold">No messages yet</p>
+            <p className="max-w-prose text-body text-ink-2 text-pretty">
+              Use this thread to ask the Fynix team about this lead. Their replies appear here.
+            </p>
+          </div>
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {messages.map((m) => {
+              const own = m.side === "client";
+              return (
+                <li key={m.id} className={cn("flex max-w-[92%] flex-col @[34rem]:max-w-[84%]", own ? "items-end self-end" : "items-start self-start")}>
+                  <p className="mb-[5px] flex flex-wrap gap-x-2 text-[12.5px] leading-4 font-semibold text-ink-2">
+                    {m.author}
+                    <time dateTime={m.at} className="font-normal text-ink-muted">
+                      {messageTime(new Date(m.at), now, viewerZone)}
                     </time>
                   </p>
-                  <p className="text-sm break-words whitespace-pre-wrap text-pretty">{m.body}</p>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                  <p
+                    className={cn(
+                      "px-4 pt-[11px] pb-3 text-[14px] leading-[21px] break-words whitespace-pre-wrap",
+                      own ? "rounded-[18px_6px_18px_18px] bg-bubble-client" : "rounded-[6px_18px_18px_18px] bg-bubble-fynix",
+                    )}
+                  >
+                    {m.body}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {notice && <p className="self-end text-xs text-ink-muted">{notice}</p>}
+      </div>
 
-      {notice && <p className="-mt-1 text-right text-xs text-muted-foreground">{notice}</p>}
-
-      <form ref={formRef} onSubmit={submit} className="flex flex-col gap-2 border-t pt-4">
-        <p className="text-xs text-muted-foreground">Messages go through Fynix. Contact details are removed.</p>
-        <Field id="relay-message" label="Message to the Fynix team">
-          <Textarea
-            ref={inputRef}
-            id="relay-message"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            rows={3}
-          />
-        </Field>
-        <div className="flex">
-          <Button type="submit" disabled={draft.trim() === ""} className="ml-auto shrink-0 max-lg:h-11 max-lg:px-4">
+      <form ref={formRef} onSubmit={submit} className="relative px-6 pt-3.5 pb-[18px]">
+        <span aria-hidden className="absolute top-0 right-6 left-6 h-px bg-line" />
+        <Label htmlFor="relay-message" className="mb-2 leading-4">
+          Message to the Fynix team
+        </Label>
+        <Textarea
+          ref={inputRef}
+          id="relay-message"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          rows={2}
+          placeholder="Write a message"
+          className="max-h-28 min-h-16 resize-none"
+        />
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-3">
+          <p className="flex min-w-0 flex-1 basis-52 items-start gap-[7px] text-[12.5px] leading-4 text-ink-muted">
+            <Info aria-hidden size={16} className="shrink-0" />
+            Messages go through Fynix. Contact details are removed.
+          </p>
+          <Button type="submit" disabled={draft.trim() === ""} className="ml-auto shrink-0">
+            <PaperPlaneTilt aria-hidden weight="fill" />
             Send
           </Button>
         </div>
@@ -106,7 +123,7 @@ export function RelayThread({ messages, viewerZone, onSend }: Props) {
       <div aria-live="polite" className="sr-only">
         {/* A trailing no-break space on every other send makes a repeated sentence count as a change. */}
         {announcement.text}
-        {announcement.count % 2 === 0 ? "\u00a0" : ""}
+        {announcement.count % 2 === 0 ? " " : ""}
       </div>
     </div>
   );

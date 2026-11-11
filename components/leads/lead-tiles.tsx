@@ -35,9 +35,12 @@ function Tile({ tone = "on-white", className, children, ...rest }: TileProps) {
   );
 }
 
+/** Tiles on a tonal pane sit in a narrow column and get more air than tiles on a white panel. */
+const tilePad = (tone: TileTone): string => (tone === "on-tonal" ? "px-[22px] py-5" : "px-5 py-[18px]");
+
 function TileTitle({ id, icon: Glyph, tone, children }: { id: string; icon: Icon; tone: TileTone; children: string }) {
   return (
-    <div className="mb-2.5 flex items-center gap-[9px]">
+    <div className={cn("flex items-center gap-[9px]", tone === "on-tonal" ? "mb-3.5" : "mb-2.5")}>
       <span
         aria-hidden
         className={cn(
@@ -54,8 +57,17 @@ function TileTitle({ id, icon: Glyph, tone, children }: { id: string; icon: Icon
   );
 }
 
-function Details({ children }: { children: React.ReactNode }) {
-  return <dl className="grid grid-cols-[76px_minmax(0,1fr)] items-baseline gap-x-3 gap-y-2.5">{children}</dl>;
+function Details({ tone, children }: { tone: TileTone; children: React.ReactNode }) {
+  return (
+    <dl
+      className={cn(
+        "grid items-baseline gap-x-3",
+        tone === "on-tonal" ? "grid-cols-[72px_minmax(0,1fr)] gap-y-[11px]" : "grid-cols-[76px_minmax(0,1fr)] gap-y-2.5",
+      )}
+    >
+      {children}
+    </dl>
+  );
 }
 
 function Row({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
@@ -91,12 +103,12 @@ export function MeetingTile({ lead, viewerZone, tone = "on-white", className }: 
     at !== null && (isOutsideWorkingHours(at, viewerZone) || isOutsideWorkingHours(at, prospectZone));
 
   return (
-    <Tile tone={tone} aria-labelledby={`${lead.ref}-meeting`} className={cn("px-5 py-[18px]", className)}>
+    <Tile tone={tone} aria-labelledby={`${lead.ref}-meeting`} className={cn(tilePad(tone), className)}>
       <TileTitle id={`${lead.ref}-meeting`} icon={CalendarBlank} tone={tone}>
         Meeting
       </TileTitle>
       {meeting && at ? (
-        <Details>
+        <Details tone={tone}>
           <Row label="When">
             <time dateTime={at.toISOString()}>
               {formatDayInZone(at, viewerZone)}, {formatTimeInZone(at, viewerZone)}
@@ -113,7 +125,7 @@ export function MeetingTile({ lead, viewerZone, tone = "on-white", className }: 
             )}
           </Row>
           <Row label="Status">
-            <StatusBadge kind="meeting" status={meeting.status} className="text-[14px] font-medium" />
+            <StatusBadge kind="meeting" status={meeting.status} className="align-top text-[14px] leading-5 font-medium" />
           </Row>
           <Row label="With">{meeting.repName}</Row>
           <Row label="Length">{meeting.durationMinutes} minutes</Row>
@@ -138,14 +150,20 @@ function linkedinHandle(url: string): string {
 export function ContactTile({ lead, now, tone = "on-white", className }: Props) {
   const { prospect } = lead;
   const at = lead.meetings[0] ? new Date(lead.meetings[0].startsAt) : now;
+  // A narrow tile may break the address after the @ instead of in the middle of a word. -1 when there is no @, which keeps it whole.
+  const atSign = prospect.email.indexOf("@");
 
   return (
-    <Tile tone={tone} aria-labelledby={`${lead.ref}-contact`} className={cn("px-5 py-[18px]", className)}>
+    <Tile tone={tone} aria-labelledby={`${lead.ref}-contact`} className={cn(tilePad(tone), className)}>
       <TileTitle id={`${lead.ref}-contact`} icon={IdentificationCard} tone={tone}>
         Contact
       </TileTitle>
-      <Details>
-        <Row label="Email" className="text-[13px]">{prospect.email}</Row>
+      <Details tone={tone}>
+        <Row label="Email" className={tone === "on-tonal" ? "text-[12.5px] tracking-[-0.005em]" : "text-[13px]"}>
+          {prospect.email.slice(0, atSign + 1)}
+          <wbr />
+          {prospect.email.slice(atSign + 1)}
+        </Row>
         <Row label="Phone">{prospect.phone}</Row>
         <Row label="LinkedIn">
           <a
@@ -179,7 +197,12 @@ export function QualificationTiles({ lead, tone = "on-white", className }: Pick<
   return (
     <div className={cn("grid grid-cols-1 gap-3", className)}>
       {QUALIFICATION.map(({ key, label, icon: Glyph }) => (
-        <Tile key={key} tone={tone} aria-labelledby={`${lead.ref}-${key}`} className="px-5 pt-[15px] pb-4">
+        <Tile
+          key={key}
+          tone={tone}
+          aria-labelledby={`${lead.ref}-${key}`}
+          className={tone === "on-tonal" ? "px-[22px] pt-5 pb-[21px]" : "px-5 pt-[15px] pb-4"}
+        >
           <h4 id={`${lead.ref}-${key}`} className="mb-1.5 flex items-center gap-2 text-[13px] leading-[18px] font-semibold text-ink-2">
             <Glyph aria-hidden size={18} />
             {label}

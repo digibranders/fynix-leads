@@ -21,6 +21,7 @@ const badgeVariants = cva(
       },
       size: {
         default: "h-[26px] gap-1.5 pr-[11px] pl-2 text-[12.5px] [&>svg]:size-[15px]",
+        lg: "h-[30px] gap-1.5 pr-[13px] pl-2.5 text-[13px] [&>svg]:size-[17px]",
         sm: "h-[22px] gap-1 pr-[9px] pl-1.5 text-xs font-medium [&>svg]:size-[13px]",
       },
     },

@@ -14,10 +14,7 @@ async function Record({ params }: { params: PageProps<"/client/leads/[ref]">["pa
   const lead = SAMPLE_LEADS.find((l) => l.ref === ref);
   if (!lead) notFound();
   return (
-    <>
-      <PageHeader title="Lead record" subtitle={`${lead.ref}, ${lead.prospect.company}`} />
-      <LeadRecord lead={lead} now={SAMPLE_NOW.toISOString()} viewerZone={VIEWER_ZONES.client} />
-    </>
+    <LeadRecord lead={lead} now={SAMPLE_NOW.toISOString()} viewerZone={VIEWER_ZONES.client} />
   );
 }
 

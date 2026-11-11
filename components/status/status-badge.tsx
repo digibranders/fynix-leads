@@ -57,10 +57,10 @@ const APPROVAL_VARIANT: Record<StatusTone, BadgeVariant> = {
 };
 
 type Props =
-  | { kind: "approval"; status: ApprovalStatus; size?: "sm" | "md"; className?: string }
+  | { kind: "approval"; status: ApprovalStatus; size?: "sm" | "md" | "lg"; className?: string }
   | { kind: "meeting"; status: MeetingStatus; className?: string };
 
-/** Approval is a soft chip (22px "sm" in tables, 26px "md" in headers). Meeting status is quiet icon plus text; problems turn red. */
+/** Approval is a soft chip (22px "sm" in tables, 26px "md" in panel headers, 30px "lg" on the lead record). Meeting status is quiet icon plus text; problems turn red. */
 export function StatusBadge(props: Props) {
   if (props.kind === "approval") {
     const Glyph = APPROVAL_ICON[props.status];
@@ -68,7 +68,7 @@ export function StatusBadge(props: Props) {
     return (
       <Badge
         variant={APPROVAL_VARIANT[approvalTone(props.status)]}
-        size={small ? "sm" : "default"}
+        size={small ? "sm" : props.size === "lg" ? "lg" : "default"}
         className={props.className}
       >
         <Glyph aria-hidden weight="fill" />
