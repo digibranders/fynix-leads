@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -43,6 +43,9 @@ function RejectForm({ leadRef, prospectName, onConfirm }: Omit<Props, "open" | "
   const [reason, setReason] = useState<RejectionReasonCode | null>(null);
   const [note, setNote] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const labelId = useId();
+  const noteId = useId();
+  const noteRef = useRef<HTMLTextAreaElement>(null);
 
   const noteRequired = reason === "other";
   const noteMissing = noteRequired && note.trim() === "";
@@ -52,7 +55,11 @@ function RejectForm({ leadRef, prospectName, onConfirm }: Omit<Props, "open" | "
     e.preventDefault();
     if (reason === null) return;
     setSubmitted(true);
-    if (noteMissing) return;
+    if (noteMissing) {
+      // The error alone would not move a keyboard or screen reader user, so focus goes to the field it describes.
+      noteRef.current?.focus();
+      return;
+    }
     onConfirm(reason, note.trim());
   }
 
@@ -67,11 +74,11 @@ function RejectForm({ leadRef, prospectName, onConfirm }: Omit<Props, "open" | "
 
       <div className="-mx-2 flex min-h-0 flex-col gap-4 overflow-y-auto px-2 py-0.5">
         <div className="flex flex-col gap-1.5">
-          <span id="reject-reason-label" className="text-sm font-medium">
+          <span id={labelId} className="text-sm font-medium">
             Reason
           </span>
           <RadioGroup
-            aria-labelledby="reject-reason-label"
+            aria-labelledby={labelId}
             value={reason ?? ""}
             onValueChange={(value) => setReason(value as RejectionReasonCode)}
             className="gap-1"
@@ -89,19 +96,20 @@ function RejectForm({ leadRef, prospectName, onConfirm }: Omit<Props, "open" | "
         </div>
 
         <Field
-          id="reject-note"
+          id={noteId}
           label={noteRequired ? "Note" : "Note (optional)"}
           helper={noteRequired ? "Required when the reason is Other." : "Add detail if it helps the Fynix team."}
           error={error}
         >
           <Textarea
-            id="reject-note"
+            id={noteId}
+            ref={noteRef}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={3}
             required={noteRequired}
             aria-invalid={error ? true : undefined}
-            aria-describedby="reject-note-message"
+            aria-describedby={`${noteId}-message`}
           />
         </Field>
       </div>

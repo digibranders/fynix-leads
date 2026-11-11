@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -46,12 +46,17 @@ function ClarifyForm({
 }: Omit<Props, "open" | "onOpenChange"> & { questionRef: React.RefObject<HTMLTextAreaElement | null> }) {
   const [question, setQuestion] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const questionId = useId();
   const error = submitted && question.trim() === "" ? "Write your question for the Fynix team." : undefined;
 
   function submit(e: React.SyntheticEvent) {
     e.preventDefault();
     setSubmitted(true);
-    if (question.trim() === "") return;
+    if (question.trim() === "") {
+      // The error alone would not move a keyboard or screen reader user, so focus goes to the field it describes.
+      questionRef.current?.focus();
+      return;
+    }
     onConfirm(question.trim());
   }
 
@@ -65,20 +70,20 @@ function ClarifyForm({
       </DialogHeader>
 
       <Field
-        id="clarify-question"
+        id={questionId}
         label="What do you need to know?"
         helper="This goes to the Fynix team, not to the prospect."
         error={error}
       >
         <Textarea
-          id="clarify-question"
+          id={questionId}
           ref={questionRef}
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           rows={4}
           required
           aria-invalid={error ? true : undefined}
-          aria-describedby="clarify-question-message"
+          aria-describedby={`${questionId}-message`}
         />
       </Field>
 
