@@ -95,7 +95,7 @@ function SystemRun({ events, viewerZone }: { events: ActivityEvent[]; viewerZone
           aria-expanded={open}
           aria-controls={panelId}
           onClick={() => setOpen((o) => !o)}
-          className="inline-flex h-[26px] w-fit items-center gap-1.5 rounded-full bg-navy-05 pr-3 pl-2 text-[12.5px] font-medium text-ink-2 transition-colors hover:bg-navy-07 max-lg:h-9 max-lg:pr-3.5"
+          className="inline-flex h-[26px] w-fit items-center gap-1.5 rounded-full bg-navy-05 pr-3 pl-2 text-[12.5px] font-medium text-ink-2 transition-colors hover:bg-navy-07 max-lg:h-9 max-md:h-10 max-lg:pr-3.5"
         >
           <Caret aria-hidden size={13} />
           {events.length} system updates
