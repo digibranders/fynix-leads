@@ -20,7 +20,6 @@ Stack: Next.js 16 (App Router, Cache Components) · React 19 · TypeScript stric
 - **Isolation:** the client never sees agency identity; the agency never sees client people, rep names or emails. Agency screens receive only data shaped by `lib/leads/agency-view.ts`. Shared client code must never import `lib/sample/data` (`lib/sample/isolation.test.ts` enforces it). When you add a screen, check the page source and its JavaScript chunks for forbidden names.
 - **Logic:** domain rules live in `lib/` as plain TypeScript with tests next to them. Components render; they do not decide business rules. Which month a delivered lead counts toward is an open question and is decided in one place: `lib/domain/counting-month.ts`.
 - **Copy:** sentence case, plain verbs, no exclamation marks, no em or en dashes in any text.
-- **Tailwind gotcha:** the `cn` helper treats unknown `text-*` utilities as colours, so inside `cn(...)` write sizes as `text-[13px]`, not `text-table`.
 - **Dev server:** `pnpm dev` serves http://localhost:3020. Next.js allows one dev server per project, so reuse the running one. Do not stop a server unless the owner says so.
 
 ## Commands

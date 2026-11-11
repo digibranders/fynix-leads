@@ -113,8 +113,6 @@ Each status has a text colour, a border-free soft fill and a solid for icons, ba
 | `text-figure` | 38 / 40, tracking `-0.02em` | Big numbers |
 | `text-hero` | 96 / 96 in `font-serif`, tracking `-0.02em` | The hero figure |
 
-**Gotcha, `cn` and `text-*` sizes.** `cn` (the class merger in `lib/utils.ts`) treats unknown `text-*` classes as colours, so `cn("text-table", "text-ink-2")` silently drops `text-table`. Inside any component that passes classes through `cn` (all of `components/ui`, and anything with a `className` prop), write the size as `text-[13px]`. In plain markup, such as a page or a component that never merges, the named utilities are safe.
-
 ## Shape and radii
 
 | Radius | Utility | Use |
@@ -206,7 +204,7 @@ The mockups are the authority, so these deliberate departures from the rules abo
 - **The serif hero figure.** Geist Serif at 96px for the delivered count, and the smaller "of 72". Nothing else is serif.
 - **The hero glow.** The peach corner glow and the halo on the progress fill, as written under Components.
 - **Brand choices the detector flags.** `impeccable detect` reports the cream canvas, Geist, the peach shadow under the active rail pill (`shadow-nav-active`) and the halo on the progress fill, a tile on a panel as "card inside card", and the `--ease-spring` token. All are in the approved mockups and kept on purpose. The tile on a panel is the two-level nesting the four depths allow.
-- **Text scale outside the named utilities.** A few components write sizes as `text-[13px]`, `text-[14.5px]` and similar because of the `cn` gotcha. They match the named scale.
+- **Text scale outside the named utilities.** A few components write sizes as `text-[13px]`, `text-[14.5px]` and similar. They match the named scale and may be moved to the named utilities, which `cn` merges correctly (`lib/utils.ts` registers them as font sizes).
 
 ## Component inventory
 
