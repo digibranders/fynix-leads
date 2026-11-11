@@ -125,6 +125,8 @@
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
   --text-table: 0.8125rem;
   --text-table--line-height: 1.25rem;
+  --color-navy: var(--navy);
+  --color-navy-hover: var(--navy-hover);
   --color-peach: var(--peach);
   --color-peach-subtle: var(--peach-subtle);
   --color-tone-pending: var(--tone-pending);
