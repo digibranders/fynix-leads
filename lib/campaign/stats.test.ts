@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ApprovalStatus, MeetingStatus } from "@/lib/domain/status";
 import type { Lead } from "@/lib/domain/types";
 import { SAMPLE_LEADS, SAMPLE_NOW } from "@/lib/sample/data";
-import { campaignStats } from "./stats";
+import { campaignStats, replacementsOwedRefs } from "./stats";
 
 const NOW = new Date("2026-11-11T10:00:00Z");
 
@@ -101,5 +101,19 @@ describe("campaignStats", () => {
       clarificationsToAnswer: 1,
       replacementsOwed: 1,
     });
+  });
+});
+
+describe("replacementsOwedRefs", () => {
+  it("lists the rejected leads nobody replaces, in input order", () => {
+    const leads = [
+      lead("LD-0001", "rejected", "2026-10-01T09:00:00Z"),
+      lead("LD-0002", "rejected", "2026-10-02T09:00:00Z"),
+      lead("LD-0003", "pending", "2026-11-10T09:00:00Z", { replacesRef: "LD-0001" }),
+    ];
+    expect(replacementsOwedRefs(leads)).toEqual(["LD-0002"]);
+  });
+  it("is LD-8L4T on the sample data", () => {
+    expect(replacementsOwedRefs(SAMPLE_LEADS)).toEqual(["LD-8L4T"]);
   });
 });

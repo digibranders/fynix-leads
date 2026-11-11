@@ -1,6 +1,6 @@
 import type { Icon } from "@phosphor-icons/react";
 import { IdentificationCard, ListChecks, Table } from "@phosphor-icons/react/dist/ssr";
-import { SAMPLE_CAMPAIGN } from "@/lib/sample/data";
+import { SAMPLE_CAMPAIGN } from "@/lib/sample/campaign";
 
 export type Role = "client" | "agency";
 

@@ -1,9 +1,10 @@
-import type { ActivityEvent, Campaign, Lead, ThreadMessage } from "@/lib/domain/types";
+import type { ActivityEvent, Lead, ThreadMessage } from "@/lib/domain/types";
 
-/** The fixed "now" of the prototype (a Wednesday). Every date below is relative to it. */
-export const SAMPLE_NOW = new Date("2026-11-11T10:00:00Z");
+import { SAMPLE_CAMPAIGN, SAMPLE_NOW } from "./campaign";
 
-export const VIEWER_ZONES = { client: "Europe/London", agency: "Asia/Kolkata" } as const;
+// Campaign facts, the fixed "now" and the viewer zones live in ./campaign so shared client code can import
+// them without pulling in the leads (which carry client rep names). Re-exported here for server code.
+export { SAMPLE_CAMPAIGN, SAMPLE_NOW, VIEWER_ZONES } from "./campaign";
 
 /** Client reps. They appear only as `Meeting.repName`, never in activity or thread text. */
 export const SAMPLE_REPS = ["Imogen Price", "Daniel Okafor", "Priya Raman"] as const;
@@ -54,15 +55,6 @@ const message = (id: string, when: string, side: "client" | "fynix", author: str
   body,
 });
 
-export const SAMPLE_CAMPAIGN: Campaign = {
-  ref: "CMP-7Q2X",
-  name: "UK mid-market finance teams",
-  brand: "Kestrel Ledger",
-  monthlyTarget: 12,
-  totalTarget: 72,
-  startsOn: "2026-09-01",
-  endsOn: "2027-02-28",
-};
 
 const CAMPAIGN_REF = SAMPLE_CAMPAIGN.ref;
 

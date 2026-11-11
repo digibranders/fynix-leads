@@ -14,8 +14,8 @@ import {
 } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
-import { SAMPLE_LEADS } from "@/lib/sample/data";
 import { NAV, type Role } from "./nav-config";
+import { useSearchLeads } from "./search-leads";
 
 /** The shared CommandItem reserves room for a selected check, which the palette does not use. Selected rows take a navy 5% tint. */
 const ITEM = "[&>svg:last-child]:hidden data-selected:bg-navy-05";
@@ -36,6 +36,7 @@ function useSearchShortcut(toggle: () => void): void {
 
 export function CommandSearch({ role }: { role: Role }) {
   const router = useRouter();
+  const leads = useSearchLeads();
   const [open, setOpen] = useState(false);
   const toggle = useCallback(() => setOpen((current) => !current), []);
   useSearchShortcut(toggle);
@@ -80,17 +81,17 @@ export function CommandSearch({ role }: { role: Role }) {
             </CommandGroup>
             {role === "client" && (
               <CommandGroup heading="Leads">
-                {SAMPLE_LEADS.map((lead) => (
+                {leads.map((lead) => (
                   <CommandItem
                     key={lead.ref}
-                    value={`${lead.ref} ${lead.prospect.name} ${lead.prospect.company}`}
+                    value={`${lead.ref} ${lead.name} ${lead.company}`}
                     onSelect={() => go(`/client/leads/${lead.ref}`)}
                     className={ITEM}
                   >
                     <span className="w-16 shrink-0 font-mono text-table">{lead.ref}</span>
-                    <span className="truncate">{lead.prospect.name}</span>
+                    <span className="truncate">{lead.name}</span>
                     <span className="ml-auto truncate text-xs text-muted-foreground max-sm:hidden">
-                      {lead.prospect.company}
+                      {lead.company}
                     </span>
                   </CommandItem>
                 ))}

@@ -1,9 +1,8 @@
-import { SAMPLE_LEADS } from "@/lib/sample/data";
-import { reviewQueue } from "./queue";
+import { INITIAL_PENDING_COUNT } from "./initial-pending";
 
 // A tiny external store for the number of leads waiting on a decision, read with useSyncExternalStore.
 // The review queue writes it, and the rail badge and the page subtitle read it, so they stay in step.
-const INITIAL = reviewQueue(SAMPLE_LEADS).length;
+const INITIAL = INITIAL_PENDING_COUNT;
 
 let count = INITIAL;
 const listeners = new Set<() => void>();

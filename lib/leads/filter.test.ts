@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ApprovalStatus } from "@/lib/domain/status";
 import { SAMPLE_LEADS } from "@/lib/sample/data";
-import { filterLeads, sortLeads } from "./filter";
+import { filterLeads, sortLeads, toggleSort } from "./filter";
 
 type Row = { ref: string; approval: ApprovalStatus; submittedAt: string; prospect: { name: string; company: string } };
 
@@ -93,5 +93,16 @@ describe("sortLeads", () => {
     const copy = [...rows];
     sortLeads(rows, { key: "company", dir: "desc" });
     expect(rows).toEqual(copy);
+  });
+});
+
+describe("toggleSort", () => {
+  it("flips the direction when the same column is clicked", () => {
+    expect(toggleSort({ key: "company", dir: "asc" }, "company")).toEqual({ key: "company", dir: "desc" });
+    expect(toggleSort({ key: "company", dir: "desc" }, "company")).toEqual({ key: "company", dir: "asc" });
+  });
+  it("starts a new column ascending, except submission time which starts newest first", () => {
+    expect(toggleSort({ key: "submittedAt", dir: "desc" }, "approval")).toEqual({ key: "approval", dir: "asc" });
+    expect(toggleSort({ key: "company", dir: "asc" }, "submittedAt")).toEqual({ key: "submittedAt", dir: "desc" });
   });
 });

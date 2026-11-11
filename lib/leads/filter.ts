@@ -41,3 +41,9 @@ export function sortLeads<T extends FilterableLead>(leads: readonly T[], { key, 
   const sign = dir === "asc" ? 1 : -1;
   return [...leads].sort((a, b) => sign * COMPARE[key](a, b));
 }
+
+/** The sort a header click leads to: the same column flips, a new column starts ascending (submission time starts newest first). */
+export function toggleSort(current: LeadSort, key: SortKey): LeadSort {
+  if (current.key === key) return { key, dir: current.dir === "asc" ? "desc" : "asc" };
+  return { key, dir: key === "submittedAt" ? "desc" : "asc" };
+}

@@ -3,12 +3,13 @@
 import { usePathname } from "next/navigation";
 import { roleFromPath } from "./nav-config";
 import { RailPanel } from "./rail";
+import { SearchLeadsProvider, type SearchLead } from "./search-leads";
 
 /**
  * The floating navy rail plus the canvas. Layout switches by CSS only:
  * from `lg` the full rail, from `md` an icon rail, below `md` no rail (the page header opens it in a sheet).
  */
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, searchLeads }: { children: React.ReactNode; searchLeads: readonly SearchLead[] }) {
   const pathname = usePathname();
 
   return (
@@ -29,7 +30,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         tabIndex={-1}
         className="min-h-dvh px-4 pt-5 pb-6 outline-none md:pr-6 md:pl-[100px] lg:pl-[248px]"
       >
-        <div className="mx-auto w-full max-w-[1400px]">{children}</div>
+        <div className="mx-auto w-full max-w-[1400px]">
+          <SearchLeadsProvider value={searchLeads}>{children}</SearchLeadsProvider>
+        </div>
       </main>
     </div>
   );

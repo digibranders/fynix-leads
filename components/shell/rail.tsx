@@ -2,21 +2,14 @@
 
 import { Funnel } from "@phosphor-icons/react";
 import Link from "next/link";
-import { SAMPLE_CAMPAIGN } from "@/lib/sample/data";
+import { SAMPLE_CAMPAIGN } from "@/lib/sample/campaign";
+import { formatIsoDay } from "@/lib/time/iso-day";
 import { cn } from "@/lib/utils";
 import { NavLinks } from "./nav-links";
 import type { Role } from "./nav-config";
 import { RoleSwitcher } from "./role-switcher";
 
 const PROTOTYPE_NOTE = "Prototype with sample data. Nothing is saved.";
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
-
-/** "2026-09-01" becomes "1 Sep 2026". Read from the string so the time zone cannot shift the day. */
-function formatDay(isoDate: string): string {
-  const [year, month, day] = isoDate.split("-").map(Number);
-  return `${day} ${MONTHS[month - 1]} ${year}`;
-}
-
 type Props = {
   role: Role;
   pathname: string;
@@ -63,7 +56,7 @@ export function RailPanel({ role, pathname, collapsing = false, onNavigate }: Pr
           <div className="mt-2.5 flex flex-col gap-[3px] pt-2.5 text-xs leading-4 text-on-navy-text shadow-[inset_0_1px_0_var(--on-navy-07)]">
             <span className="font-mono text-peach">{SAMPLE_CAMPAIGN.ref}</span>
             <span>
-              {formatDay(SAMPLE_CAMPAIGN.startsOn)} to {formatDay(SAMPLE_CAMPAIGN.endsOn)}
+              {formatIsoDay(SAMPLE_CAMPAIGN.startsOn)} to {formatIsoDay(SAMPLE_CAMPAIGN.endsOn)}
             </span>
           </div>
         </section>
