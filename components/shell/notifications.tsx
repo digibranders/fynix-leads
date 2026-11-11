@@ -18,24 +18,43 @@ export function Notifications() {
   return (
     <Popover>
       <PopoverTrigger
-        render={<Button variant="ghost" size="icon" aria-label="Notifications" className="max-md:size-10" />}
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={allRead ? "Notifications" : `Notifications, ${NOTIFICATIONS.length} unread`}
+            className="relative bg-navy-05 hover:bg-navy-07 aria-expanded:bg-navy-07"
+          />
+        }
       >
-        <Bell aria-hidden className="size-[18px]" />
+        <Bell aria-hidden />
+        {!allRead && (
+          <span
+            aria-hidden
+            className="absolute top-[9px] right-2.5 size-[9px] rounded-full bg-peach shadow-[0_0_0_2px_var(--canvas)]"
+          />
+        )}
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[min(20rem,calc(100vw-2rem))] gap-0 p-0">
-        <div className="flex h-10 items-center justify-between border-b pr-1.5 pl-3">
-          <h2 className="text-sm font-medium">Notifications</h2>
+      <PopoverContent align="end" sideOffset={8} className="w-[min(22rem,calc(100vw-2rem))] gap-0 p-0 pb-1.5">
+        <div className="flex h-14 items-center justify-between pr-3 pl-4">
+          <h2 className="text-value font-semibold">Notifications</h2>
           <Button variant="ghost" size="xs" disabled={allRead} onClick={() => setAllRead(true)}>
             Mark all as read
           </Button>
         </div>
-        <ul className="divide-y">
+        <ul>
           {NOTIFICATIONS.map((item) => (
-            <li key={item.id} className="flex flex-col gap-0.5 px-3 py-2.5">
-              <p className={cn("text-sm", allRead ? "text-muted-foreground" : "font-medium text-foreground")}>
-                {item.text}
-              </p>
-              <p className="text-xs text-muted-foreground">{item.when}</p>
+            <li key={item.id} className="px-4 [&:not(:first-child)>div]:border-t">
+              <div className="flex gap-3 py-3">
+                <span
+                  aria-hidden
+                  className={cn("mt-[7px] size-2 shrink-0 rounded-full", allRead ? "bg-transparent" : "bg-peach")}
+                />
+                <div className="min-w-0">
+                  <p className={cn("text-[14px] leading-5", allRead ? "text-ink-2" : "font-medium text-ink")}>{item.text}</p>
+                  <p className="mt-0.5 text-label text-ink-muted">{item.when}</p>
+                </div>
+              </div>
             </li>
           ))}
         </ul>

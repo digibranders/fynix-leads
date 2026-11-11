@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import { LeadRecord } from "@/components/leads/lead-record";
+import { PageHeader } from "@/components/shell/page-header";
 import { SAMPLE_LEADS, SAMPLE_NOW, VIEWER_ZONES } from "@/lib/sample/data";
 
 // Prototype data is static, so every sample lead is prerendered. Unknown refs render on demand and reach notFound().
@@ -12,12 +13,17 @@ async function Record({ params }: { params: PageProps<"/client/leads/[ref]">["pa
   const { ref } = await params;
   const lead = SAMPLE_LEADS.find((l) => l.ref === ref);
   if (!lead) notFound();
-  return <LeadRecord lead={lead} now={SAMPLE_NOW.toISOString()} viewerZone={VIEWER_ZONES.client} />;
+  return (
+    <>
+      <PageHeader title="Lead record" subtitle={`${lead.ref}, ${lead.prospect.company}`} />
+      <LeadRecord lead={lead} now={SAMPLE_NOW.toISOString()} viewerZone={VIEWER_ZONES.client} />
+    </>
+  );
 }
 
 export default function LeadRecordPage({ params }: PageProps<"/client/leads/[ref]">) {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<PageHeader title="Lead record" />}>
       <Record params={params} />
     </Suspense>
   );

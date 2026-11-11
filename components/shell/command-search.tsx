@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { MagnifyingGlass } from "@phosphor-icons/react";
+import { ArrowDown, ArrowUp, MagnifyingGlass } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import {
   Command,
@@ -13,12 +13,12 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
-import { Kbd } from "@/components/ui/kbd";
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { SAMPLE_LEADS } from "@/lib/sample/data";
 import { NAV, type Role } from "./nav-config";
 
-/** The shared CommandItem reserves room for a selected check; the palette does not use it. */
-const HIDE_CHECK = "[&>svg:last-child]:hidden";
+/** The shared CommandItem reserves room for a selected check, which the palette does not use. Selected rows take a navy 5% tint. */
+const ITEM = "[&>svg:last-child]:hidden data-selected:bg-navy-05";
 
 /** Ctrl+K and Cmd+K both open the palette. */
 function useSearchShortcut(toggle: () => void): void {
@@ -48,14 +48,16 @@ export function CommandSearch({ role }: { role: Role }) {
   return (
     <>
       <Button
-        variant="secondary"
+        variant="ghost"
+        size="icon"
         onClick={() => setOpen(true)}
         aria-label="Search"
-        className="font-normal text-muted-foreground max-sm:size-10 max-sm:px-0 sm:w-52 sm:justify-start sm:gap-2"
+        aria-keyshortcuts="Control+K Meta+K"
+        className="rounded-sm bg-navy-05 text-[14px] font-normal text-ink-muted hover:bg-navy-07 lg:w-[220px] lg:justify-start lg:gap-2.5 lg:px-3.5 lg:pr-2 xl:w-[300px]"
       >
-        <MagnifyingGlass aria-hidden className="size-4" />
-        <span className="max-sm:sr-only">Search</span>
-        <Kbd className="ml-auto max-sm:hidden">Ctrl K</Kbd>
+        <MagnifyingGlass aria-hidden className="size-[18px]" />
+        <span className="max-lg:sr-only">Search leads</span>
+        <Kbd className="ml-auto max-lg:hidden">Ctrl K</Kbd>
       </Button>
       <CommandDialog
         open={open}
@@ -70,7 +72,7 @@ export function CommandSearch({ role }: { role: Role }) {
             <CommandEmpty>No screen or lead matches that search.</CommandEmpty>
             <CommandGroup heading="Screens">
               {NAV[role].map((item) => (
-                <CommandItem key={item.href} value={item.label} onSelect={() => go(item.href)} className={HIDE_CHECK}>
+                <CommandItem key={item.href} value={item.label} onSelect={() => go(item.href)} className={ITEM}>
                   <item.icon aria-hidden className="text-muted-foreground" />
                   {item.label}
                 </CommandItem>
@@ -83,7 +85,7 @@ export function CommandSearch({ role }: { role: Role }) {
                     key={lead.ref}
                     value={`${lead.ref} ${lead.prospect.name} ${lead.prospect.company}`}
                     onSelect={() => go(`/client/leads/${lead.ref}`)}
-                    className={HIDE_CHECK}
+                    className={ITEM}
                   >
                     <span className="w-16 shrink-0 font-mono text-table">{lead.ref}</span>
                     <span className="truncate">{lead.prospect.name}</span>
@@ -95,6 +97,23 @@ export function CommandSearch({ role }: { role: Role }) {
               </CommandGroup>
             )}
           </CommandList>
+          <div className="mt-1.5 flex items-center gap-4 max-sm:hidden px-3 pt-2.5 pb-1.5 text-xs text-muted-foreground shadow-[inset_0_1px_0_var(--line)]">
+            <span className="flex items-center gap-1.5">
+              <KbdGroup>
+                <Kbd aria-label="Up arrow"><ArrowUp aria-hidden weight="bold" /></Kbd>
+                <Kbd aria-label="Down arrow"><ArrowDown aria-hidden weight="bold" /></Kbd>
+              </KbdGroup>
+              move
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Kbd>Enter</Kbd>
+              open
+            </span>
+            <span className="ml-auto flex items-center gap-1.5">
+              <Kbd>Esc</Kbd>
+              close
+            </span>
+          </div>
         </Command>
       </CommandDialog>
     </>
