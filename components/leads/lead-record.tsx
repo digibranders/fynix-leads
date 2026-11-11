@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Check, CheckCircle, UsersThree, X } from "@phosphor-icons/react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { RejectDialog } from "@/components/review/reject-dialog";
-import { useReviewKeys } from "@/components/review/use-review-keys";
+import { handleReviewKey } from "@/components/review/key-handler";
 import { HeaderTools } from "@/components/shell/page-header";
 import { MobileNav } from "@/components/shell/mobile-nav";
 import { StatusBadge } from "@/components/status/status-badge";
@@ -17,6 +17,7 @@ import { REJECTION_REASONS, type RejectionReasonCode } from "@/lib/domain/reject
 import type { ActivityEvent, Decision, Lead, ThreadMessage } from "@/lib/domain/types";
 import type { ApprovalStatus } from "@/lib/domain/status";
 import { relayText } from "@/lib/relay/relay-text";
+import { createDecisionGate } from "@/lib/review/decision-gate";
 import { getSnapshot, resetPendingCount, setPendingCount } from "@/lib/review/pending-store";
 import { formatInZone } from "@/lib/time/zones";
 import { cn } from "@/lib/utils";
@@ -37,8 +38,6 @@ type Section = "details" | "activity" | "messages";
 const UNDO_MS = 6000;
 const MINUTE_MS = 60_000;
 const LG_QUERY = "(min-width: 1024px)";
-// Never reached: the record has no next or previous lead, but the shortcut hook wants a full set of handlers.
-const NO_OP = () => {};
 
 const reasonLabel = (code: string | undefined): string | undefined => REJECTION_REASONS.find((r) => r.code === code)?.label;
 
@@ -63,15 +62,29 @@ export function LeadRecord({ lead, now, viewerZone }: Props) {
 
   const localCount = useRef(0);
   const summaryRef = useRef<HTMLElement>(null);
+  const decisionHeadingId = useId();
+  // A second click or key press right after a decision must not decide again.
+  const [gate] = useState(() => createDecisionGate());
 
+  // Cached pages stay mounted but hidden and run their cleanups, so the toast and its Undo must not outlive the page.
   // The rail badge counts leads waiting for a decision. Leaving the record puts the sample count back, as the review queue does.
-  useEffect(() => resetPendingCount, []);
+  const mounted = useRef(false);
+  const toastId = useRef<string | number | undefined>(undefined);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      if (toastId.current !== undefined) toast.dismiss(toastId.current);
+      resetPendingCount();
+    };
+  }, []);
 
   const current: Lead = { ...lead, approval, decision, activity: events, thread: messages };
   const canDecide = approval === "pending" || approval === "needs_clarification";
   const delivered = isDelivered(current);
 
   function decide(next: Decision, eventText: string, toastText: string) {
+    gate.touch();
     const previous = { approval, decision };
     // Only a lead still waiting for review is in the count. A lead the client already asked about is not.
     const wasWaiting = approval === "pending";
@@ -91,8 +104,8 @@ export function LeadRecord({ lead, now, viewerZone }: Props) {
     requestAnimationFrame(() => summaryRef.current?.focus());
 
     let undone = false;
-    toast.dismiss();
-    toast(toastText, {
+    if (toastId.current !== undefined) toast.dismiss(toastId.current);
+    toastId.current = toast(toastText, {
       duration: UNDO_MS,
       // On a phone the bottom of the screen belongs to the on-screen keyboard, so the toast goes to the top.
       position: window.matchMedia(LG_QUERY).matches ? "bottom-right" : "top-center",
@@ -100,7 +113,7 @@ export function LeadRecord({ lead, now, viewerZone }: Props) {
         label: "Undo",
         // Idempotent: a second click restores nothing and moves the count only once.
         onClick: () => {
-          if (undone) return;
+          if (undone || !mounted.current) return;
           undone = true;
           setApproval(previous.approval);
           setDecision(previous.decision);
@@ -111,7 +124,12 @@ export function LeadRecord({ lead, now, viewerZone }: Props) {
     });
   }
 
-  const approve = () => decide({ outcome: "approved", decidedAt: now }, "Approved", `Approved ${lead.ref}`);
+  const approve = () => {
+    if (gate.allow()) decide({ outcome: "approved", decidedAt: now }, "Approved", `Approved ${lead.ref}`);
+  };
+  const openReject = () => {
+    if (gate.allow()) setRejectOpen(true);
+  };
 
   function confirmReject(reason: RejectionReasonCode, note: string) {
     const label = reasonLabel(reason) ?? "";
@@ -138,29 +156,17 @@ export function LeadRecord({ lead, now, viewerZone }: Props) {
     ]);
   }
 
-  // The keys call the latest closures through one stable object, so the listener is attached once.
-  const latest = useRef({ approve, reject: () => setRejectOpen(true) });
-  useEffect(() => {
-    latest.current = { approve, reject: () => setRejectOpen(true) };
-  });
-  const handlers = useMemo(
-    () => ({
-      approve: () => latest.current.approve(),
-      reject: () => latest.current.reject(),
-      clarify: NO_OP,
-      next: NO_OP,
-      previous: NO_OP,
-    }),
-    [],
-  );
-  useReviewKeys(handlers, canDecide && !rejectOpen);
+  // The shortcuts belong to this page's container, so they only work while focus is inside it (WCAG 2.1.4).
+  // The record has no next or previous lead and nothing to clarify, so only A and R are registered.
+  const onKeyDown = (e: React.KeyboardEvent<HTMLElement>) =>
+    handleReviewKey(e, { approve, reject: openReject }, canDecide && !rejectOpen);
 
   const { prospect } = lead;
   // From lg every section is visible. Below it only the section picked in the segmented control is.
   const shown = (name: Section): string => (section === name ? "" : "max-lg:hidden");
 
   return (
-    <div className="flex flex-col">
+    <div tabIndex={-1} onKeyDown={onKeyDown} className="flex flex-col outline-none">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
         <MobileNav className="md:hidden" />
         <Link
@@ -208,7 +214,7 @@ export function LeadRecord({ lead, now, viewerZone }: Props) {
               Approve
               <Kbd className="hidden lg:inline-grid">A</Kbd>
             </Button>
-            <Button variant="destructive" onClick={() => setRejectOpen(true)} aria-keyshortcuts="R" data-review-action="reject">
+            <Button variant="destructive" onClick={openReject} aria-keyshortcuts="R" data-review-action="reject">
               <X aria-hidden weight="bold" />
               Reject
               <Kbd className="hidden lg:inline-grid">R</Kbd>
@@ -220,10 +226,10 @@ export function LeadRecord({ lead, now, viewerZone }: Props) {
           <section
             ref={summaryRef}
             tabIndex={-1}
-            aria-labelledby="decision-heading"
+            aria-labelledby={decisionHeadingId}
             className="w-full max-w-md rounded-md bg-navy-04 px-4 py-3 text-[13px] leading-[18px] outline-none sm:w-auto sm:min-w-72"
           >
-            <h2 id="decision-heading" className="font-semibold">
+            <h2 id={decisionHeadingId} className="font-semibold">
               {decision.outcome === "approved" ? "You approved this lead" : "You rejected this lead"}
             </h2>
             {decision.reasonCode && (
@@ -267,7 +273,6 @@ export function LeadRecord({ lead, now, viewerZone }: Props) {
 
           <div className="flex min-w-0 flex-col gap-4 max-lg:contents">
             <Panel
-              id="activity-heading"
               title="Activity"
               meta={`${plural(events.length, "event", "events")}, newest first`}
               headClassName="min-h-[52px]"
@@ -276,7 +281,6 @@ export function LeadRecord({ lead, now, viewerZone }: Props) {
               <ActivityTimeline events={events} now={nowDate} viewerZone={viewerZone} />
             </Panel>
             <Panel
-              id="messages-heading"
               title="Messages"
               meta="Between the client and the Fynix team"
               // An empty thread keeps its natural height instead of stretching to the detail pane.

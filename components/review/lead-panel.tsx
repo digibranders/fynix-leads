@@ -189,10 +189,17 @@ function Actions({
           </Button>
         )}
       </div>
-      <p className="ml-auto hidden items-center gap-1.5 text-[12.5px] whitespace-nowrap text-ink-2 @[44rem]:flex">
-        <Kbd>J</Kbd> and <Kbd>K</Kbd> move between leads
-      </p>
+<KeyHint />
     </div>
+  );
+}
+
+/** Single-key shortcuts only work while focus is inside the workspace (WCAG 2.1.4), so the hint says so. */
+function KeyHint() {
+  return (
+    <p className="ml-auto hidden max-w-52 text-right text-[12.5px] leading-4 text-pretty text-ink-2 @[44rem]:block">
+      <Kbd>J</Kbd> and <Kbd>K</Kbd> move between leads. Shortcuts work while focus is in this panel.
+    </p>
   );
 }
 
@@ -219,9 +226,7 @@ function DecisionSummary({ lead, viewerZone }: { lead: Lead; viewerZone: string 
           </p>
         )}
       </div>
-      <p className="ml-auto hidden items-center gap-1.5 text-[12.5px] whitespace-nowrap text-ink-2 @[44rem]:flex">
-        <Kbd>J</Kbd> and <Kbd>K</Kbd> move between leads
-      </p>
+<KeyHint />
     </div>
   );
 }

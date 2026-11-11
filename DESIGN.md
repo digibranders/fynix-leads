@@ -216,7 +216,7 @@ The mockups are the authority, so these deliberate departures from the rules abo
 | 404 and error pages (outside the shell) | `app/not-found.tsx`, `app/error.tsx`, `components/shell/message-page.tsx` |
 | Panel | `components/leads/panel.tsx` |
 | Tonal pane and lifted card (review list) | `components/review/queue-list.tsx`, `review-queue.tsx` |
-| Lead panel with action bar, dialogs, shortcuts | `components/review/lead-panel.tsx`, `reject-dialog.tsx`, `clarify-dialog.tsx`, `use-review-keys.ts`, `review-subtitle.tsx` |
+| Lead panel with action bar, dialogs, shortcuts | `components/review/lead-panel.tsx`, `reject-dialog.tsx`, `clarify-dialog.tsx`, `key-handler.ts`, `review-subtitle.tsx` |
 | Tiles (meeting, contact, qualification) and the tonal detail column | `components/leads/lead-tiles.tsx`, `lead-details.tsx` |
 | Stat tiles and hero tile | `components/leads/stat-tiles.tsx`, `campaign-hero.tsx` |
 | Lead record | `components/leads/lead-record.tsx`, `activity-timeline.tsx`, `relay-thread.tsx` |
@@ -248,6 +248,9 @@ Which month a delivered lead counts toward is undecided (spec section 16, item 2
 - Under 768px every button, tab and menu item is at least 40px tall.
 - Reduced motion zeroes durations and stops looping animation, including the skeleton pulse.
 - Layout switches by CSS only, so the server markup is already right on a phone.
+- Single-character shortcuts (A, R, C, J, K) are scoped to focus, to satisfy WCAG 2.1.4 (Character Key Shortcuts). The keydown handler sits on the review workspace (list pane and lead panel) and on the lead record page container, never on `window`, so the keys do nothing while focus is on the page body, the rail or the header. Each page registers only the keys it handles (the record handles A and R), and `preventDefault` runs only for those. Held keys, modifier combinations, text fields, selects and open dialogs are ignored (`lib/review/review-keys.ts`). Buttons with a shortcut carry `aria-keyshortcuts`, and the panel hint says the shortcuts need focus in the panel.
+- A decision cannot repeat itself: `lib/review/decision-gate.ts` refuses a second decision within 400 ms of the previous one or of a selection change, because the panel shows the next lead right after a decision. Undo toasts belong to their page and are dismissed when it is left.
+- Form errors are announced: the error text has `role="alert"`, the invalid control sets `aria-invalid` and `aria-describedby`, and focus moves to it when a submit fails. Element ids come from `useId`, because cached pages stay in the DOM and a fixed id would repeat.
 
 ## Status rules
 
