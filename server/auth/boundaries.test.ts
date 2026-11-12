@@ -18,6 +18,16 @@ function sourceFiles(directory: string): string[] {
 
 const read = (path: string): string => readFileSync(join(ROOT, path), "utf8");
 const isTest = (path: string): boolean => /\.test\.tsx?$/.test(path);
+/**
+ * Every module specifier a source file loads: static `from "..."`, side-effect `import "..."`, dynamic `import("...")`
+ * and `require("...")`. Template literals are not followed, so a computed specifier is out of scope.
+ */
+const SPECIFIER = /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)["']([^"']+)["']/g;
+const specifiers = (source: string): string[] => [...source.matchAll(SPECIFIER)].map((match) => match[1] ?? "");
+/** A specifier that reaches into server/: the alias form or a relative path that climbs to a `server` directory. */
+const isServerSpecifier = (name: string): boolean => /^@\/server(\/|$)/.test(name) || /^(\.\.?\/)+(\.\.\/)*server(\/|$)/.test(name);
+const serverSpecifiers = (source: string): string[] => specifiers(source).filter(isServerSpecifier);
+const reachesDatabaseOrAuthLibrary = (source: string): boolean => specifiers(source).some((name) => /^(better-auth|drizzle-orm|pg)(\/|$)/.test(name));
 const everything = (): string[] => ["server", "scripts", "app", "components", "lib"].flatMap(sourceFiles);
 
 describe("Better Auth stays inside server/auth", () => {
@@ -49,15 +59,42 @@ describe("pages stay thin", () => {
   /** The only server modules a page or a client form may import: the actions, the session read and the page guard. */
   const ALLOWED_SERVER_IMPORTS: ReadonlySet<string> = new Set(["@/server/auth", "@/server/auth/actions", "@/server/auth/guard"]);
   const pageFiles = (): string[] => ["app/(auth)", "app/(app)"].filter((directory) => existsSync(join(ROOT, directory))).flatMap(sourceFiles);
-  const serverImports = (path: string): string[] => [...read(path).matchAll(/from\s+["'](@\/server[^"']*)["']/g)].map((match) => match[1] ?? "");
+  const serverImports = (path: string): string[] => serverSpecifiers(read(path));
 
   it("import from server/ only the actions, the session read and the guard: never the database, Better Auth, the limiter or the breach check", () => {
     const offenders = pageFiles().flatMap((path) => serverImports(path).filter((name) => !ALLOWED_SERVER_IMPORTS.has(name)).map((name) => `${path} imports ${name}`));
     expect(offenders).toEqual([]);
   });
 
+  it("the patterns catch every way a page could reach into server/ or the database libraries", () => {
+    const bad: Record<string, string> = {
+      "static import": 'import { db } from "@/server/db";',
+      "side-effect import": 'import "@/server/db";',
+      "dynamic import": 'const db = await import("@/server/db");',
+      require: 'const db = require("@/server/db");',
+      "relative one up": 'import { db } from "../server/db";',
+      "relative two up": 'import "../../server/auth/rate-limit";',
+      "relative four up": 'const m = await import("../../../../server/db");',
+      "bare server": 'import { x } from "@/server";',
+    };
+    for (const [name, source] of Object.entries(bad)) expect(serverSpecifiers(source).filter((specifier) => !ALLOWED_SERVER_IMPORTS.has(specifier)), name).not.toEqual([]);
+    const libraries: Record<string, string> = {
+      static: 'import { sql } from "drizzle-orm";',
+      "side-effect": 'import "pg";',
+      dynamic: 'await import("better-auth/next-js");',
+      require: 'const pg = require("pg");',
+    };
+    for (const [name, source] of Object.entries(libraries)) expect(reachesDatabaseOrAuthLibrary(source), name).toBe(true);
+  });
+
+  it("the patterns leave the allowed imports and unrelated modules alone", () => {
+    const fine = 'import { signInAction } from "@/server/auth/actions";\nimport { getSessionContext } from "@/server/auth";\nimport { Button } from "@/components/ui/button";\nimport x from "./server-note";';
+    expect(serverSpecifiers(fine).filter((specifier) => !ALLOWED_SERVER_IMPORTS.has(specifier))).toEqual([]);
+    expect(reachesDatabaseOrAuthLibrary('import { pgTable } from "@/lib/pg-helpers";')).toBe(false);
+  });
+
   it("never import better-auth or drizzle directly, and never log", () => {
-    const offenders = pageFiles().filter((path) => /from\s+["'](better-auth|drizzle-orm|pg)["/]/.test(read(path)) || /console\.(log|info|debug)\(/.test(read(path)));
+    const offenders = pageFiles().filter((path) => reachesDatabaseOrAuthLibrary(read(path)) || /console\.(log|info|debug)\(/.test(read(path)));
     expect(offenders).toEqual([]);
   });
 });
