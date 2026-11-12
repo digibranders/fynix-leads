@@ -10,17 +10,42 @@ function isPostgresUrl(value: string): boolean {
   }
 }
 
+function isOrigin(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return (url.protocol === "http:" || url.protocol === "https:") && url.origin === value;
+  } catch {
+    return false;
+  }
+}
+
 const postgresUrl = z.string().refine(isPostgresUrl, "must be a postgres:// or postgresql:// URL");
+const origin = z.string().refine(isOrigin, "must be an http:// or https:// origin, with no path and no trailing slash");
+/** A variable left empty in an env file counts as not set. */
+const emptyAsMissing = (value: unknown): unknown => (value === "" ? undefined : value);
 const password = z.string().min(24, "must be at least 24 characters");
 
-/** What the running app needs: one connection string per runtime role. The owner role is never in the app. */
-export const runtimeEnvSchema = z.object({
-  DATABASE_URL_AUTH: postgresUrl,
-  DATABASE_URL_FYNIX: postgresUrl,
-  DATABASE_URL_CLIENT: postgresUrl,
-  DATABASE_URL_AGENCY: postgresUrl,
-  DATABASE_URL_PUBLIC: postgresUrl,
-});
+/**
+ * What the running app needs: one connection string per runtime role (the owner role is never in the app), the secret
+ * that signs sessions, and the origin the app is served from.
+ */
+export const runtimeEnvSchema = z
+  .object({
+    DATABASE_URL_AUTH: postgresUrl,
+    DATABASE_URL_FYNIX: postgresUrl,
+    DATABASE_URL_CLIENT: postgresUrl,
+    DATABASE_URL_AGENCY: postgresUrl,
+    DATABASE_URL_PUBLIC: postgresUrl,
+    /** Signs the session cookie. A shorter one is refused here and again in createAuth, because Better Auth only warns. */
+    BETTER_AUTH_SECRET: z.string().min(32, "must be at least 32 characters"),
+    APP_ORIGIN: origin,
+    /** `off` skips the breached-password check, for development without a network. Unset means `hibp`. */
+    PASSWORD_BREACH_CHECK: z.preprocess(emptyAsMissing, z.enum(["hibp", "off"]).optional()),
+  })
+  .refine((env) => !(env.PASSWORD_BREACH_CHECK === "off" && env.APP_ORIGIN.startsWith("https://")), {
+    path: ["PASSWORD_BREACH_CHECK"],
+    message: "off is not allowed on an https deployment",
+  });
 export type RuntimeEnv = z.infer<typeof runtimeEnvSchema>;
 
 /**
@@ -52,7 +77,7 @@ export function declaredVariables(): { readonly runtime: string[]; readonly tool
 
 /** The variable names roles.ts derives, for the same check. */
 export function derivedVariables(): { readonly runtime: string[]; readonly tooling: string[] } {
-  const runtime = RUNTIME_ROLES.map((role) => urlVariable(role, "dev"));
+  const runtime = [...RUNTIME_ROLES.map((role) => urlVariable(role, "dev")), "BETTER_AUTH_SECRET", "APP_ORIGIN", "PASSWORD_BREACH_CHECK"];
   const tooling = [
     "DATABASE_URL_ADMIN",
     urlVariable("leads_owner", "dev"),

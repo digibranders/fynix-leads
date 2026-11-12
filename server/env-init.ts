@@ -8,12 +8,14 @@ export interface EnvSecrets {
   /** The operating system user, who is the local Postgres superuser. In CI it is the runner user. */
   readonly superuser: string;
   readonly passwords: Readonly<Record<RoleName, string>>;
+  /** Signs session cookies: 32 random bytes as hex, 64 characters. */
+  readonly authSecret: string;
 }
 
 /** 24 random bytes as hex: 48 characters, safe unquoted in an env file and in a URL. */
 export function generateSecrets(superuser: string): EnvSecrets {
   const passwords = Object.fromEntries(ROLE_NAMES.map((role) => [role, randomBytes(24).toString("hex")])) as Record<RoleName, string>;
-  return { superuser, passwords };
+  return { superuser, passwords, authSecret: randomBytes(32).toString("hex") };
 }
 
 function roleUrl(role: RoleName, password: string, target: DatabaseTarget): string {
@@ -36,6 +38,12 @@ export function buildEnvFile(secrets: EnvSecrets): string {
     "",
     "# The running app: one connection string per runtime role, and never the owner.",
     ...ROLE_NAMES.filter((role) => role !== "leads_owner").map((role) => `${urlVariable(role, "dev")}=${roleUrl(role, secrets.passwords[role], "dev")}`),
+    "",
+    "# Sign-in: the secret that signs session cookies, and the origin the app is served from.",
+    `BETTER_AUTH_SECRET=${secrets.authSecret}`,
+    "APP_ORIGIN=http://localhost:3020",
+    "# `hibp` checks new passwords against known breaches. `off` skips the check (development without a network only).",
+    "PASSWORD_BREACH_CHECK=hibp",
     "",
     "# Integration tests: the same roles on the test database.",
     ...ROLE_NAMES.map((role) => `${urlVariable(role, "test")}=${roleUrl(role, secrets.passwords[role], "test")}`),
