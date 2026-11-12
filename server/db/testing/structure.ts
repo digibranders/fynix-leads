@@ -200,6 +200,32 @@ export function rolesWithAnyPrivilege(executor: Executor, table: string): Promis
   );
 }
 
+/**
+ * Tables Fynix writes that are not covered by the audit rule. `audit_log` is where the rows go, and `email_outbox` is
+ * plumbing: the invite email is queued in the same transaction as the invite, which is audited.
+ */
+export const AUDIT_EXEMPT_TABLES: readonly string[] = ["audit_log", "email_outbox"];
+
+/**
+ * Tables `leads_fynix` can insert into, update or delete from that have no enabled, deferred `audit_required` constraint
+ * trigger on both INSERT and UPDATE. Without it a Fynix change could commit with no audit_log row, so every table Fynix
+ * gets a write grant on (now or in a later phase) must add the trigger in its grants migration.
+ */
+export function fynixWritableTablesWithoutAuditTrigger(executor: Executor, exempt: readonly string[] = AUDIT_EXEMPT_TABLES): Promise<string[]> {
+  return offenders(
+    executor,
+    sql`select c.relname::text as offender from pg_class c join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = 'public' and c.relkind in ('r', 'p') and c.relname not in (${sql.raw(quoted(exempt.length === 0 ? [""] : exempt))})
+          and (has_any_column_privilege('leads_fynix', c.oid, 'INSERT') or has_any_column_privilege('leads_fynix', c.oid, 'UPDATE')
+            or has_table_privilege('leads_fynix', c.oid, 'DELETE'))
+          and not exists (
+            select 1 from pg_trigger t join pg_proc p on p.oid = t.tgfoid
+            where t.tgrelid = c.oid and p.proname = 'audit_required' and t.tgconstraint <> 0 and t.tgdeferrable and t.tginitdeferred
+              and t.tgenabled = 'O' and (t.tgtype & 4) <> 0 and (t.tgtype & 16) <> 0)
+        order by 1`,
+  );
+}
+
 /** Quotes a catalog identifier for use in test SQL. */
 export function quoteIdentifier(name: string): string {
   return `"${name.replaceAll('"', '""')}"`;

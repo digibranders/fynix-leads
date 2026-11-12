@@ -1,5 +1,7 @@
+import { createHash } from "node:crypto";
+import { PLACEHOLDER_TERMS } from "@/lib/terms/placeholder";
 import type { DatabaseHandle } from "@/server/db/pool";
-import { account, campaign, member, organisation, session, user, verification } from "@/server/db/schema";
+import { account, agencyAlias, auditLog, campaign, emailOutbox, invite, member, organisation, session, termsAcceptance, termsDocument, user, verification } from "@/server/db/schema";
 
 export interface SeededOrganisation {
   readonly id: string;
@@ -29,6 +31,31 @@ export interface SeededUser {
   readonly resetToken: string;
 }
 
+/** A pending invite, with the token that was never stored and the hash that was. */
+export interface SeededInvite {
+  readonly id: string;
+  readonly organisation: SeededOrganisation;
+  readonly email: string;
+  readonly name: string;
+  readonly token: string;
+  readonly tokenHash: string;
+}
+
+/**
+ * The phase 1C rows, seeded with users: the terms, one acceptance per user, an alias for each agency user, a pending invite
+ * for a client and for an agency, two audit rows and a queued email that still holds its link. Every string below is
+ * distinctive plain text, so the leak matrix can search for it, and no tenant may find any of them.
+ */
+export interface SeededDomain {
+  readonly termsDocumentIds: Readonly<Record<"client" | "agency" | "fynix", string>>;
+  readonly invites: readonly SeededInvite[];
+  readonly aliases: readonly string[];
+  readonly acceptanceAddresses: readonly string[];
+  readonly auditMarkers: readonly string[];
+  readonly outboxRecipient: string;
+  readonly outboxLink: string;
+}
+
 /**
  * Two client organisations, two agencies and a campaign for every pairing, so each tenant has rows that are its own
  * and rows that belong to someone else. Every value is distinct and findable as plain text, which is what the leak
@@ -47,6 +74,8 @@ export interface SeedWorld {
   readonly agencies: readonly SeededOrganisation[];
   /** One user per organisation, each with a password hash, a live session token and a reset token. */
   readonly users: readonly SeededUser[];
+  /** The phase 1C rows. Empty (`null`) when the world was seeded without users. */
+  readonly domain: SeededDomain | null;
 }
 
 function firstRow<T>(rows: readonly T[], what: string): T {
@@ -60,9 +89,10 @@ function firstRow<T>(rows: readonly T[], what: string): T {
  * and a reset request would leave: a credential account, a live session and a reset token. The values are not valid
  * credentials; they exist so the leak matrix can search for them.
  */
-async function seedUsers(owner: DatabaseHandle, organisations: readonly SeededOrganisation[]): Promise<SeededUser[]> {
+async function seedUsers(owner: DatabaseHandle, organisations: readonly SeededOrganisation[]): Promise<{ readonly users: SeededUser[]; readonly memberIds: Map<string, string> }> {
   const { db } = owner;
   const users: SeededUser[] = [];
+  const memberIds = new Map<string, string>();
   for (const [index, organisation] of organisations.entries()) {
     const n = index + 1;
     const email = `person${n}@${organisation.publicRef.toLowerCase()}.example`;
@@ -74,17 +104,79 @@ async function seedUsers(owner: DatabaseHandle, organisations: readonly SeededOr
     await db.insert(account).values({ accountId: row.id, providerId: "credential", userId: row.id, password: passwordHash });
     await db.insert(session).values({ token: sessionToken, userId: row.id, expiresAt: new Date(Date.now() + 3_600_000) });
     await db.insert(verification).values({ identifier: `reset-password:${resetToken}`, value: row.id, expiresAt: new Date(Date.now() + 3_600_000) });
-    await db.insert(member).values({ userId: row.id, orgId: organisation.id, orgKind: organisation.kind, displayName: name });
+    const memberRow = firstRow(await db.insert(member).values({ userId: row.id, orgId: organisation.id, orgKind: organisation.kind, displayName: name }).returning({ id: member.id }), `member ${email}`);
+    memberIds.set(row.id, memberRow.id);
     users.push({ id: row.id, email, name, organisation, passwordHash, sessionToken, resetToken });
   }
-  return users;
+  return { users, memberIds };
+}
+
+/** The base-32 SHA-256 the app stores for an invite token (server/domain/invite-token.ts), written out so the seed needs no app code. */
+function hashSeedToken(token: string): string {
+  return createHash("sha256").update(token, "utf8").digest("base64url");
+}
+
+async function seedDomain(owner: DatabaseHandle, world: Pick<SeedWorld, "fynix" | "kestrel" | "northgate">, seeded: { readonly users: readonly SeededUser[]; readonly memberIds: ReadonlyMap<string, string> }): Promise<SeededDomain> {
+  const { db } = owner;
+  const fynixUser = firstRow(seeded.users.filter((person) => person.organisation.kind === "fynix"), "the Fynix user");
+
+  const documents = {} as Record<"client" | "agency" | "fynix", string>;
+  for (const party of ["client", "agency", "fynix"] as const) {
+    const text = PLACEHOLDER_TERMS[party];
+    documents[party] = firstRow(await db.insert(termsDocument).values({ party, version: 1, title: text.title, body: text.body, placeholder: true }).returning({ id: termsDocument.id }), `terms ${party}`).id;
+  }
+
+  const acceptanceAddresses: string[] = [];
+  const aliases: string[] = [];
+  for (const [index, person] of seeded.users.entries()) {
+    const address = `203.0.113.${index + 1}`;
+    acceptanceAddresses.push(address);
+    await db.insert(termsAcceptance).values({ userId: person.id, documentId: documents[person.organisation.kind], party: person.organisation.kind, networkAddress: address });
+    if (person.organisation.kind === "agency") {
+      const alias = `Seedalias ${index + 1}, Fynix`;
+      aliases.push(alias);
+      const memberId = seeded.memberIds.get(person.id);
+      if (memberId === undefined) throw new Error(`No member was seeded for ${person.email}`);
+      await db.insert(agencyAlias).values({ memberId, alias });
+    }
+  }
+
+  const invites: SeededInvite[] = [];
+  const pending = [
+    { organisation: world.kestrel, email: "invitee.client@seed-invite.example", name: "Invitee Client Seed", alias: null },
+    { organisation: world.northgate, email: "invitee.agency@seed-invite.example", name: "Invitee Agency Seed", alias: "Seedinvite alias, Fynix" },
+  ] as const;
+  for (const [index, row] of pending.entries()) {
+    const token = `INVITE-TOKEN-${index + 1}-not-a-real-token-0123456789abcdef`;
+    const tokenHash = hashSeedToken(token);
+    const created = firstRow(
+      await db
+        .insert(invite)
+        .values({ orgId: row.organisation.id, orgKind: row.organisation.kind, email: row.email, name: row.name, alias: row.alias, tokenHash, expiresAt: new Date(Date.now() + 7 * 86_400_000), createdBy: fynixUser.id })
+        .returning({ id: invite.id }),
+      `invite ${row.email}`,
+    );
+    invites.push({ id: created.id, organisation: row.organisation, email: row.email, name: row.name, token, tokenHash });
+    if (row.alias !== null) aliases.push(row.alias);
+  }
+
+  const auditMarkers = ["AUDIT-BEFORE-MARKER-1 renamed from Kestrel Freight", "AUDIT-AFTER-MARKER-2 the secret internal note"];
+  await db.insert(auditLog).values({ actorUserId: fynixUser.id, action: "campaign.update", subjectTable: "campaign", subjectId: fynixUser.id, subjectRef: "CMP-7Q2X", before: { note: auditMarkers[0] }, after: { note: auditMarkers[1] } });
+
+  const outboxRecipient = "outbox.recipient@seed-outbox.example";
+  const outboxLink = "https://seed.example/accept-invite?token=OUTBOX-LINK-not-a-real-token";
+  await db.insert(emailOutbox).values({ recipient: outboxRecipient, template: "invite", subject: "Seeded invite", body: "Seeded body", params: {}, link: outboxLink });
+
+  return { termsDocumentIds: documents, invites, aliases, acceptanceAddresses, auditMarkers, outboxRecipient, outboxLink };
 }
 
 /**
  * Writes through the owner connection, which bypasses row-level security. Test and dev databases only. Users are seeded
- * unless `withUsers` is false, which the auth tests use because they create real users through the account grant.
+ * unless `withUsers` is false, which the auth tests use because they create real users through the account grant. The
+ * phase 1C rows (`domain`) are seeded with the users unless `withDomain` is false, which `pnpm db:seed` uses: a development
+ * database has no use for a fake audit row or a queued email.
  */
-export async function seedWorld(owner: DatabaseHandle, options: { readonly withUsers?: boolean } = {}): Promise<SeedWorld> {
+export async function seedWorld(owner: DatabaseHandle, options: { readonly withUsers?: boolean; readonly withDomain?: boolean } = {}): Promise<SeedWorld> {
   const { db } = owner;
   const insertOrganisation = async (publicRef: string, kind: "fynix" | "client" | "agency", name: string, brandName: string | null): Promise<SeededOrganisation> => {
     const row = firstRow(
@@ -134,6 +226,7 @@ export async function seedWorld(owner: DatabaseHandle, options: { readonly withU
     await insertCampaign("CMP-2V5Z", "Frozen food distributors", "INTERNAL-NOTE renewal in March", halden, northgate),
   ] as const;
 
-  const users = options.withUsers === false ? [] : await seedUsers(owner, [fynix, kestrel, halden, brightpath, northgate]);
-  return { fynix, kestrel, halden, brightpath, northgate, campaigns, clients: [kestrel, halden], agencies: [brightpath, northgate], users };
+  const seeded = options.withUsers === false ? null : await seedUsers(owner, [fynix, kestrel, halden, brightpath, northgate]);
+  const domain = seeded === null || options.withDomain === false ? null : await seedDomain(owner, { fynix, kestrel, northgate }, seeded);
+  return { fynix, kestrel, halden, brightpath, northgate, campaigns, clients: [kestrel, halden], agencies: [brightpath, northgate], users: seeded?.users ?? [], domain };
 }

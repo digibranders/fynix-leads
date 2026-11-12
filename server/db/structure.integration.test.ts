@@ -1,8 +1,8 @@
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { createDatabase, type DatabaseHandle } from "@/server/db/pool";
+import { createDatabase, type Database, type DatabaseHandle } from "@/server/db/pool";
 import { ROLE_NAMES, RUNTIME_ROLES, TENANT_ROLES, urlVariable, type RoleName, type RuntimeRoleName, type TenantRoleName } from "@/server/db/roles";
-import { campaign } from "@/server/db/schema";
+import { auditLog, campaign, organisation } from "@/server/db/schema";
 import { withScope } from "@/server/db/scope";
 import { getToolingEnv } from "@/server/env";
 import { captureErrorText, openTestDatabases, queryAs, resetDatabase, type TestDatabases } from "@/server/db/testing";
@@ -11,6 +11,7 @@ import { seedWorld, type SeedWorld } from "@/server/db/testing/seed";
 import {
   creationPrivileges,
   definerFunctionsWithoutSearchPath,
+  fynixWritableTablesWithoutAuditTrigger,
   grantsToPublic,
   grantedColumns,
   grantsWithoutPolicy,
@@ -253,6 +254,26 @@ describe("each catalog check finds a deliberately broken object", () => {
     expect(found).toEqual(["leads_client.broken_no_policy"]);
   });
 
+  it("a table Fynix can write with no audit trigger, a trigger that is not deferred, and the two exempt tables", async () => {
+    const found = await findInBrokenState(
+      dbs.owner,
+      [
+        "create table public.broken_unaudited (id int)",
+        "grant insert on public.broken_unaudited to leads_fynix",
+        "create table public.broken_not_deferred (id int)",
+        "grant update (id) on public.broken_not_deferred to leads_fynix",
+        "create trigger broken_not_deferred_audit after insert or update on public.broken_not_deferred for each row execute function public.audit_required()",
+        "create table public.fine_audited (id int)",
+        "grant insert, update on public.fine_audited to leads_fynix",
+        "create constraint trigger fine_audited_audit after insert or update on public.fine_audited deferrable initially deferred for each row execute function public.audit_required()",
+        "create table public.fine_read_only (id int)",
+        "grant select on public.fine_read_only to leads_fynix",
+      ],
+      (executor) => fynixWritableTablesWithoutAuditTrigger(executor, ["audit_log"]),
+    );
+    expect(found).toEqual(["broken_not_deferred", "broken_unaudited", "email_outbox"]);
+  });
+
   it("a role with CREATEDB, a stray leads_ role, and a membership (as superuser, rolled back)", async () => {
     const attributes = await findInBrokenState(admin, ["alter role leads_public createdb", "create role leads_stray"], roleProblems);
     expect(attributes).toEqual(["leads_public has a forbidden attribute", "leads_stray is not one of the six roles"]);
@@ -306,6 +327,92 @@ describe("each catalog check finds a deliberately broken object", () => {
       scopeFunctionProblems,
     );
     expect(found).toEqual(["app_current_org_id"]);
+  });
+});
+
+describe("the audit log", () => {
+  const fynix = (): { readonly db: Database; readonly scope: { readonly orgId: null; readonly userId: string } } => {
+    const actor = world.users[0]?.id;
+    if (actor === undefined) throw new Error("The seed world has no Fynix user");
+    return { db: dbs.roles.leads_fynix.db, scope: { orgId: null, userId: actor } };
+  };
+  const auditCount = async (): Promise<number> => (await dbs.owner.db.execute<{ n: number }>(sql`select count(*)::int as n from audit_log`)).rows[0]?.n ?? 0;
+  const organisationCount = async (): Promise<number> => (await dbs.owner.db.execute<{ n: number }>(sql`select count(*)::int as n from organisation`)).rows[0]?.n ?? 0;
+  const newOrganisation = { publicRef: "ORG-3C4D", kind: "agency", name: "Ridgeway Ltd" } as const;
+
+  it("every table Fynix can write has the audit_required trigger, apart from the audit log and the outbox", async () => {
+    expect(await fynixWritableTablesWithoutAuditTrigger(dbs.owner.db)).toEqual([]);
+  });
+
+  it("holds no UPDATE, DELETE or TRUNCATE for any runtime role, and only Fynix may read or append", async () => {
+    expect(await rolesWithAnyPrivilege(dbs.owner.db, "audit_log")).toEqual(["leads_fynix"]);
+    for (const role of RUNTIME_ROLES) {
+      for (const privilege of ["UPDATE", "DELETE", "TRUNCATE"]) {
+        const held = await dbs.owner.db.execute<{ held: boolean }>(sql.raw(`select has_table_privilege('${role}', 'public.audit_log', '${privilege}') or has_any_column_privilege('${role}', 'public.audit_log', 'UPDATE') as held`));
+        expect(held.rows, `${role} ${privilege}`).toEqual([{ held: false }]);
+      }
+    }
+  });
+
+  it("refuses UPDATE and DELETE even for the owner, and leaves the rows as they were", async () => {
+    const before = await auditCount();
+    expect(before).toBeGreaterThan(0);
+    expect(await captureErrorText(dbs.owner.db.execute(sql`update audit_log set action = 'x.y'`))).toContain("audit_log is append only: UPDATE is not allowed");
+    expect(await captureErrorText(dbs.owner.db.execute(sql`delete from audit_log`))).toContain("audit_log is append only: DELETE is not allowed");
+    expect(await auditCount()).toBe(before);
+  });
+
+  it("a Fynix change with no audit row cannot commit, and nothing of it is left behind", async () => {
+    const { db, scope } = fynix();
+    const message = await captureErrorText(withScope(db, scope, (tx) => tx.insert(organisation).values(newOrganisation)));
+    expect(message).toContain("A change to organisation by Fynix has no audit_log row in its transaction");
+    expect(await organisationCount()).toBe(5);
+  });
+
+  it("a Fynix change with an audit row commits, whichever of the two is written first", async () => {
+    const { db, scope } = fynix();
+    const entry = { action: "organisation.create", subjectTable: "organisation", subjectId: scope.userId } as const;
+    await withScope(db, scope, async (tx) => {
+      await tx.insert(auditLog).values(entry);
+      await tx.insert(organisation).values(newOrganisation);
+    });
+    await withScope(db, scope, async (tx) => {
+      await tx.insert(organisation).values({ ...newOrganisation, publicRef: "ORG-3C4E" });
+      await tx.insert(auditLog).values(entry);
+    });
+    expect(await organisationCount()).toBe(7);
+  });
+
+  it("a Fynix transaction that only reads needs no audit row", async () => {
+    const { db, scope } = fynix();
+    expect(await withScope(db, scope, (tx) => tx.select({ id: organisation.id }).from(organisation))).toHaveLength(5);
+  });
+
+  it("the owner's writes need none: seeds and `pnpm admin:create` are not Fynix actions", async () => {
+    await dbs.owner.db.insert(organisation).values(newOrganisation);
+    expect(await organisationCount()).toBe(6);
+  });
+
+  it("an audit row cannot be written in another person's name or from another role", async () => {
+    const { db, scope } = fynix();
+    const other = world.users[1]?.id ?? "";
+    const named = await captureErrorText(withScope(db, scope, (tx) => tx.insert(auditLog).values({ action: "organisation.create", subjectTable: "organisation", subjectId: scope.userId, actorUserId: other })));
+    expect(named).toContain('new row violates row-level security policy for table "audit_log"');
+    const role = await captureErrorText(withScope(db, scope, (tx) => tx.insert(auditLog).values({ action: "organisation.create", subjectTable: "organisation", subjectId: scope.userId, actorRole: "leads_owner" })));
+    expect(role).toContain('new row violates row-level security policy for table "audit_log"');
+  });
+
+  it("an audit row takes its actor and role from the request and the connection when none is named", async () => {
+    const { db, scope } = fynix();
+    await withScope(db, scope, (tx) => tx.insert(auditLog).values({ action: "organisation.create", subjectTable: "organisation", subjectId: scope.userId }));
+    const rows = await dbs.owner.db.execute<{ actor_user_id: string; actor_role: string }>(sql`select actor_user_id, actor_role from audit_log order by at desc limit 1`);
+    expect(rows.rows).toEqual([{ actor_user_id: scope.userId, actor_role: "leads_fynix" }]);
+  });
+
+  it("refuses an action that is not in the table.verb form", async () => {
+    const { db, scope } = fynix();
+    const message = await captureErrorText(withScope(db, scope, (tx) => tx.insert(auditLog).values({ action: "Delete Everything", subjectTable: "organisation", subjectId: scope.userId })));
+    expect(message).toContain("audit_log_action_format");
   });
 });
 

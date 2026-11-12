@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { TENANT_ROLES, type TenantRoleName } from "@/server/db/roles";
-import { campaign } from "@/server/db/schema";
+import { agencyAlias, auditLog, campaign, emailOutbox, invite, termsAcceptance } from "@/server/db/schema";
 import { withScope } from "@/server/db/scope";
 import { captureErrorText, openTestDatabases, queryAs, resetDatabase, type TestDatabases } from "@/server/db/testing";
 import { PROBES, READ_PATHS, findLeaks, forbiddenTokens, type Viewer } from "@/server/db/testing/leak-matrix";
@@ -82,5 +82,22 @@ describe("the matrix itself", () => {
     expect(clientLeaks).toContain(world.campaigns[1]?.internalNotes);
     expect(agencyLeaks).toContain(world.kestrel.id);
     expect(agencyLeaks).toContain(world.campaigns[2]?.name);
+  });
+
+  it("detects a leak of the phase 1C tables: what Fynix may read of invites, aliases, acceptances, the audit log and the outbox trips both forbidden lists", async () => {
+    const asFynix = <T>(work: Parameters<typeof withScope<T>>[2]) => withScope(dbs.roles.leads_fynix.db, { orgId: null, userId: world.users[0]?.id ?? USER }, work);
+    const everything = JSON.stringify([
+      await asFynix((tx) => tx.select({ email: invite.email, name: invite.name }).from(invite)),
+      await asFynix((tx) => tx.select({ alias: agencyAlias.alias }).from(agencyAlias)),
+      await asFynix((tx) => tx.select({ address: termsAcceptance.networkAddress }).from(termsAcceptance)),
+      await asFynix((tx) => tx.select({ before: auditLog.before, after: auditLog.after }).from(auditLog)),
+      await asFynix((tx) => tx.select({ recipient: emailOutbox.recipient }).from(emailOutbox)),
+    ]);
+    const domain = world.domain;
+    if (domain === null) throw new Error("The seed world has no phase 1C rows");
+    for (const viewer of [{ role: "leads_client", organisation: world.kestrel }, { role: "leads_agency", organisation: world.brightpath }] as const) {
+      const leaks = findLeaks(everything, forbiddenTokens(viewer, world));
+      for (const expected of [domain.invites[0]?.email, domain.aliases[0], domain.acceptanceAddresses[0], domain.auditMarkers[0], domain.outboxRecipient]) expect(leaks).toContain(expected);
+    }
   });
 });

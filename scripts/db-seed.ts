@@ -14,7 +14,7 @@ runScript(async () => {
   try {
     const existing = await owner.db.select({ n: count() }).from(organisation);
     if ((existing[0]?.n ?? 0) > 0) throw new Error("The dev database already holds organisations, so nothing was seeded.");
-    const world = await seedWorld(owner);
+    const world = await seedWorld(owner, { withDomain: false });
     console.log(`Seeded ${world.clients.length} clients, ${world.agencies.length} agencies and ${world.campaigns.length} campaigns.`);
   } finally {
     await owner.close();

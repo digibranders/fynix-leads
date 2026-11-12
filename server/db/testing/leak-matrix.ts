@@ -114,6 +114,33 @@ export const PROBES: readonly Probe[] = [
   { name: "write: move a member to another organisation", statement: "update member set org_id = org_id", expectedError: DENIED_TABLE },
   { name: "write: queue an email", statement: "insert into email_outbox (recipient, template, subject, body) values ('a@example.com', 'password_reset', 's', 'b')", expectedError: DENIED_TABLE },
   { name: "write: reset a rate limit", statement: "delete from rate_limit", expectedError: DENIED_TABLE },
+  // Phase 1C: the domain tables, and the campaign requirement columns that stay hidden until phase 1E grants them.
+  { name: "invites: every invite", statement: "select * from invite", expectedError: DENIED_TABLE },
+  { name: "invites: the invited address and name", statement: "select email, name from invite", expectedError: DENIED_TABLE },
+  { name: "invites: the token hash", statement: "select token_hash from invite", expectedError: DENIED_TABLE },
+  { name: "invites: probe by the hash in WHERE", statement: "select id from invite where token_hash like 'a%'", expectedError: DENIED_TABLE },
+  { name: "write: redeem an invite", statement: "update invite set redeemed_at = now()", expectedError: DENIED_TABLE },
+  { name: "write: issue an invite", statement: "insert into invite (org_id, org_kind, email, name, token_hash, expires_at, created_by) values (gen_random_uuid(), 'client', 'x@example.com', 'x', 'x', now(), gen_random_uuid())", expectedError: DENIED_TABLE },
+  { name: "terms: documents", statement: "select * from terms_document", expectedError: DENIED_TABLE },
+  { name: "terms: acceptances and the addresses they came from", statement: "select user_id, network_address from terms_acceptance", expectedError: DENIED_TABLE },
+  { name: "write: accept terms as someone else", statement: "insert into terms_acceptance (user_id, document_id, party, network_address) values (gen_random_uuid(), gen_random_uuid(), 'client', 'x')", expectedError: DENIED_TABLE },
+  { name: "write: publish terms", statement: "insert into terms_document (party, version, title, body) values ('client', 9, 'x', 'x')", expectedError: DENIED_TABLE },
+  { name: "aliases: every alias", statement: "select * from agency_alias", expectedError: DENIED_TABLE },
+  { name: "aliases: which member has which alias", statement: "select member_id, alias from agency_alias", expectedError: DENIED_TABLE },
+  { name: "write: give a member an alias", statement: "insert into agency_alias (member_id, alias) values (gen_random_uuid(), 'Someone, Fynix')", expectedError: DENIED_TABLE },
+  { name: "audit: every row", statement: "select * from audit_log", expectedError: DENIED_TABLE },
+  { name: "audit: before and after", statement: "select before, after from audit_log", expectedError: DENIED_TABLE },
+  { name: "write: add an audit row", statement: "insert into audit_log (action, subject_table, subject_id) values ('x.y', 'campaign', gen_random_uuid())", expectedError: DENIED_TABLE },
+  { name: "write: change the audit log", statement: "update audit_log set action = 'x.y'", expectedError: DENIED_TABLE },
+  { name: "write: erase the audit log", statement: "delete from audit_log", expectedError: DENIED_TABLE },
+  { name: "outbox: the link a message carries", statement: "select link from email_outbox", expectedError: DENIED_TABLE },
+  { name: "outbox: who was written to", statement: "select recipient, subject from email_outbox", expectedError: DENIED_TABLE },
+  { name: "write: cancel a message", statement: "update email_outbox set status = 'cancelled'", expectedError: DENIED_TABLE },
+  { name: "campaign: the ideal customer profile", statement: "select icp from campaign", expectedError: DENIED_TABLE },
+  { name: "campaign: the instructions", statement: "select instructions from campaign", expectedError: DENIED_TABLE },
+  { name: "campaign: the BANT criteria", statement: "select bant_budget, bant_authority, bant_need, bant_timeline from campaign", expectedError: DENIED_TABLE },
+  { name: "campaign: geography, industries, titles, seniority, technologies and size", statement: "select geography, industries, job_titles, seniority, technologies, company_size from campaign", expectedError: DENIED_TABLE },
+  { name: "campaign: probe by a requirement in WHERE", statement: "select id from campaign where icp <> ''", expectedError: DENIED_TABLE },
 ];
 
 /**
@@ -140,6 +167,13 @@ export function forbiddenTokens(viewer: Viewer, world: SeedWorld): string[] {
   // Phase 1B: no tenant role reads anything about any user, its own colleagues included. Phase 1E gives tenants a
   // column-limited read of their organisation-mates through `member`, and narrows this loop to the other side's users.
   for (const person of world.users) tokens.push(person.id, person.email, person.name, person.passwordHash, person.sessionToken, person.resetToken);
+  // Phase 1C: no tenant role reads an invite, an alias, an acceptance, the audit log or the outbox. Phase 1E gives each
+  // tenant its own acceptances and its own alias, and narrows this to the other side's.
+  const { domain } = world;
+  if (domain !== null) {
+    for (const row of domain.invites) tokens.push(row.id, row.email, row.name, row.token, row.tokenHash);
+    tokens.push(...domain.aliases, ...domain.acceptanceAddresses, ...domain.auditMarkers, domain.outboxRecipient, domain.outboxLink, ...Object.values(domain.termsDocumentIds));
+  }
   return [...new Set(tokens)];
 }
 
