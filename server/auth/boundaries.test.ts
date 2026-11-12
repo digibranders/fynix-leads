@@ -56,12 +56,12 @@ describe("Better Auth stays inside server/auth", () => {
 });
 
 describe("pages stay thin", () => {
-  /** The only server modules a page or a client form may import: the actions, the session read and the page guard. */
-  const ALLOWED_SERVER_IMPORTS: ReadonlySet<string> = new Set(["@/server/auth", "@/server/auth/actions", "@/server/auth/guard"]);
+  /** The only server modules a page or a client form may import: the actions, the session read and the page guard, and the accept-invite action and page read. */
+  const ALLOWED_SERVER_IMPORTS: ReadonlySet<string> = new Set(["@/server/auth", "@/server/auth/actions", "@/server/auth/guard", "@/server/domain/actions", "@/server/domain/page-data"]);
   const pageFiles = (): string[] => ["app/(auth)", "app/(app)"].filter((directory) => existsSync(join(ROOT, directory))).flatMap(sourceFiles);
   const serverImports = (path: string): string[] => serverSpecifiers(read(path));
 
-  it("import from server/ only the actions, the session read and the guard: never the database, Better Auth, the limiter or the breach check", () => {
+  it("import from server/ only the actions, the session read, the guard and the accept-invite action and page read: never the database, Better Auth, the limiter or the breach check", () => {
     const offenders = pageFiles().flatMap((path) => serverImports(path).filter((name) => !ALLOWED_SERVER_IMPORTS.has(name)).map((name) => `${path} imports ${name}`));
     expect(offenders).toEqual([]);
   });
@@ -96,6 +96,19 @@ describe("pages stay thin", () => {
   it("never import better-auth or drizzle directly, and never log", () => {
     const offenders = pageFiles().filter((path) => reachesDatabaseOrAuthLibrary(read(path)) || /console\.(log|info|debug)\(/.test(read(path)));
     expect(offenders).toEqual([]);
+  });
+});
+
+describe("pages that carry a one-time token in the URL", () => {
+  /** What `headers()` in next.config.ts promises for a path. Next applies these to a page that exists; a 404 gets its own defaults. */
+  async function headersFor(source: string): Promise<Record<string, string>> {
+    const { default: config } = await import("../../next.config");
+    const rules = (await config.headers?.()) ?? [];
+    return Object.fromEntries(rules.filter((rule) => rule.source === source).flatMap((rule) => rule.headers.map((header) => [header.key, header.value])));
+  }
+
+  it.each(["/reset-password", "/accept-invite"])("%s sends no referrer and is never cached, so its token cannot leave through a header or sit in a cache", async (source) => {
+    expect(await headersFor(source)).toEqual({ "Referrer-Policy": "no-referrer", "Cache-Control": "no-store" });
   });
 });
 
