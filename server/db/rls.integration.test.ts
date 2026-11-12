@@ -2,7 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { TENANT_COLUMNS, columnNames } from "@/server/db/columns";
 import { TENANT_ROLES } from "@/server/db/roles";
-import { campaign, organisation } from "@/server/db/schema";
+import { auditLog, campaign, organisation } from "@/server/db/schema";
 import { withScope } from "@/server/db/scope";
 import { selectCampaigns } from "@/server/db/tenant-reads";
 import { captureErrorText, openTestDatabases, queryAs, resetDatabase, type TestDatabases } from "@/server/db/testing";
@@ -25,7 +25,20 @@ beforeEach(async () => {
   world = await seedWorld(dbs.owner);
 });
 
-const asFynix = <T>(work: Parameters<typeof withScope<T>>[2]) => withScope(dbs.roles.leads_fynix.db, { orgId: null, userId: USER }, work);
+/**
+ * A Fynix transaction that changes a domain table must append an `audit_log` row (migration 0012), or it cannot commit.
+ * These tests are about the tables, not the audit log, so every `asFynix` call ends with one minimal row, written for the
+ * seeded Fynix user (the audit actor must be a real user). server/domain/fynix-write.ts is the real way to do this.
+ */
+const asFynix = <T>(work: Parameters<typeof withScope<T>>[2]) => {
+  const actor = world.users[0]?.id;
+  if (actor === undefined) throw new Error("The seed world has no Fynix user");
+  return withScope(dbs.roles.leads_fynix.db, { orgId: null, userId: actor }, async (tx) => {
+    const result = await work(tx);
+    await tx.insert(auditLog).values({ action: "test.write", subjectTable: "campaign", subjectId: USER });
+    return result;
+  });
+};
 
 describe("Fynix", () => {
   it("reads every organisation and every campaign, hidden columns included", async () => {

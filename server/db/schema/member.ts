@@ -1,4 +1,4 @@
-import { foreignKey, index, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { foreignKey, index, pgTable, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { user } from "./auth";
 import { memberRole, memberStatus, organisationKind } from "./enums";
 import { organisation } from "./organisation";
@@ -12,7 +12,8 @@ import { organisation } from "./organisation";
  * - `org_kind` is a copy of the organisation's kind, pinned by the composite foreign key, so session resolution
  *   needs no grant on `organisation`.
  * - A suspended member keeps their rows but cannot sign in and their sessions stop resolving.
- * Phase 1C adds the admin features (invite, suspend, alias).
+ * - Rows are created by invite redemption (server/domain/redeem-invite.ts) and by `pnpm admin:create`. Fynix suspends,
+ *   reactivates and renames members (server/domain/members.ts); nobody deletes one.
  */
 export const member = pgTable(
   "member",
@@ -30,6 +31,8 @@ export const member = pgTable(
   },
   (table) => [
     uniqueIndex("member_user_unique").on(table.userId),
+    // The target of `agency_alias`'s composite foreign key, which pins an alias to a member of an agency.
+    unique("member_id_org_kind_unique").on(table.id, table.orgKind),
     foreignKey({ name: "member_org_fk", columns: [table.orgId, table.orgKind], foreignColumns: [organisation.id, organisation.kind] }),
     index("member_org_idx").on(table.orgId),
   ],

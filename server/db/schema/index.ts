@@ -5,3 +5,7 @@ export * from "./auth";
 export * from "./member";
 export * from "./rate-limit";
 export * from "./email-outbox";
+export * from "./audit-log";
+export * from "./terms";
+export * from "./invite";
+export * from "./agency-alias";

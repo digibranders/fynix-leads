@@ -116,15 +116,22 @@ describe("catalog checks hold on the migrated database", () => {
 const EXPECTED_ACCESS: Readonly<Record<string, readonly RuntimeRoleName[]>> = {
   organisation: ["leads_fynix", "leads_client", "leads_agency"],
   campaign: ["leads_fynix", "leads_client", "leads_agency"],
-  user: ["leads_auth"],
+  // Phase 1C: Fynix reads four columns of `user`, so people can be listed and invited. Never the rest.
+  user: ["leads_auth", "leads_fynix"],
   session: ["leads_auth"],
   account: ["leads_auth"],
   verification: ["leads_auth"],
-  member: ["leads_auth"],
+  member: ["leads_auth", "leads_fynix"],
   rate_limit: ["leads_public"],
-  email_outbox: ["leads_public"],
+  email_outbox: ["leads_auth", "leads_fynix", "leads_public"],
+  audit_log: ["leads_fynix"],
+  terms_document: ["leads_auth", "leads_fynix"],
+  terms_acceptance: ["leads_auth", "leads_fynix"],
+  invite: ["leads_auth", "leads_fynix"],
+  agency_alias: ["leads_auth", "leads_fynix"],
 };
-const AUTH_TABLES = ["user", "session", "account", "verification"] as const;
+/** The tables nobody but leads_auth touches. `user` is not one of them any more: Fynix reads four columns of it. */
+const AUTH_TABLES = ["session", "account", "verification"] as const;
 
 describe("access matrix", () => {
   it("lists every table, and no table that does not exist", async () => {
@@ -139,11 +146,25 @@ describe("access matrix", () => {
     expect(await rolesWithAnyPrivilege(dbs.owner.db, table)).toEqual(["leads_auth"]);
   });
 
-  it("only leads_auth reads member, and it cannot write it", async () => {
-    expect(await rolesWithAnyPrivilege(dbs.owner.db, "member")).toEqual(["leads_auth"]);
-    for (const privilege of ["INSERT", "UPDATE"]) {
-      const allowed = await dbs.owner.db.execute<{ allowed: boolean }>(sql.raw(`select has_any_column_privilege('leads_auth', 'public.member', '${privilege}') as allowed`));
-      expect(allowed.rows, privilege).toEqual([{ allowed: false }]);
+  it("member: leads_auth may add a row (an invite was redeemed) and never change one, and Fynix may change only status and display_name", async () => {
+    expect(await rolesWithAnyPrivilege(dbs.owner.db, "member")).toEqual(["leads_auth", "leads_fynix"]);
+    const column = async (role: string, privilege: string, name: string): Promise<boolean> =>
+      (await dbs.owner.db.execute<{ allowed: boolean }>(sql.raw(`select has_column_privilege('${role}', 'public.member', '${name}', '${privilege}') as allowed`))).rows[0]?.allowed ?? false;
+    expect(await column("leads_auth", "UPDATE", "org_id")).toBe(false);
+    expect(await column("leads_auth", "UPDATE", "status")).toBe(false);
+    expect(await column("leads_auth", "INSERT", "org_id")).toBe(true);
+    expect(await grantedColumns(dbs.owner.db, "leads_fynix", "member")).toEqual(["id", "user_id", "org_id", "org_kind", "role", "display_name", "status", "created_at"]);
+    for (const name of ["status", "display_name"]) expect(await column("leads_fynix", "UPDATE", name), name).toBe(true);
+    for (const name of ["user_id", "org_id", "org_kind", "role"]) expect(await column("leads_fynix", "UPDATE", name), name).toBe(false);
+    expect(await column("leads_fynix", "INSERT", "org_id")).toBe(false);
+  });
+
+  it("user: leads_fynix reads id, name, email and created_at, and writes nothing", async () => {
+    expect(await grantedColumns(dbs.owner.db, "leads_fynix", "user")).toEqual(["id", "name", "email", "created_at"]);
+    const writes = await dbs.owner.db.execute<{ allowed: boolean }>(sql.raw(`select has_any_column_privilege('leads_fynix', 'public."user"', 'INSERT') or has_any_column_privilege('leads_fynix', 'public."user"', 'UPDATE') or has_table_privilege('leads_fynix', 'public."user"', 'DELETE') as allowed`));
+    expect(writes.rows).toEqual([{ allowed: false }]);
+    for (const statement of ['select * from "user"', 'select email_verified from "user"', 'select image from "user"']) {
+      expect(await captureErrorText(queryAs(dbs.roles.leads_fynix.db, { orgId: null, userId: USER }, statement)), statement).toContain('permission denied for table user');
     }
   });
 

@@ -32,6 +32,24 @@ export const campaign = pgTable(
     endDate: date("end_date", { mode: "string" }).notNull(),
     monthlyTarget: integer("monthly_target").notNull(),
     totalTarget: integer("total_target").notNull(),
+    /**
+     * What the campaign looks for and how to pitch it (spec section 6). Added in phase 1C, all with defaults so existing rows
+     * stay valid. No tenant role has a grant on any of them until phase 1E decides who sees which; until then a tenant
+     * query that names one fails with "permission denied" (the leak matrix probes it).
+     */
+    geography: text("geography").notNull().default(""),
+    industries: text("industries").array().notNull().default(sql`'{}'::text[]`),
+    companySize: text("company_size").notNull().default(""),
+    icp: text("icp").notNull().default(""),
+    jobTitles: text("job_titles").array().notNull().default(sql`'{}'::text[]`),
+    seniority: text("seniority").notNull().default(""),
+    technologies: text("technologies").array().notNull().default(sql`'{}'::text[]`),
+    /** The four BANT criteria a lead is qualified against: budget, authority, need and timeline. */
+    bantBudget: text("bant_budget").notNull().default(""),
+    bantAuthority: text("bant_authority").notNull().default(""),
+    bantNeed: text("bant_need").notNull().default(""),
+    bantTimeline: text("bant_timeline").notNull().default(""),
+    instructions: text("instructions").notNull().default(""),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
