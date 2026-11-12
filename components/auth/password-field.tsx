@@ -42,7 +42,7 @@ export function PasswordField({ id, name, label, autoComplete, inputRef, hint, e
         />
         <button
           type="button"
-          aria-label={shown ? "Hide password" : "Show password"}
+          aria-label="Show password"
           aria-pressed={shown}
           onClick={() => setShown((value) => !value)}
           className="absolute top-0 right-1 inline-flex h-11 min-w-11 items-center gap-1.5 rounded-sm pr-3 pl-2.5 text-table font-semibold text-ink-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
