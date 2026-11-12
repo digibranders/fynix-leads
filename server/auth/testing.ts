@@ -14,7 +14,7 @@ import type { SeededOrganisation } from "@/server/db/testing/seed";
 
 export const TEST_SECRET = "integration-test-secret-0123456789-abcdefghijklmnop";
 export const TEST_ORIGIN = "http://localhost:3020";
-export const GOOD_PASSWORD = "correct-horse-battery-staple";
+export const GOOD_PASSWORD = "correct-horse-battery-staple-7";
 export const NEW_PASSWORD = "another-long-passphrase-9";
 
 /** A breach service that answers from a list, and can be switched to "unavailable". It never touches the network. */

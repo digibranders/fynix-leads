@@ -226,7 +226,7 @@ Exports: CSV and XLSX of the lead table as filtered. Client and Fynix exports in
 ## 12. Accounts and sign-in
 
 - Fynix creates the organisation and invites users by email. The invite link (single use, 7 days) lets the user set a password.
-- Password rules: at least 12 characters, checked against known breached passwords.
+- Password rules: at least 8 characters with a letter, a number and a special character, checked against known breached passwords (changed by the owner on 2026-11-12 from 12 characters).
 - The Fynix admin also has an authenticator-app code (TOTP).
 - Sessions expire after 14 days, or 12 hours for Fynix.
 - Rate limits on sign-in, invite and reset.

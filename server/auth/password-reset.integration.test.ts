@@ -121,7 +121,7 @@ describe("choosing a new password", () => {
     await request(EMAIL);
     const token = await latestResetToken(rig, EMAIL);
 
-    expect(await complete(token, "short")).toEqual({ status: "weak-password", message: "Use at least 12 characters." });
+    expect(await complete(token, "short")).toEqual({ status: "weak-password", message: "Use at least 8 characters." });
     rig.breach.breached.add(NEW_PASSWORD);
     expect(await complete(token, NEW_PASSWORD)).toEqual({ status: "weak-password", message: "That password has appeared in a data breach. Choose a different one." });
     rig.breach.unavailable = true;

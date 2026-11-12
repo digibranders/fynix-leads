@@ -115,7 +115,7 @@ describe("completePasswordResetAction", () => {
   it.each([
     [{ status: "invalid-token" }, { status: "invalid-link" }],
     [{ status: "check-unavailable" }, { status: "error", message: "We could not check that password just now. Try again in a minute.", email: "" }],
-    [{ status: "weak-password", message: "Use at least 12 characters." }, { status: "error", message: "Use at least 12 characters.", email: "" }],
+    [{ status: "weak-password", message: "Use at least 8 characters." }, { status: "error", message: "Use at least 8 characters.", email: "" }],
     [{ status: "rate-limited", retryAfterSeconds: 60 }, { status: "rate-limited", message: "Too many attempts. Try again in 1 minute.", email: "" }],
   ])("maps %j to a form state", async (serviceResult, expected) => {
     state.completeReset.mockResolvedValue(serviceResult);

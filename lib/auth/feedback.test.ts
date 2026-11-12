@@ -25,7 +25,7 @@ describe("feedbackFor", () => {
 
   it("puts a password problem under the reset field, and a fault or an unavailable check in a notice", () => {
     const error = (message: string) => ({ status: "error", message, email: "" }) as const;
-    expect(feedbackFor(error("Use at least 12 characters."), "reset-password")).toEqual({ note: null, fieldError: "Use at least 12 characters." });
+    expect(feedbackFor(error("Use at least 8 characters."), "reset-password")).toEqual({ note: null, fieldError: "Use at least 8 characters." });
     expect(feedbackFor(error(BREACH_CHECK_UNAVAILABLE), "reset-password").note?.tone).toBe("amber");
     expect(feedbackFor(error(GENERIC_FAILURE), "reset-password").note?.tone).toBe("red");
   });

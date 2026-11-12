@@ -2,7 +2,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
-import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, passwordLengthProblem } from "@/lib/auth/password-policy";
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, passwordProblem } from "@/lib/auth/password-policy";
 import { PASSWORD_RESET_LIFETIME_SECONDS, SESSION_LIFETIME_SECONDS, sessionLifetimeSeconds } from "@/lib/auth/session-lifetime";
 import { hasAccountCreationGrant } from "@/server/auth/account-creation-grant";
 import { BreachCheckUnavailableError, type BreachChecker } from "@/server/auth/breach-check";
@@ -64,8 +64,8 @@ function passwordPolicy(checker: BreachChecker) {
     // A missing or non-string password is left to the route's own body validation.
     if (typeof password !== "string") return;
 
-    const lengthProblem = passwordLengthProblem(password);
-    if (lengthProblem !== null) throw new APIError("BAD_REQUEST", { code: "WEAK_PASSWORD", message: lengthProblem });
+    const problem = passwordProblem(password);
+    if (problem !== null) throw new APIError("BAD_REQUEST", { code: "WEAK_PASSWORD", message: problem });
 
     let breached: boolean;
     try {

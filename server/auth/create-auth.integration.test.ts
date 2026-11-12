@@ -132,15 +132,16 @@ describe("guard 3: the secret", () => {
 describe("password policy", () => {
   const attempt = (email: string, password: string) => createAccountWithGrant(rig.auth, rig.dbs.roles.leads_auth.db, { email, name: "Pat", password });
 
-  it("refuses 11 characters, accepts 12, and asks the breach service about neither the short one nor a missing one", async () => {
-    const error = await failure(attempt("short@example.com", "a".repeat(11)));
-    expect(authErrorCode(error)).toBe("WEAK_PASSWORD");
+  it("refuses 7 characters, a password with no number, letter or special character, accepts 8 with all three, and asks the breach service only about the last", async () => {
+    for (const [address, password] of [["short@example.com", "ab1!cde"], ["nonumber@example.com", "abcdefg!"], ["noletter@example.com", "1234567!"], ["nospecial@example.com", "abcdefg1"]] as const) {
+      expect(authErrorCode(await failure(attempt(address, password)))).toBe("WEAK_PASSWORD");
+      expect(await hasRow(address)).toBe(false);
+    }
     expect(rig.breach.checked).toEqual([]);
-    expect(await hasRow("short@example.com")).toBe(false);
 
-    await attempt("ok@example.com", "a1b2c3d4e5f6");
+    await attempt("ok@example.com", "abcde1!x");
     expect(await hasRow("ok@example.com")).toBe(true);
-    expect(rig.breach.checked).toEqual(["a1b2c3d4e5f6"]);
+    expect(rig.breach.checked).toEqual(["abcde1!x"]);
   });
 
   it("refuses more than 128 characters", async () => {
@@ -148,8 +149,8 @@ describe("password policy", () => {
   });
 
   it("refuses a password that is in a breach, creates nothing, and says so in words for the person", async () => {
-    rig.breach.breached.add("password1234");
-    const error = await failure(attempt("breach@example.com", "password1234"));
+    rig.breach.breached.add("Password1234!");
+    const error = await failure(attempt("breach@example.com", "Password1234!"));
     expect(authErrorCode(error)).toBe("PASSWORD_BREACHED");
     expect(error).toBeInstanceOf(APIError);
     expect((error as APIError).body?.message).toBe("That password has appeared in a data breach. Choose a different one.");

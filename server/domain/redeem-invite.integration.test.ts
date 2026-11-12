@@ -158,7 +158,7 @@ describe("a link that cannot be used creates nothing", () => {
 
 describe("a password that is refused leaves the invite usable and nothing behind", () => {
   it.each([
-    ["too short", "short", { status: "weak-password", message: "Use at least 12 characters." }],
+    ["too short", "short", { status: "weak-password", message: "Use at least 8 characters." }],
     ["too long", "x".repeat(129), { status: "weak-password", message: "Use at most 128 characters." }],
   ])("%s", async (_label, password, expected) => {
     await issueClient();
@@ -170,7 +170,7 @@ describe("a password that is refused leaves the invite usable and nothing behind
 
   it("found in a breach", async () => {
     await issueClient();
-    rig.breach.breached.add("correct-horse-battery-staple");
+    rig.breach.breached.add(GOOD_PASSWORD);
     expect(await redeem(CLIENT_EMAIL, "client")).toEqual({ status: "weak-password", message: "That password has appeared in a data breach. Choose a different one." });
     expect(await counts()).toEqual(NOTHING);
     expect((await inviteRow(CLIENT_EMAIL))?.redeemedAt).toBeNull();

@@ -80,7 +80,7 @@ describe("redeemInviteAction", () => {
   });
 
   it.each([
-    [{ status: "weak-password", message: "Use at least 12 characters." }, { status: "error", message: "Use at least 12 characters." }],
+    [{ status: "weak-password", message: "Use at least 8 characters." }, { status: "error", message: "Use at least 8 characters." }],
     [{ status: "check-unavailable" }, { status: "error", message: "We could not check that password just now. Try again in a minute." }],
     [{ status: "account-exists" }, { status: "error", message: "This address already has an account. Ask your Fynix contact for help." }],
     [{ status: "terms-changed" }, { status: "terms-changed", message: "The terms were updated while you were reading. Read the new version and accept it to continue." }],

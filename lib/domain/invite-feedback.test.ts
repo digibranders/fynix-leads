@@ -6,7 +6,7 @@ import { termsParagraphs } from "@/lib/domain/invite-page-copy";
 
 describe("inviteFeedbackFor", () => {
   it("puts password messages under the field", () => {
-    expect(inviteFeedbackFor({ status: "error", message: "Use at least 12 characters." }).passwordError).toBe("Use at least 12 characters.");
+    expect(inviteFeedbackFor({ status: "error", message: "Use at least 8 characters." }).passwordError).toBe("Use at least 8 characters.");
   });
   it("puts the box message by the box", () => {
     expect(inviteFeedbackFor({ status: "error", message: TERMS_NOT_ACCEPTED })).toMatchObject({ boxError: TERMS_NOT_ACCEPTED, passwordError: null, note: null });
