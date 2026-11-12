@@ -22,6 +22,7 @@ beforeEach(async () => {
   await rig.reset();
 });
 
+const ORIGIN = "https://leads.example";
 const authDb = () => rig.dbs.roles.leads_auth.db;
 const RESET: EmailContent = { template: "password_reset", params: { expiresInMinutes: 60 } };
 const queue = (to: string, link: string | null = `https://leads.example/reset-password?token=link-for-${to}`, extra: Partial<QueuedEmail> = {}) =>
@@ -48,7 +49,7 @@ beforeEach(() => {
   start = new Date(Date.now() + 5_000);
 });
 const at = (offsetSeconds: number): (() => Date) => () => new Date(start.getTime() + offsetSeconds * 1000);
-const drain = (transport: FakeTransport | null, offsetSeconds = 0, batchSize?: number) => drainOutbox(authDb(), transport, { now: at(offsetSeconds), batchSize });
+const drain = (transport: FakeTransport | null, offsetSeconds = 0, batchSize?: number) => drainOutbox(authDb(), transport, { origin: ORIGIN, now: at(offsetSeconds), batchSize });
 
 describe("queueing", () => {
   it("writes a pending row: the content, a stored copy without the link, and the link in its own column", async () => {
@@ -188,6 +189,30 @@ describe("failing and retrying", () => {
     expect(await drain(transport)).toMatchObject({ claimed: 1, failed: 1, sent: 0 });
     expect(transport.sent).toEqual([]);
     expect(await only()).toMatchObject({ status: "failed", lastError: "no link to send" });
+  });
+
+  it("sends a link on the configured origin, whatever its path and query", async () => {
+    await queue("a@example.com", `${ORIGIN}/accept-invite?token=abc`);
+    const transport = new FakeTransport();
+    expect(await drain(transport)).toMatchObject({ claimed: 1, sent: 1, failed: 0 });
+    expect(transport.sent).toHaveLength(1);
+  });
+
+  it.each([
+    ["another host", "https://evil.test/accept-invite?token=abc"],
+    ["a lookalike host", "https://leads.example.evil.test/accept-invite?token=abc"],
+    ["another scheme", "http://leads.example/accept-invite?token=abc"],
+    ["another port", "https://leads.example:8443/accept-invite?token=abc"],
+    ["a userinfo trick", "https://leads.example@evil.test/accept-invite?token=abc"],
+    ["a link that is not a web address", "not a link"],
+  ])("refuses %s: the row fails with a short reason, nothing is sent and no link is kept", async (_name, link) => {
+    await queue("a@example.com", link);
+    const transport = new FakeTransport();
+    expect(await drain(transport)).toMatchObject({ claimed: 1, failed: 1, sent: 0 });
+    expect(transport.sent).toEqual([]);
+    const row = await only();
+    expect(row).toMatchObject({ status: "failed", link: null, lastError: "the link is not on the application origin" });
+    expect(JSON.stringify(row)).not.toContain("evil");
   });
 
   it("fails a row whose stored content cannot be rendered, without sending", async () => {

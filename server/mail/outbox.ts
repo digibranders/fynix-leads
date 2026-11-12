@@ -60,6 +60,8 @@ export async function enqueueEmail(db: OutboxWriter, email: QueuedEmail): Promis
 }
 
 export interface DrainOptions {
+  /** The application's own origin (`APP_ORIGIN`). A message whose link is anywhere else is failed, never sent. */
+  readonly origin: string;
   readonly now?: () => Date;
   /** How many messages one run sends at most. */
   readonly batchSize?: number;
@@ -126,7 +128,16 @@ async function claimDue(db: Database, now: Date, limit: number) {
 type Claimed = Awaited<ReturnType<typeof claimDue>>[number];
 type Outcome = "sent" | "retrying" | "failed";
 
-async function settle(db: Database, row: Claimed, transport: MailTransport, now: Date): Promise<Outcome> {
+/** True when the link's origin (scheme, host and port, after URL parsing, so userinfo and lookalike hosts do not count) is the application's. */
+function isOnOrigin(link: string, origin: string): boolean {
+  try {
+    return new URL(link).origin === new URL(origin).origin;
+  } catch {
+    return false;
+  }
+}
+
+async function settle(db: Database, row: Claimed, transport: MailTransport, now: Date, origin: string): Promise<Outcome> {
   const fail = async (reason: string, permanent: boolean): Promise<Outcome> => {
     const delay = permanent ? null : retryDelaySeconds(row.attempts);
     if (delay === null) {
@@ -140,6 +151,8 @@ async function settle(db: Database, row: Claimed, transport: MailTransport, now:
   // Every template carries a link, so a pending row without one has nothing to send (it was cleared by a purge or a cancel
   // that raced this claim). Never send the copy that says "the link is removed".
   if (row.link === null) return fail("no link to send", true);
+  // A public pool queues these rows, so a link is data until it is checked: one that points elsewhere is a phishing link. The reason never carries it.
+  if (!isOnOrigin(row.link, origin)) return fail("the link is not on the application origin", true);
   let rendered;
   try {
     rendered = renderEmail(parseEmailContent(row.template, row.params), row.link);
@@ -167,12 +180,12 @@ async function settle(db: Database, row: Claimed, transport: MailTransport, now:
  * Nothing in it throws for a delivery problem; a database fault does propagate, to the script or the cron call.
  * With no transport (no Brevo key in development) it purges and sends nothing, so rows stay pending.
  */
-export async function drainOutbox(db: Database, transport: MailTransport | null, options: DrainOptions = {}): Promise<DrainResult> {
+export async function drainOutbox(db: Database, transport: MailTransport | null, options: DrainOptions): Promise<DrainResult> {
   const now = options.now?.() ?? new Date();
   const purged = await purgeExpiredLinks(db, now);
   if (transport === null) return { purged, claimed: 0, sent: 0, retrying: 0, failed: 0 };
   const batch = await claimDue(db, now, options.batchSize ?? DEFAULT_BATCH_SIZE);
   const tally = { sent: 0, retrying: 0, failed: 0 };
-  for (const row of batch) tally[await settle(db, row, transport, now)] += 1;
+  for (const row of batch) tally[await settle(db, row, transport, now, options.origin)] += 1;
   return { purged, claimed: batch.length, ...tally };
 }

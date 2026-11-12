@@ -14,7 +14,7 @@ runScript(async () => {
   const auth = createDatabase(env.DATABASE_URL_AUTH, { max: 1 });
   try {
     const transport = env.BREVO_API_KEY === undefined ? null : brevoTransport({ apiKey: env.BREVO_API_KEY });
-    const result = await drainOutbox(auth.db, transport);
+    const result = await drainOutbox(auth.db, transport, { origin: env.APP_ORIGIN });
     console.log(`Outbox run: ${result.purged} purged, ${result.claimed} claimed, ${result.sent} sent, ${result.retrying} to retry, ${result.failed} failed.`);
     if (transport === null) console.log("BREVO_API_KEY is not set, so nothing was sent. Messages stay pending; `pnpm mail:last` prints the newest.");
   } finally {

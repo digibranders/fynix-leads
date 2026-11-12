@@ -55,5 +55,5 @@ export function getMailTransport(): MailTransport | null {
  * a delivery problem: those are recorded on the message and retried.
  */
 export function sendQueuedMail(): Promise<DrainResult> {
-  return drainOutbox(getDomain().authDb, getMailTransport());
+  return drainOutbox(getDomain().authDb, getMailTransport(), { origin: getEnv().APP_ORIGIN });
 }
