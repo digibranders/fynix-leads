@@ -40,8 +40,10 @@ describe("asking for a reset link", () => {
     const messages = await outboxFor(rig, EMAIL);
     expect(messages).toHaveLength(1);
     expect(messages[0]?.subject).toBe("Reset your Fynix Leads password");
-    expect(messages[0]?.body).toContain("http://localhost:3020/reset-password?token=");
+    expect(messages[0]?.link).toContain("http://localhost:3020/reset-password?token=");
+    // The stored copy keeps what the message said and not the link.
     expect(messages[0]?.body).toContain("within 60 minutes");
+    expect(messages[0]?.body).not.toContain("http");
     const stored = await rig.dbs.owner.db.select({ status: emailOutbox.status, template: emailOutbox.template }).from(emailOutbox);
     expect(stored).toEqual([{ status: "pending", template: "password_reset" }]);
   });

@@ -19,7 +19,8 @@
     "db:migrate:test": "tsx scripts/db-migrate.ts --target=test",
     "db:seed": "tsx scripts/db-seed.ts",
     "admin:create": "tsx scripts/admin-create.ts",
-    "mail:last": "tsx scripts/mail-last.ts"
+    "mail:last": "tsx scripts/mail-last.ts",
+    "outbox:run": "tsx scripts/outbox-run.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

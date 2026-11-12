@@ -4,25 +4,18 @@ import { cache } from "react";
 import { PASSWORD_RESET_LIFETIME_SECONDS } from "@/lib/auth/session-lifetime";
 import { breachCheckerFor } from "@/server/auth/breach-check";
 import { createAuth, type Auth } from "@/server/auth/create-auth";
-import { devOutboxTransport, passwordResetMailer, type MailTransport } from "@/server/auth/mail";
+import { passwordResetMailer } from "@/server/auth/mail";
 import { resolveSessionContext, type SessionContext } from "@/server/auth/session-context";
 import type { AuthServices } from "@/server/auth/sign-in";
 import { getDatabase } from "@/server/db/client";
 import { getEnv } from "@/server/env";
+import { outboxOn } from "@/server/mail/outbox";
 
 /**
  * Module scope, not globalThis like the pools: a hot reload re-evaluates this module and picks up a changed
  * configuration, and the instance holds only a reference to a pool that globalThis keeps.
  */
 let auth: Auth | undefined;
-
-/** Phase 1B has only the development transport. Phase 1C adds Brevo and replaces this guard with its configuration check. */
-function mailTransport(): MailTransport {
-  if (new URL(getEnv().APP_ORIGIN).protocol === "https:") {
-    throw new Error("No email transport is configured for an https deployment yet: phase 1C adds the Brevo transport.");
-  }
-  return devOutboxTransport(getDatabase("leads_public").db);
-}
 
 /** The Better Auth instance for the running app, on the `leads_auth` pool. Better Auth's own HTTP routes are not served: the app calls `auth.api` from server code. */
 export function getAuth(): Auth {
@@ -33,7 +26,7 @@ export function getAuth(): Auth {
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.APP_ORIGIN,
     breachChecker: breachCheckerFor(env.PASSWORD_BREACH_CHECK),
-    mailer: passwordResetMailer(mailTransport(), env.APP_ORIGIN, PASSWORD_RESET_LIFETIME_SECONDS / 60),
+    mailer: passwordResetMailer(outboxOn(getDatabase("leads_public").db), env.APP_ORIGIN, PASSWORD_RESET_LIFETIME_SECONDS / 60),
     nextCookies: true,
   });
   return auth;

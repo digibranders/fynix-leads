@@ -2,11 +2,12 @@ import { count, desc, eq } from "drizzle-orm";
 import { BreachCheckUnavailableError, type BreachChecker } from "@/server/auth/breach-check";
 import { createAccountWithGrant } from "@/server/auth/create-account";
 import { createAuth, type Auth } from "@/server/auth/create-auth";
-import { devOutboxTransport, passwordResetMailer } from "@/server/auth/mail";
+import { passwordResetMailer } from "@/server/auth/mail";
 import type { SessionResolution } from "@/server/auth/session-context";
 import type { AuthServices } from "@/server/auth/sign-in";
 import { emailOutbox, member, user } from "@/server/db/schema";
 import { openTestDatabases, type TestDatabases } from "@/server/db/testing";
+import { outboxOn } from "@/server/mail/outbox";
 import type { SeededOrganisation } from "@/server/db/testing/seed";
 
 /** Test harness for the auth integration tests: real Better Auth on the real test database, with a fake breach service. */
@@ -48,7 +49,7 @@ export function openAuthRig(options: { readonly baseURL?: string; readonly now?:
     secret: TEST_SECRET,
     baseURL,
     breachChecker: breach,
-    mailer: passwordResetMailer(devOutboxTransport(dbs.roles.leads_public.db), baseURL, 60),
+    mailer: passwordResetMailer(outboxOn(dbs.roles.leads_public.db), baseURL, 60),
     nextCookies: false,
   });
   return {
@@ -97,19 +98,21 @@ export async function countUsers(rig: AuthRig): Promise<number> {
   return rows[0]?.value ?? 0;
 }
 
-export async function outboxFor(rig: AuthRig, email: string): Promise<{ readonly recipient: string; readonly subject: string; readonly body: string }[]> {
+export async function outboxFor(
+  rig: AuthRig,
+  email: string,
+): Promise<{ readonly recipient: string; readonly subject: string; readonly body: string; readonly link: string | null }[]> {
   return rig.dbs.owner.db
-    .select({ recipient: emailOutbox.recipient, subject: emailOutbox.subject, body: emailOutbox.body })
+    .select({ recipient: emailOutbox.recipient, subject: emailOutbox.subject, body: emailOutbox.body, link: emailOutbox.link })
     .from(emailOutbox)
     .where(eq(emailOutbox.recipient, email))
     .orderBy(desc(emailOutbox.createdAt));
 }
 
-/** The reset token in the newest queued message for `email`. */
+/** The reset token in the link of the newest queued message for `email`. The stored copy of the text has no link; the `link` column does. */
 export async function latestResetToken(rig: AuthRig, email: string): Promise<string> {
   const newest = (await outboxFor(rig, email))[0];
-  const link = newest?.body.split("\n").find((line) => line.startsWith("http"));
-  const token = link === undefined ? null : new URL(link).searchParams.get("token");
+  const token = newest?.link == null ? null : new URL(newest.link).searchParams.get("token");
   if (token === null) throw new Error(`No reset link was queued for ${email}`);
   return token;
 }
