@@ -6,6 +6,13 @@ const nextConfig: NextConfig = {
   devIndicators: { position: "bottom-right" },
   cacheComponents: true,
   partialPrefetching: true,
+  async headers() {
+    return [
+      // The reset token is in the URL of this page: send no referrer from it and cache nothing.
+      { source: "/reset-password", headers: [{ key: "Referrer-Policy", value: "no-referrer" }, { key: "Cache-Control", value: "no-store" }] },
+      { source: "/sign-in", headers: [{ key: "Cache-Control", value: "no-store" }] },
+    ];
+  },
   turbopack: {
     rules: {
       "*.css": {
