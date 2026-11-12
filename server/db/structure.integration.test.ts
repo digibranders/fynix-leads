@@ -18,6 +18,7 @@ import {
   quoteIdentifier,
   roleMemberships,
   roleProblems,
+  rolesWithAnyPrivilege,
   scopeFunctionProblems,
   tablesWithoutRowLevelSecurity,
   tenantTableLevelGrants,
@@ -107,6 +108,66 @@ describe("catalog checks hold on the migrated database", () => {
   });
 });
 
+/**
+ * Which runtime roles hold any privilege on each table. Every table must be listed, so adding a table without saying who
+ * may touch it fails here. The four auth tables belong to leads_auth alone: a tenant role, leads_fynix and leads_public
+ * holding any privilege on them is a failure, and widening this list is a deliberate change that shows up in review.
+ */
+const EXPECTED_ACCESS: Readonly<Record<string, readonly RuntimeRoleName[]>> = {
+  organisation: ["leads_fynix", "leads_client", "leads_agency"],
+  campaign: ["leads_fynix", "leads_client", "leads_agency"],
+  user: ["leads_auth"],
+  session: ["leads_auth"],
+  account: ["leads_auth"],
+  verification: ["leads_auth"],
+  member: ["leads_auth"],
+  rate_limit: ["leads_public"],
+  email_outbox: ["leads_public"],
+};
+const AUTH_TABLES = ["user", "session", "account", "verification"] as const;
+
+describe("access matrix", () => {
+  it("lists every table, and no table that does not exist", async () => {
+    expect(Object.keys(EXPECTED_ACCESS).sort()).toEqual(await publicTables(dbs.owner.db));
+  });
+
+  it.each(Object.entries(EXPECTED_ACCESS))("%s is touched by exactly the roles the matrix names", async (table, roles) => {
+    expect(await rolesWithAnyPrivilege(dbs.owner.db, table)).toEqual([...roles].sort());
+  });
+
+  it.each(AUTH_TABLES)("only leads_auth touches the auth table %s", async (table) => {
+    expect(await rolesWithAnyPrivilege(dbs.owner.db, table)).toEqual(["leads_auth"]);
+  });
+
+  it("only leads_auth reads member, and it cannot write it", async () => {
+    expect(await rolesWithAnyPrivilege(dbs.owner.db, "member")).toEqual(["leads_auth"]);
+    for (const privilege of ["INSERT", "UPDATE"]) {
+      const allowed = await dbs.owner.db.execute<{ allowed: boolean }>(sql.raw(`select has_any_column_privilege('leads_auth', 'public.member', '${privilege}') as allowed`));
+      expect(allowed.rows, privilege).toEqual([{ allowed: false }]);
+    }
+  });
+
+  it("leads_public may add to the outbox and nothing else: it cannot read, change or remove what is queued", async () => {
+    const db = dbs.roles.leads_public.db;
+    await queryAs(db, null, "insert into email_outbox (recipient, template, subject, body) values ('a@example.com', 'password_reset', 's', 'b')");
+    for (const statement of ["select * from email_outbox", "select body from email_outbox", "update email_outbox set body = 'x'", "delete from email_outbox"]) {
+      expect(await captureErrorText(queryAs(db, null, statement)), statement).toContain("permission denied for table email_outbox");
+    }
+  });
+
+  it("every role other than leads_auth is refused each auth table, whatever it asks for", async () => {
+    for (const role of RUNTIME_ROLES.filter((candidate) => candidate !== "leads_auth")) {
+      const scope = role === "leads_client" ? { orgId: world.kestrel.id, userId: USER } : role === "leads_agency" ? { orgId: world.brightpath.id, userId: USER } : { orgId: null, userId: USER };
+      for (const table of AUTH_TABLES) {
+        for (const statement of [`select * from ${quoteIdentifier(table)}`, `select id from ${quoteIdentifier(table)}`, `delete from ${quoteIdentifier(table)}`]) {
+          const message = await captureErrorText(queryAs(dbs.roles[role].db, scope, statement));
+          expect(message, `${role}: ${statement}`).toContain(`permission denied for table ${table}`);
+        }
+      }
+    }
+  });
+});
+
 describe("each catalog check finds a deliberately broken object", () => {
   it("row-level security off", async () => {
     const found = await findInBrokenState(dbs.owner, ["create table public.broken_no_rls (id int)"], tablesWithoutRowLevelSecurity);
@@ -176,6 +237,21 @@ describe("each catalog check finds a deliberately broken object", () => {
     expect(attributes).toEqual(["leads_public has a forbidden attribute", "leads_stray is not one of the six roles"]);
     const memberships = await findInBrokenState(admin, ["grant leads_client to leads_agency"], roleMemberships);
     expect(memberships).toEqual(["leads_client has member leads_agency"]);
+  });
+
+  it("any privilege on a table, at table or column level, for a role the matrix does not expect", async () => {
+    const found = await findInBrokenState(
+      dbs.owner,
+      [
+        "create table public.broken_access (a int, b int)",
+        "grant insert (a) on public.broken_access to leads_client",
+        "grant truncate on public.broken_access to leads_agency",
+        "grant select (b) on public.broken_access to leads_public",
+        "grant references (a) on public.broken_access to leads_fynix",
+      ],
+      (executor) => rolesWithAnyPrivilege(executor, "broken_access"),
+    );
+    expect(found).toEqual(["leads_agency", "leads_client", "leads_fynix", "leads_public"]);
   });
 
   it("CREATE on the schema and TEMPORARY on the database", async () => {
@@ -276,14 +352,13 @@ describe("every role", () => {
   it.each(RUNTIME_ROLES)("%s: every table it holds no grant on is unreadable", async (role) => {
     let checked = 0;
     for (const table of await publicTables(dbs.owner.db)) {
-      if ((await grantedColumns(dbs.owner.db, role, table)).length > 0) continue;
-      // leads_fynix holds table-level grants, which grantedColumns also reports, so it never reaches here.
+      if (EXPECTED_ACCESS[table]?.includes(role)) continue;
       checked += 1;
       const message = await captureErrorText(queryAs(unscoped(role), null, `select * from ${quoteIdentifier(table)}`));
       expect(message).toContain(`permission denied for table ${table}`);
     }
-    // Only leads_auth and leads_public hold nothing on today's two tables; the other roles have a grant on both.
-    expect(checked).toBe(role === "leads_auth" || role === "leads_public" ? 2 : 0);
+    // The access matrix says which tables a role may touch; the access matrix tests prove the database agrees.
+    expect(checked).toBe(Object.values(EXPECTED_ACCESS).filter((roles) => !roles.includes(role)).length);
   });
 
   const pairs = RUNTIME_ROLES.flatMap((from) => ROLE_NAMES.filter((to) => to !== from).map((to) => [from, to] as [RuntimeRoleName, RoleName]));

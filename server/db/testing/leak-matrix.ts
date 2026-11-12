@@ -71,7 +71,7 @@ export const READ_PATHS: readonly ReadPath[] = [
   },
 ];
 
-const DENIED_TABLE = /permission denied for table (campaign|organisation)$/m;
+const DENIED_TABLE = /permission denied for table [a-z_]+$/m;
 
 export const PROBES: readonly Probe[] = [
   { name: "select * from campaign", statement: "select * from campaign", expectedError: DENIED_TABLE },
@@ -96,6 +96,24 @@ export const PROBES: readonly Probe[] = [
   { name: "role password hashes", statement: "select rolpassword from pg_authid", expectedError: /permission denied for table pg_authid/ },
   { name: "create a table", statement: "create table leak (x int)", expectedError: /permission denied for schema public/ },
   { name: "create a temporary table", statement: "create temp table leak (x int)", expectedError: /permission denied to create temporary tables/ },
+  // Phase 1B: the auth tables, the member table and the tables only leads_public uses. No tenant role may read or write any of them.
+  { name: "auth: every user", statement: 'select * from "user"', expectedError: DENIED_TABLE },
+  { name: "auth: email addresses", statement: 'select email from "user"', expectedError: DENIED_TABLE },
+  { name: "auth: probe users by WHERE on the email", statement: `select id from "user" where email like '%@%'`, expectedError: DENIED_TABLE },
+  { name: "auth: password hashes", statement: "select password from account", expectedError: DENIED_TABLE },
+  { name: "auth: session tokens", statement: "select token from session", expectedError: DENIED_TABLE },
+  { name: "auth: reset tokens", statement: "select identifier, value from verification", expectedError: DENIED_TABLE },
+  { name: "auth: join every auth table", statement: 'select u.email, a.password, s.token from "user" u join account a on a.user_id = u.id join session s on s.user_id = u.id', expectedError: DENIED_TABLE },
+  { name: "member: every membership", statement: "select * from member", expectedError: DENIED_TABLE },
+  { name: "member: organisation of a user", statement: "select user_id, org_id from member", expectedError: DENIED_TABLE },
+  { name: "rate limits", statement: "select * from rate_limit", expectedError: DENIED_TABLE },
+  { name: "email outbox", statement: "select * from email_outbox", expectedError: DENIED_TABLE },
+  { name: "write: create a user", statement: `insert into "user" (name, email) values ('x', 'x@example.com')`, expectedError: DENIED_TABLE },
+  { name: "write: replace a password hash", statement: "update account set password = 'x'", expectedError: DENIED_TABLE },
+  { name: "write: end every session", statement: "delete from session", expectedError: DENIED_TABLE },
+  { name: "write: move a member to another organisation", statement: "update member set org_id = org_id", expectedError: DENIED_TABLE },
+  { name: "write: queue an email", statement: "insert into email_outbox (recipient, template, subject, body) values ('a@example.com', 'password_reset', 's', 'b')", expectedError: DENIED_TABLE },
+  { name: "write: reset a rate limit", statement: "delete from rate_limit", expectedError: DENIED_TABLE },
 ];
 
 /**
@@ -119,6 +137,9 @@ export function forbiddenTokens(viewer: Viewer, world: SeedWorld): string[] {
     tokens.push(row.internalNotes);
     if (!own.includes(row)) tokens.push(row.id, row.publicRef, row.name);
   }
+  // Phase 1B: no tenant role reads anything about any user, its own colleagues included. Phase 1E gives tenants a
+  // column-limited read of their organisation-mates through `member`, and narrows this loop to the other side's users.
+  for (const person of world.users) tokens.push(person.id, person.email, person.name, person.passwordHash, person.sessionToken, person.resetToken);
   return [...new Set(tokens)];
 }
 

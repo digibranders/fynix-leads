@@ -181,6 +181,25 @@ export async function grantedColumns(executor: Executor, role: RoleName, table: 
   );
 }
 
+/**
+ * The runtime roles that hold any privilege on a public table, at table level or on any column: read, insert, update,
+ * delete, truncate, references or trigger. The access matrix in structure.integration.test.ts compares this with what
+ * each table is meant to allow, so a grant nobody intended shows up as a test failure naming the table and the role.
+ */
+export function rolesWithAnyPrivilege(executor: Executor, table: string): Promise<string[]> {
+  return offenders(
+    executor,
+    sql`select r.rolname::text as offender
+        from pg_roles r cross join lateral (select to_regclass(format('public.%I', ${table}::text)) as rel) t
+        where r.rolname in (${sql.raw(RUNTIME)}) and t.rel is not null
+          and (has_any_column_privilege(r.oid, t.rel, 'SELECT') or has_any_column_privilege(r.oid, t.rel, 'INSERT')
+            or has_any_column_privilege(r.oid, t.rel, 'UPDATE') or has_any_column_privilege(r.oid, t.rel, 'REFERENCES')
+            or has_table_privilege(r.oid, t.rel, 'DELETE') or has_table_privilege(r.oid, t.rel, 'TRUNCATE')
+            or has_table_privilege(r.oid, t.rel, 'TRIGGER'))
+        order by 1`,
+  );
+}
+
 /** Quotes a catalog identifier for use in test SQL. */
 export function quoteIdentifier(name: string): string {
   return `"${name.replaceAll('"', '""')}"`;
