@@ -19,7 +19,7 @@ describe("messages", () => {
     const dashes = new RegExp(`[${String.fromCharCode(0x2013, 0x2014)}]`);
     const texts: string[] = [];
     for (const value of Object.values(messages)) if (typeof value === "string") texts.push(value);
-    texts.push(messages.signInMessage("invalid-credentials"), messages.signInMessage("not-active"), messages.retryMessage(90));
+    texts.push(messages.signInMessage("invalid-credentials"), messages.retryMessage(90));
     expect(texts.length).toBeGreaterThan(6);
     for (const text of texts) {
       expect(text, text).toMatch(/^[A-Z][^!]*\.$/);

@@ -15,10 +15,11 @@ export interface AuthServices {
 export type SignInResult =
   /** `headers` carries the `Set-Cookie` for the new session. Inside Next.js the nextCookies plugin has also set it. */
   | { readonly status: "signed-in"; readonly userId: string; readonly headers: Headers }
-  /** One answer for an unknown address, a wrong password and a malformed request, so nothing says which accounts exist. */
+  /**
+   * One answer for an unknown address, a wrong password, a malformed request and a right password for a user with no
+   * active membership, so nothing says which accounts exist or which passwords are right.
+   */
   | { readonly status: "invalid-credentials" }
-  /** The password was right but the user has no active membership, so no session was made. */
-  | { readonly status: "not-active" }
   | { readonly status: "rate-limited"; readonly retryAfterSeconds: number };
 
 /** Better Auth's reasons for a request that is wrong and not a fault: all of them are shown as invalid credentials. */
@@ -43,7 +44,8 @@ export async function signInWithPassword(
   } catch (error) {
     const code = authErrorCode(error);
     if (code !== undefined && CREDENTIAL_PROBLEM_CODES.has(code)) return { status: "invalid-credentials" };
-    if (code === FAILED_TO_CREATE_SESSION_CODE) return { status: "not-active" };
+    // The session hook refused: no active membership. Answered like a wrong password; the attempt was already counted above.
+    if (code === FAILED_TO_CREATE_SESSION_CODE) return { status: "invalid-credentials" };
     throw error;
   }
 }

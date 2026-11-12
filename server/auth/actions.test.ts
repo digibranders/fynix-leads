@@ -78,11 +78,9 @@ describe("signInAction", () => {
     expect(JSON.stringify(result)).not.toContain("secret-value");
   });
 
-  it("says how long to wait when rate limited, and explains an inactive account", async () => {
+  it("says how long to wait when rate limited", async () => {
     state.signIn.mockResolvedValue({ status: "rate-limited", retryAfterSeconds: 90 });
     expect(await signInAction(IDLE, form({ email: "a@example.com", password: "pw" }))).toEqual({ status: "rate-limited", message: "Too many attempts. Try again in 2 minutes.", email: "a@example.com" });
-    state.signIn.mockResolvedValue({ status: "not-active" });
-    expect((await signInAction(IDLE, form({ email: "a@example.com", password: "pw" }))).status).toBe("error");
   });
 
   it("turns a fault into a neutral message and logs only the error name", async () => {

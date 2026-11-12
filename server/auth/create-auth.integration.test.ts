@@ -213,12 +213,14 @@ describe("sign in", () => {
     }
   });
 
-  it("makes no session for a user with no membership or a suspended one, and says so only after the right password", async () => {
+  it("makes no session for a user with no membership or a suspended one, and answers exactly as for a wrong password", async () => {
     await createUserIn(rig, world.kestrel, { email: "nobody@kestrel.example", withoutMembership: true });
     await createUserIn(rig, world.kestrel, { email: "suspended@kestrel.example", status: "suspended" });
-    expect(await signInWithPassword(rig.services, { email: "nobody@kestrel.example", password: GOOD_PASSWORD, address })).toEqual({ status: "not-active" });
-    expect(await signInWithPassword(rig.services, { email: "suspended@kestrel.example", password: GOOD_PASSWORD, address })).toEqual({ status: "not-active" });
-    expect(await signInWithPassword(rig.services, { email: "suspended@kestrel.example", password: "wrong-password-entirely", address })).toEqual({ status: "invalid-credentials" });
+    const wrongPassword = await signInWithPassword(rig.services, { email: "suspended@kestrel.example", password: "wrong-password-entirely", address });
+    expect(wrongPassword).toEqual({ status: "invalid-credentials" });
+    // Changed on purpose (review finding 3): these used to return a distinct "not-active" result, which told a caller the password was right.
+    expect(await signInWithPassword(rig.services, { email: "nobody@kestrel.example", password: GOOD_PASSWORD, address })).toEqual(wrongPassword);
+    expect(await signInWithPassword(rig.services, { email: "suspended@kestrel.example", password: GOOD_PASSWORD, address })).toEqual(wrongPassword);
     const sessions = await rig.dbs.owner.db.select({ id: session.id }).from(session).innerJoin(user, eq(user.id, session.userId)).where(eq(user.email, "suspended@kestrel.example"));
     expect(sessions).toEqual([]);
   });

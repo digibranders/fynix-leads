@@ -7,8 +7,8 @@ import { retryMessage } from "./rate-limit-rules";
 
 export const GENERIC_FAILURE = "Something went wrong. Try again in a moment.";
 
-export function signInMessage(status: "invalid-credentials" | "not-active"): string {
-  return status === "invalid-credentials" ? "That email and password do not match an account." : "This account cannot sign in right now. Ask your Fynix contact for help.";
+export function signInMessage(_status: "invalid-credentials"): string {
+  return "That email and password do not match an account.";
 }
 
 export const SESSION_ENDED_NOTICE = "Your session has ended. Sign in again.";
