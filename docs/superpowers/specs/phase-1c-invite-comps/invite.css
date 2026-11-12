@@ -1,0 +1,41 @@
+/* Additions for the accept-invite comps. Everything else comes from comps.css (the approved 1B family). */
+.panel.wide{max-width:440px}
+.note.flush{margin-top:0}
+.note.top{margin-top:18px}
+.note.tight{margin-top:10px;padding:10px 12px;font-size:13px;line-height:18px;font-weight:500}
+.note.tight .i{width:16px;height:16px}
+
+/* Who the invite is for: the address as text and one word for the party, on a tile (a tile on a panel, nothing deeper) */
+.invitee{display:flex;flex-direction:column;gap:10px;margin:20px 0 0;padding:14px 16px;border-radius:var(--r-sm);background:var(--navy-04)}
+.invitee>div{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:30px}
+.invitee dt{font-size:var(--fs-label);font-weight:500;color:var(--muted);flex:none}
+.invitee dd{margin:0;font-size:14px;font-weight:500;color:var(--ink);text-align:right;min-width:0}
+.invitee .addr{overflow-wrap:anywhere}
+
+/* Terms: a tonal fill inside the white panel, a scrollable region, no outline */
+.terms{display:flex;flex-direction:column;gap:0}
+.thead{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.thead h4{margin:0;font-size:var(--fs-value);font-weight:600;line-height:1.35}
+.ver{flex:none;font-size:var(--fs-label);font-weight:500;color:var(--muted)}
+.tscroll{margin-top:10px;max-height:168px;overflow:auto;padding:12px 14px;border-radius:var(--r-sm);background:var(--navy-05);font-size:13px;line-height:20px;color:var(--ink);outline:none;scrollbar-width:thin}
+.tscroll p+p{margin-top:8px}
+.twrap{position:relative;margin-top:10px}
+.twrap .tscroll{margin-top:0}
+.twrap.more::after{content:"";position:absolute;left:0;right:0;bottom:0;height:30px;border-radius:0 0 var(--r-sm) var(--r-sm);background:linear-gradient(to bottom,rgba(243,244,245,0),#F3F4F5);pointer-events:none}
+.tscroll.is-focus,.tscroll:focus-visible{box-shadow:0 0 0 2px var(--navy)}
+
+/* The box: a real checkbox, 44px row, no outline around the row */
+.field.tick{gap:6px;margin-top:-4px}
+.check{position:relative;display:flex;align-items:center;gap:12px;min-height:44px;font-size:14px;font-weight:500;color:var(--ink);cursor:pointer}
+.check input{position:absolute;opacity:0;width:22px;height:22px;margin:0}
+.check .box{flex:none;width:24px;height:24px;border-radius:7px;background:var(--navy-05);box-shadow:inset 0 0 0 1.5px #6B7782;display:grid;place-items:center;color:var(--offwhite)}
+.check .box.on{background:var(--navy);box-shadow:none}
+.check .box .i{width:14px;height:14px}
+.check .box.invalid{background:var(--red-soft);box-shadow:inset 0 0 0 1.5px var(--red-solid)}
+.check .box.is-focus,.check input:focus-visible+.box{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--navy)}
+.check .box.on.is-focus{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--navy)}
+.live{display:flex;flex-direction:column}
+.dead{margin-top:20px}
+.btn.primary[disabled]{cursor:progress}
+a.btn{text-decoration:none}
+@media (max-width:600px){.panel.wide{padding:28px 18px 24px}.invitee{padding:12px 14px}}
