@@ -112,9 +112,9 @@ describe("files that reach a database pool", () => {
     expect(exports.filter((line) => !line.startsWith("export async function "))).toEqual([]);
   });
 
-  it("only server/auth/index.ts and scripts open the leads_auth, leads_public or owner pools", () => {
+  it("only server/auth/index.ts, server/domain/index.ts and scripts open the leads_auth, leads_public or owner pools", () => {
     const offenders = everything()
-      .filter((path) => !isTest(path) && path !== join("server", "auth", "index.ts") && !path.startsWith("scripts") && !path.startsWith(join("server", "db")))
+      .filter((path) => !isTest(path) && path !== join("server", "auth", "index.ts") && path !== join("server", "domain", "index.ts") && !path.startsWith("scripts") && !path.startsWith(join("server", "db")))
       .filter((path) => /getDatabase\(\s*["']leads_(auth|public|owner)["']/.test(read(path)));
     expect(offenders).toEqual([]);
   });

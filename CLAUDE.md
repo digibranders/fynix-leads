@@ -2,7 +2,7 @@
 
 # fynix-leads
 
-Lead generation tracking portal. A client reviews leads that the Fynix team submits and approves, rejects or asks for clarification. An agency does the work behind Fynix. Fynix runs both. The screens are still a clickable prototype on sample data (phase 0): nothing is saved and there is no sign-in or email yet. Phase 1 is replacing the foundations underneath them, starting with the database layer (1A, in `server/db/`).
+Lead generation tracking portal. A client reviews leads that the Fynix team submits and approves, rejects or asks for clarification. An agency does the work behind Fynix. Fynix runs both. The screens are still a clickable prototype on sample data (phase 0): nothing is saved and there is no sign-in or email yet. Phase 1 is replacing the foundations underneath them: the database layer (1A, `server/db/`), sign-in (1B, `server/auth/`) and the domain behind the admin screens (1C, `server/domain/`, `server/mail/`).
 
 ## Where things are
 
@@ -30,13 +30,19 @@ Stack: Next.js 16 (App Router, Cache Components) · React 19 · TypeScript stric
   - **Dev databases** are `fynix_leads` and `fynix_leads_test` on the Postgres 16 already running on this machine, shared with other projects. Create only those and the `leads_*` roles. The test harness refuses any database whose name does not end in `_test`.
 - **Auth (`server/auth/`, rules in `docs/superpowers/plans/2026-11-12-phase-1b-auth.md`):** Better Auth 1.7.20, pinned exactly, email and password, no public sign-up.
   - **Better Auth stays inside `server/auth/`** and its HTTP handler is never mounted: sign-in, reset and account creation are server code calling `auth.api`, behind our rate limits (`server/auth/rate-limit.ts`, Postgres, `leads_public`, never inside a transaction) and our password policy (12 or more characters, not in a breach, `server/auth/breach-check.ts`). `server/auth/boundaries.test.ts` enforces it.
-  - **Only `leads_auth` touches `user`, `session`, `account`, `verification` and `member`.** The access matrix in `server/db/structure.integration.test.ts` lists, for every table, the roles that may touch it: adding a table or widening a grant means editing that list on purpose.
-  - **Accounts are created only inside `withAccountCreationGrant`** (`server/auth/create-account.ts`), by `pnpm admin:create` today and by invite redemption in phase 1C. A user with no active `member` row gets no session.
+  - **Only `leads_auth` touches `session`, `account` and `verification`.** Fynix reads four columns of `user` (id, name, email, created time) and nothing else of it. The access matrix in `server/db/structure.integration.test.ts` lists, for every table, the roles that may touch it: adding a table or widening a grant means editing that list on purpose.
+  - **Accounts are created only inside `withAccountCreationGrant`** (`server/auth/create-account.ts`), by `pnpm admin:create` and by invite redemption (`server/domain/redeem-invite.ts`). A user with no active `member` row gets no session.
   - **A request resolves like this:** `getSessionContext()` (cookie, session, `member`, organisation kind), then `withSessionScope(context, work)` (`server/auth/with-session.ts`), which picks the role pool and sets the scope. Sessions are fixed length: 14 days for client and agency, 12 hours for Fynix, never extended.
   - **Three Better Auth quirks, each guarded and tested:** a 403 in the user-create hook becomes a fake success (the hook returns `false`); a duplicate address answers with an id that was never stored (`createAccountWithGrant` reads the row back); a short secret falls back to a public default (`assertUsableSecret` refuses). Canary tests fail when a Better Auth upgrade changes any of them.
   - **Fynix is password only until gate G1.** The place for a second factor is `server/auth/second-factor.ts`. Do not build one elsewhere.
-  - **The reset link** goes to `email_outbox` through `leads_public`; nothing is sent in development. `pnpm mail:last` prints it. Phase 1C adds the Brevo transport.
+  - **The reset link** is queued in `email_outbox` through `leads_public`, like every email (see Domain below). `pnpm mail:last` prints the newest message and its link in development.
   - **`x-real-ip`, not `x-forwarded-for`,** is the network address for rate limits. The production nginx must overwrite `x-real-ip` (phase 6).
+- **Domain (`server/domain/`, `server/mail/`, rules in `docs/superpowers/plans/2026-11-12-phase-1c-domain.md`):** organisations, invites, terms, campaigns, members and aliases, as plain functions that take `DomainDeps` (`server/domain/deps.ts`). The running app builds it with `getDomain()` (`server/domain/index.ts`).
+  - **Every Fynix write goes through `fynixWrite`** (`server/domain/fynix-write.ts`): the Fynix scope transaction plus an `audit` function that appends to `audit_log` in the same transaction. The database backs it: a transaction as `leads_fynix` that changes a domain table without an audit row cannot commit (`audit_required`), and `audit_log` refuses UPDATE and DELETE for every role including the owner. A new table Fynix can write needs the `audit_required` trigger in its grants migration (a structural test fails without it).
+  - **Nothing is deleted.** Organisations and campaigns are archived by status, invites are revoked, terms are superseded, members are suspended. Audit snapshots (`server/domain/snapshots.ts`) never hold a token, a hash, a link or a password.
+  - **Invites:** a 32 byte token, only its SHA-256 stored, seven days, one live invite per address (issuing a new one revokes the old one in the same transaction). `leads_auth` sees an invite only when its transaction names the hash (`withInviteHash`). Redemption (`redeemInvite`) is one transaction on `leads_auth` with Better Auth running on it, so the account, the membership, the alias, the acceptance of the terms and `redeemed_at` commit together or not at all.
+  - **Terms:** a published document is never edited. The text seeded by `pnpm terms:placeholder` is PLACEHOLDER (gate G2): on an https deployment no invite is issued while a party's current terms are placeholder.
+  - **Email:** every message is written to `email_outbox` first (`enqueueEmail`) and sent by `drainOutbox` (`pnpm outbox:run`, as `leads_auth`) through Brevo from `hello@fynix.digital`. The link lives in its own column, only while the row is `pending`, and is cleared on send, on a permanent failure, on cancel and by the purge after a day; the stored copy of the text has no link. Without `BREVO_API_KEY` development only writes the table, and an https deployment refuses to start without a key. A failure to send is recorded and retried (five attempts, backing off), never thrown into a request. Tests use `FakeTransport` and never call Brevo.
 - **Dev server:** `pnpm dev` serves http://localhost:3020. Next.js allows one dev server per project, so reuse the running one. Do not stop a server unless the owner says so.
 
 ## Commands
@@ -54,10 +60,16 @@ pnpm env:check          # names the missing or malformed variables, never their 
 pnpm db:roles           # creates the six roles
 pnpm db:create          # creates fynix_leads and fynix_leads_test
 pnpm db:migrate         # applies migrations to fynix_leads
+
+With:
+
+```markdown
 pnpm db:seed            # two clients, two agencies, four campaigns (refuses a non-empty database)
 pnpm db:generate        # SQL from server/db/schema/; add --custom --name=<name> for hand-written SQL
 pnpm admin:create --email=<address> --name="<full name>"   # the first Fynix admin; asks for the password
-pnpm mail:last          # prints the newest message in the dev email outbox (the password reset link)
+pnpm mail:last          # prints the newest message in the dev email outbox (a reset or invite link)
+pnpm outbox:run         # sends what is waiting in the outbox once (needs BREVO_API_KEY; without it nothing is sent)
+pnpm terms:placeholder  # writes PLACEHOLDER terms for any party that has none (development only)
 ```
 
 Before calling a change done, run lint, typecheck, test and build. Add `pnpm test:integration` when the change touches `server/db/`, a migration or a grant.

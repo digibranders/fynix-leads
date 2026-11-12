@@ -31,6 +31,12 @@ Roles are cluster-wide. If other projects share this Postgres server, `pnpm db:r
 - `pnpm db:migrate`, then `pnpm admin:create --email=you@fynix.digital --name="Your Name"` creates the first Fynix admin. It asks for the password twice, or reads the first line of standard input. New passwords need 12 or more characters and must not appear in a known breach (checked through the k-anonymity range API of Have I Been Pwned, which sees five characters of a hash). With no network, set `PASSWORD_BREACH_CHECK=off` in `.env.local`; it is refused on an https `APP_ORIGIN`.
 - In development nothing is emailed. A reset link is written to the `email_outbox` table, and `pnpm mail:last` prints the newest one.
 
+## Invites, terms and email (phase 1C)
+
+- `pnpm terms:placeholder` writes PLACEHOLDER terms for the client, the agency and Fynix, so an invite can be redeemed. They are not legal text. Lawyer-approved text replaces them before any real user is invited.
+- Invites, organisations, campaigns and members are managed by the services in `server/domain/` (the admin screens that call them come in phase 1D). Every Fynix change is recorded in `audit_log`.
+- Email goes through the `email_outbox` table. To send it for real set `BREVO_API_KEY` in `.env.local` (an https deployment refuses to start without one) and run `pnpm outbox:run`. Without a key nothing is sent and `pnpm mail:last` prints the newest message.
+
 ## Check it
 
 ```bash
