@@ -6,9 +6,9 @@ import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, passwordLengthProblem } from 
 import { PASSWORD_RESET_LIFETIME_SECONDS, SESSION_LIFETIME_SECONDS, sessionLifetimeSeconds } from "@/lib/auth/session-lifetime";
 import { hasAccountCreationGrant } from "@/server/auth/account-creation-grant";
 import { BreachCheckUnavailableError, type BreachChecker } from "@/server/auth/breach-check";
+import type { AuthDatabase } from "@/server/auth/auth-database";
 import type { ResetMailer } from "@/server/auth/mail";
 import { readMembership } from "@/server/auth/membership";
-import type { Database } from "@/server/db/pool";
 import { account, session, user, verification } from "@/server/db/schema";
 
 export const MIN_SECRET_LENGTH = 32;
@@ -16,8 +16,8 @@ export const MIN_SECRET_LENGTH = 32;
 const BETTER_AUTH_PUBLIC_DEFAULT_SECRET = "better-auth-secret-12345678901234567890";
 
 export interface AuthConfig {
-  /** The `leads_auth` database: the only role that may touch the auth tables. */
-  readonly db: Database;
+  /** The `leads_auth` database, or a transaction on it: the only role that may touch the auth tables. */
+  readonly db: AuthDatabase;
   readonly secret: string;
   /** The origin this app is served from, for example `https://leads.fynix.digital`. Also the only trusted origin. */
   readonly baseURL: string;

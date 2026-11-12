@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import type { OrganisationKind } from "@/lib/auth/session-lifetime";
-import type { Database } from "@/server/db/pool";
+import type { AuthDatabase } from "@/server/auth/auth-database";
 import { member } from "@/server/db/schema";
 
 /** What session resolution needs to know about a user: which organisation, of what kind, in what role, active or not. */
@@ -17,7 +17,7 @@ export interface Membership {
  * database: that role may read exactly these five columns of `member` and nothing else on it, and the column list below
  * is the same five (a `select()` with no columns would be refused).
  */
-export async function readMembership(db: Database, userId: string): Promise<Membership | null> {
+export async function readMembership(db: AuthDatabase, userId: string): Promise<Membership | null> {
   const rows = await db
     .select({ userId: member.userId, orgId: member.orgId, orgKind: member.orgKind, role: member.role, status: member.status })
     .from(member)

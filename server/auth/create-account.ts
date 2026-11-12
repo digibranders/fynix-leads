@@ -1,8 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import { normaliseEmail } from "@/lib/auth/email";
 import { withAccountCreationGrant } from "@/server/auth/account-creation-grant";
+import type { AuthDatabase } from "@/server/auth/auth-database";
 import type { Auth } from "@/server/auth/create-auth";
-import type { Database } from "@/server/db/pool";
 import { user } from "@/server/db/schema";
 
 export class AccountAlreadyExistsError extends Error {
@@ -30,9 +30,9 @@ export interface CreatedAccount {
  * read back by id and address before anything is returned. A weak or breached password rejects with Better Auth's
  * error (see server/auth/errors.ts for the codes).
  *
- * `authDb` is the `leads_auth` database, the same one `auth` runs on.
+ * `authDb` is the `leads_auth` database or transaction, the same one `auth` runs on.
  */
-export async function createAccountWithGrant(auth: Auth, authDb: Database, account: NewAccount): Promise<CreatedAccount> {
+export async function createAccountWithGrant(auth: Auth, authDb: AuthDatabase, account: NewAccount): Promise<CreatedAccount> {
   const email = normaliseEmail(account.email);
   const result = await withAccountCreationGrant(email, () => auth.api.signUpEmail({ body: { name: account.name, email, password: account.password } }));
 
