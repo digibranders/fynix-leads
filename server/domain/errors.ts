@@ -14,7 +14,8 @@ export type DomainErrorCode =
   | "invalid-transition"
   | "cannot-suspend-self"
   | "invite-not-live"
-  | "ref-exhausted";
+  | "ref-exhausted"
+  | "not-authorised";
 
 export class DomainError extends Error {
   constructor(

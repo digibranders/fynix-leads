@@ -1,7 +1,8 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { auditLog, organisation } from "@/server/db/schema";
-import { captureErrorText } from "@/server/db/testing";
+import { auditLog, member, organisation } from "@/server/db/schema";
+import { captureErrorText, queryAs } from "@/server/db/testing";
+import { DomainError } from "@/server/domain/errors";
 import { fynixRead, fynixWrite } from "@/server/domain/fynix-write";
 import { openDomainRig } from "@/server/domain/testing";
 
@@ -77,6 +78,57 @@ describe("fynixWrite", () => {
 
   it("refuses an actor who is not a UUID before it opens a transaction", async () => {
     await expect(fynixWrite(rig.dbs.roles.leads_fynix.db, { userId: "not-a-uuid" }, async () => 1)).rejects.toThrow("userId must be a UUID");
+  });
+});
+
+describe("the actor must be an active Fynix member", () => {
+  const writeAs = (userId: string) =>
+    fynixWrite(rig.dbs.roles.leads_fynix.db, { userId }, async ({ tx, audit }) => {
+      await tx.insert(organisation).values(NEW);
+      await audit({ action: "organisation.create", subject: { table: "organisation", id: userId, ref: NEW.publicRef } });
+    });
+  const clientUserId = (): string => {
+    const person = rig.world().users.find((candidate) => candidate.organisation.kind === "client");
+    if (person === undefined) throw new Error("no client user");
+    return person.id;
+  };
+  const refused = async (userId: string): Promise<void> => {
+    const error = await writeAs(userId).then(
+      () => null,
+      (thrown: unknown) => thrown,
+    );
+    expect(error).toBeInstanceOf(DomainError);
+    expect((error as DomainError).code).toBe("not-authorised");
+    expect(await auditRows()).toEqual([]);
+    expect(await refs()).not.toContain(NEW.publicRef);
+  };
+
+  it("refuses the user of a client organisation", async () => {
+    await refused(clientUserId());
+  });
+
+  it("refuses a suspended Fynix member", async () => {
+    await rig.dbs.owner.db.update(member).set({ status: "suspended" }).where(eq(member.userId, rig.actor.userId));
+    await refused(rig.actor.userId);
+  });
+
+  it("refuses an id that belongs to no user", async () => {
+    await refused("6f1c2d3e-4a5b-4c6d-8e7f-0a1b2c3d4e5f");
+  });
+
+  it("still lets an active Fynix member write", async () => {
+    await writeAs(rig.actor.userId);
+    expect(await refs()).toContain(NEW.publicRef);
+    expect(await auditRows()).toHaveLength(1);
+  });
+
+  it("is enforced by the audit policy too, for a caller that skips the service", async () => {
+    const insert = (userId: string) =>
+      queryAs(rig.dbs.roles.leads_fynix.db, { orgId: null, userId }, `insert into audit_log (action, subject_table, subject_id) values ('organisation.create', 'organisation', '${userId}')`);
+    await expect(captureErrorText(insert(clientUserId()))).resolves.toContain("row-level security");
+    await rig.dbs.owner.db.update(member).set({ status: "suspended" }).where(eq(member.userId, rig.actor.userId));
+    await expect(captureErrorText(insert(rig.actor.userId))).resolves.toContain("row-level security");
+    expect(await auditRows()).toEqual([]);
   });
 });
 
