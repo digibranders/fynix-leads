@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: {
@@ -9,6 +9,8 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["lib/**/*.test.ts"],
+    include: ["lib/**/*.test.ts", "server/**/*.test.ts"],
+    // Unit tests never need a database. Integration tests run through vitest.integration.config.mts.
+    exclude: [...configDefaults.exclude, "**/*.integration.test.ts"],
   },
 });
