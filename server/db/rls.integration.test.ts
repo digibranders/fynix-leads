@@ -92,6 +92,11 @@ describe("the client brand copy", () => {
     await asFynix((tx) => tx.update(campaign).set({ clientOrgId: world.halden.id, clientBrandName: "Spoofed" }).where(eq(campaign.publicRef, "CMP-7Q2X")));
     expect(await brandOf("CMP-7Q2X")).toBe("Halden");
   });
+
+  it("is restored when only the brand column is written, so a direct edit cannot show the agency a wrong brand", async () => {
+    await asFynix((tx) => tx.update(campaign).set({ clientBrandName: "Typed by hand" }).where(eq(campaign.publicRef, "CMP-7Q2X")));
+    expect(await brandOf("CMP-7Q2X")).toBe("Kestrel");
+  });
 });
 
 describe("integrity the database enforces", () => {

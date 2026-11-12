@@ -36,6 +36,13 @@
       "when": 1794453289099,
       "tag": "0004_campaign_brand_sync",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794454096369,
+      "tag": "0005_campaign_brand_sync_on_brand_write",
+      "breakpoints": true
     }
   ]
 }
