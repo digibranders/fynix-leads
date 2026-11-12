@@ -18,17 +18,20 @@ import { requestPasswordResetAction } from "@/server/auth/actions";
 export function ForgotPasswordForm() {
   const [state, formAction, pending] = useActionState(requestPasswordResetAction, IDLE);
   const emailRef = useRef<HTMLInputElement>(null);
+  const sentRef = useRef<HTMLDivElement>(null);
   const { note } = feedbackFor(state, "forgot-password");
 
   useEffect(() => {
     if (feedbackFor(state, "forgot-password").note !== null) emailRef.current?.focus();
+    // The form that held focus is replaced by the sent notice: hand focus to it so it is announced and keyboard users keep their place.
+    if (state.status === "sent") sentRef.current?.focus();
   }, [state]);
 
   // The same words for every address: the page never says whether one has an account.
   if (state.status === "sent") {
     return (
       <AuthPanel title="Check your email">
-        <div className="mt-[22px] flex flex-col gap-[18px]">
+        <div ref={sentRef} tabIndex={-1} className="mt-[22px] flex flex-col gap-[18px] outline-none">
           <Notice tone="blue" icon={EnvelopeSimple} className="-mt-1">
             {RESET_REQUESTED_NOTICE}
           </Notice>
