@@ -1,0 +1,342 @@
+{
+  "id": "5e15b017-dad6-4d8e-a8b1-0cae62999a54",
+  "prevId": "4b9400c1-011b-4fe4-ace6-8ba71ef38b01",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.organisation": {
+      "name": "organisation",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "public_ref": {
+          "name": "public_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "organisation_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "brand_name": {
+          "name": "brand_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "organisation_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "organisation_public_ref_unique": {
+          "name": "organisation_public_ref_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "public_ref"
+          ]
+        },
+        "organisation_id_kind_unique": {
+          "name": "organisation_id_kind_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "kind"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "organisation_public_ref_format": {
+          "name": "organisation_public_ref_format",
+          "value": "\"organisation\".\"public_ref\" ~ '^ORG-[0-9A-HJKMNP-TV-Z]{4}$'"
+        },
+        "organisation_client_has_brand": {
+          "name": "organisation_client_has_brand",
+          "value": "\"organisation\".\"kind\" <> 'client' OR \"organisation\".\"brand_name\" IS NOT NULL"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.campaign": {
+      "name": "campaign",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "public_ref": {
+          "name": "public_ref",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "client_org_id": {
+          "name": "client_org_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "client_org_kind": {
+          "name": "client_org_kind",
+          "type": "organisation_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "generated": {
+            "as": "'client'::organisation_kind",
+            "type": "stored"
+          }
+        },
+        "agency_org_id": {
+          "name": "agency_org_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "agency_org_kind": {
+          "name": "agency_org_kind",
+          "type": "organisation_kind",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "generated": {
+            "as": "'agency'::organisation_kind",
+            "type": "stored"
+          }
+        },
+        "client_brand_name": {
+          "name": "client_brand_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "internal_notes": {
+          "name": "internal_notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "campaign_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'draft'"
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "monthly_target": {
+          "name": "monthly_target",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_target": {
+          "name": "total_target",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "campaign_client_org_idx": {
+          "name": "campaign_client_org_idx",
+          "columns": [
+            {
+              "expression": "client_org_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "campaign_agency_org_idx": {
+          "name": "campaign_agency_org_idx",
+          "columns": [
+            {
+              "expression": "agency_org_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "campaign_client_org_fk": {
+          "name": "campaign_client_org_fk",
+          "tableFrom": "campaign",
+          "tableTo": "organisation",
+          "columnsFrom": [
+            "client_org_id",
+            "client_org_kind"
+          ],
+          "columnsTo": [
+            "id",
+            "kind"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "campaign_agency_org_fk": {
+          "name": "campaign_agency_org_fk",
+          "tableFrom": "campaign",
+          "tableTo": "organisation",
+          "columnsFrom": [
+            "agency_org_id",
+            "agency_org_kind"
+          ],
+          "columnsTo": [
+            "id",
+            "kind"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "campaign_public_ref_unique": {
+          "name": "campaign_public_ref_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "public_ref"
+          ]
+        },
+        "campaign_id_orgs_unique": {
+          "name": "campaign_id_orgs_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "client_org_id",
+            "agency_org_id"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "campaign_public_ref_format": {
+          "name": "campaign_public_ref_format",
+          "value": "\"campaign\".\"public_ref\" ~ '^CMP-[0-9A-HJKMNP-TV-Z]{4}$'"
+        },
+        "campaign_dates_in_order": {
+          "name": "campaign_dates_in_order",
+          "value": "\"campaign\".\"end_date\" >= \"campaign\".\"start_date\""
+        },
+        "campaign_targets_not_negative": {
+          "name": "campaign_targets_not_negative",
+          "value": "\"campaign\".\"monthly_target\" >= 0 AND \"campaign\".\"total_target\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.campaign_status": {
+      "name": "campaign_status",
+      "schema": "public",
+      "values": [
+        "draft",
+        "active",
+        "paused",
+        "completed"
+      ]
+    },
+    "public.organisation_kind": {
+      "name": "organisation_kind",
+      "schema": "public",
+      "values": [
+        "fynix",
+        "client",
+        "agency"
+      ]
+    },
+    "public.organisation_status": {
+      "name": "organisation_status",
+      "schema": "public",
+      "values": [
+        "active",
+        "archived"
+      ]
+    }
+  },
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
