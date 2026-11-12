@@ -15,7 +15,13 @@ const handles = new Map<RuntimeRoleName, DatabaseHandle>();
 export function getDatabase(role: RuntimeRoleName): DatabaseHandle {
   const existing = handles.get(role);
   if (existing !== undefined) return existing;
-  const handle = createDatabase(getEnv()[urlVariable(role, "dev")]);
+  const variable = urlVariable(role, "dev");
+  const connectionString: string | undefined = getEnv()[variable];
+  // pg falls back to the PG* environment variables for a missing string, which would log in as another role.
+  if (connectionString === undefined || connectionString === "") {
+    throw new Error(`${variable} is not set, so the ${role} pool cannot be opened`);
+  }
+  const handle = createDatabase(connectionString);
   handles.set(role, handle);
   return handle;
 }

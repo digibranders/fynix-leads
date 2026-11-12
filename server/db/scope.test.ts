@@ -63,3 +63,14 @@ describe("withOrgScope", () => {
     await expect(withOrgScope("leads_client", scope as never, async () => "unreachable")).rejects.toThrow(message);
   });
 });
+
+describe("withOrgScope roles", () => {
+  it.each(["leads_fynix", "leads_owner", "leads_auth", "leads_public", "nonsense"])(
+    "refuses %s: only the client and agency roles take an organisation scope",
+    async (role) => {
+      await expect(withOrgScope(role as never, { orgId: ORG, userId: USER }, async () => "unreachable")).rejects.toThrow(
+        `withOrgScope needs a tenant role (leads_client or leads_agency), not ${role}`,
+      );
+    },
+  );
+});

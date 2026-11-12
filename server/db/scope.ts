@@ -2,7 +2,7 @@ import "server-only";
 import { sql } from "drizzle-orm";
 import { getDatabase } from "@/server/db/client";
 import type { Database } from "@/server/db/pool";
-import type { TenantRoleName } from "@/server/db/roles";
+import { TENANT_ROLES, type TenantRoleName } from "@/server/db/roles";
 
 /**
  * The transaction passed to the callbacks below. The type alone does not prove a scope was set: a plain
@@ -51,9 +51,13 @@ export async function withScope<T>(
 
 /**
  * Runs `work` as the client or agency role, scoped to one organisation and user. Both ids are required and must be
- * UUIDs: a request with no organisation must not reach a tenant pool at all.
+ * UUIDs: a request with no organisation must not reach a tenant pool at all. The role is checked at runtime as well
+ * as by type, so a cast or a value from outside cannot send an organisation scope to the Fynix or owner pool.
  */
 export async function withOrgScope<T>(role: TenantRoleName, scope: TenantScope, work: (tx: ScopedTransaction) => Promise<T>): Promise<T> {
+  if (!TENANT_ROLES.some((tenantRole) => tenantRole === role)) {
+    throw new Error(`withOrgScope needs a tenant role (${TENANT_ROLES.join(" or ")}), not ${String(role)}`);
+  }
   if (scope === undefined || scope === null) throw new Error(`A scope is required to use the ${role} pool`);
   assertUuid(scope.orgId, "orgId");
   assertUuid(scope.userId, "userId");
