@@ -23,11 +23,11 @@ export function AuthFrame({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** The white panel. `title` is the page's one h1. */
-export function AuthPanel({ title, lede, children }: { title: string; lede?: string; children: React.ReactNode }) {
+/** The white panel. `title` is the page's one h1; leave it out only for a loading placeholder, which has no heading to announce. */
+export function AuthPanel({ title, lede, children }: { title?: string; lede?: string; children: React.ReactNode }) {
   return (
     <div className="w-full max-w-[400px] rounded-lg bg-surface px-5 pt-7 pb-6 shadow-raised sm:px-7 sm:pt-8 sm:pb-7">
-      <h1 className="text-title font-semibold tracking-title">{title}</h1>
+      {title !== undefined && <h1 className="text-title font-semibold tracking-title">{title}</h1>}
       {lede !== undefined && <p className="mt-1.5 text-body text-ink-2">{lede}</p>}
       {children}
     </div>

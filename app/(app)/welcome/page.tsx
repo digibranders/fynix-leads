@@ -41,8 +41,8 @@ export default function WelcomePage() {
   return (
     <Suspense
       fallback={
-        <AuthPanel title="Signed in">
-          <Skeleton className="mt-6 h-40 w-full" />
+        <AuthPanel>
+          <Skeleton className="h-40 w-full" />
         </AuthPanel>
       }
     >
