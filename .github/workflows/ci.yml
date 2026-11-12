@@ -128,3 +128,15 @@ jobs:
       # Migrates the empty test database the same way, then runs the integration suites against it.
       - name: Integration tests
         run: pnpm test:integration
+
+      # Catches an edit to server/db/schema/*.ts with no migration. drizzle-kit writes a new migration and snapshot
+      # when the schema differs from the last snapshot; any change under migrations/ then fails the job. Untracked
+      # new files count too, because porcelain lists them.
+      - name: Schema matches the migrations
+        run: |
+          pnpm db:generate
+          if [ -n "$(git status --porcelain server/db/migrations)" ]; then
+            echo "The schema has changes with no migration. Run pnpm db:generate and commit the result:"
+            git status --porcelain server/db/migrations
+            exit 1
+          fi
