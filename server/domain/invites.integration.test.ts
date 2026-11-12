@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { agencyAlias, emailOutbox, invite, member } from "@/server/db/schema";
 import { withInviteHash } from "@/server/db/scope";
@@ -159,6 +159,43 @@ describe("issueInvite", () => {
     await publishTerms(rig.deps(), rig.actor, { party: "agency", title: "Approved agency terms", body: "Approved." });
     await issueInvite(rig.deps({ allowPlaceholderTerms: false }), rig.actor, AGENCY_INVITE());
     expect(await invites()).toHaveLength(2);
+  });
+});
+
+describe("two issues for one address at once", () => {
+  /**
+   * Holds a table lock so that both issues stop at their first write to `invite`, then releases them together. Each then
+   * revokes nothing (no live invite is committed yet) and inserts, so the second insert meets the first one's index entry.
+   */
+  const issueTwiceTogether = async (): Promise<PromiseSettledResult<unknown>[]> => {
+    let pending: Promise<unknown>[] = [];
+    await rig.dbs.owner.db.transaction(async (tx) => {
+      await tx.execute(sql`lock table invite in share row exclusive mode`);
+      pending = [issueInvite(rig.deps(), rig.actor, CLIENT_INVITE()), issueInvite(rig.deps(), rig.actor, CLIENT_INVITE())];
+      for (let waited = 0; waited < 100; waited += 1) {
+        const waiting = await rig.dbs.owner.db.execute<{ n: number }>(sql`select count(*)::int as n from pg_locks where not granted and relation = 'invite'::regclass`);
+        if ((waiting.rows[0]?.n ?? 0) >= 2) break;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+    });
+    return Promise.allSettled(pending);
+  };
+
+  it("lets exactly one win; the other gets a DomainError that carries no row data", async () => {
+    const outcomes = await issueTwiceTogether();
+    const winners = outcomes.filter((outcome) => outcome.status === "fulfilled");
+    const losers = outcomes.filter((outcome): outcome is PromiseRejectedResult => outcome.status === "rejected");
+    expect(winners).toHaveLength(1);
+    expect(losers).toHaveLength(1);
+    const reason = losers[0]?.reason as unknown;
+    expect(reason).toBeInstanceOf(DomainError);
+    expect((reason as DomainError).code).toBe("invite-conflict");
+    const [stored] = await invites();
+    const everything = `${(reason as Error).message} ${(reason as Error).stack ?? ""} ${JSON.stringify(reason)} ${String((reason as Error).cause)}`;
+    for (const secret of [stored?.tokenHash ?? "missing", "priya.nair@kestrel.example", "Priya Nair"]) expect(everything).not.toContain(secret);
+    expect(await invites()).toHaveLength(1);
+    expect(await mails()).toHaveLength(1);
+    expect(await auditRowsFor(rig, "invite.issue")).toHaveLength(1);
   });
 });
 

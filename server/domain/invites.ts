@@ -9,7 +9,7 @@ import { invite, organisation, user } from "@/server/db/schema";
 import { withInviteHash } from "@/server/db/scope";
 import { requireFreeAlias } from "@/server/domain/aliases";
 import type { DomainDeps } from "@/server/domain/deps";
-import { DomainError } from "@/server/domain/errors";
+import { DomainError, isUniqueViolation } from "@/server/domain/errors";
 import { fynixWrite, type FynixActor, type FynixWrite } from "@/server/domain/fynix-write";
 import { issueInviteSchema, uuidSchema, type IssueInviteInput } from "@/server/domain/inputs";
 import { generateInviteToken, hashInviteToken, isWellFormedInviteToken } from "@/server/domain/invite-token";
@@ -80,7 +80,12 @@ async function issueWithin({ tx, audit }: FynixWrite, actor: FynixActor, deps: D
   const [created] = await tx
     .insert(invite)
     .values({ orgId: org.id, orgKind: org.kind, email, name: parsed.name, role: parsed.role, alias: parsed.alias ?? null, tokenHash, expiresAt, createdBy: actor.userId })
-    .returning({ id: invite.id });
+    .returning({ id: invite.id })
+    // A second issue for the same address that committed after our revoke step. The driver error carries the row's email, name and token hash, so it is replaced, not wrapped.
+    .catch((error: unknown) => {
+      if (isUniqueViolation(error, "invite_one_live")) throw new DomainError("invite-conflict", "Another invite for that address was issued at the same time.");
+      throw error;
+    });
   if (created === undefined) throw new Error("The invite insert returned no row");
 
   const link = new URL(ACCEPT_INVITE_PATH, deps.origin);
