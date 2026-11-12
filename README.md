@@ -25,6 +25,12 @@ The prototype screens need no database. The database layer, its scripts and its 
 
 Roles are cluster-wide. If other projects share this Postgres server, `pnpm db:roles` only touches roles whose names start with `leads_`, but it resets their passwords for every checkout that shares the cluster. The test helper refuses any database whose name does not end in `_test`.
 
+## Sign in (phase 1B)
+
+- A machine that ran `pnpm env:init` before phase 1B lacks three variables. `pnpm env:check` names them. Append them with `printf 'BETTER_AUTH_SECRET=%s\nAPP_ORIGIN=http://localhost:3020\nPASSWORD_BREACH_CHECK=hibp\n' "$(openssl rand -hex 32)" >> .env.local`. New machines get them from `pnpm env:init`.
+- `pnpm db:migrate`, then `pnpm admin:create --email=you@fynix.digital --name="Your Name"` creates the first Fynix admin. It asks for the password twice, or reads the first line of standard input. New passwords need 12 or more characters and must not appear in a known breach (checked through the k-anonymity range API of Have I Been Pwned, which sees five characters of a hash). With no network, set `PASSWORD_BREACH_CHECK=off` in `.env.local`; it is refused on an https `APP_ORIGIN`.
+- In development nothing is emailed. A reset link is written to the `email_outbox` table, and `pnpm mail:last` prints the newest one.
+
 ## Check it
 
 ```bash
