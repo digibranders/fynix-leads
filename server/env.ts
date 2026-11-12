@@ -45,6 +45,11 @@ export const runtimeEnvSchema = z
   .refine((env) => !(env.PASSWORD_BREACH_CHECK === "off" && env.APP_ORIGIN.startsWith("https://")), {
     path: ["PASSWORD_BREACH_CHECK"],
     message: "off is not allowed on an https deployment",
+  })
+  // Better Auth only marks cookies Secure when the origin is https. Read from process.env: Next.js always sets NODE_ENV.
+  .refine((env) => !(process.env.NODE_ENV === "production" && env.APP_ORIGIN.startsWith("http://")), {
+    path: ["APP_ORIGIN"],
+    message: "must be an https:// origin in production, so session cookies are Secure",
   });
 export type RuntimeEnv = z.infer<typeof runtimeEnvSchema>;
 

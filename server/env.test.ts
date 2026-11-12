@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { DATABASES, ROLE_NAMES, passwordVariable, urlVariable } from "@/server/db/roles";
 import { buildEnvFile, generateSecrets } from "@/server/env-init";
 import { declaredVariables, derivedVariables, describeEnvProblems, getToolingEnv, runtimeEnvSchema, toolingEnvSchema } from "@/server/env";
@@ -13,6 +13,30 @@ function completeEnvironment(): Record<string, string> {
     .map((line) => [line.slice(0, line.indexOf("=")), line.slice(line.indexOf("=") + 1)] as const);
   return Object.fromEntries(entries);
 }
+
+describe("APP_ORIGIN in production", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("refuses an http origin, naming the variable and not its value", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const environment = { ...completeEnvironment(), APP_ORIGIN: "http://leads.internal.example" };
+    const problems = describeEnvProblems(environment, runtimeEnvSchema);
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toMatch(/^APP_ORIGIN: invalid, .*https/);
+    expect(problems.join("\n")).not.toContain("leads.internal.example");
+  });
+
+  it("accepts an https origin in production and http localhost in development and test", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    expect(describeEnvProblems({ ...completeEnvironment(), APP_ORIGIN: "https://leads.example.com" }, runtimeEnvSchema)).toEqual([]);
+    for (const mode of ["development", "test"]) {
+      vi.stubEnv("NODE_ENV", mode);
+      expect(describeEnvProblems({ ...completeEnvironment(), APP_ORIGIN: "http://localhost:3020" }, runtimeEnvSchema), mode).toEqual([]);
+    }
+  });
+});
 
 describe("environment schemas", () => {
   it("accepts the environment that env:init writes", () => {

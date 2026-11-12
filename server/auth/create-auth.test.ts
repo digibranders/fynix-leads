@@ -36,3 +36,17 @@ describe("guard 3: the auth secret", () => {
     expect(() => createAuth({ ...config, secret: "" })).toThrow("at least 32 characters");
   });
 });
+
+describe("secure cookies", () => {
+  const config = { db: NO_DATABASE, secret: RANDOM_SECRET, baseURL: "http://localhost:3020", breachChecker: new FakeBreachChecker(), mailer: { sendPasswordReset: async () => undefined }, nextCookies: false };
+
+  it("forces Secure cookies in production, whatever the origin scheme looks like", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    expect(createAuth(config).options.advanced?.useSecureCookies).toBe(true);
+  });
+
+  it("leaves it to the origin scheme outside production, so http localhost works", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    expect(createAuth(config).options.advanced?.useSecureCookies).toBeFalsy();
+  });
+});

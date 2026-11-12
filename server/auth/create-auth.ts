@@ -119,6 +119,9 @@ export function createAuth(config: AuthConfig) {
       // UUIDs, so `app.user_id` in the scope helper is always a UUID and the id columns are uuid.
       database: { generateId: "uuid" },
       cookiePrefix: "fynix-leads",
+      // Secure cookies (and the __Secure- prefix) in production whatever the origin says; elsewhere Better Auth follows the
+      // origin scheme, so http://localhost works. server/env.ts also refuses an http origin in production.
+      useSecureCookies: process.env.NODE_ENV === "production" ? true : undefined,
       // Behind nginx only x-real-ip is trusted: nginx overwrites it with the connecting address, while a client can put
       // anything in x-forwarded-for. server/auth/client-address.ts reads the same header for the rate limits.
       ipAddress: { ipAddressHeaders: ["x-real-ip"] },
