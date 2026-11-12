@@ -1,4 +1,4 @@
-import { check, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { check, pgTable, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { organisationKind, organisationStatus } from "./enums";
 
@@ -25,5 +25,8 @@ export const organisation = pgTable(
     unique("organisation_id_kind_unique").on(table.id, table.kind),
     check("organisation_public_ref_format", sql`${table.publicRef} ~ '^ORG-[0-9A-HJKMNP-TV-Z]{4}$'`),
     check("organisation_client_has_brand", sql`${table.kind} <> 'client' OR ${table.brandName} IS NOT NULL`),
+    // There is exactly one Fynix organisation. `pnpm admin:create` finds it or creates it, and member rows of kind
+    // `fynix` point at it.
+    uniqueIndex("organisation_one_fynix").on(table.kind).where(sql`${table.kind} = 'fynix'`),
   ],
 );

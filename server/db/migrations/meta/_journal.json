@@ -43,6 +43,41 @@
       "when": 1794454096369,
       "tag": "0005_campaign_brand_sync_on_brand_write",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794463824453,
+      "tag": "0006_auth_and_member",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794463825013,
+      "tag": "0007_auth_grants",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794463825637,
+      "tag": "0008_member_grants",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794463826175,
+      "tag": "0009_rate_limit_grants",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794463826660,
+      "tag": "0010_email_outbox_grants",
+      "breakpoints": true
     }
   ]
 }
