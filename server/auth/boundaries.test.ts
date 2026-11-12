@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -42,6 +42,23 @@ describe("Better Auth stays inside server/auth", () => {
     for (const forbidden of ["crossSubDomainCookies", "disableCSRFCheck", "disableOriginCheck", "disableIpTracking"]) {
       expect(config, forbidden).not.toContain(forbidden);
     }
+  });
+});
+
+describe("pages stay thin", () => {
+  /** The only server modules a page or a client form may import: the actions, the session read and the page guard. */
+  const ALLOWED_SERVER_IMPORTS: ReadonlySet<string> = new Set(["@/server/auth", "@/server/auth/actions", "@/server/auth/guard"]);
+  const pageFiles = (): string[] => ["app/(auth)", "app/(app)"].filter((directory) => existsSync(join(ROOT, directory))).flatMap(sourceFiles);
+  const serverImports = (path: string): string[] => [...read(path).matchAll(/from\s+["'](@\/server[^"']*)["']/g)].map((match) => match[1] ?? "");
+
+  it("import from server/ only the actions, the session read and the guard: never the database, Better Auth, the limiter or the breach check", () => {
+    const offenders = pageFiles().flatMap((path) => serverImports(path).filter((name) => !ALLOWED_SERVER_IMPORTS.has(name)).map((name) => `${path} imports ${name}`));
+    expect(offenders).toEqual([]);
+  });
+
+  it("never import better-auth or drizzle directly, and never log", () => {
+    const offenders = pageFiles().filter((path) => /from\s+["'](better-auth|drizzle-orm|pg)["/]/.test(read(path)) || /console\.(log|info|debug)\(/.test(read(path)));
+    expect(offenders).toEqual([]);
   });
 });
 
