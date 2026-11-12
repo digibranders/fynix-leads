@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { AuthPanel } from "@/components/auth/auth-frame";
 import { Notice } from "@/components/auth/notice";
+import { INVITE_ACCEPTED_NOTICE } from "@/lib/domain/invite-messages";
 import { PASSWORD_CHANGED_NOTICE, SESSION_ENDED_NOTICE, SIGNED_OUT_NOTICE } from "@/lib/auth/messages";
 import { safeNextPath } from "@/lib/auth/next-path";
 import { getSessionContext } from "@/server/auth";
@@ -23,6 +24,7 @@ async function QueryNotice({ searchParams }: { searchParams: SearchParams }) {
   // A person who is already signed in never sees the form.
   if ((await getSessionContext()) !== null) redirect(safeNextPath(one(params.next)) ?? "/welcome");
   if (one(params.reset) === "1") return <Notice tone="green" className="-mt-1">{PASSWORD_CHANGED_NOTICE}</Notice>;
+  if (one(params.invite) === "accepted") return <Notice tone="green" className="-mt-1">{INVITE_ACCEPTED_NOTICE}</Notice>;
   if (one(params["signed-out"]) === "1") return <Notice tone="blue" className="-mt-1">{SIGNED_OUT_NOTICE}</Notice>;
   if (one(params.reason) === "ended") return <Notice tone="blue" className="-mt-1">{SESSION_ENDED_NOTICE}</Notice>;
   return null;

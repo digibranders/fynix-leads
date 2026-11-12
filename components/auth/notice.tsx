@@ -10,15 +10,15 @@ const TONES = {
 
 export type NoticeTone = keyof typeof TONES;
 
-type Props = { tone: NoticeTone; id?: string; icon?: Icon; className?: string; children: React.ReactNode };
+type Props = { tone: NoticeTone; id?: string; icon?: Icon; /** The smaller form, for a note that sits inside a section. */ compact?: boolean; /** Overrides the tone's role: a standing note that is not news should not be announced as an alert. */ role?: "note"; className?: string; children: React.ReactNode };
 
 /** An icon and words on a soft fill, never an outline. Problems are announced at once (`alert`), information politely (`status`). */
-export function Notice({ tone, id, icon, className = "", children }: Props) {
+export function Notice({ tone, id, icon, compact = false, role: roleOverride, className = "", children }: Props) {
   const { box, icon: ToneIcon, role } = TONES[tone];
   const Glyph = icon ?? ToneIcon;
   return (
-    <div id={id} role={role} className={`flex items-start gap-2.5 rounded-sm px-3.5 py-3 text-body font-medium ${box} ${className}`}>
-      <Glyph aria-hidden size={18} className="mt-px shrink-0" />
+    <div id={id} role={roleOverride ?? role} className={`flex items-start gap-2.5 rounded-sm font-medium ${compact ? "px-3 py-2.5 text-table" : "px-3.5 py-3 text-body"} ${box} ${className}`}>
+      <Glyph aria-hidden size={compact ? 16 : 18} className="mt-px shrink-0" />
       <span>{children}</span>
     </div>
   );
