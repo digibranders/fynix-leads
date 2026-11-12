@@ -64,7 +64,23 @@ export async function withOrgScope<T>(role: TenantRoleName, scope: TenantScope, 
   return withScope(getDatabase(role).db, scope, work);
 }
 
-/** Runs `work` as Fynix. Policies allow every row; the user id is for the audit log phase 1C adds. */
+const TOKEN_HASH_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+
+/**
+ * Runs `work` as `leads_auth` with one invite in view: the row whose `token_hash` is `tokenHash`, and no other. The policies on
+ * `invite` (migration 0014) compare against `app.invite_hash`, so without this a connection sees no invite at all. The
+ * hash is the SHA-256 of the token in the link, which only the holder knows. Like the other scopes it is set with
+ * `set_config(..., true)`, so it ends with the transaction.
+ */
+export async function withInviteHash<T>(db: Database, tokenHash: string, work: (tx: ScopedTransaction) => Promise<T>): Promise<T> {
+  if (!TOKEN_HASH_PATTERN.test(tokenHash)) throw new Error("tokenHash must be a 43 character base64url SHA-256");
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select set_config('app.invite_hash', ${tokenHash}, true)`);
+    return work(tx);
+  });
+}
+
+/** Runs `work` as Fynix. Policies allow every row; the user id is the actor of the audit log (server/domain/fynix-write.ts). */
 export async function withFynixScope<T>(scope: FynixScope, work: (tx: ScopedTransaction) => Promise<T>): Promise<T> {
   return withScope(getDatabase("leads_fynix").db, { orgId: null, userId: scope.userId }, work);
 }

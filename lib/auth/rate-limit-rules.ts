@@ -47,6 +47,25 @@ export function resetCompleteChecks(address: string): readonly RateLimitCheck[] 
   return [{ key: `reset-complete:network:${address}`, rule: { limit: 20, windowSeconds: ONE_HOUR } }];
 }
 
+/**
+ * Looking an invite link up (the accept-invite page) is a way to guess tokens, so it is limited before the lookup, per
+ * network. The token itself is 32 random bytes, so guessing is hopeless; the limit is for the load and for scanners.
+ */
+export function inviteLookupChecks(address: string): readonly RateLimitCheck[] {
+  return [{ key: `invite-lookup:network:${address}`, rule: { limit: 30, windowSeconds: FIFTEEN_MINUTES } }];
+}
+
+/**
+ * Redeeming an invite sets a password, so a network may try ten times an hour, and so may one invite: a person who gets
+ * the password wrong or picks a breached one a few times is fine, a script is not. `tokenHash` is the stored hash, not the token.
+ */
+export function inviteRedeemChecks(tokenHash: string, address: string): readonly RateLimitCheck[] {
+  return [
+    { key: `invite-redeem:network:${address}`, rule: { limit: 10, windowSeconds: ONE_HOUR } },
+    { key: `invite-redeem:token:${tokenHash}`, rule: { limit: 10, windowSeconds: ONE_HOUR } },
+  ];
+}
+
 /** "Try again in 3 minutes", from the seconds left in the window. */
 export function retryMessage(retryAfterSeconds: number): string {
   const minutes = Math.max(1, Math.ceil(retryAfterSeconds / 60));

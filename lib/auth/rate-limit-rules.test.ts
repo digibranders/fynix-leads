@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resetCompleteChecks, resetRequestChecks, retryMessage, signInChecks } from "./rate-limit-rules";
+import { inviteLookupChecks, inviteRedeemChecks, resetCompleteChecks, resetRequestChecks, retryMessage, signInChecks } from "./rate-limit-rules";
 
 describe("signInChecks", () => {
   const checks = signInChecks("a@example.com", "203.0.113.9");
@@ -33,6 +33,20 @@ describe("resetRequestChecks and resetCompleteChecks", () => {
 
   it("use different keys for different actions, so one budget cannot be spent on another", () => {
     const keys = [...signInChecks("a@example.com", "x"), ...resetRequestChecks("a@example.com", "x"), ...resetCompleteChecks("x")].map((check) => check.key);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
+describe("inviteLookupChecks and inviteRedeemChecks", () => {
+  it("limit a network's lookups, and a network's and an invite's redemptions, each under its own key", () => {
+    expect(inviteLookupChecks("203.0.113.9")).toEqual([{ key: "invite-lookup:network:203.0.113.9", rule: { limit: 30, windowSeconds: 900 } }]);
+    const [network, token] = inviteRedeemChecks("HASH", "203.0.113.9");
+    expect(network).toEqual({ key: "invite-redeem:network:203.0.113.9", rule: { limit: 10, windowSeconds: 3600 } });
+    expect(token).toEqual({ key: "invite-redeem:token:HASH", rule: { limit: 10, windowSeconds: 3600 } });
+  });
+
+  it("do not share a budget with sign-in or reset", () => {
+    const keys = [...signInChecks("a@example.com", "x"), ...resetRequestChecks("a@example.com", "x"), ...resetCompleteChecks("x"), ...inviteLookupChecks("x"), ...inviteRedeemChecks("h", "x")].map((check) => check.key);
     expect(new Set(keys).size).toBe(keys.length);
   });
 });

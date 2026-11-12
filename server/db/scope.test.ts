@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Database } from "@/server/db/pool";
-import { assertUuid, withOrgScope, withScope } from "@/server/db/scope";
+import { assertUuid, withInviteHash, withOrgScope, withScope } from "@/server/db/scope";
 
 const ORG = "11111111-1111-4111-8111-111111111111";
 const USER = "22222222-2222-4222-8222-222222222222";
@@ -73,4 +73,20 @@ describe("withOrgScope roles", () => {
       );
     },
   );
+});
+
+describe("withInviteHash", () => {
+  const HASH = "a".repeat(43);
+
+  it.each(["", "short", `${HASH}x`, `${"a".repeat(42)}!`, `${HASH}'; drop table invite`])("refuses %j before opening a transaction, without echoing it", async (value) => {
+    const { db, calls } = spyDatabase();
+    await expect(withInviteHash(db, value, async () => "unreachable")).rejects.toThrow("tokenHash must be a 43 character base64url SHA-256");
+    expect(calls).toEqual([]);
+  });
+
+  it("sets the hash inside one transaction, then runs the work", async () => {
+    const { db, calls } = spyDatabase();
+    await expect(withInviteHash(db, HASH, async () => "done")).resolves.toBe("done");
+    expect(calls).toEqual(["transaction", "set_config"]);
+  });
 });
