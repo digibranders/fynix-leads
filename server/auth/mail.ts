@@ -23,7 +23,15 @@ export interface MailTransport {
 export function devOutboxTransport(publicDb: Database): MailTransport {
   return {
     async send(message) {
-      await publicDb.insert(emailOutbox).values({ recipient: message.to, template: message.template, subject: message.subject, body: message.text });
+      try {
+        await publicDb.insert(emailOutbox).values({ recipient: message.to, template: message.template, subject: message.subject, body: message.text });
+      } catch (error) {
+        // drizzle-orm puts the SQL and its params (the recipient and the live reset link) in the message, and Better Auth logs a
+        // rejected reset callback. Rethrow only the error name and code, with no `cause`.
+        const code = typeof (error as { code?: unknown } | null)?.code === "string" ? ` ${(error as { code: string }).code}` : "";
+        const name = error instanceof Error ? error.name : "non-error";
+        throw new Error(`Could not write the outbox message (${name}${code})`);
+      }
     },
   };
 }

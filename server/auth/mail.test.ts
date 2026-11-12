@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { passwordResetMailer, passwordResetMessage, type MailMessage, type MailTransport } from "./mail";
+import type { Database } from "@/server/db/pool";
+import { devOutboxTransport, passwordResetMailer, passwordResetMessage, type MailMessage, type MailTransport } from "./mail";
 
 function recordingTransport(): { readonly transport: MailTransport; readonly sent: MailMessage[] } {
   const sent: MailMessage[] = [];
@@ -35,5 +36,35 @@ describe("passwordResetMessage", () => {
     expect(message.subject).toBe("Reset your Fynix Leads password");
     const dashes = new RegExp(`[${String.fromCharCode(0x2013, 0x2014)}]`);
     expect(dashes.test(`${message.subject}${message.text}`)).toBe(false);
+  });
+});
+
+describe("devOutboxTransport", () => {
+  it("rethrows a failed insert without the SQL parameters, the recipient or the reset link", async () => {
+    const token = "live-token-9f8e7d";
+    const email = "victim@example.com";
+    // drizzle-orm's DrizzleQueryError carries the query and its params in the message and in `params`, and chains the driver error as `cause`.
+    const driverError = Object.assign(new Error(`connection terminated for ${email}`), { code: "57P01" });
+    const failure = Object.assign(new Error(`Failed query: insert into "email_outbox" values ($1, $2)\nparams: ${email},https://x.example/reset-password?token=${token}`), {
+      name: "DrizzleQueryError",
+      params: [email, token],
+      cause: driverError,
+    });
+    const db = { insert: () => ({ values: () => Promise.reject(failure) }) } as unknown as Database;
+
+    const thrown = await devOutboxTransport(db)
+      .send({ to: email, template: "password_reset", subject: "s", text: `https://x.example/reset-password?token=${token}` })
+      .then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+
+    expect(thrown).toBeInstanceOf(Error);
+    const error = thrown as Error;
+    expect(error.message).toContain("Could not write the outbox message");
+    const everything = [error.message, error.stack ?? "", JSON.stringify(Object.getOwnPropertyNames(error).map((key) => [key, String((error as unknown as Record<string, unknown>)[key])]))].join("\n");
+    for (const secret of [token, email, "email_outbox", "params"]) expect(everything).not.toContain(secret);
+    expect(error.cause).toBeUndefined();
+    expect(Object.getOwnPropertyNames(error).sort()).toEqual(["message", "stack"].sort());
   });
 });
