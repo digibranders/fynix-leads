@@ -7,7 +7,7 @@ import { retryMessage } from "./rate-limit-rules";
 
 export const GENERIC_FAILURE = "Something went wrong. Try again in a moment.";
 
-export function signInMessage(_status: "invalid-credentials"): string {
+export function signInMessage(): string {
   return "That email and password do not match an account.";
 }
 

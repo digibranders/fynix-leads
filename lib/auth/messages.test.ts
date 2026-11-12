@@ -3,7 +3,7 @@ import * as messages from "./messages";
 
 describe("messages", () => {
   it("say the same thing for a wrong password and an unknown address, because they are one result", () => {
-    expect(messages.signInMessage("invalid-credentials")).toBe("That email and password do not match an account.");
+    expect(messages.signInMessage()).toBe("That email and password do not match an account.");
   });
 
   it("do not reveal whether an address has an account when a reset is asked for", () => {
@@ -19,7 +19,7 @@ describe("messages", () => {
     const dashes = new RegExp(`[${String.fromCharCode(0x2013, 0x2014)}]`);
     const texts: string[] = [];
     for (const value of Object.values(messages)) if (typeof value === "string") texts.push(value);
-    texts.push(messages.signInMessage("invalid-credentials"), messages.retryMessage(90));
+    texts.push(messages.signInMessage(), messages.retryMessage(90));
     expect(texts.length).toBeGreaterThan(6);
     for (const text of texts) {
       expect(text, text).toMatch(/^[A-Z][^!]*\.$/);

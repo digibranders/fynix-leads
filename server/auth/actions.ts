@@ -51,7 +51,7 @@ export async function signInAction(_previous: AuthFormState, formData: FormData)
   const result = outcome.value;
   if (result.status === "signed-in") redirect(safeNextPath(field(formData, "next")) ?? DEFAULT_LANDING);
   if (result.status === "rate-limited") return { status: "rate-limited", message: retryMessage(result.retryAfterSeconds), email };
-  return { status: "error", message: signInMessage(result.status), email };
+  return { status: "error", message: signInMessage(), email };
 }
 
 export async function requestPasswordResetAction(_previous: AuthFormState, formData: FormData): Promise<AuthFormState> {
