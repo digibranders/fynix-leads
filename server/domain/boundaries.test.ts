@@ -50,17 +50,28 @@ describe("what scripts may load", () => {
     }
   });
 
-  it("only server/domain/index.ts among the domain files imports server-only", () => {
-    const offenders = domainFiles().filter((path) => path !== join("server", "domain", "index.ts") && /import\s+["']server-only["']/.test(read(path)));
+  it("only server/domain/index.ts and page-data.ts among the domain files import server-only", () => {
+    const allowed = new Set([join("server", "domain", "index.ts"), join("server", "domain", "page-data.ts")]);
+    const offenders = domainFiles().filter((path) => !allowed.has(path) && /import\s+["']server-only["']/.test(read(path)));
     expect(offenders).toEqual([]);
-    expect(read("server/domain/index.ts")).toMatch(/^import "server-only";/m);
+    for (const path of allowed) expect(read(path), path).toMatch(/^import "server-only";/m);
+  });
+
+  it("the actions file is a use server module that exports only async functions, because every export is a public endpoint", () => {
+    const source = read("server/domain/actions.ts");
+    expect(source.startsWith('"use server";')).toBe(true);
+    const exports = source.split("\n").filter((line) => line.startsWith("export "));
+    expect(exports.length).toBeGreaterThan(0);
+    expect(exports.filter((line) => !line.startsWith("export async function "))).toEqual([]);
   });
 });
 
 describe("secrets stay out of places they must not be", () => {
-  it("no domain or mail file logs", () => {
-    const offenders = [...domainFiles(), ...sourceFiles("server/mail")].filter((path) => /console\.(log|info|debug|warn|error)\(/.test(read(path)));
+  it("no domain or mail file logs, except the action, which logs an error's name and never its message", () => {
+    const offenders = [...domainFiles(), ...sourceFiles("server/mail")].filter((path) => path !== join("server", "domain", "actions.ts") && /console\.(log|info|debug|warn|error)\(/.test(read(path)));
     expect(offenders).toEqual([]);
+    const logged = read("server/domain/actions.ts").match(/console\.\w+\([^)]*\)/g) ?? [];
+    for (const call of logged) expect(call, call).toMatch(/error instanceof Error \? error\.name : "unknown error"/);
   });
 
   it("only the invite and redeem services and the outbox know the invite link path, and only the outbox sender reads the link column", () => {
