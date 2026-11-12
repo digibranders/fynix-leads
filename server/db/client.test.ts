@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const createDatabase = vi.fn((connectionString: string) => ({ connectionString, db: {}, close: async () => undefined }));
 const getEnv = vi.fn<() => Record<string, string | undefined>>();
@@ -6,11 +6,18 @@ const getEnv = vi.fn<() => Record<string, string | undefined>>();
 vi.mock("@/server/db/pool", () => ({ createDatabase: (connectionString: string) => createDatabase(connectionString) }));
 vi.mock("@/server/env", () => ({ getEnv: () => getEnv() }));
 
+const CACHE_KEY = Symbol.for("fynix-leads.db.handles");
+const clearCache = (): void => {
+  Reflect.deleteProperty(globalThis, CACHE_KEY);
+};
+
 beforeEach(() => {
   vi.resetModules();
+  clearCache();
   createDatabase.mockClear();
   getEnv.mockReturnValue({ DATABASE_URL_CLIENT: "postgres://client", DATABASE_URL_AGENCY: "postgres://agency" });
 });
+afterEach(clearCache);
 
 describe("getDatabase", () => {
   it.each([undefined, ""])("throws a specific error naming the variable, never a value, when the URL is %j", async (value) => {
@@ -28,6 +35,16 @@ describe("getDatabase", () => {
     expect(getDatabase("leads_client")).toBe(getDatabase("leads_client"));
     expect(getDatabase("leads_agency")).not.toBe(getDatabase("leads_client"));
     expect(createDatabase.mock.calls).toEqual([["postgres://client"], ["postgres://agency"]]);
+  });
+
+  it("keeps its pools across a module reload, as `next dev` hot reload does, instead of leaking a second set", async () => {
+    const first = await import("@/server/db/client");
+    const handle = first.getDatabase("leads_client");
+    vi.resetModules();
+    const second = await import("@/server/db/client");
+    expect(second).not.toBe(first);
+    expect(second.getDatabase("leads_client")).toBe(handle);
+    expect(createDatabase).toHaveBeenCalledTimes(1);
   });
 
   it("closeDatabases ends every pool and forgets them", async () => {
