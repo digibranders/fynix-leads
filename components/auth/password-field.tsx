@@ -1,7 +1,7 @@
 "use client";
 
 import { Eye, EyeSlash, WarningCircle } from "@phosphor-icons/react";
-import { useState, type Ref } from "react";
+import { useEffect, useRef, useState, type Ref } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -20,12 +20,21 @@ type Props = {
 /** A password input with a show control. The control is a real button that only changes the input's type; it never reads or stores the value. */
 export function PasswordField({ id, name, label, autoComplete, inputRef, hint, error }: Props) {
   const [shown, setShown] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  // Every submit masks the field again: a failed attempt empties it, and the next password must not be typed in the clear.
+  useEffect(() => {
+    const form = wrapperRef.current?.closest("form");
+    if (!form) return;
+    const mask = (): void => setShown(false);
+    form.addEventListener("submit", mask);
+    return () => form.removeEventListener("submit", mask);
+  }, []);
   const errorId = `${id}-error`;
   const hintId = `${id}-hint`;
   const describedBy = [error ? errorId : null, hint ? hintId : null].filter((part) => part !== null).join(" ");
   const ToggleIcon = shown ? EyeSlash : Eye;
   return (
-    <div className="flex flex-col gap-1.5">
+    <div ref={wrapperRef} className="flex flex-col gap-1.5">
       <Label htmlFor={id}>{label}</Label>
       <div className="relative flex items-center">
         <Input
