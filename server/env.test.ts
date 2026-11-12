@@ -30,7 +30,7 @@ describe("APP_ORIGIN in production", () => {
 
   it("accepts an https origin in production and http localhost in development and test", () => {
     vi.stubEnv("NODE_ENV", "production");
-    expect(describeEnvProblems({ ...completeEnvironment(), APP_ORIGIN: "https://leads.example.com" }, runtimeEnvSchema)).toEqual([]);
+    expect(describeEnvProblems({ ...completeEnvironment(), APP_ORIGIN: "https://leads.example.com", BREVO_API_KEY: "xkeysib-test-0123456789abcdef" }, runtimeEnvSchema)).toEqual([]);
     for (const mode of ["development", "test"]) {
       vi.stubEnv("NODE_ENV", mode);
       expect(describeEnvProblems({ ...completeEnvironment(), APP_ORIGIN: "http://localhost:3020" }, runtimeEnvSchema), mode).toEqual([]);

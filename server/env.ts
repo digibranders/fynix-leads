@@ -41,10 +41,19 @@ export const runtimeEnvSchema = z
     APP_ORIGIN: origin,
     /** `off` skips the breached-password check, for development without a network. Unset means `hibp`. */
     PASSWORD_BREACH_CHECK: z.preprocess(emptyAsMissing, z.enum(["hibp", "off"]).optional()),
+    /**
+     * The Brevo API key that sends the email queued in `email_outbox`. Optional on http: without it development only
+     * writes the outbox. An https deployment refuses to start without one (the refinement below).
+     */
+    BREVO_API_KEY: z.preprocess(emptyAsMissing, z.string().min(20, "must be at least 20 characters").optional()),
   })
   .refine((env) => !(env.PASSWORD_BREACH_CHECK === "off" && env.APP_ORIGIN.startsWith("https://")), {
     path: ["PASSWORD_BREACH_CHECK"],
     message: "off is not allowed on an https deployment",
+  })
+  .refine((env) => !(env.APP_ORIGIN.startsWith("https://") && env.BREVO_API_KEY === undefined), {
+    path: ["BREVO_API_KEY"],
+    message: "is required on an https deployment, so invites and reset links are really sent",
   })
   // Better Auth only marks cookies Secure when the origin is https. Read from process.env: Next.js always sets NODE_ENV.
   .refine((env) => !(process.env.NODE_ENV === "production" && env.APP_ORIGIN.startsWith("http://")), {
@@ -82,7 +91,7 @@ export function declaredVariables(): { readonly runtime: string[]; readonly tool
 
 /** The variable names roles.ts derives, for the same check. */
 export function derivedVariables(): { readonly runtime: string[]; readonly tooling: string[] } {
-  const runtime = [...RUNTIME_ROLES.map((role) => urlVariable(role, "dev")), "BETTER_AUTH_SECRET", "APP_ORIGIN", "PASSWORD_BREACH_CHECK"];
+  const runtime = [...RUNTIME_ROLES.map((role) => urlVariable(role, "dev")), "BETTER_AUTH_SECRET", "APP_ORIGIN", "PASSWORD_BREACH_CHECK", "BREVO_API_KEY"];
   const tooling = [
     "DATABASE_URL_ADMIN",
     urlVariable("leads_owner", "dev"),

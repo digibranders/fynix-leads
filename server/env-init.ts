@@ -44,6 +44,8 @@ export function buildEnvFile(secrets: EnvSecrets): string {
     "APP_ORIGIN=http://localhost:3020",
     "# `hibp` checks new passwords against known breaches. `off` skips the check (development without a network only).",
     "PASSWORD_BREACH_CHECK=hibp",
+    "# Optional in development: without a Brevo key email is only written to the outbox table (`pnpm mail:last` prints it).",
+    "# BREVO_API_KEY=",
     "",
     "# Integration tests: the same roles on the test database.",
     ...ROLE_NAMES.map((role) => `${urlVariable(role, "test")}=${roleUrl(role, secrets.passwords[role], "test")}`),
