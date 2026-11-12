@@ -20,7 +20,8 @@
     "db:seed": "tsx scripts/db-seed.ts",
     "admin:create": "tsx scripts/admin-create.ts",
     "mail:last": "tsx scripts/mail-last.ts",
-    "outbox:run": "tsx scripts/outbox-run.ts"
+    "outbox:run": "tsx scripts/outbox-run.ts",
+    "terms:placeholder": "tsx scripts/terms-placeholder.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
