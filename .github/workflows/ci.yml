@@ -1,7 +1,8 @@
 # The checks that must pass before code reaches main or development.
 #
-# One job: the checks share one install and the whole run takes a few minutes, so splitting them would pay the
-# install cost several times for no gain.
+# Two jobs. `checks` is lint, typecheck, test and build: they share one install, so splitting them would pay the
+# install cost several times for no gain. `database` needs a Postgres service and is slower, so it runs beside
+# `checks` instead of adding to it.
 name: CI
 
 on:
@@ -70,3 +71,60 @@ jobs:
             if (bad.length) { console.error("Dashes found in:\n" + bad.join("\n")); process.exit(1); }
             console.log("No em or en dashes.");
           '
+
+  # Every migration on an empty database, then the integration tests. This is the check that the row-level security
+  # and column-grant design holds on a real Postgres, so it must stay a separate job: `checks` needs no database.
+  database:
+    name: Migrations and integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Production runs Postgres 16. The superuser is named after the runner's OS user and local connections need no
+    # password, because that is what `pnpm env:init` writes for the admin connection
+    # (`postgresql://<os user>@localhost:5432/postgres`). The six application roles still log in as themselves, so
+    # row-level security and column grants are exercised for real.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: runner
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U runner"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Throwaway secrets for this run only, written to the git-ignored .env.local the scripts read.
+      - name: Generate the local environment
+        run: pnpm env:init
+
+      - name: Create the roles
+        run: pnpm db:roles
+
+      # fynix_leads and fynix_leads_test, owned by leads_owner, as on a new machine.
+      - name: Create the databases
+        run: pnpm db:create
+
+      # Every migration, in order, on an empty database: the check this job exists for.
+      - name: Migrate an empty database
+        run: pnpm db:migrate
+
+      # Migrates the empty test database the same way, then runs the integration suites against it.
+      - name: Integration tests
+        run: pnpm test:integration
