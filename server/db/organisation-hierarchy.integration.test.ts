@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { campaign, organisation } from "@/server/db/schema";
+import { agreement, campaign, campaignShare, member, organisation } from "@/server/db/schema";
 import { captureErrorText, openTestDatabases, resetDatabase, type TestDatabases } from "@/server/db/testing";
 import { seedWorld, type SeedWorld } from "@/server/db/testing/seed";
 
@@ -101,6 +101,56 @@ describe("campaign.agency_org_id is a supplier", () => {
     await dbs.owner.db.insert(campaign).values(campaignValues(world.northgate.id));
     const [row] = await dbs.owner.db.select({ agencyOrgId: campaign.agencyOrgId }).from(campaign).where(eq(campaign.publicRef, "CMP-3C4D"));
     expect(row?.agencyOrgId).toBe(world.northgate.id);
+  });
+});
+
+describe("a campaign's supplier is fixed once it has shares or a supplier agreement", () => {
+  let createdBy: string;
+  beforeEach(async () => {
+    await resetDatabase(dbs.owner);
+    world = await seedWorld(dbs.owner);
+    const [fynixMember] = await dbs.owner.db.select({ id: member.id }).from(member).where(eq(member.orgKind, "fynix")).limit(1);
+    if (fynixMember === undefined) throw new Error("The seed world has no Fynix member");
+    createdBy = fynixMember.id;
+  });
+  const target = (): { readonly id: string; readonly agencyOrgId: string } => {
+    const row = world.campaigns[0];
+    if (row === undefined) throw new Error("no campaign");
+    return { id: row.id, agencyOrgId: row.agency.id };
+  };
+  const supplierOf = async (): Promise<string | undefined> => (await dbs.owner.db.select({ agencyOrgId: campaign.agencyOrgId }).from(campaign).where(eq(campaign.id, target().id)))[0]?.agencyOrgId;
+  const moveToOtherSupplier = () => dbs.owner.db.update(campaign).set({ agencyOrgId: world.northgate.id }).where(eq(campaign.id, target().id));
+
+  it("lets the supplier change while the campaign has no share and no supplier agreement", async () => {
+    await moveToOtherSupplier();
+    expect(await supplierOf()).toBe(world.northgate.id);
+  });
+
+  it("refuses the change once the campaign has a share, and names no row values", async () => {
+    await dbs.owner.db.insert(campaignShare).values({ campaignId: target().id, agencyOrgId: target().agencyOrgId, monthlyShare: 5 });
+    const databaseMessage = await moveToOtherSupplier().then(
+      () => "no error",
+      (error: unknown) => (error instanceof Error && error.cause instanceof Error ? error.cause.message : "no database error"),
+    );
+    expect(databaseMessage).toBe("campaign_supplier_in_use: a campaign with shares or a supplier agreement keeps its supplier");
+    expect(await supplierOf()).toBe(target().agencyOrgId);
+  });
+
+  it("refuses the change once the campaign has a supplier agreement", async () => {
+    await dbs.owner.db.insert(agreement).values({ campaignId: target().id, party: "supplier", version: 1, monthlyTarget: 5, totalTarget: 30, createdBy });
+    expect(await failure(moveToOtherSupplier())).toContain("campaign_supplier_in_use");
+  });
+
+  it("allows the change when only a client agreement exists", async () => {
+    await dbs.owner.db.insert(agreement).values({ campaignId: target().id, party: "client", version: 1, monthlyTarget: 5, totalTarget: 30, createdBy });
+    await moveToOtherSupplier();
+    expect(await supplierOf()).toBe(world.northgate.id);
+  });
+
+  it("allows an update that sets the same supplier, even with shares", async () => {
+    await dbs.owner.db.insert(campaignShare).values({ campaignId: target().id, agencyOrgId: target().agencyOrgId, monthlyShare: 5 });
+    await dbs.owner.db.update(campaign).set({ agencyOrgId: target().agencyOrgId }).where(eq(campaign.id, target().id));
+    expect(await supplierOf()).toBe(target().agencyOrgId);
   });
 });
 
