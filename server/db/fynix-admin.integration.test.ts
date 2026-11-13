@@ -1,10 +1,10 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { auditLog, member, organisation } from "@/server/db/schema";
 import { withScope } from "@/server/db/scope";
 import { captureErrorText, openTestDatabases, resetDatabase, type TestDatabases } from "@/server/db/testing";
 import { seedWorld, type SeedWorld } from "@/server/db/testing/seed";
-import { fynixWritableTablesWithoutAdminTrigger } from "@/server/db/testing/structure";
+import { fynixWritableTables, fynixWritableTablesWithoutAdminTrigger, quoteIdentifier } from "@/server/db/testing/structure";
 
 /**
  * The database side of the Fynix admin rule (migration 0029): a change to a table Fynix writes, made as `leads_fynix` by anyone
@@ -46,7 +46,34 @@ async function createAs(userId: string): Promise<void> {
 }
 const organisationCount = async (): Promise<number> => (await dbs.owner.db.select({ id: organisation.id }).from(organisation)).length;
 
+// The table list comes from the catalog when the file loads, so a table added later is covered without anyone listing it.
+const writableTables = await (async () => {
+  const handles = openTestDatabases();
+  try {
+    return await fynixWritableTables(handles.owner.db);
+  } finally {
+    await handles.closeAll();
+  }
+})();
+
 describe("the Fynix admin trigger", () => {
+  it("covers the tables Fynix writes", () => {
+    expect(writableTables.length).toBeGreaterThan(0);
+  });
+
+  it.each(writableTables.map((entry) => [entry.table, entry] as const))("refuses staff on %s for each insert, update and delete it may run that touches no row", async (_name, entry) => {
+    const table = quoteIdentifier(entry.table);
+    const statements: string[] = [];
+    if (entry.canDelete) statements.push(`delete from ${table} where false`);
+    if (entry.insertColumn !== null) statements.push(`insert into ${table} (${quoteIdentifier(entry.insertColumn)}) select ${quoteIdentifier(entry.insertColumn)} from ${table} where false`);
+    if (entry.updateColumn !== null) statements.push(`update ${table} set ${quoteIdentifier(entry.updateColumn)} = ${quoteIdentifier(entry.updateColumn)} where false`);
+    expect(statements.length, `leads_fynix can write nothing in ${entry.table}`).toBeGreaterThan(0);
+    for (const statement of statements) {
+      const message = await captureErrorText(withScope(dbs.roles.leads_fynix.db, { orgId: null, userId: staff() }, (tx) => tx.execute(sql.raw(statement))));
+      expect(message, statement).toContain(`Only a Fynix admin may change ${entry.table}`);
+    }
+  });
+
   it("lets an active manager of the Fynix organisation write", async () => {
     await createAs(admin());
     expect(await organisationCount()).toBe(6);

@@ -251,3 +251,28 @@ export function fynixWritableTablesWithoutAdminTrigger(executor: Executor, exemp
 export function quoteIdentifier(name: string): string {
   return `"${name.replaceAll('"', '""')}"`;
 }
+
+/** A table `leads_fynix` can write, with a column it may insert, update and read, for statements that touch no row. */
+export interface FynixWritableTable {
+  readonly table: string;
+  readonly insertColumn: string | null;
+  readonly updateColumn: string | null;
+  readonly canDelete: boolean;
+}
+
+/** Every table `leads_fynix` can change, apart from the exempt ones, read from the catalog so a new table is covered without anyone listing it. */
+export async function fynixWritableTables(executor: Executor, exempt: readonly string[] = AUDIT_EXEMPT_TABLES): Promise<FynixWritableTable[]> {
+  const column = (privilege: "INSERT" | "UPDATE"): SQL =>
+    sql.raw(`(select a.attname::text from pg_attribute a where a.attrelid = c.oid and a.attnum > 0 and not a.attisdropped
+        and has_column_privilege('leads_fynix', c.oid, a.attnum, '${privilege}') and has_column_privilege('leads_fynix', c.oid, a.attnum, 'SELECT') order by a.attnum limit 1)`);
+  const result = await executor.execute<{ name: string; insert_column: string | null; update_column: string | null; can_delete: boolean }>(
+    sql`select c.relname::text as name, ${column("INSERT")} as insert_column, ${column("UPDATE")} as update_column,
+        has_table_privilege('leads_fynix', c.oid, 'DELETE') as can_delete
+        from pg_class c join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = 'public' and c.relkind in ('r', 'p') and c.relname not in (${sql.raw(quoted(exempt.length === 0 ? [""] : exempt))})
+          and (has_any_column_privilege('leads_fynix', c.oid, 'INSERT') or has_any_column_privilege('leads_fynix', c.oid, 'UPDATE')
+            or has_table_privilege('leads_fynix', c.oid, 'DELETE'))
+        order by 1`,
+  );
+  return result.rows.map((row) => ({ table: row.name, insertColumn: row.insert_column, updateColumn: row.update_column, canDelete: row.can_delete }));
+}
