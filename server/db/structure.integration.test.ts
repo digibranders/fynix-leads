@@ -584,3 +584,35 @@ describe("denied writes", () => {
     expect(names.rows.map((row) => row.name)).toEqual(world.campaigns.map((row) => row.name).sort());
   });
 });
+
+describe("phase 1D: nothing new is visible to a tenant role", () => {
+  const NEW_TABLES = ["agreement", "agreement_acceptance", "campaign_share", "campaign_host", "host_hours", "host_block"] as const;
+
+  it.each(TENANT_ROLES)("%s holds no privilege of any kind on the six set-up tables", async (role) => {
+    for (const table of NEW_TABLES) {
+      expect(await grantedColumns(dbs.owner.db, role, table), `${role} reads ${table}`).toEqual([]);
+      const writes = await dbs.owner.db.execute<{ allowed: boolean }>(
+        sql.raw(`select has_any_column_privilege('${role}', 'public.${table}', 'INSERT') or has_any_column_privilege('${role}', 'public.${table}', 'UPDATE') or has_table_privilege('${role}', 'public.${table}', 'DELETE') as allowed`),
+      );
+      expect(writes.rows, `${role} writes ${table}`).toEqual([{ allowed: false }]);
+    }
+  });
+
+  it.each(TENANT_ROLES)("%s still reads exactly the phase 1A columns of organisation and campaign: the parent and the settings are hidden", async (role) => {
+    expect(await grantedColumns(dbs.owner.db, role, "organisation")).toEqual(["public_ref", "kind", "name", "brand_name"]);
+    const campaignColumns = await grantedColumns(dbs.owner.db, role, "campaign");
+    expect(campaignColumns).toEqual(["id", "public_ref", "name", "client_brand_name", "status", "start_date", "end_date", "monthly_target", "total_target"]);
+    for (const hidden of ["time_zone", "meeting_minutes"]) expect(campaignColumns).not.toContain(hidden);
+  });
+
+  it("the Fynix role may write the new columns of organisation and campaign, which it holds table level grants on", async () => {
+    for (const [table, column] of [["organisation", "parent_org_id"], ["campaign", "time_zone"], ["campaign", "meeting_minutes"]] as const) {
+      const allowed = await dbs.owner.db.execute<{ allowed: boolean }>(sql.raw(`select has_column_privilege('leads_fynix', 'public.${table}', '${column}', 'UPDATE') as allowed`));
+      expect(allowed.rows, `${table}.${column}`).toEqual([{ allowed: true }]);
+    }
+  });
+
+  it("every phase 1D table is in the access matrix with Fynix as its only role", () => {
+    for (const table of NEW_TABLES) expect(EXPECTED_ACCESS[table], table).toEqual(["leads_fynix"]);
+  });
+});

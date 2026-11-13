@@ -1,7 +1,27 @@
 import { createHash } from "node:crypto";
 import { PLACEHOLDER_TERMS } from "@/lib/terms/placeholder";
 import type { DatabaseHandle } from "@/server/db/pool";
-import { account, agencyAlias, auditLog, campaign, emailOutbox, invite, member, organisation, session, termsAcceptance, termsDocument, user, verification } from "@/server/db/schema";
+import {
+  account,
+  agencyAlias,
+  agreement,
+  agreementAcceptance,
+  auditLog,
+  campaign,
+  campaignHost,
+  campaignShare,
+  emailOutbox,
+  hostBlock,
+  hostHours,
+  invite,
+  member,
+  organisation,
+  session,
+  termsAcceptance,
+  termsDocument,
+  user,
+  verification,
+} from "@/server/db/schema";
 
 export interface SeededOrganisation {
   readonly id: string;
@@ -59,6 +79,17 @@ export interface SeededDomain {
 }
 
 /**
+ * The phase 1D rows, seeded on request (`withSetup`): a partner agency under Brightpath, a client agreement and a supplier
+ * agreement for the first campaign, one acceptance, a share for the partner, a host (the Kestrel user) with weekly hours in
+ * another time zone and a blocked time. `markers` is every distinctive string stored in the new tables, so the leak matrix can
+ * search for them; no tenant may find any of them until phase 1E grants the rows that are its own.
+ */
+export interface SeededSetup {
+  readonly partner: SeededOrganisation;
+  readonly markers: readonly string[];
+}
+
+/**
  * Two client organisations, two agencies and a campaign for every pairing, so each tenant has rows that are its own
  * and rows that belong to someone else. Every value is distinct and findable as plain text, which is what the leak
  * matrix searches responses for.
@@ -81,6 +112,8 @@ export interface SeedWorld {
   readonly users: readonly SeededUser[];
   /** The phase 1C rows. Empty (`null`) when the world was seeded without users. */
   readonly domain: SeededDomain | null;
+  /** The phase 1D rows. `null` unless the world was seeded with `withSetup: true`. */
+  readonly setup: SeededSetup | null;
 }
 
 function firstRow<T>(rows: readonly T[], what: string): T {
@@ -179,13 +212,61 @@ async function seedDomain(owner: DatabaseHandle, world: Pick<SeedWorld, "fynix" 
   return { termsDocumentIds: documents, invites, aliases, acceptanceAddresses, auditMarkers, outboxRecipient, outboxLink };
 }
 
+const SETUP_MARKERS = {
+  clientRules: "SETUP-RULES-CLIENT a no-show counts after ten minutes",
+  clientNotes: "SETUP-NOTES-CLIENT review every quarter",
+  supplierRules: "SETUP-RULES-SUPPLIER cancellations need two days notice",
+  supplierNotes: "SETUP-NOTES-SUPPLIER paid on delivered meetings",
+  acceptanceAddress: "198.51.100.77",
+  hostTitle: "SETUP-HOST-TITLE Chief Operating Officer",
+  hostZone: "Pacific/Auckland",
+  blockNote: "SETUP-BLOCK-NOTE dentist appointment",
+} as const;
+
+async function seedSetup(
+  owner: DatabaseHandle,
+  world: { readonly kestrel: SeededOrganisation; readonly brightpath: SeededOrganisation; readonly campaigns: readonly SeededCampaign[] },
+  seeded: { readonly users: readonly SeededUser[]; readonly memberIds: ReadonlyMap<string, string> },
+): Promise<SeededSetup> {
+  const { db } = owner;
+  const memberOf = (person: SeededUser): string => {
+    const id = seeded.memberIds.get(person.id);
+    if (id === undefined) throw new Error(`No member was seeded for ${person.email}`);
+    return id;
+  };
+  const admin = firstRow(seeded.users.filter((person) => person.organisation.kind === "fynix" && person.role === "manager"), "the Fynix admin");
+  const kestrelUser = firstRow(seeded.users.filter((person) => person.organisation.id === world.kestrel.id), "the Kestrel user");
+  const target = firstRow(world.campaigns, "campaign");
+
+  const partnerRef = "ORG-6P3S";
+  const partnerName = "Ridgeway Partner Media Ltd";
+  const partnerRow = firstRow(await db.insert(organisation).values({ publicRef: partnerRef, kind: "agency", name: partnerName, parentOrgId: world.brightpath.id }).returning({ id: organisation.id }), "partner agency");
+  const partner: SeededOrganisation = { id: partnerRow.id, publicRef: partnerRef, name: partnerName, brandName: null, kind: "agency" };
+
+  const clientAgreement = firstRow(
+    await db
+      .insert(agreement)
+      .values({ campaignId: target.id, party: "client", version: 1, monthlyTarget: 20, totalTarget: 120, rules: SETUP_MARKERS.clientRules, notes: SETUP_MARKERS.clientNotes, createdBy: memberOf(admin) })
+      .returning({ id: agreement.id }),
+    "client agreement",
+  );
+  await db.insert(agreement).values({ campaignId: target.id, party: "supplier", version: 1, monthlyTarget: 18, totalTarget: 108, rules: SETUP_MARKERS.supplierRules, notes: SETUP_MARKERS.supplierNotes, createdBy: memberOf(admin) });
+  await db.insert(agreementAcceptance).values({ agreementId: clientAgreement.id, userId: kestrelUser.id, networkAddress: SETUP_MARKERS.acceptanceAddress });
+  await db.insert(campaignShare).values({ campaignId: target.id, agencyOrgId: partner.id, monthlyShare: 7 });
+  await db.insert(campaignHost).values({ campaignId: target.id, clientOrgId: world.kestrel.id, memberId: memberOf(kestrelUser), jobTitle: SETUP_MARKERS.hostTitle });
+  await db.insert(hostHours).values({ memberId: memberOf(kestrelUser), timeZone: SETUP_MARKERS.hostZone, weekday: 1, startMinute: 540, endMinute: 1020 });
+  await db.insert(hostBlock).values({ memberId: memberOf(kestrelUser), startsAt: new Date("2027-01-04T09:00:00Z"), endsAt: new Date("2027-01-04T11:00:00Z"), note: SETUP_MARKERS.blockNote });
+  return { partner, markers: Object.values(SETUP_MARKERS) };
+}
+
 /**
  * Writes through the owner connection, which bypasses row-level security. Test and dev databases only. Users are seeded
  * unless `withUsers` is false, which the auth tests use because they create real users through the account grant. The
  * phase 1C rows (`domain`) are seeded with the users unless `withDomain` is false, which `pnpm db:seed` uses: a development
- * database has no use for a fake audit row or a queued email.
+ * database has no use for a fake audit row or a queued email. The phase 1D rows (`setup`) are seeded only with `withSetup: true`,
+ * which the leak matrix uses: a partner agency would change the organisation counts that older tests rely on.
  */
-export async function seedWorld(owner: DatabaseHandle, options: { readonly withUsers?: boolean; readonly withDomain?: boolean } = {}): Promise<SeedWorld> {
+export async function seedWorld(owner: DatabaseHandle, options: { readonly withUsers?: boolean; readonly withDomain?: boolean; readonly withSetup?: boolean } = {}): Promise<SeedWorld> {
   const { db } = owner;
   const insertOrganisation = async (publicRef: string, kind: "fynix" | "client" | "agency", name: string, brandName: string | null): Promise<SeededOrganisation> => {
     const row = firstRow(
@@ -247,5 +328,7 @@ export async function seedWorld(owner: DatabaseHandle, options: { readonly withU
           { organisation: fynix, role: "member" },
         ]);
   const domain = seeded === null || options.withDomain === false ? null : await seedDomain(owner, { fynix, kestrel, northgate }, seeded);
-  return { fynix, kestrel, halden, brightpath, northgate, campaigns, clients: [kestrel, halden], agencies: [brightpath, northgate], users: seeded?.users ?? [], domain };
+  if (options.withSetup === true && seeded === null) throw new Error("withSetup needs the users: the agreements, the acceptance and the host belong to people.");
+  const setup = options.withSetup === true && seeded !== null ? await seedSetup(owner, { kestrel, brightpath, campaigns }, seeded) : null;
+  return { fynix, kestrel, halden, brightpath, northgate, campaigns, clients: [kestrel, halden], agencies: [brightpath, northgate], users: seeded?.users ?? [], domain, setup };
 }

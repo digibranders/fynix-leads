@@ -141,6 +141,46 @@ export const PROBES: readonly Probe[] = [
   { name: "campaign: the BANT criteria", statement: "select bant_budget, bant_authority, bant_need, bant_timeline from campaign", expectedError: DENIED_TABLE },
   { name: "campaign: geography, industries, titles, seniority, technologies and size", statement: "select geography, industries, job_titles, seniority, technologies, company_size from campaign", expectedError: DENIED_TABLE },
   { name: "campaign: probe by a requirement in WHERE", statement: "select id from campaign where icp <> ''", expectedError: DENIED_TABLE },
+  // Phase 1D: the organisation hierarchy, the campaign settings and the six set-up tables. Nothing here is granted to a tenant until 1E.
+  { name: "organisation: the supplier a partner agency works under", statement: "select parent_org_id from organisation", expectedError: DENIED_TABLE },
+  { name: "organisation: the kind of the parent", statement: "select parent_org_kind from organisation", expectedError: DENIED_TABLE },
+  { name: "organisation: probe the hierarchy by WHERE", statement: "select name from organisation where parent_org_id is not null", expectedError: DENIED_TABLE },
+  { name: "organisation: join an organisation to its parent", statement: "select c.name from organisation c join organisation p on p.id = c.parent_org_id", expectedError: DENIED_TABLE },
+  { name: "write: give an organisation a parent", statement: "update organisation set parent_org_id = null", expectedError: DENIED_TABLE },
+  { name: "campaign: the time zone", statement: "select time_zone from campaign", expectedError: DENIED_TABLE },
+  { name: "campaign: the meeting length", statement: "select meeting_minutes from campaign", expectedError: DENIED_TABLE },
+  { name: "campaign: probe by the time zone in WHERE", statement: "select id from campaign where time_zone = 'Europe/London'", expectedError: DENIED_TABLE },
+  { name: "write: change the time zone of a campaign", statement: "update campaign set time_zone = 'UTC', meeting_minutes = 15", expectedError: DENIED_TABLE },
+  { name: "agreements: every agreement", statement: "select * from agreement", expectedError: DENIED_TABLE },
+  { name: "agreements: the targets", statement: "select monthly_target, total_target from agreement", expectedError: DENIED_TABLE },
+  { name: "agreements: the rules, the notes and the dispute window", statement: "select rules, notes, dispute_window_hours from agreement", expectedError: DENIED_TABLE },
+  { name: "agreements: join a campaign to its agreements", statement: "select c.name, a.monthly_target from campaign c join agreement a on a.campaign_id = c.id", expectedError: DENIED_TABLE },
+  { name: "agreements: probe by the party in WHERE", statement: "select id from agreement where party = 'supplier'", expectedError: DENIED_TABLE },
+  { name: "agreements: every acceptance", statement: "select * from agreement_acceptance", expectedError: DENIED_TABLE },
+  { name: "agreements: who accepted, and from where", statement: "select user_id, network_address from agreement_acceptance", expectedError: DENIED_TABLE },
+  { name: "write: publish an agreement", statement: "insert into agreement (campaign_id, party, version, monthly_target, total_target, created_by) values (gen_random_uuid(), 'client', 1, 1, 1, gen_random_uuid())", expectedError: DENIED_TABLE },
+  { name: "write: supersede an agreement", statement: "update agreement set status = 'superseded'", expectedError: DENIED_TABLE },
+  { name: "write: accept an agreement as someone else", statement: "insert into agreement_acceptance (agreement_id, user_id, network_address) values (gen_random_uuid(), gen_random_uuid(), 'x')", expectedError: DENIED_TABLE },
+  { name: "shares: every share", statement: "select * from campaign_share", expectedError: DENIED_TABLE },
+  { name: "shares: how much each agency carries", statement: "select agency_org_id, monthly_share from campaign_share", expectedError: DENIED_TABLE },
+  { name: "shares: join a campaign to its shares", statement: "select c.name, s.monthly_share from campaign c join campaign_share s on s.campaign_id = c.id", expectedError: DENIED_TABLE },
+  { name: "write: set a share", statement: "insert into campaign_share (campaign_id, agency_org_id, monthly_share) values (gen_random_uuid(), gen_random_uuid(), 1)", expectedError: DENIED_TABLE },
+  { name: "write: change a share", statement: "update campaign_share set monthly_share = 0", expectedError: DENIED_TABLE },
+  { name: "write: remove a share", statement: "delete from campaign_share", expectedError: DENIED_TABLE },
+  { name: "hosts: every host", statement: "select * from campaign_host", expectedError: DENIED_TABLE },
+  { name: "hosts: who they are and what they do", statement: "select member_id, job_title, active from campaign_host", expectedError: DENIED_TABLE },
+  { name: "hosts: the client organisation behind a campaign", statement: "select client_org_id from campaign_host", expectedError: DENIED_TABLE },
+  { name: "write: add a host", statement: "insert into campaign_host (campaign_id, client_org_id, member_id, job_title) values (gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 'x')", expectedError: DENIED_TABLE },
+  { name: "write: deactivate a host", statement: "update campaign_host set active = false", expectedError: DENIED_TABLE },
+  { name: "write: remove a host", statement: "delete from campaign_host", expectedError: DENIED_TABLE },
+  { name: "hours: every window", statement: "select * from host_hours", expectedError: DENIED_TABLE },
+  { name: "hours: the time zone and the weekdays", statement: "select member_id, time_zone, weekday, start_minute, end_minute from host_hours", expectedError: DENIED_TABLE },
+  { name: "write: set hours", statement: "insert into host_hours (member_id, time_zone, weekday, start_minute, end_minute) values (gen_random_uuid(), 'UTC', 1, 0, 60)", expectedError: DENIED_TABLE },
+  { name: "write: clear hours", statement: "delete from host_hours", expectedError: DENIED_TABLE },
+  { name: "blocks: every blocked time", statement: "select * from host_block", expectedError: DENIED_TABLE },
+  { name: "blocks: when and why", statement: "select starts_at, ends_at, note from host_block", expectedError: DENIED_TABLE },
+  { name: "write: block a time", statement: "insert into host_block (member_id, starts_at, ends_at) values (gen_random_uuid(), now(), now() + interval '1 hour')", expectedError: DENIED_TABLE },
+  { name: "write: remove a blocked time", statement: "delete from host_block", expectedError: DENIED_TABLE },
 ];
 
 /**
@@ -174,6 +214,10 @@ export function forbiddenTokens(viewer: Viewer, world: SeedWorld): string[] {
     for (const row of domain.invites) tokens.push(row.id, row.email, row.name, row.token, row.tokenHash);
     tokens.push(...domain.aliases, ...domain.acceptanceAddresses, ...domain.auditMarkers, domain.outboxRecipient, domain.outboxLink, ...Object.values(domain.termsDocumentIds));
   }
+  // Phase 1D: no tenant role reads a partner agency, an agreement, an acceptance, a share, a host, working hours or a blocked
+  // time. Phase 1E gives each tenant the rows that are its own and narrows this to the other side's.
+  const { setup } = world;
+  if (setup !== null) tokens.push(setup.partner.id, setup.partner.publicRef, setup.partner.name, ...setup.markers);
   return [...new Set(tokens)];
 }
 

@@ -1,6 +1,7 @@
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { TENANT_ROLES, type TenantRoleName } from "@/server/db/roles";
-import { agencyAlias, auditLog, campaign, emailOutbox, invite, termsAcceptance } from "@/server/db/schema";
+import { agencyAlias, agreement, agreementAcceptance, auditLog, campaign, campaignHost, campaignShare, emailOutbox, hostBlock, hostHours, invite, organisation, termsAcceptance } from "@/server/db/schema";
 import { withScope } from "@/server/db/scope";
 import { captureErrorText, openTestDatabases, queryAs, resetDatabase, type TestDatabases } from "@/server/db/testing";
 import { PROBES, READ_PATHS, findLeaks, forbiddenTokens, type Viewer } from "@/server/db/testing/leak-matrix";
@@ -25,7 +26,7 @@ afterAll(async () => {
 });
 beforeEach(async () => {
   await resetDatabase(dbs.owner);
-  world = await seedWorld(dbs.owner);
+  world = await seedWorld(dbs.owner, { withSetup: true });
 });
 
 function viewers(): Viewer[] {
@@ -99,5 +100,35 @@ describe("the matrix itself", () => {
       const leaks = findLeaks(everything, forbiddenTokens(viewer, world));
       for (const expected of [domain.invites[0]?.email, domain.aliases[0], domain.acceptanceAddresses[0], domain.auditMarkers[0], domain.outboxRecipient]) expect(leaks).toContain(expected);
     }
+  });
+});
+
+describe("the matrix itself, phase 1D", () => {
+  it("detects a leak of the set-up tables: what Fynix may read of agreements, acceptances, shares, hosts, hours, blocks and the hierarchy trips both forbidden lists", async () => {
+    const asFynix = <T>(work: Parameters<typeof withScope<T>>[2]) => withScope(dbs.roles.leads_fynix.db, { orgId: null, userId: world.users[0]?.id ?? USER }, work);
+    const everything = JSON.stringify([
+      await asFynix((tx) => tx.select({ rules: agreement.rules, notes: agreement.notes }).from(agreement)),
+      await asFynix((tx) => tx.select({ address: agreementAcceptance.networkAddress }).from(agreementAcceptance)),
+      await asFynix((tx) => tx.select({ agency: campaignShare.agencyOrgId }).from(campaignShare)),
+      await asFynix((tx) => tx.select({ title: campaignHost.jobTitle }).from(campaignHost)),
+      await asFynix((tx) => tx.select({ zone: hostHours.timeZone }).from(hostHours)),
+      await asFynix((tx) => tx.select({ note: hostBlock.note }).from(hostBlock)),
+      await asFynix((tx) => tx.select({ id: organisation.id, ref: organisation.publicRef, name: organisation.name, parent: organisation.parentOrgId }).from(organisation)),
+    ]);
+    const setup = world.setup;
+    if (setup === null) throw new Error("The seed world has no phase 1D rows");
+    for (const viewer of [{ role: "leads_client", organisation: world.kestrel }, { role: "leads_agency", organisation: world.brightpath }] as const) {
+      const leaks = findLeaks(everything, forbiddenTokens(viewer, world));
+      for (const expected of [...setup.markers, setup.partner.name, setup.partner.publicRef, setup.partner.id]) expect(leaks, expected).toContain(expected);
+    }
+  });
+
+  it("the seed holds a partner agency under Brightpath, and the set-up rows belong to the first campaign", async () => {
+    const setup = world.setup;
+    if (setup === null) throw new Error("The seed world has no phase 1D rows");
+    const [row] = await dbs.owner.db.select({ parent: organisation.parentOrgId }).from(organisation).where(eq(organisation.id, setup.partner.id));
+    expect(row?.parent).toBe(world.brightpath.id);
+    expect(await dbs.owner.db.select({ id: agreement.id }).from(agreement)).toHaveLength(2);
+    expect(await dbs.owner.db.select({ id: campaignShare.id }).from(campaignShare)).toHaveLength(1);
   });
 });
