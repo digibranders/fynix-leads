@@ -15,6 +15,14 @@ describe("campaign settings", () => {
     expect(isIanaTimeZone(zone)).toBe(true);
   });
 
+  it.each(["America/New_York", "Asia/Kolkata", "Europe/London", "UTC"])("accepts the canonical name %s", (zone) => {
+    expect(isIanaTimeZone(zone)).toBe(true);
+  });
+
+  it.each(["EST", "MST", "HST", "Etc/GMT+5", "europe/london", "EUROPE/LONDON", "utc", "asia/kolkata", "Asia/Calcutta "])("refuses the legacy, fixed offset or wrong case name %j", (zone) => {
+    expect(isIanaTimeZone(zone)).toBe(false);
+  });
+
   it.each(["", " ", "Mars/Olympus", "+01:00", "GMT+1 hour", "Europe/London; drop table", "Europe//London", "x".repeat(65)])("refuses %j", (zone) => {
     expect(isIanaTimeZone(zone)).toBe(false);
   });
