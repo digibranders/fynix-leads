@@ -15,6 +15,8 @@ export interface CampaignRecord {
   readonly publicRef: string;
   readonly name: string;
   readonly status: CampaignStatus;
+  readonly timeZone: string;
+  readonly meetingMinutes: number;
 }
 
 const campaignColumns = {
@@ -41,15 +43,29 @@ const campaignColumns = {
   bantTimeline: campaign.bantTimeline,
   instructions: campaign.instructions,
   internalNotes: campaign.internalNotes,
+  timeZone: campaign.timeZone,
+  meetingMinutes: campaign.meetingMinutes,
 };
 
-const record = (row: CampaignRow & { readonly id: string; readonly status: CampaignStatus }): CampaignRecord => ({ id: row.id, publicRef: row.publicRef, name: row.name, status: row.status });
+const record = (row: CampaignRow & { readonly id: string; readonly status: CampaignStatus }): CampaignRecord => ({
+  id: row.id,
+  publicRef: row.publicRef,
+  name: row.name,
+  status: row.status,
+  timeZone: row.timeZone,
+  meetingMinutes: row.meetingMinutes,
+});
 
-/** The organisation must exist, be of the right kind and be active. A client id that is really an agency is refused here and again by the database (`campaign_client_org_fk`). */
+/**
+ * The organisation must exist, be of the right kind and be active. A client id that is really an agency is refused here and
+ * again by the database (`campaign_client_org_fk`). The campaign's agency is its supplier, so an agency that has a parent (a
+ * partner agency) is refused with `not-a-supplier`; the database repeats it (`campaign_check_supplier`, migration 0020).
+ */
 async function requireActiveOrganisation(tx: ScopedTransaction, id: string, kind: "client" | "agency"): Promise<void> {
-  const [row] = await tx.select({ kind: organisation.kind, status: organisation.status }).from(organisation).where(eq(organisation.id, id)).limit(1);
+  const [row] = await tx.select({ kind: organisation.kind, status: organisation.status, parentOrgId: organisation.parentOrgId }).from(organisation).where(eq(organisation.id, id)).limit(1);
   if (row === undefined || row.kind !== kind) throw new DomainError("not-found", `There is no such ${kind}.`);
   if (row.status !== "active") throw new DomainError("organisation-archived", `The ${kind} is archived.`);
+  if (kind === "agency" && row.parentOrgId !== null) throw new DomainError("not-a-supplier", "A campaign needs a supplier. That agency is a partner agency of one.");
 }
 
 /**

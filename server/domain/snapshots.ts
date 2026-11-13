@@ -10,11 +10,13 @@ export interface OrganisationRow {
   readonly kind: string;
   readonly name: string;
   readonly brandName: string | null;
+  /** The supplier a partner agency works under, `null` for everyone else. */
+  readonly parentOrgId: string | null;
   readonly status: string;
 }
 
 export function snapshotOrganisation(row: OrganisationRow): JsonObject {
-  return { ref: row.publicRef, kind: row.kind, name: row.name, brandName: row.brandName, status: row.status };
+  return { ref: row.publicRef, kind: row.kind, name: row.name, brandName: row.brandName, parentOrgId: row.parentOrgId, status: row.status };
 }
 
 export interface CampaignRow {
@@ -40,6 +42,8 @@ export interface CampaignRow {
   readonly bantTimeline: string;
   readonly instructions: string;
   readonly internalNotes: string | null;
+  readonly timeZone: string;
+  readonly meetingMinutes: number;
 }
 
 export function snapshotCampaign(row: CampaignRow): JsonObject {
@@ -66,6 +70,8 @@ export function snapshotCampaign(row: CampaignRow): JsonObject {
     bantTimeline: row.bantTimeline,
     instructions: row.instructions,
     internalNotes: row.internalNotes,
+    timeZone: row.timeZone,
+    meetingMinutes: row.meetingMinutes,
   };
 }
 

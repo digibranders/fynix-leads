@@ -77,3 +77,24 @@ describe("invite input", () => {
     expect(issueInviteSchema.safeParse({ organisationId: UUID, email: "a@example.com", name: "A", role: "owner" }).success).toBe(false);
   });
 });
+
+
+describe("campaign settings input", () => {
+  it("accepts an IANA time zone, trims it, and accepts a meeting length from 15 to 240 minutes", () => {
+    expect(parseInput(createCampaignSchema, { ...CAMPAIGN, timeZone: " Europe/London ", meetingMinutes: 15 })).toMatchObject({ timeZone: "Europe/London", meetingMinutes: 15 });
+    expect(updateCampaignSchema.safeParse({ meetingMinutes: 240 }).success).toBe(true);
+  });
+
+  it("names the field and the rule when a setting is wrong, and never the value", () => {
+    const message = (input: unknown): string => {
+      try {
+        parseInput(updateCampaignSchema, input);
+      } catch (error) {
+        return (error as DomainError).message;
+      }
+      return "";
+    };
+    expect(message({ timeZone: "Mars/Olympus" })).toBe("timeZone must be an IANA time zone such as Europe/London");
+    expect(message({ meetingMinutes: 5 })).toContain("meetingMinutes");
+  });
+});

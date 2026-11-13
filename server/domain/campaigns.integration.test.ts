@@ -4,6 +4,7 @@ import { campaign } from "@/server/db/schema";
 import { createCampaign, updateCampaign } from "@/server/domain/campaigns";
 import { DomainError } from "@/server/domain/errors";
 import { createOrganisation, setOrganisationStatus } from "@/server/domain/organisations";
+import { createPartnerAgency } from "@/server/domain/suppliers";
 import { auditRowsFor, scriptedBytes } from "@/server/domain/test-helpers";
 import { openDomainRig } from "@/server/domain/testing";
 
@@ -121,5 +122,61 @@ describe("updateCampaign", () => {
     expect((await refusal(updateCampaign(rig.deps(), rig.actor, "99999999-9999-4999-8999-999999999999", { name: "x" }))).code).toBe("not-found");
     expect(await row(id)).toMatchObject({ status: "draft", clientOrgId: rig.world().kestrel.id });
     expect((await auditRowsFor(rig)).map((entry) => entry.action)).toEqual(["campaign.create"]);
+  });
+});
+
+describe("campaign time zone and meeting length", () => {
+  it("default to London time and 30 minutes, and the record says so", async () => {
+    const created = await createCampaign(rig.deps(), rig.actor, input());
+    expect(created).toMatchObject({ timeZone: "Europe/London", meetingMinutes: 30 });
+    expect(await row(created.id)).toMatchObject({ timeZone: "Europe/London", meetingMinutes: 30 });
+  });
+
+  it("are stored when given, and audited", async () => {
+    const created = await createCampaign(rig.deps(), rig.actor, { ...input(), timeZone: "Asia/Kolkata", meetingMinutes: 45 });
+    expect(created).toMatchObject({ timeZone: "Asia/Kolkata", meetingMinutes: 45 });
+    const [audit] = await auditRowsFor(rig, "campaign.create");
+    expect(audit).toMatchObject({ after: { timeZone: "Asia/Kolkata", meetingMinutes: 45 } });
+  });
+
+  it.each([
+    ["an unknown time zone", { timeZone: "Mars/Olympus" }],
+    ["an offset instead of a zone", { timeZone: "+01:00" }],
+    ["an empty time zone", { timeZone: "" }],
+    ["a meeting of 14 minutes", { meetingMinutes: 14 }],
+    ["a meeting of 241 minutes", { meetingMinutes: 241 }],
+    ["a fractional meeting length", { meetingMinutes: 30.5 }],
+  ])("refuse %s, on create and on update, and write nothing", async (_label, change) => {
+    expect((await refusal(createCampaign(rig.deps(), rig.actor, { ...input(), ...change }))).code).toBe("invalid-input");
+    const { id } = await createCampaign(rig.deps(), rig.actor, input());
+    expect((await refusal(updateCampaign(rig.deps(), rig.actor, id, change))).code).toBe("invalid-input");
+    expect(await row(id)).toMatchObject({ timeZone: "Europe/London", meetingMinutes: 30 });
+    expect(await rig.dbs.owner.db.select({ id: campaign.id }).from(campaign)).toHaveLength(5);
+  });
+
+  it("change on update, with the before and after in the audit row", async () => {
+    const { id } = await createCampaign(rig.deps(), rig.actor, input());
+    const after = await updateCampaign(rig.deps(), rig.actor, id, { timeZone: "America/New_York", meetingMinutes: 60 });
+    expect(after).toMatchObject({ timeZone: "America/New_York", meetingMinutes: 60 });
+    const [audit] = await auditRowsFor(rig, "campaign.update");
+    expect(audit).toMatchObject({ before: { timeZone: "Europe/London", meetingMinutes: 30 }, after: { timeZone: "America/New_York", meetingMinutes: 60 } });
+  });
+});
+
+describe("a campaign's agency is its supplier", () => {
+  it("refuses a partner agency as the agency of a new campaign, with not-a-supplier, and writes nothing", async () => {
+    const partner = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: rig.world().northgate.id, name: "Ridgeway Partner Ltd" });
+    expect((await refusal(createCampaign(rig.deps(), rig.actor, { ...input(), agencyOrgId: partner.id }))).code).toBe("not-a-supplier");
+    expect(await rig.dbs.owner.db.select({ id: campaign.id }).from(campaign)).toHaveLength(4);
+    expect((await auditRowsFor(rig)).map((entry) => entry.action)).toEqual(["organisation.create"]);
+  });
+});
+
+describe("campaign set-up is for Fynix admins", () => {
+  it("refuses Fynix staff on create and on update", async () => {
+    const { id } = await createCampaign(rig.deps(), rig.actor, input());
+    expect((await refusal(createCampaign(rig.deps(), rig.staffActor, input()))).code).toBe("admin-required");
+    expect((await refusal(updateCampaign(rig.deps(), rig.staffActor, id, { meetingMinutes: 60 }))).code).toBe("admin-required");
+    expect(await row(id)).toMatchObject({ meetingMinutes: 30 });
   });
 });

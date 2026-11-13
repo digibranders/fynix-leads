@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { CAMPAIGN_STATUSES } from "@/lib/domain/campaign-status";
+import { MEETING_MINUTES_MAX, MEETING_MINUTES_MIN, isIanaTimeZone } from "@/lib/domain/campaign-settings";
 
 /**
  * What a Fynix admin may send to the domain services, parsed at the boundary: every service takes `unknown` and parses it
@@ -28,6 +29,10 @@ export const updateOrganisationSchema = z
   .refine((input) => input.name !== undefined || input.brandName !== undefined, { message: "must change something" });
 export type UpdateOrganisationInput = z.infer<typeof updateOrganisationSchema>;
 
+/** An IANA zone such as `Europe/London`. Trimmed, then checked against the runtime's time zone database (lib/domain/campaign-settings.ts). */
+export const timeZoneSchema = z.string().trim().refine(isIanaTimeZone, "must be an IANA time zone such as Europe/London");
+const meetingMinutes = z.number().int().min(MEETING_MINUTES_MIN).max(MEETING_MINUTES_MAX);
+
 const campaignRequired = {
   name: name(120),
   startDate: z.iso.date(),
@@ -50,6 +55,9 @@ const campaignOptional = {
   instructions: optionalText(4000),
   /** Fynix only: no tenant role can read it. */
   internalNotes: optionalText(4000).nullable(),
+  /** The time zone counting uses, and the default meeting length. The database defaults are Europe/London and 30. */
+  timeZone: timeZoneSchema,
+  meetingMinutes,
 };
 
 export const createCampaignSchema = z
@@ -83,3 +91,9 @@ export type IssueInviteInput = z.input<typeof issueInviteSchema>;
 export const aliasSchema = z.string().trim().min(2, "must be at least 2 characters").max(60, "must be at most 60 characters");
 export const displayNameSchema = name(120);
 export const uuidSchema = z.uuid();
+
+export const createSupplierSchema = z.object({ name: name(120) }).strict();
+export type CreateSupplierInput = z.infer<typeof createSupplierSchema>;
+
+export const createPartnerAgencySchema = z.object({ supplierId: z.uuid(), name: name(120) }).strict();
+export type CreatePartnerAgencyInput = z.infer<typeof createPartnerAgencySchema>;

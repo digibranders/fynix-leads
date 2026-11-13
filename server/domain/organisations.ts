@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import type { RandomBytes } from "@/lib/domain/public-ref";
 import { organisation } from "@/server/db/schema";
 import type { ScopedTransaction } from "@/server/db/scope";
 import type { DomainDeps } from "@/server/domain/deps";
@@ -16,35 +17,47 @@ export interface OrganisationRecord {
   readonly kind: "fynix" | "client" | "agency";
   readonly name: string;
   readonly brandName: string | null;
+  /** The supplier a partner agency works under. `null` for a client, a supplier and Fynix. */
+  readonly parentOrgId: string | null;
   readonly status: "active" | "archived";
 }
 
-const columns = {
+export const organisationColumns = {
   id: organisation.id,
   publicRef: organisation.publicRef,
   kind: organisation.kind,
   name: organisation.name,
   brandName: organisation.brandName,
+  parentOrgId: organisation.parentOrgId,
   status: organisation.status,
 };
 
 async function loadEditable(tx: ScopedTransaction, id: string): Promise<OrganisationRecord> {
-  const [row] = await tx.select(columns).from(organisation).where(eq(organisation.id, id)).limit(1).for("update");
+  const [row] = await tx.select(organisationColumns).from(organisation).where(eq(organisation.id, id)).limit(1).for("update");
   if (row === undefined) throw new DomainError("not-found", "There is no such organisation.");
   // The Fynix organisation is the admin's own. It is created by `pnpm admin:create` and nothing here changes or archives it.
   if (row.kind === "fynix") throw new DomainError("invalid-transition", "The Fynix organisation cannot be changed here.");
   return row;
 }
 
-/** Creates a client or an agency. The reference is generated here (`ORG-` and four characters) and retried when it is taken. */
+/** Inserts a client or an agency with a generated reference (`ORG-` and four characters), retried when taken. Used by every service that creates an organisation, so they share one way to do it. */
+export function insertOrganisation(
+  tx: ScopedTransaction,
+  randomBytes: RandomBytes,
+  values: { readonly kind: "client" | "agency"; readonly name: string; readonly brandName: string | null; readonly parentOrgId: string | null },
+): Promise<OrganisationRecord> {
+  return insertWithPublicRef(tx, { prefix: "ORG", constraint: "organisation_public_ref_unique", randomBytes }, async (attempt, publicRef) => {
+    const [row] = await attempt.insert(organisation).values({ publicRef, ...values }).returning(organisationColumns);
+    if (row === undefined) throw new Error("The organisation insert returned no row");
+    return row;
+  });
+}
+
+/** Creates a client or an agency with no parent (an agency with no parent is a supplier). The reference is generated here and retried when it is taken. */
 export async function createOrganisation(deps: DomainDeps, actor: FynixActor, input: unknown): Promise<OrganisationRecord> {
   const parsed = parseInput(createOrganisationSchema, input);
   return fynixWrite(deps.fynixDb, actor, async ({ tx, audit }) => {
-    const created = await insertWithPublicRef(tx, { prefix: "ORG", constraint: "organisation_public_ref_unique", randomBytes: deps.randomBytes }, async (attempt, publicRef) => {
-      const [row] = await attempt.insert(organisation).values({ publicRef, kind: parsed.kind, name: parsed.name, brandName: parsed.brandName ?? null }).returning(columns);
-      if (row === undefined) throw new Error("The organisation insert returned no row");
-      return row;
-    });
+    const created = await insertOrganisation(tx, deps.randomBytes, { kind: parsed.kind, name: parsed.name, brandName: parsed.brandName ?? null, parentOrgId: null });
     await audit({ action: "organisation.create", subject: { table: "organisation", id: created.id, ref: created.publicRef }, before: null, after: snapshotOrganisation(created) });
     return created;
   });
@@ -61,7 +74,7 @@ export async function updateOrganisation(deps: DomainDeps, actor: FynixActor, or
       .update(organisation)
       .set({ ...(parsed.name === undefined ? {} : { name: parsed.name }), ...(parsed.brandName === undefined ? {} : { brandName: parsed.brandName }) })
       .where(eq(organisation.id, id))
-      .returning(columns);
+      .returning(organisationColumns);
     if (after === undefined) throw new Error("The organisation update returned no row");
     await audit({ action: "organisation.update", subject: { table: "organisation", id, ref: after.publicRef }, before: snapshotOrganisation(before), after: snapshotOrganisation(after) });
     return after;
@@ -77,7 +90,7 @@ export async function setOrganisationStatus(deps: DomainDeps, actor: FynixActor,
   return fynixWrite(deps.fynixDb, actor, async ({ tx, audit }) => {
     const before = await loadEditable(tx, id);
     if (before.status === status) throw new DomainError("invalid-transition", `The organisation is already ${status}.`);
-    const [after] = await tx.update(organisation).set({ status }).where(eq(organisation.id, id)).returning(columns);
+    const [after] = await tx.update(organisation).set({ status }).where(eq(organisation.id, id)).returning(organisationColumns);
     if (after === undefined) throw new Error("The organisation update returned no row");
     await audit({
       action: status === "archived" ? "organisation.archive" : "organisation.restore",

@@ -21,10 +21,31 @@ export const AUDIT_ACTIONS = [
   "member.rename",
   "agency_alias.set",
   "terms.publish",
+  "agreement.publish",
+  "agreement.accept",
+  "campaign_share.set",
+  "campaign_share.remove",
+  "campaign_host.add",
+  "campaign_host.deactivate",
+  "host_hours.set",
+  "host_block.add",
+  "host_block.remove",
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
-export type AuditSubjectTable = "organisation" | "campaign" | "invite" | "member" | "agency_alias" | "terms_document";
+export type AuditSubjectTable =
+  | "organisation"
+  | "campaign"
+  | "invite"
+  | "member"
+  | "agency_alias"
+  | "terms_document"
+  | "agreement"
+  | "agreement_acceptance"
+  | "campaign_share"
+  | "campaign_host"
+  | "host_hours"
+  | "host_block";
 
 export type Json = string | number | boolean | null | readonly Json[] | JsonObject;
 export interface JsonObject {
