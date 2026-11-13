@@ -1,6 +1,7 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { campaignHost, member } from "@/server/db/schema";
+import { DomainError } from "@/server/domain/errors";
 import { addCampaignHost, deactivateCampaignHost } from "@/server/domain/hosts";
 import { auditRowsFor, firstCampaign, memberIdFor, refusal, userIn } from "@/server/domain/test-helpers";
 import { openDomainRig } from "@/server/domain/testing";
@@ -42,6 +43,44 @@ describe("addCampaignHost", () => {
     expect((await refusal(addCampaignHost(rig.deps(), rig.actor, await hostInput()))).code).toBe("not-a-client-member");
     expect(await stored()).toEqual([]);
     expect(await auditRowsFor(rig)).toEqual([]);
+  });
+
+  it("waits for a suspension that is still in flight, then refuses the member", async () => {
+    const memberId = await kestrelMember();
+    const input = await hostInput();
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let suspended: () => void = () => undefined;
+    const suspendedStarted = new Promise<void>((resolve) => {
+      suspended = resolve;
+    });
+    const suspension = rig.dbs.owner.db.transaction(async (tx) => {
+      // A failed test must end the run: the database drops this transaction if it sits idle for ten seconds.
+      await tx.execute(sql`set local idle_in_transaction_session_timeout = '10s'`);
+      await tx.update(member).set({ status: "suspended" }).where(eq(member.id, memberId));
+      suspended();
+      await held;
+    });
+    await suspendedStarted;
+    let settled = false;
+    const adding = addCampaignHost(rig.deps(), rig.actor, input).then(
+      () => "added",
+      (error: unknown) => (error instanceof DomainError ? error.code : "other error"),
+    );
+    void adding.then(() => {
+      settled = true;
+    });
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      expect(settled).toBe(false);
+    } finally {
+      release();
+      await suspension;
+    }
+    expect(await adding).toBe("not-a-client-member");
+    expect(await stored()).toEqual([]);
   });
 
   it("refuses a host who is one already, an unknown campaign, a blank job title and a field it does not know", async () => {

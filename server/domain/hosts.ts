@@ -34,7 +34,8 @@ export async function addCampaignHost(deps: DomainDeps, actor: FynixActor, input
       .select({ id: member.id, orgId: member.orgId, orgKind: member.orgKind, status: member.status, displayName: member.displayName })
       .from(member)
       .where(eq(member.id, parsed.memberId))
-      .limit(1);
+      .limit(1)
+      .for("share");
     if (person === undefined || person.orgKind !== "client" || person.orgId !== target.clientOrgId || person.status !== "active") {
       throw new DomainError("not-a-client-member", "A host is an active member of the campaign's client.");
     }
