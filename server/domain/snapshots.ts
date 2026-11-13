@@ -135,3 +135,13 @@ export interface AcceptanceRow {
 export function snapshotAcceptance(row: AcceptanceRow): JsonObject {
   return { agreementId: row.agreementId, userId: row.userId, networkAddress: row.networkAddress };
 }
+
+export interface ShareRow {
+  readonly campaignId: string;
+  readonly agencyOrgId: string;
+  readonly monthlyShare: number;
+}
+
+export function snapshotShare(row: ShareRow): JsonObject {
+  return { campaignId: row.campaignId, agencyOrgId: row.agencyOrgId, monthlyShare: row.monthlyShare };
+}

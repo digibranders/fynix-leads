@@ -122,3 +122,9 @@ export const recordAgreementAcceptanceSchema = z
   })
   .strict();
 export type RecordAgreementAcceptanceInput = z.input<typeof recordAgreementAcceptanceSchema>;
+
+export const setCampaignShareSchema = z.object({ campaignId: z.uuid(), agencyOrgId: z.uuid(), monthlyShare: count }).strict();
+export type SetCampaignShareInput = z.infer<typeof setCampaignShareSchema>;
+
+export const removeCampaignShareSchema = z.object({ campaignId: z.uuid(), agencyOrgId: z.uuid() }).strict();
+export type RemoveCampaignShareInput = z.infer<typeof removeCampaignShareSchema>;
