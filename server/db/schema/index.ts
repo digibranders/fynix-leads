@@ -11,3 +11,4 @@ export * from "./invite";
 export * from "./agency-alias";
 export * from "./agreement";
 export * from "./campaign-share";
+export * from "./campaign-host";

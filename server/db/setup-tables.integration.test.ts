@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { agreement, agreementAcceptance, campaignShare, member, organisation } from "@/server/db/schema";
+import { agreement, agreementAcceptance, campaignHost, campaignShare, member, organisation } from "@/server/db/schema";
 import { withScope } from "@/server/db/scope";
 import { captureErrorText, openTestDatabases, resetDatabase, type TestDatabases } from "@/server/db/testing";
 import { seedWorld, type SeedWorld } from "@/server/db/testing/seed";
@@ -200,5 +200,49 @@ describe("campaign_share", () => {
   it("refuses to point an existing share at an organisation outside the supplier's tree", async () => {
     const id = await newShare(world.brightpath.id);
     expect(await failure(dbs.owner.db.update(campaignShare).set({ agencyOrgId: world.northgate.id }).where(eq(campaignShare.id, id)))).toContain("campaign_share_agency_not_in_supplier_tree");
+  });
+});
+
+/** The kestrel user's membership: Kestrel is the client of the first campaign. */
+const kestrelMember = (): Promise<string> => memberIdOf(userId(1));
+
+async function newHost(overrides: Partial<typeof campaignHost.$inferInsert> = {}): Promise<string> {
+  const rows = await dbs.owner.db
+    .insert(campaignHost)
+    .values({ campaignId: campaignId(), clientOrgId: world.kestrel.id, memberId: await kestrelMember(), jobTitle: "Chief Operating Officer", ...overrides })
+    .returning({ id: campaignHost.id });
+  return firstOf(rows, "host").id;
+}
+
+describe("campaign_host", () => {
+  it("is Fynix only: Fynix reads and adds hosts and may change the title and the active flag, never remove one; no other role holds anything", async () => {
+    expect(await tablePrivileges("leads_fynix", "campaign_host")).toEqual(["INSERT", "SELECT"]);
+    expect(await updatableColumns("leads_fynix", "campaign_host")).toEqual(["job_title", "active"]);
+    for (const role of ["leads_client", "leads_agency", "leads_auth", "leads_public"]) {
+      expect(await tablePrivileges(role, "campaign_host"), role).toEqual([]);
+      expect(await updatableColumns(role, "campaign_host"), role).toEqual([]);
+    }
+  });
+
+  it("accepts a member of the campaign's client, active by default", async () => {
+    const id = await newHost();
+    expect(firstOf(await dbs.owner.db.select({ active: campaignHost.active }).from(campaignHost).where(eq(campaignHost.id, id)), "host").active).toBe(true);
+  });
+
+  it("refuses a member of another client and a member of an agency", async () => {
+    expect(await failure(newHost({ memberId: await memberIdOf(userId(2)) }))).toContain("campaign_host_member_fk");
+    expect(await failure(newHost({ memberId: await memberIdOf(userId(3)) }))).toContain("campaign_host_member_fk");
+  });
+
+  it("refuses a client organisation that is not the campaign's, even for that organisation's own member", async () => {
+    expect(await failure(newHost({ clientOrgId: world.halden.id, memberId: await memberIdOf(userId(2)) }))).toContain("campaign_host_campaign_fk");
+  });
+
+  it("holds one row per campaign and member, and a job title of 1 to 120 characters", async () => {
+    await newHost();
+    expect(await failure(newHost())).toContain("campaign_host_campaign_member_unique");
+    const kestrelsSecond = firstOf(world.campaigns.slice(2), "campaign").id;
+    expect(await failure(newHost({ campaignId: kestrelsSecond, jobTitle: "" }))).toContain("campaign_host_job_title_length");
+    expect(await failure(newHost({ campaignId: kestrelsSecond, jobTitle: "x".repeat(121) }))).toContain("campaign_host_job_title_length");
   });
 });

@@ -134,6 +134,7 @@ const EXPECTED_ACCESS: Readonly<Record<string, readonly RuntimeRoleName[]>> = {
   agreement: ["leads_fynix"],
   agreement_acceptance: ["leads_fynix"],
   campaign_share: ["leads_fynix"],
+  campaign_host: ["leads_fynix"],
 };
 /** The tables nobody but leads_auth touches. `user` is not one of them any more: Fynix reads four columns of it. */
 const AUTH_TABLES = ["session", "account", "verification"] as const;

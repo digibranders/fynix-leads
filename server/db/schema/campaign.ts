@@ -64,6 +64,8 @@ export const campaign = pgTable(
     // The target of phase 2's composite foreign key from `lead`, which keeps a lead's two organisation ids equal
     // to its campaign's.
     unique("campaign_id_orgs_unique").on(table.id, table.clientOrgId, table.agencyOrgId),
+    // The target of `campaign_host`'s composite foreign key, which pins a host to the campaign's own client (phase 1D).
+    unique("campaign_id_client_unique").on(table.id, table.clientOrgId),
     foreignKey({
       name: "campaign_client_org_fk",
       columns: [table.clientOrgId, table.clientOrgKind],

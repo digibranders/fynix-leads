@@ -176,6 +176,20 @@
       "when": 1794556595105,
       "tag": "0024_campaign_share_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1794556647132,
+      "tag": "0025_campaign_host_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1794556648674,
+      "tag": "0026_campaign_host_grants",
+      "breakpoints": true
     }
   ]
 }

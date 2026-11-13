@@ -33,6 +33,8 @@ export const member = pgTable(
     uniqueIndex("member_user_unique").on(table.userId),
     // The target of `agency_alias`'s composite foreign key, which pins an alias to a member of an agency.
     unique("member_id_org_kind_unique").on(table.id, table.orgKind),
+    // The target of `campaign_host`'s composite foreign key, which pins a host to a member of the campaign's client (phase 1D).
+    unique("member_id_org_unique").on(table.id, table.orgId),
     foreignKey({ name: "member_org_fk", columns: [table.orgId, table.orgKind], foreignColumns: [organisation.id, organisation.kind] }),
     index("member_org_idx").on(table.orgId),
   ],
