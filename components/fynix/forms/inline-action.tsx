@@ -14,7 +14,7 @@ type Props = {
   /** A name a screen reader hears, which says what the button acts on ("Remove the share of Ridgeline Partners"). */
   label: string;
   variant?: "secondary" | "ghost" | "destructive";
-  size?: "sm" | "icon-sm";
+  size?: "default" | "sm" | "icon-sm";
   className?: string;
 };
 

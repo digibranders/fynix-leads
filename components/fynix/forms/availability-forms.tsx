@@ -115,12 +115,12 @@ function BlockFields({ timeZone }: { timeZone: string }) {
         </div>
       )}
       <TextAreaField name="note" label="Note" rows={2} helper="For Fynix only. Agencies see the time as busy, never this note." />
-      <p className="text-table text-ink-muted">Times are in {timeZone}, the zone of the host's hours.</p>
+      <p className="text-table text-ink-muted">Times are in {timeZone}, the zone of this host&apos;s hours.</p>
     </>
   );
 }
 
-/** Blocks a time for a host: a day, or a run of days, whole or part. The times are read in the zone of the host's hours. */
+/** Blocks a time for a host: a day, or a run of days, whole or part. The times are read in the zone of the hours above. */
 export function BlockForm({ memberId, timeZone }: { memberId: string; timeZone: string }) {
   return (
     <ActionForm action={addBlockAction} submitLabel="Block this time" pendingLabel="Blocking">

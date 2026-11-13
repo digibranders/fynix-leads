@@ -61,7 +61,7 @@ export function SupplierPanel({ detail, filter, query, canWrite }: Props) {
       <Tonal aria-label="Partner agencies">
         <SectionTitle icon={UsersThree} title="Partner agencies" meta={String(detail.agencies.length)} />
         {detail.agencies.length === 0 ? (
-          <p className="text-table text-ink-2">No partner agencies. The supplier's own people submit the leads.</p>
+          <p className="text-table text-ink-2">No partner agencies. The supplier&apos;s own people submit the leads.</p>
         ) : (
           <table className="w-full text-table">
             <thead>

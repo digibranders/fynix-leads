@@ -92,20 +92,27 @@ function localParts(date: Date, timeZone: string): { readonly year: number; read
 }
 
 /**
- * A blocked time as the person reads it, in the zone of the host's hours: "Mon 23 Nov, all day", "Thu 26 Nov, 2:00 to 4:00 pm",
- * "Mon 23 Nov to Wed 25 Nov, all day", or the two ends in full when it crosses midnight and is not whole days.
+ * A blocked time in two parts, in the zone of the host's hours: the day or days, then what part of them. "Mon 23 Nov" and "all day";
+ * "Thu 26 Nov" and "2:00 to 4:00 pm"; "Mon 23 Nov to Wed 25 Nov" and "all day"; or, across midnight, "Mon 23 Nov" and
+ * "10:00 pm to Tue 24 Nov, 6:00 am".
  */
-export function formatBlock(startsAt: Date, endsAt: Date, timeZone: string): string {
+export function blockParts(startsAt: Date, endsAt: Date, timeZone: string): { readonly day: string; readonly detail: string } {
   const start = localParts(startsAt, timeZone);
   const end = localParts(endsAt, timeZone);
   const startDay = formatDayInZone(startsAt, timeZone);
   if (start.minute === 0 && end.minute === 0) {
     const lastDay = formatDayInZone(new Date(endsAt.getTime() - 3_600_000), timeZone);
-    return lastDay === startDay ? `${startDay}, all day` : `${startDay} to ${lastDay}, all day`;
+    return { day: lastDay === startDay ? startDay : `${startDay} to ${lastDay}`, detail: "all day" };
   }
   const endDay = formatDayInZone(endsAt, timeZone);
-  if (endDay === startDay && start.year === end.year) return `${startDay}, ${formatRange(start.minute, end.minute)}`;
-  return `${startDay}, ${formatClock(start.minute)} to ${endDay}, ${formatClock(end.minute)}`;
+  if (endDay === startDay && start.year === end.year) return { day: startDay, detail: formatRange(start.minute, end.minute) };
+  return { day: startDay, detail: `${formatClock(start.minute)} to ${endDay}, ${formatClock(end.minute)}` };
+}
+
+/** A blocked time as one line: "Mon 23 Nov, all day", "Thu 26 Nov, 2:00 to 4:00 pm". */
+export function formatBlock(startsAt: Date, endsAt: Date, timeZone: string): string {
+  const { day, detail } = blockParts(startsAt, endsAt, timeZone);
+  return `${day}, ${detail}`;
 }
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
@@ -125,6 +132,16 @@ export function formatDayMonth(date: Date, timeZone: string): string {
 /** "Wed 4 Nov". */
 export function formatWeekdayDate(date: Date, timeZone: string): string {
   return formatDayInZone(date, timeZone);
+}
+
+/** The first letter in capitals, for a line that starts a sentence. */
+export function capitalise(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** "November", for the month a column of counts is about, read in the zone. */
+export function monthName(date: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-GB", { timeZone, month: "long" }).format(date);
 }
 
 /** "30 minute meetings". */

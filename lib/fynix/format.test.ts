@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countOf, formatBlock, formatClock, formatDate, formatDays, formatDayHours, formatRange, weekSummary, zoneCity, zoneLabel } from "@/lib/fynix/format";
+import { blockParts, capitalise, countOf, formatBlock, monthName, formatClock, formatDate, formatDays, formatDayHours, formatRange, weekSummary, zoneCity, zoneLabel } from "@/lib/fynix/format";
 
 const win = (weekday: number, startMinute: number, endMinute: number) => ({ weekday, startMinute, endMinute });
 
@@ -99,5 +99,19 @@ describe("formatDate and countOf", () => {
     expect(countOf(1, "agency", "agencies")).toBe("1 agency");
     expect(countOf(0, "campaign", "campaigns")).toBe("0 campaigns");
     expect(countOf(2, "campaign", "campaigns")).toBe("2 campaigns");
+  });
+});
+
+describe("blockParts, capitalise and monthName", () => {
+  it("splits a block into the days and the part of them", () => {
+    expect(blockParts(new Date("2026-11-23T00:00:00Z"), new Date("2026-11-24T00:00:00Z"), "Europe/London")).toEqual({ day: "Mon 23 Nov", detail: "all day" });
+    expect(blockParts(new Date("2026-11-26T14:00:00Z"), new Date("2026-11-26T16:00:00Z"), "Europe/London")).toEqual({ day: "Thu 26 Nov", detail: "2:00 to 4:00 pm" });
+  });
+
+  it("starts a sentence with a capital and names the month in the zone", () => {
+    expect(capitalise("all day")).toBe("All day");
+    expect(capitalise("")).toBe("");
+    expect(monthName(new Date("2026-11-30T23:30:00Z"), "Europe/London")).toBe("November");
+    expect(monthName(new Date("2026-11-30T23:30:00Z"), "Asia/Kolkata")).toBe("December");
   });
 });
