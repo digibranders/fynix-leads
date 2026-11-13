@@ -8,3 +8,7 @@ export const memberStatus = pgEnum("member_status", ["active", "suspended"]);
 export const emailTemplate = pgEnum("email_template", ["password_reset", "invite"]);
 export const outboxStatus = pgEnum("outbox_status", ["pending", "sent", "failed", "cancelled"]);
 export const termsStatus = pgEnum("terms_status", ["current", "superseded"]);
+/** Which side of a campaign an agreement is with: Fynix and the client, or Fynix and the supplier (spec 7.2). */
+export const agreementParty = pgEnum("agreement_party", ["client", "supplier"]);
+export const agreementStatus = pgEnum("agreement_status", ["current", "superseded"]);
+

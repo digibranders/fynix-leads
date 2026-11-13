@@ -9,3 +9,4 @@ export * from "./audit-log";
 export * from "./terms";
 export * from "./invite";
 export * from "./agency-alias";
+export * from "./agreement";
