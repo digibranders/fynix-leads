@@ -1,0 +1,46 @@
+/* Phase 1D admin comps: the few parts app.css does not have. */
+.crumbs{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);margin-bottom:6px}
+.crumbs a{color:var(--ink-2);font-weight:500}
+.tabs{margin-top:18px}
+.stack{display:flex;flex-direction:column;gap:var(--gap-modules);margin-top:16px}
+.cols2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--gap-modules)}
+.agr{padding:20px 22px;display:flex;flex-direction:column;gap:14px}
+.agr .hdrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.agr .hdrow .push{margin-left:auto}
+.agr h2{font-size:var(--fs-value);font-weight:600}
+.agr .who2{font-size:13px;color:var(--ink-2)}
+.figs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.fig{border-radius:var(--r-md);background:var(--navy-04);padding:12px 14px}
+.fig small{display:block;font-size:12.5px;color:var(--muted)}
+.fig b{display:block;font-size:24px;line-height:1.2;font-weight:600;letter-spacing:var(--tracking-figure)}
+.fig span{font-size:12.5px;color:var(--ink-2)}
+.rules{font-size:13px;color:var(--ink-2);line-height:1.55}
+.hist{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
+.hist .i{width:15px;height:15px}
+.flag{display:flex;gap:10px;align-items:flex-start;margin:0 16px 14px;padding:12px 14px;border-radius:var(--r-sm);background:var(--amber-soft);color:var(--amber-text);font-size:13.5px;font-weight:500}
+.flag .i{margin-top:1px}
+.t td.num,.t th.num{text-align:right}
+.t tfoot td{padding:12px;font-weight:600;box-shadow:inset 0 1px 0 var(--line)}
+.t tfoot td:first-child{padding-left:16px}
+.hours{display:flex;flex-direction:column;gap:2px;font-size:13px}
+.hours div{display:grid;grid-template-columns:44px minmax(0,1fr);gap:10px;padding:7px 0;box-shadow:inset 0 1px 0 var(--line)}
+.hours div:first-child{box-shadow:none}
+.hours dt{color:var(--muted);font-weight:500}
+.hours dd{color:var(--ink);font-weight:500}
+.hours dd.off{color:var(--muted);font-weight:400}
+.blocks{display:flex;flex-direction:column;gap:6px}
+.blk{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r-sm);background:var(--surface);font-size:13px}
+.blk b{display:block;font-weight:600}
+.blk span{color:var(--muted);font-size:12.5px}
+.blk .iconbtn{margin-left:auto;width:32px;height:32px;background:var(--navy-04)}
+.locked{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--muted)}
+.locked .i{width:15px;height:15px}
+@media (max-width:767px){
+  .cols2,.figs{grid-template-columns:minmax(0,1fr)}
+  .figs{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .fig b{font-size:20px}
+  .agr{padding:16px}
+  .flag{margin:0 10px 12px}
+}
+@media (min-width:768px){.tabs ~ .work .side{max-height:calc(100vh - 192px)}}
+.agr .hist{margin-top:auto}
