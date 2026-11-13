@@ -226,6 +226,27 @@ export function fynixWritableTablesWithoutAuditTrigger(executor: Executor, exemp
   );
 }
 
+/**
+ * Tables `leads_fynix` can insert into, update or delete from that have no enabled, non deferred, statement level
+ * `fynix_admin_required` trigger on INSERT, UPDATE and DELETE (migration 0029). Without it Fynix staff could change set-up
+ * through a statement that skips the service check, so every table Fynix gets a write grant on must add the trigger. The two
+ * exempt tables are the audit log and the outbox: neither is set-up, and phase 2 staff work will write its own tables.
+ */
+export function fynixWritableTablesWithoutAdminTrigger(executor: Executor, exempt: readonly string[] = AUDIT_EXEMPT_TABLES): Promise<string[]> {
+  return offenders(
+    executor,
+    sql`select c.relname::text as offender from pg_class c join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = 'public' and c.relkind in ('r', 'p') and c.relname not in (${sql.raw(quoted(exempt.length === 0 ? [""] : exempt))})
+          and (has_any_column_privilege('leads_fynix', c.oid, 'INSERT') or has_any_column_privilege('leads_fynix', c.oid, 'UPDATE')
+            or has_table_privilege('leads_fynix', c.oid, 'DELETE'))
+          and not exists (
+            select 1 from pg_trigger t join pg_proc p on p.oid = t.tgfoid
+            where t.tgrelid = c.oid and p.proname = 'fynix_admin_required' and t.tgconstraint = 0 and t.tgenabled = 'O'
+              and (t.tgtype & 1) = 0 and (t.tgtype & 2) <> 0 and (t.tgtype & 4) <> 0 and (t.tgtype & 8) <> 0 and (t.tgtype & 16) <> 0)
+        order by 1`,
+  );
+}
+
 /** Quotes a catalog identifier for use in test SQL. */
 export function quoteIdentifier(name: string): string {
   return `"${name.replaceAll('"', '""')}"`;

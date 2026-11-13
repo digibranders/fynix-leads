@@ -4,6 +4,7 @@ import { auditLog, member, organisation } from "@/server/db/schema";
 import { captureErrorText, queryAs } from "@/server/db/testing";
 import { DomainError } from "@/server/domain/errors";
 import { fynixRead, fynixWrite } from "@/server/domain/fynix-write";
+import { memberIdFor } from "@/server/domain/test-helpers";
 import { openDomainRig } from "@/server/domain/testing";
 
 /** The Fynix write helper: the scope, the audit row in the same transaction, and the rule that a change cannot commit without one. */
@@ -137,5 +138,43 @@ describe("fynixRead", () => {
     const rows = await fynixRead(rig.dbs.roles.leads_fynix.db, rig.actor, (tx) => tx.select({ ref: organisation.publicRef }).from(organisation));
     expect(rows).toHaveLength(5);
     expect(await auditRows()).toEqual([]);
+  });
+});
+
+describe("the actor must be a Fynix admin", () => {
+  const writeAs = (userId: string) =>
+    fynixWrite(rig.dbs.roles.leads_fynix.db, { userId }, async ({ tx, audit }) => {
+      await tx.insert(organisation).values(NEW);
+      await audit({ action: "organisation.create", subject: { table: "organisation", id: userId, ref: NEW.publicRef } });
+    });
+
+  it("refuses Fynix staff with admin-required, and writes nothing", async () => {
+    const error = await writeAs(rig.staffActor.userId).then(
+      () => null,
+      (thrown: unknown) => thrown,
+    );
+    expect(error).toBeInstanceOf(DomainError);
+    expect((error as DomainError).code).toBe("admin-required");
+    expect(await auditRows()).toEqual([]);
+    expect(await refs()).not.toContain(NEW.publicRef);
+  });
+
+  it("refuses an admin whose role has been lowered to staff", async () => {
+    await rig.dbs.owner.db.update(member).set({ role: "member" }).where(eq(member.userId, rig.actor.userId));
+    const error = await writeAs(rig.actor.userId).then(
+      () => null,
+      (thrown: unknown) => thrown,
+    );
+    expect((error as DomainError).code).toBe("admin-required");
+  });
+
+  it("hands the callback the actor's own member id", async () => {
+    const id = await fynixWrite(rig.dbs.roles.leads_fynix.db, rig.actor, async ({ actorMemberId }) => actorMemberId);
+    expect(id).toBe(await memberIdFor(rig, rig.actor.userId));
+  });
+
+  it("lets Fynix staff read through fynixRead", async () => {
+    const rows = await fynixRead(rig.dbs.roles.leads_fynix.db, rig.staffActor, (tx) => tx.select({ ref: organisation.publicRef }).from(organisation));
+    expect(rows).toHaveLength(5);
   });
 });

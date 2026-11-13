@@ -16,7 +16,14 @@ export type DomainErrorCode =
   | "invite-not-live"
   | "ref-exhausted"
   | "not-authorised"
-  | "invite-conflict";
+  | "invite-conflict"
+  | "admin-required"
+  | "not-a-supplier"
+  | "share-not-allowed"
+  | "not-a-client-member"
+  | "agreement-superseded"
+  | "not-an-agreement-signer"
+  | "already-accepted";
 
 export class DomainError extends Error {
   constructor(

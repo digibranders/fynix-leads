@@ -11,6 +11,7 @@ import { seedWorld, type SeedWorld } from "@/server/db/testing/seed";
 import {
   creationPrivileges,
   definerFunctionsWithoutSearchPath,
+  fynixWritableTablesWithoutAdminTrigger,
   fynixWritableTablesWithoutAuditTrigger,
   grantsToPublic,
   grantedColumns,
@@ -281,6 +282,26 @@ describe("each catalog check finds a deliberately broken object", () => {
     expect(found).toEqual(["broken_not_deferred", "broken_unaudited", "email_outbox"]);
   });
 
+  it("a table Fynix can write with no admin trigger, a row level admin trigger, and the two exempt tables", async () => {
+    const found = await findInBrokenState(
+      dbs.owner,
+      [
+        "create table public.broken_no_admin (id int)",
+        "grant insert on public.broken_no_admin to leads_fynix",
+        "create table public.broken_row_admin (id int)",
+        "grant update (id) on public.broken_row_admin to leads_fynix",
+        "create trigger broken_row_admin_t before insert or update or delete on public.broken_row_admin for each row execute function public.fynix_admin_required()",
+        "create table public.fine_admin (id int)",
+        "grant insert, update on public.fine_admin to leads_fynix",
+        "create trigger fine_admin_t before insert or update or delete on public.fine_admin for each statement execute function public.fynix_admin_required()",
+        "create table public.fine_admin_read_only (id int)",
+        "grant select on public.fine_admin_read_only to leads_fynix",
+      ],
+      (executor) => fynixWritableTablesWithoutAdminTrigger(executor, ["audit_log"]),
+    );
+    expect(found).toEqual(["broken_no_admin", "broken_row_admin", "email_outbox"]);
+  });
+
   it("a role with CREATEDB, a stray leads_ role, and a membership (as superuser, rolled back)", async () => {
     const attributes = await findInBrokenState(admin, ["alter role leads_public createdb", "create role leads_stray"], roleProblems);
     expect(attributes).toEqual(["leads_public has a forbidden attribute", "leads_stray is not one of the six roles"]);
@@ -349,6 +370,10 @@ describe("the audit log", () => {
 
   it("every table Fynix can write has the audit_required trigger, apart from the audit log and the outbox", async () => {
     expect(await fynixWritableTablesWithoutAuditTrigger(dbs.owner.db)).toEqual([]);
+  });
+
+  it("every table Fynix can write has the fynix_admin_required trigger, apart from the audit log and the outbox", async () => {
+    expect(await fynixWritableTablesWithoutAdminTrigger(dbs.owner.db)).toEqual([]);
   });
 
   it("holds no UPDATE, DELETE or TRUNCATE for any runtime role, and only Fynix may read or append", async () => {

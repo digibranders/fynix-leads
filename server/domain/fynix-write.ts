@@ -10,9 +10,11 @@ export interface FynixActor {
   readonly userId: string;
 }
 
-/** What a Fynix write callback gets: the transaction, and the way to append to the audit log inside it. */
+/** What a Fynix write callback gets: the transaction, the actor's own `member.id`, and the way to append to the audit log inside the transaction. */
 export interface FynixWrite {
   readonly tx: ScopedTransaction;
+  /** The `member.id` of the admin making the change, for columns such as `agreement.created_by`. */
+  readonly actorMemberId: string;
   audit(entry: AuditEntry): Promise<void>;
 }
 
@@ -21,8 +23,16 @@ export interface FynixWrite {
  * audit rows are in the admin's name) and hands the callback an `audit` function that writes into the same transaction,
  * so a change and its audit row commit together or not at all. If the callback changes a domain table and never calls
  * `audit`, the database refuses the commit (`audit_required`, migration 0012): the rule does not depend on anyone
- * remembering. The actor must be an active member of the Fynix organisation: checked first, for a clear `not-authorised`,
- * and again by the audit policy (migration 0018), so a caller that skips this function still cannot write an audit row. `db` is the `leads_fynix` database.
+ * remembering.
+ *
+ * Who may write (phase 1D): an active member of the Fynix organisation whose role is `manager`, a Fynix admin. A member who
+ * is not one at all is `not-authorised`; Fynix staff (role `member`) get `admin-required`, which a screen words as "ask an
+ * admin". Both are checked first, for a clear error, and again by the database: the audit policy (migration 0018) wants an
+ * active Fynix member, and every table Fynix can write has a `fynix_admin_required` trigger (migration 0029) that wants a manager,
+ * so a caller that skips this function still cannot change set-up. `db` is the `leads_fynix` database.
+ *
+ * Every write that exists today is set-up. A later phase in which staff change leads adds its own entry point beside this one,
+ * for tables that do not carry the admin trigger.
  *
  * Services never call `withScope` or `withFynixScope` for a write themselves; a source test (server/domain/boundaries.test.ts)
  * fails if one does.
@@ -30,16 +40,17 @@ export interface FynixWrite {
 export async function fynixWrite<T>(db: Database, actor: FynixActor, work: (write: FynixWrite) => Promise<T>): Promise<T> {
   return withScope(db, { orgId: null, userId: actor.userId }, async (tx) => {
     const [active] = await tx
-      .select({ id: member.id })
+      .select({ id: member.id, role: member.role })
       .from(member)
       .where(and(eq(member.userId, actor.userId), eq(member.orgKind, "fynix"), eq(member.status, "active")))
       .limit(1);
     if (active === undefined) throw new DomainError("not-authorised", "The signed-in user is not an active member of Fynix.");
-    return work({ tx, audit: (entry) => appendAudit(tx, entry) });
+    if (active.role !== "manager") throw new DomainError("admin-required", "Only a Fynix admin can change set-up; Fynix staff can read it.");
+    return work({ tx, actorMemberId: active.id, audit: (entry) => appendAudit(tx, entry) });
   });
 }
 
-/** A Fynix read: the same scope, no audit. A change made inside it is refused at commit, like any unaudited Fynix change. */
+/** A Fynix read: the same scope, no audit, open to staff as well as admins. A change made inside it is refused at commit, like any unaudited Fynix change. */
 export async function fynixRead<T>(db: Database, actor: FynixActor, work: (tx: ScopedTransaction) => Promise<T>): Promise<T> {
   return withScope(db, { orgId: null, userId: actor.userId }, work);
 }
