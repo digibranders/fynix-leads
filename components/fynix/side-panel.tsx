@@ -29,7 +29,7 @@ export function SidePanel({ closeHref, label, header, children, footer }: Props)
           "fixed z-50 flex flex-col overflow-hidden bg-surface shadow-popover",
           "inset-x-0 bottom-0 max-h-[88dvh] rounded-t-xl",
           "md:inset-y-3 md:right-3 md:left-auto md:max-h-none md:w-[400px] md:rounded-xl",
-          "xl:sticky xl:top-5 xl:z-auto xl:inset-auto xl:max-h-[calc(100dvh-40px)] xl:w-auto xl:rounded-lg xl:shadow-raised",
+          "xl:sticky xl:top-5 xl:right-auto xl:bottom-auto xl:left-auto xl:z-auto xl:max-h-[calc(100dvh-40px)] xl:w-auto xl:rounded-lg xl:shadow-raised",
         )}
       >
         <span aria-hidden className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-navy-10 md:hidden" />

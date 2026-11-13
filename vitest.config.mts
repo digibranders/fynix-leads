@@ -9,7 +9,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["lib/**/*.test.ts", "server/**/*.test.ts"],
+    include: ["lib/**/*.test.ts", "server/**/*.test.ts", "components/**/*.test.tsx"],
     // Unit tests never need a database. Integration tests run through vitest.integration.config.mts.
     exclude: [...configDefaults.exclude, "**/*.integration.test.ts"],
   },

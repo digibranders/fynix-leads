@@ -7,7 +7,7 @@ The Fynix admin screens for the set-up built in phase 1D (`2026-11-13-phase-1d-f
 - **Routes** live under `app/(fynix)/fynix/`. A person who is not signed in goes to sign-in (`requireSessionContext`). A session that is not Fynix gets `notFound()`. Both checks run in the shell and again in every page, because a layout does not re-render on navigation.
 - **Landing.** `/welcome` sends a Fynix session to `/fynix`, and `/fynix` sends on to `/fynix/suppliers`. Clients and agencies keep `/welcome` until 1E.
 - **Selection is in the URL.** `?supplier=ORG-N7GT`, `?host=<member id>`, `?status=archived`. The campaign page is `/fynix/campaigns/CMP-7Q2X` with one segment per tab (`hosts`, `agreements`, `activity`; the Brief is the index).
-- **Reads** are role-shaped Fynix reads in `server/domain` (`fynixRead`, open to staff). Pages never touch a database or a pool. The glue that builds `getDomain()` and the actor is in `server/fynix/` (`session.ts`, `data.ts`, `actions.ts`), so no domain boundary test changes.
+- **Reads** are role-shaped Fynix reads in `server/domain` (`fynixRead`, open to staff). Pages never touch a database or a pool. The glue that builds the actor is in `server/fynix/` (`session.ts`, `run-action.ts`, `actions.ts`), so no domain boundary test changes.
 - **Writes** are server actions in `server/fynix/actions.ts`. Each one checks the session, validates with the existing zod schema (for field errors), calls the existing domain function (which validates again and checks admin), maps a `DomainError` to plain words, then `revalidatePath("/fynix", "layout")`. Staff see no write control, and the actions still refuse them with the domain's `admin-required`.
 - **Layout** switches by CSS only. Below 768 rows are two lines and the panel is a bottom sheet; from 768 to 1279 the panel is a right overlay; from 1280 it is the second column.
 - **Forms** use a panel-sized sheet (`components/fynix/form-sheet.tsx`) with the sign-in form parts: label above, tonal input, pill buttons, inline error with an icon.
@@ -44,7 +44,7 @@ The Fynix admin screens for the set-up built in phase 1D (`2026-11-13-phase-1d-f
 - `format.ts`: clock times, weekly hours, week summary, blocked times, zone label, dates.
 - `zoned-time.ts`: a wall time in a zone to an instant (for the block form).
 - `form-state.ts`: the form state type and zod issue to words.
-- `errors.ts`: domain error code to plain words.
+- `hours-form.ts` and `block-form.ts`: the weekly hours grid and the Block a time form, read into windows and instants.
 - `suppliers.ts`: the Active and Archived filter and the row subtitles.
 
 ## File map
@@ -54,7 +54,7 @@ The Fynix admin screens for the set-up built in phase 1D (`2026-11-13-phase-1d-f
 - `app/(fynix)/fynix/campaigns/page.tsx`, `loading.tsx`
 - `app/(fynix)/fynix/campaigns/[ref]/layout.tsx`, `page.tsx` (Brief), `hosts/page.tsx`, `agreements/page.tsx`, `activity/page.tsx`, `loading.tsx`
 - `components/fynix/`: `nav-config.ts`, `rail.tsx`, `mobile-nav.tsx`, `app-shell.tsx`, `page-header.tsx`, `side-panel.tsx`, `form-sheet.tsx`, `form-parts.tsx`, `skeletons.tsx`, `empty-state.tsx`, `suppliers/*`, `campaigns/*`, `forms/*`
-- `server/fynix/session.ts`, `data.ts`, `run-action.ts`, `actions.ts`
+- `server/fynix/session.ts`, `campaign.ts`, `errors.ts`, `run-action.ts`, `actions.ts` (there is no `data.ts`: pages call the domain reads directly)
 - `app/(app)/welcome/page.tsx`: one redirect for Fynix
 
 ## Out of scope
