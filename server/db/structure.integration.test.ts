@@ -133,6 +133,7 @@ const EXPECTED_ACCESS: Readonly<Record<string, readonly RuntimeRoleName[]>> = {
   // Phase 1D: Fynix sets these up. No tenant role holds anything on them until phase 1E decides who sees which column.
   agreement: ["leads_fynix"],
   agreement_acceptance: ["leads_fynix"],
+  campaign_share: ["leads_fynix"],
 };
 /** The tables nobody but leads_auth touches. `user` is not one of them any more: Fynix reads four columns of it. */
 const AUTH_TABLES = ["session", "account", "verification"] as const;

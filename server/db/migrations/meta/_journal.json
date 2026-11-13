@@ -162,6 +162,20 @@
       "when": 1794556558795,
       "tag": "0022_agreement_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1794556594452,
+      "tag": "0023_campaign_share_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794556595105,
+      "tag": "0024_campaign_share_grants",
+      "breakpoints": true
     }
   ]
 }

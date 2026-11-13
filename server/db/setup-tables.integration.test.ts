@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { agreement, agreementAcceptance, member } from "@/server/db/schema";
+import { agreement, agreementAcceptance, campaignShare, member, organisation } from "@/server/db/schema";
 import { withScope } from "@/server/db/scope";
 import { captureErrorText, openTestDatabases, resetDatabase, type TestDatabases } from "@/server/db/testing";
 import { seedWorld, type SeedWorld } from "@/server/db/testing/seed";
@@ -150,3 +150,55 @@ describe("agreement_acceptance", () => {
 });
 
 
+
+async function newAgency(publicRef: string, parentOrgId: string | null): Promise<string> {
+  const rows = await dbs.owner.db.insert(organisation).values({ publicRef, kind: "agency", name: `Agency ${publicRef}`, parentOrgId }).returning({ id: organisation.id });
+  return firstOf(rows, "organisation").id;
+}
+
+async function newShare(agencyOrgId: string, monthlyShare = 5): Promise<string> {
+  const rows = await dbs.owner.db.insert(campaignShare).values({ campaignId: campaignId(), agencyOrgId, monthlyShare }).returning({ id: campaignShare.id });
+  return firstOf(rows, "share").id;
+}
+
+describe("campaign_share", () => {
+  it("is Fynix only: Fynix reads, adds and removes shares and may change the amount; no other role holds anything", async () => {
+    expect(await tablePrivileges("leads_fynix", "campaign_share")).toEqual(["DELETE", "INSERT", "SELECT"]);
+    expect(await updatableColumns("leads_fynix", "campaign_share")).toEqual(["monthly_share", "updated_at"]);
+    for (const role of ["leads_client", "leads_agency", "leads_auth", "leads_public"]) {
+      expect(await tablePrivileges(role, "campaign_share"), role).toEqual([]);
+      expect(await updatableColumns(role, "campaign_share"), role).toEqual([]);
+    }
+  });
+
+  it("accepts the campaign's supplier and a partner agency of that supplier", async () => {
+    await newShare(world.brightpath.id);
+    await newShare(await newAgency("ORG-3C4D", world.brightpath.id), 7);
+  });
+
+  it("refuses another supplier, a partner agency of another supplier and a client", async () => {
+    expect(await failure(newShare(world.northgate.id))).toContain("campaign_share_agency_not_in_supplier_tree");
+    const strangers = await newAgency("ORG-5E6F", world.northgate.id);
+    expect(await failure(newShare(strangers))).toContain("campaign_share_agency_not_in_supplier_tree");
+    expect(await failure(newShare(world.kestrel.id))).toMatch(/campaign_share_agency/);
+  });
+
+  it("holds one share per campaign and agency, and refuses a negative share", async () => {
+    await newShare(world.brightpath.id);
+    expect(await failure(newShare(world.brightpath.id))).toContain("campaign_share_campaign_agency_unique");
+    const partner = await newAgency("ORG-3C4D", world.brightpath.id);
+    expect(await failure(newShare(partner, -1))).toContain("campaign_share_not_negative");
+  });
+
+  it("refuses to change the parent of an organisation that holds a share: it would stop being the supplier's partner", async () => {
+    const partner = await newAgency("ORG-3C4D", world.brightpath.id);
+    await newShare(partner);
+    expect(await failure(dbs.owner.db.update(organisation).set({ parentOrgId: world.northgate.id }).where(eq(organisation.id, partner)))).toContain("organisation_has_shares");
+    expect(await failure(dbs.owner.db.update(organisation).set({ parentOrgId: null }).where(eq(organisation.id, partner)))).toContain("organisation_has_shares");
+  });
+
+  it("refuses to point an existing share at an organisation outside the supplier's tree", async () => {
+    const id = await newShare(world.brightpath.id);
+    expect(await failure(dbs.owner.db.update(campaignShare).set({ agencyOrgId: world.northgate.id }).where(eq(campaignShare.id, id)))).toContain("campaign_share_agency_not_in_supplier_tree");
+  });
+});

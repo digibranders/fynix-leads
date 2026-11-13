@@ -10,3 +10,4 @@ export * from "./terms";
 export * from "./invite";
 export * from "./agency-alias";
 export * from "./agreement";
+export * from "./campaign-share";
