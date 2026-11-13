@@ -156,3 +156,19 @@ export interface HostRow {
 export function snapshotHost(row: HostRow): JsonObject {
   return { campaignId: row.campaignId, memberId: row.memberId, jobTitle: row.jobTitle, active: row.active };
 }
+
+/** A host's whole weekly set: the time zone (`null` when there is none) and the windows, as stored. */
+export function snapshotHours(timeZone: string | null, windows: readonly { readonly weekday: number; readonly startMinute: number; readonly endMinute: number }[]): JsonObject {
+  return { timeZone, windows: windows.map((slot) => ({ weekday: slot.weekday, startMinute: slot.startMinute, endMinute: slot.endMinute })) };
+}
+
+export interface BlockRow {
+  readonly memberId: string;
+  readonly startsAt: Date;
+  readonly endsAt: Date;
+  readonly note: string;
+}
+
+export function snapshotBlock(row: BlockRow): JsonObject {
+  return { memberId: row.memberId, startsAt: row.startsAt.toISOString(), endsAt: row.endsAt.toISOString(), note: row.note };
+}

@@ -134,3 +134,17 @@ export type AddCampaignHostInput = z.infer<typeof addCampaignHostSchema>;
 
 export const deactivateCampaignHostSchema = z.object({ campaignId: z.uuid(), memberId: z.uuid() }).strict();
 export type DeactivateCampaignHostInput = z.infer<typeof deactivateCampaignHostSchema>;
+
+const hoursWindow = z.object({ weekday: z.number().int(), startMinute: z.number().int(), endMinute: z.number().int() }).strict();
+/** A whole weekly set, replacing the old one. Ranges and overlaps are checked by `findHoursProblem` (lib/domain/weekly-hours.ts) so the message names the rule. */
+export const setHostHoursSchema = z.object({ memberId: z.uuid(), timeZone: timeZoneSchema, hours: z.array(hoursWindow).max(70, "must have at most 70 windows") }).strict();
+export type SetHostHoursInput = z.input<typeof setHostHoursSchema>;
+
+/** An instant with an offset or Z, such as `2027-01-04T09:00:00Z` or `2027-01-04T10:00:00+01:00`: a time with no offset is ambiguous, so it is refused. */
+const instant = z.iso.datetime({ offset: true }).transform((value) => new Date(value));
+export const addHostBlockSchema = z
+  .object({ memberId: z.uuid(), startsAt: instant, endsAt: instant, note: optionalText(500).default("") })
+  .strict()
+  // Zod 4 still runs an object level refine after a field failed, with that field unparsed, so it waits for a clean parse.
+  .refine((input) => input.endsAt.getTime() > input.startsAt.getTime(), { path: ["endsAt"], message: "must be after the start", when: (payload) => payload.issues.length === 0 });
+export type AddHostBlockInput = z.input<typeof addHostBlockSchema>;
