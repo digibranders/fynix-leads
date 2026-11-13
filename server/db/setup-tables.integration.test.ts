@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { agreement, agreementAcceptance, campaignHost, campaignShare, member, organisation } from "@/server/db/schema";
+import { agreement, agreementAcceptance, campaignHost, campaignShare, hostBlock, hostHours, member, organisation } from "@/server/db/schema";
 import { withScope } from "@/server/db/scope";
 import { captureErrorText, openTestDatabases, resetDatabase, type TestDatabases } from "@/server/db/testing";
 import { seedWorld, type SeedWorld } from "@/server/db/testing/seed";
@@ -244,5 +244,90 @@ describe("campaign_host", () => {
     const kestrelsSecond = firstOf(world.campaigns.slice(2), "campaign").id;
     expect(await failure(newHost({ campaignId: kestrelsSecond, jobTitle: "" }))).toContain("campaign_host_job_title_length");
     expect(await failure(newHost({ campaignId: kestrelsSecond, jobTitle: "x".repeat(121) }))).toContain("campaign_host_job_title_length");
+  });
+});
+
+async function newHours(overrides: Partial<typeof hostHours.$inferInsert> = {}): Promise<string> {
+  const rows = await dbs.owner.db
+    .insert(hostHours)
+    .values({ memberId: await kestrelMember(), timeZone: "Europe/London", weekday: 1, startMinute: 540, endMinute: 720, ...overrides })
+    .returning({ id: hostHours.id });
+  return firstOf(rows, "hours").id;
+}
+
+describe("host_hours", () => {
+  it("is Fynix only: Fynix reads, adds and removes rows and changes none; no other role holds anything", async () => {
+    expect(await tablePrivileges("leads_fynix", "host_hours")).toEqual(["DELETE", "INSERT", "SELECT"]);
+    expect(await updatableColumns("leads_fynix", "host_hours")).toEqual([]);
+    for (const role of ["leads_client", "leads_agency", "leads_auth", "leads_public"]) {
+      expect(await tablePrivileges(role, "host_hours"), role).toEqual([]);
+      expect(await updatableColumns(role, "host_hours"), role).toEqual([]);
+    }
+  });
+
+  it("belongs to a client member, never to an agency member or to Fynix", async () => {
+    await newHours();
+    expect(await failure(newHours({ memberId: await memberIdOf(userId(3)) }))).toContain("host_hours_member_fk");
+    expect(await failure(newHours({ memberId: await memberIdOf(userId(0)) }))).toContain("host_hours_member_fk");
+  });
+
+  it.each([
+    ["a weekday of 7", { weekday: 7 }, "host_hours_weekday_range"],
+    ["a weekday of -1", { weekday: -1 }, "host_hours_weekday_range"],
+    ["a start below 0", { startMinute: -1, endMinute: 60 }, "host_hours_minutes_range"],
+    ["an end above 1440", { startMinute: 1000, endMinute: 1441 }, "host_hours_minutes_range"],
+    ["a window that ends where it starts", { startMinute: 600, endMinute: 600 }, "host_hours_start_before_end"],
+    ["a window that ends before it starts", { startMinute: 700, endMinute: 600 }, "host_hours_start_before_end"],
+    ["an empty time zone", { timeZone: "" }, "host_hours_time_zone_length"],
+  ])("refuses %s", async (_label, overrides, constraint) => {
+    expect(await failure(newHours(overrides))).toContain(constraint);
+  });
+
+  it("allows several windows on a day, adjacent windows, the same hours on another weekday and the same hours in another time zone", async () => {
+    await newHours({ startMinute: 540, endMinute: 720 });
+    await newHours({ startMinute: 720, endMinute: 900 });
+    await newHours({ startMinute: 1000, endMinute: 1100 });
+    await newHours({ weekday: 2, startMinute: 540, endMinute: 720 });
+    await newHours({ timeZone: "Asia/Kolkata", startMinute: 540, endMinute: 720 });
+  });
+
+  it("refuses a window that overlaps another for the same member, weekday and time zone, on insert and on update", async () => {
+    await newHours({ startMinute: 540, endMinute: 720 });
+    expect(await failure(newHours({ startMinute: 600, endMinute: 800 }))).toContain("host_hours_overlap");
+    expect(await failure(newHours({ startMinute: 500, endMinute: 541 }))).toContain("host_hours_overlap");
+    expect(await failure(newHours({ startMinute: 560, endMinute: 580 }))).toContain("host_hours_overlap");
+    const other = await newHours({ startMinute: 800, endMinute: 900 });
+    expect(await failure(dbs.owner.db.update(hostHours).set({ startMinute: 700 }).where(eq(hostHours.id, other)))).toContain("host_hours_overlap");
+  });
+});
+
+describe("host_block", () => {
+  const block = async (overrides: Partial<typeof hostBlock.$inferInsert> = {}): Promise<string> => {
+    const rows = await dbs.owner.db
+      .insert(hostBlock)
+      .values({ memberId: await kestrelMember(), startsAt: new Date("2027-01-04T09:00:00Z"), endsAt: new Date("2027-01-04T11:00:00Z"), note: "Dentist", ...overrides })
+      .returning({ id: hostBlock.id });
+    return firstOf(rows, "block").id;
+  };
+
+  it("is Fynix only: Fynix reads, adds and removes rows and changes none; no other role holds anything", async () => {
+    expect(await tablePrivileges("leads_fynix", "host_block")).toEqual(["DELETE", "INSERT", "SELECT"]);
+    expect(await updatableColumns("leads_fynix", "host_block")).toEqual([]);
+    for (const role of ["leads_client", "leads_agency", "leads_auth", "leads_public"]) {
+      expect(await tablePrivileges(role, "host_block"), role).toEqual([]);
+      expect(await updatableColumns(role, "host_block"), role).toEqual([]);
+    }
+  });
+
+  it("belongs to a client member, and overlapping blocks are allowed", async () => {
+    await block();
+    await block({ startsAt: new Date("2027-01-04T10:00:00Z"), endsAt: new Date("2027-01-04T12:00:00Z") });
+    expect(await failure(block({ memberId: await memberIdOf(userId(3)) }))).toContain("host_block_member_fk");
+  });
+
+  it("must end after it starts, and keeps a note of at most 500 characters", async () => {
+    expect(await failure(block({ endsAt: new Date("2027-01-04T09:00:00Z") }))).toContain("host_block_ends_after_starts");
+    expect(await failure(block({ endsAt: new Date("2027-01-04T08:00:00Z") }))).toContain("host_block_ends_after_starts");
+    expect(await failure(block({ note: "x".repeat(501) }))).toContain("host_block_note_length");
   });
 });
