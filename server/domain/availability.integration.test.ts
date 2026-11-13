@@ -42,6 +42,16 @@ describe("setHostHours", () => {
     });
   });
 
+  it("leaves one consistent set when two parallel calls replace the same host's hours", async () => {
+    const first = await hoursInput([win(1, 540, 1020), win(3, 540, 1020)], { timeZone: "Europe/London" });
+    const second = await hoursInput([win(1, 480, 720), win(1, 780, 960), win(5, 600, 900)], { timeZone: "Asia/Kolkata" });
+    await Promise.all([setHostHours(rig.deps(), rig.actor, first), setHostHours(rig.deps(), rig.actor, second)]);
+    const rows = (await hourRows()).map((row) => [row.timeZone, row.weekday, row.startMinute, row.endMinute]);
+    const asRows = (input: Record<string, unknown>) => (input.hours as readonly ReturnType<typeof win>[]).map((slot) => [input.timeZone, slot.weekday, slot.startMinute, slot.endMinute]);
+    expect([asRows(first), asRows(second)]).toContainEqual(rows);
+    expect(await auditRowsFor(rig, "host_hours.set")).toHaveLength(2);
+  });
+
   it("replaces the whole set, so the old windows and the old time zone are gone, and the audit row holds the old set", async () => {
     await setHostHours(rig.deps(), rig.actor, await hoursInput([win(1, 540, 1020), win(3, 540, 1020)]));
     await setHostHours(rig.deps(), rig.actor, await hoursInput([win(5, 600, 900)], { timeZone: "Asia/Kolkata" }));

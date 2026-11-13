@@ -45,6 +45,17 @@ describe("publishAgreement", () => {
     expect(first.id).not.toBe(second.id);
   });
 
+  it("gives two parallel publications for the same campaign and party versions 1 and 2, with exactly one current", async () => {
+    const results = await Promise.all([publishAgreement(rig.deps(), rig.actor, base({ monthlyTarget: 20 })), publishAgreement(rig.deps(), rig.actor, base({ monthlyTarget: 30 }))]);
+    expect(results.map((result) => result.version).sort()).toEqual([1, 2]);
+    const rows = await stored();
+    expect(rows.map((row) => [row.version, row.status])).toEqual([
+      [1, "superseded"],
+      [2, "current"],
+    ]);
+    expect(await auditRowsFor(rig, "agreement.publish")).toHaveLength(2);
+  });
+
   it("numbers versions per campaign and party: the two parties are independent, and so are two campaigns", async () => {
     await publishAgreement(rig.deps(), rig.actor, base());
     await publishAgreement(rig.deps(), rig.actor, base({ party: "supplier", monthlyTarget: 18 }));
