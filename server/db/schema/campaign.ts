@@ -4,7 +4,7 @@ import { campaignStatus, organisationKind } from "./enums";
 import { organisation } from "./organisation";
 
 /**
- * One client, served by one agency. Both organisation ids live here so a policy can compare one column per role.
+ * One client, served by one supplier (an agency with no parent; `agency_org_id` is the supplier since phase 1D). Both organisation ids live here so a policy can compare one column per role.
  *
  * - The client never gets a grant on `agency_org_id`, and the agency never gets one on `client_org_id`.
  * - `client_org_kind` and `agency_org_kind` are constants. The composite foreign keys below use them to make the
@@ -50,6 +50,13 @@ export const campaign = pgTable(
     bantNeed: text("bant_need").notNull().default(""),
     bantTimeline: text("bant_timeline").notNull().default(""),
     instructions: text("instructions").notNull().default(""),
+    /**
+     * The campaign's time zone, the one that counting uses (spec 7.1), and the default meeting length. Added in phase 1D with
+     * defaults so existing rows stay valid. The domain validates the zone against the IANA database
+     * (lib/domain/campaign-settings.ts); the database only checks the length. No tenant role has a grant on either until 1E.
+     */
+    timeZone: text("time_zone").notNull().default("Europe/London"),
+    meetingMinutes: integer("meeting_minutes").notNull().default(30),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -72,5 +79,7 @@ export const campaign = pgTable(
     check("campaign_public_ref_format", sql`${table.publicRef} ~ '^CMP-[0-9A-HJKMNP-TV-Z]{4}$'`),
     check("campaign_dates_in_order", sql`${table.endDate} >= ${table.startDate}`),
     check("campaign_targets_not_negative", sql`${table.monthlyTarget} >= 0 AND ${table.totalTarget} >= 0`),
+    check("campaign_meeting_minutes_range", sql`${table.meetingMinutes} BETWEEN 15 AND 240`),
+    check("campaign_time_zone_length", sql`char_length(btrim(${table.timeZone})) BETWEEN 1 AND 64`),
   ],
 );

@@ -134,6 +134,20 @@
       "when": 1794474879401,
       "tag": "0018_audit_log_actor_is_fynix_member",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794556445961,
+      "tag": "0019_org_hierarchy_campaign_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794556452971,
+      "tag": "0020_org_hierarchy_triggers",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { check, pgTable, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { check, foreignKey, index, pgTable, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { organisationKind, organisationStatus } from "./enums";
 
@@ -17,6 +17,14 @@ export const organisation = pgTable(
     /** What an agency sees of a client. Required for clients, optional for the others. */
     brandName: text("brand_name"),
     status: organisationStatus("status").notNull().default("active"),
+    /**
+     * The supplier a partner agency works under. Null for Fynix, every client and every supplier. A supplier is an agency with
+     * no parent; a partner agency is an agency whose parent is a supplier; two levels at most (migration 0020 refuses a grandparent).
+     * Added in phase 1D, nullable, so existing rows stay valid. No tenant role has a grant on it until phase 1E.
+     */
+    parentOrgId: uuid("parent_org_id"),
+    /** `agency` while a parent is set, else null. The composite foreign key below uses it to insist the parent is an agency. */
+    parentOrgKind: organisationKind("parent_org_kind").generatedAlwaysAs(sql`CASE WHEN parent_org_id IS NULL THEN NULL ELSE 'agency'::organisation_kind END`),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -28,5 +36,10 @@ export const organisation = pgTable(
     // There is exactly one Fynix organisation. `pnpm admin:create` finds it or creates it, and member rows of kind
     // `fynix` point at it.
     uniqueIndex("organisation_one_fynix").on(table.kind).where(sql`${table.kind} = 'fynix'`),
+    // The foreign key is not checked while `parent_org_kind` is null, so only an organisation with a parent is constrained.
+    foreignKey({ name: "organisation_parent_fk", columns: [table.parentOrgId, table.parentOrgKind], foreignColumns: [table.id, table.kind] }),
+    check("organisation_parent_not_self", sql`${table.parentOrgId} IS NULL OR ${table.parentOrgId} <> ${table.id}`),
+    check("organisation_parent_only_agency", sql`${table.parentOrgId} IS NULL OR ${table.kind} = 'agency'`),
+    index("organisation_parent_idx").on(table.parentOrgId),
   ],
 );
