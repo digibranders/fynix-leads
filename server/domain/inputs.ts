@@ -128,3 +128,9 @@ export type SetCampaignShareInput = z.infer<typeof setCampaignShareSchema>;
 
 export const removeCampaignShareSchema = z.object({ campaignId: z.uuid(), agencyOrgId: z.uuid() }).strict();
 export type RemoveCampaignShareInput = z.infer<typeof removeCampaignShareSchema>;
+
+export const addCampaignHostSchema = z.object({ campaignId: z.uuid(), memberId: z.uuid(), jobTitle: name(120) }).strict();
+export type AddCampaignHostInput = z.infer<typeof addCampaignHostSchema>;
+
+export const deactivateCampaignHostSchema = z.object({ campaignId: z.uuid(), memberId: z.uuid() }).strict();
+export type DeactivateCampaignHostInput = z.infer<typeof deactivateCampaignHostSchema>;

@@ -145,3 +145,14 @@ export interface ShareRow {
 export function snapshotShare(row: ShareRow): JsonObject {
   return { campaignId: row.campaignId, agencyOrgId: row.agencyOrgId, monthlyShare: row.monthlyShare };
 }
+
+export interface HostRow {
+  readonly campaignId: string;
+  readonly memberId: string;
+  readonly jobTitle: string;
+  readonly active: boolean;
+}
+
+export function snapshotHost(row: HostRow): JsonObject {
+  return { campaignId: row.campaignId, memberId: row.memberId, jobTitle: row.jobTitle, active: row.active };
+}
