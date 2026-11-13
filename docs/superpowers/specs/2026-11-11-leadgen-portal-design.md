@@ -1,6 +1,6 @@
 # Fynix Leads: lead generation tracking portal
 
-Design spec, version 1. Status: draft for review.
+Design spec, version 1. Status: superseded on 2026-11-12 by `2026-11-12-leadgen-portal-design-v2.md`. Kept for history.
 Date: 2026-11-11. Source brief: `Lead gen.docx` (three-party lead generation portal), corrected by the decisions below.
 
 ## 1. Purpose
