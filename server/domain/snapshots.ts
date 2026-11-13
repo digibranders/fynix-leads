@@ -99,3 +99,39 @@ export interface MemberRow {
 export function snapshotMember(row: MemberRow): JsonObject {
   return { orgId: row.orgId, role: row.role, displayName: row.displayName, status: row.status };
 }
+
+export interface AgreementRow {
+  readonly campaignId: string;
+  readonly party: string;
+  readonly version: number;
+  readonly monthlyTarget: number;
+  readonly totalTarget: number;
+  readonly disputeWindowHours: number;
+  readonly rules: string;
+  readonly notes: string;
+  readonly status: string;
+}
+
+export function snapshotAgreement(row: AgreementRow): JsonObject {
+  return {
+    campaignId: row.campaignId,
+    party: row.party,
+    version: row.version,
+    monthlyTarget: row.monthlyTarget,
+    totalTarget: row.totalTarget,
+    disputeWindowHours: row.disputeWindowHours,
+    rules: row.rules,
+    notes: row.notes,
+    status: row.status,
+  };
+}
+
+export interface AcceptanceRow {
+  readonly agreementId: string;
+  readonly userId: string;
+  readonly networkAddress: string;
+}
+
+export function snapshotAcceptance(row: AcceptanceRow): JsonObject {
+  return { agreementId: row.agreementId, userId: row.userId, networkAddress: row.networkAddress };
+}

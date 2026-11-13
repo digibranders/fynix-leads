@@ -97,3 +97,28 @@ export type CreateSupplierInput = z.infer<typeof createSupplierSchema>;
 
 export const createPartnerAgencySchema = z.object({ supplierId: z.uuid(), name: name(120) }).strict();
 export type CreatePartnerAgencyInput = z.infer<typeof createPartnerAgencySchema>;
+
+export const publishAgreementSchema = z
+  .object({
+    campaignId: z.uuid(),
+    party: z.enum(["client", "supplier"]),
+    monthlyTarget: count,
+    totalTarget: count,
+    /** How long after a meeting the client may dispute it. */
+    disputeWindowHours: z.number().int().min(1).max(720).default(48),
+    /** The no-show and cancellation rules, in words. */
+    rules: optionalText(4000).default(""),
+    notes: optionalText(2000).default(""),
+  })
+  .strict();
+export type PublishAgreementInput = z.input<typeof publishAgreementSchema>;
+
+export const recordAgreementAcceptanceSchema = z
+  .object({
+    agreementId: z.uuid(),
+    userId: z.uuid(),
+    /** Where the signer accepted from. A Fynix admin recording it for them says so. */
+    networkAddress: name(64).default("recorded by Fynix"),
+  })
+  .strict();
+export type RecordAgreementAcceptanceInput = z.input<typeof recordAgreementAcceptanceSchema>;
