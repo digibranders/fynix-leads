@@ -78,7 +78,7 @@ describe("suspendMember and reactivateMember", () => {
       { action: "member.suspend", subjectTable: "member", subjectId: row.id, before: { status: "active" }, after: { status: "suspended" } },
       { action: "member.reactivate", subjectId: row.id, before: { status: "suspended" }, after: { status: "active" } },
     ]);
-    expect(await rig.dbs.owner.db.select({ id: member.id }).from(member)).toHaveLength(6);
+    expect(await rig.dbs.owner.db.select({ id: member.id }).from(member)).toHaveLength(7);
   });
 
   it("refuses an admin suspending their own membership, a repeat, and an unknown member", async () => {

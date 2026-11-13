@@ -15,8 +15,10 @@ export interface DomainRig {
   readonly dbs: TestDatabases;
   readonly breach: FakeBreachChecker;
   readonly clock: { now: Date };
-  /** The seeded Fynix admin. */
+  /** The seeded Fynix admin: an active member of the Fynix organisation with the `manager` role. */
   readonly actor: FynixActor;
+  /** The seeded Fynix staff member: an active member of the Fynix organisation with the `member` role, who may not change set-up. */
+  readonly staffActor: FynixActor;
   /** Empties the database and seeds the world again (organisations, campaigns and one user each, no phase 1C rows). Call it in `beforeEach`. */
   reset(): Promise<SeedWorld>;
   /** The seeded world as of the last `reset`. */
@@ -41,6 +43,11 @@ export function openDomainRig(): DomainRig {
     get actor(): FynixActor {
       const user = world().users[0];
       if (user === undefined) throw new Error("The seed world has no Fynix user");
+      return { userId: user.id };
+    },
+    get staffActor(): FynixActor {
+      const user = world().users.find((candidate) => candidate.organisation.kind === "fynix" && candidate.role === "member");
+      if (user === undefined) throw new Error("The seed world has no Fynix staff user");
       return { userId: user.id };
     },
     async reset() {

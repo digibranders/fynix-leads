@@ -40,10 +40,12 @@ const issueAgency = () => issueInvite(rig.deps(), rig.actor, { organisationId: r
 const termsId = async (party: "client" | "agency" | "fynix"): Promise<string> => (await readCurrentTerms(rig.dbs.roles.leads_auth.db, party))?.id ?? "";
 const redeem = async (email: string, party: "client" | "agency", overrides: Partial<RedeemInput> = {}): Promise<RedeemResult> =>
   redeemInvite(rig.deps(), { token: (await latestInviteLink(rig, email)).token, password: GOOD_PASSWORD, acceptedTermsId: await termsId(party), address: ADDRESS, ...overrides });
+/** The seeded users, accounts and members: Fynix admin, Fynix staff, two clients, two agencies. */
+const SEEDED_PEOPLE = 6;
 const counts = async () => ({
-  users: (await rig.dbs.owner.db.select({ id: user.id }).from(user)).length - 5,
-  accounts: (await rig.dbs.owner.db.select({ id: account.id }).from(account)).length - 5,
-  members: (await rig.dbs.owner.db.select({ id: member.id }).from(member)).length - 5,
+  users: (await rig.dbs.owner.db.select({ id: user.id }).from(user)).length - SEEDED_PEOPLE,
+  accounts: (await rig.dbs.owner.db.select({ id: account.id }).from(account)).length - SEEDED_PEOPLE,
+  members: (await rig.dbs.owner.db.select({ id: member.id }).from(member)).length - SEEDED_PEOPLE,
   acceptances: (await rig.dbs.owner.db.select({ id: termsAcceptance.id }).from(termsAcceptance)).length,
   aliases: (await rig.dbs.owner.db.select({ id: agencyAlias.id }).from(agencyAlias)).length,
 });

@@ -26,6 +26,8 @@ export interface SeededUser {
   readonly email: string;
   readonly name: string;
   readonly organisation: SeededOrganisation;
+  /** `manager` is a Fynix admin (or a client or agency manager); `member` is Fynix staff (or an ordinary client or agency user). */
+  readonly role: "member" | "manager";
   readonly passwordHash: string;
   readonly sessionToken: string;
   readonly resetToken: string;
@@ -72,7 +74,10 @@ export interface SeedWorld {
   readonly clients: readonly SeededOrganisation[];
   /** Same objects as `brightpath` and `northgate`, in order. */
   readonly agencies: readonly SeededOrganisation[];
-  /** One user per organisation, each with a password hash, a live session token and a reset token. */
+  /**
+   * One user per organisation, each with a password hash, a live session token and a reset token, in the order Fynix (the admin),
+   * the two clients, the two agencies. A sixth user is a second Fynix member with the `member` role: Fynix staff, who may not change set-up.
+   */
   readonly users: readonly SeededUser[];
   /** The phase 1C rows. Empty (`null`) when the world was seeded without users. */
   readonly domain: SeededDomain | null;
@@ -89,11 +94,15 @@ function firstRow<T>(rows: readonly T[], what: string): T {
  * and a reset request would leave: a credential account, a live session and a reset token. The values are not valid
  * credentials; they exist so the leak matrix can search for them.
  */
-async function seedUsers(owner: DatabaseHandle, organisations: readonly SeededOrganisation[]): Promise<{ readonly users: SeededUser[]; readonly memberIds: Map<string, string> }> {
+async function seedUsers(
+  owner: DatabaseHandle,
+  people: readonly { readonly organisation: SeededOrganisation; readonly role: "member" | "manager" }[],
+): Promise<{ readonly users: SeededUser[]; readonly memberIds: Map<string, string> }> {
   const { db } = owner;
   const users: SeededUser[] = [];
   const memberIds = new Map<string, string>();
-  for (const [index, organisation] of organisations.entries()) {
+  for (const [index, person] of people.entries()) {
+    const { organisation, role } = person;
     const n = index + 1;
     const email = `person${n}@${organisation.publicRef.toLowerCase()}.example`;
     const name = `Person ${n} of ${organisation.publicRef}`;
@@ -104,9 +113,9 @@ async function seedUsers(owner: DatabaseHandle, organisations: readonly SeededOr
     await db.insert(account).values({ accountId: row.id, providerId: "credential", userId: row.id, password: passwordHash });
     await db.insert(session).values({ token: sessionToken, userId: row.id, expiresAt: new Date(Date.now() + 3_600_000) });
     await db.insert(verification).values({ identifier: `reset-password:${resetToken}`, value: row.id, expiresAt: new Date(Date.now() + 3_600_000) });
-    const memberRow = firstRow(await db.insert(member).values({ userId: row.id, orgId: organisation.id, orgKind: organisation.kind, displayName: name }).returning({ id: member.id }), `member ${email}`);
+    const memberRow = firstRow(await db.insert(member).values({ userId: row.id, orgId: organisation.id, orgKind: organisation.kind, role, displayName: name }).returning({ id: member.id }), `member ${email}`);
     memberIds.set(row.id, memberRow.id);
-    users.push({ id: row.id, email, name, organisation, passwordHash, sessionToken, resetToken });
+    users.push({ id: row.id, email, name, organisation, role, passwordHash, sessionToken, resetToken });
   }
   return { users, memberIds };
 }
@@ -226,7 +235,17 @@ export async function seedWorld(owner: DatabaseHandle, options: { readonly withU
     await insertCampaign("CMP-2V5Z", "Frozen food distributors", "INTERNAL-NOTE renewal in March", halden, northgate),
   ] as const;
 
-  const seeded = options.withUsers === false ? null : await seedUsers(owner, [fynix, kestrel, halden, brightpath, northgate]);
+  const seeded =
+    options.withUsers === false
+      ? null
+      : await seedUsers(owner, [
+          { organisation: fynix, role: "manager" },
+          { organisation: kestrel, role: "member" },
+          { organisation: halden, role: "member" },
+          { organisation: brightpath, role: "member" },
+          { organisation: northgate, role: "member" },
+          { organisation: fynix, role: "member" },
+        ]);
   const domain = seeded === null || options.withDomain === false ? null : await seedDomain(owner, { fynix, kestrel, northgate }, seeded);
   return { fynix, kestrel, halden, brightpath, northgate, campaigns, clients: [kestrel, halden], agencies: [brightpath, northgate], users: seeded?.users ?? [], domain };
 }
