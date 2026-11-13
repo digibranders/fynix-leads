@@ -19,6 +19,8 @@ export interface SupplierRow {
   readonly createdAt: Date;
   /** Partner agencies working under the supplier. */
   readonly agencyCount: number;
+  /** The partner agencies' names, by name, so the list can be searched by them. */
+  readonly agencyNames: readonly string[];
   /** Members of the supplier and of its partner agencies. */
   readonly peopleCount: number;
   /** Campaigns the supplier serves. */
@@ -61,6 +63,7 @@ export async function listSupplierRows(deps: DomainDeps, actor: FynixActor): Pro
           status: supplier.status,
           createdAt: supplier.createdAt,
           agencyCount: partners.length,
+          agencyNames: partners.map((partner) => partner.name),
           peopleCount: own + partners.reduce((sum, partner) => sum + (people.get(partner.id) ?? 0), 0),
           campaignCount: campaigns.get(supplier.id) ?? 0,
           inviteWaiting: own === 0 && (waiting.get(supplier.id) ?? 0) > 0,

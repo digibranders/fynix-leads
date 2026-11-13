@@ -33,7 +33,7 @@ describe("listSupplierRows", () => {
     await createPartnerAgency(rig.deps(), rig.actor, { supplierId: brightpath.id, name: "Ridgeway Partner Ltd" });
     const rows = await listSupplierRows(rig.deps(), rig.actor);
     expect(rows.map((row) => row.name)).toEqual([brightpath.name, northgate.name]);
-    expect(rows[0]).toMatchObject({ publicRef: brightpath.publicRef, status: "active", agencyCount: 1, peopleCount: 1, campaignCount: 2, inviteWaiting: false });
+    expect(rows[0]).toMatchObject({ publicRef: brightpath.publicRef, status: "active", agencyCount: 1, agencyNames: ["Ridgeway Partner Ltd"], peopleCount: 1, campaignCount: 2, inviteWaiting: false });
     expect(rows[1]).toMatchObject({ publicRef: northgate.publicRef, agencyCount: 0, peopleCount: 1, campaignCount: 2 });
   });
 
