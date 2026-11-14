@@ -7,7 +7,7 @@
 export const REF_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 export const REF_LENGTH = 4;
 
-export type RefPrefix = "ORG" | "CMP";
+export type RefPrefix = "ORG" | "CMP" | "ALI" | "LD" | "MTG" | "MSG";
 
 /** Fills `count` bytes from a source of randomness. `crypto.getRandomValues` fits, and so does a fixed list in a test. */
 export type RandomBytes = (count: number) => Uint8Array;

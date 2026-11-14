@@ -14,9 +14,9 @@ export const FYNIX_NAV: readonly FynixNavItem[] = [
   { label: "Clients", icon: Buildings, href: null },
   { label: "Suppliers", icon: UsersThree, href: "/fynix/suppliers" },
   { label: "Campaigns", icon: Megaphone, href: "/fynix/campaigns" },
-  { label: "Leads", icon: Table, href: null },
+  { label: "Leads", icon: Table, href: "/fynix/leads" },
   { label: "Meetings", icon: CalendarBlank, href: null },
-  { label: "Inbox", icon: ChatsCircle, href: null },
+  { label: "Inbox", icon: ChatsCircle, href: "/fynix/inbox" },
   { label: "Disputes", icon: Scales, href: null },
   { label: "Settings", icon: Gear, href: null },
 ];

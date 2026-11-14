@@ -123,21 +123,28 @@ const EXPECTED_ACCESS: Readonly<Record<string, readonly RuntimeRoleName[]>> = {
   session: ["leads_auth"],
   account: ["leads_auth"],
   verification: ["leads_auth"],
-  member: ["leads_auth", "leads_fynix"],
+  member: ["leads_auth", "leads_fynix", "leads_client", "leads_agency"],
   rate_limit: ["leads_public"],
   email_outbox: ["leads_auth", "leads_fynix", "leads_public"],
   audit_log: ["leads_fynix"],
   terms_document: ["leads_auth", "leads_fynix"],
   terms_acceptance: ["leads_auth", "leads_fynix"],
-  invite: ["leads_auth", "leads_fynix"],
+  invite: ["leads_auth", "leads_fynix", "leads_agency"],
   agency_alias: ["leads_auth", "leads_fynix"],
-  // Phase 1D: Fynix sets these up. No tenant role holds anything on them until phase 1E decides who sees which column.
-  agreement: ["leads_fynix"],
-  agreement_acceptance: ["leads_fynix"],
-  campaign_share: ["leads_fynix"],
-  campaign_host: ["leads_fynix"],
-  host_hours: ["leads_fynix"],
-  host_block: ["leads_fynix"],
+  // Phase 1E tenant access:
+  agreement: ["leads_fynix", "leads_client", "leads_agency"],
+  agreement_acceptance: ["leads_fynix", "leads_client", "leads_agency"],
+  campaign_share: ["leads_fynix", "leads_agency"],
+  campaign_host: ["leads_fynix", "leads_client", "leads_agency"],
+  host_hours: ["leads_fynix", "leads_client", "leads_agency"],
+  host_block: ["leads_fynix", "leads_client", "leads_agency"],
+  alias_identity: ["leads_auth", "leads_fynix", "leads_agency"],
+  // Phase 2 leads access:
+  exclusion_entry: ["leads_fynix", "leads_client"],
+  lead: ["leads_fynix", "leads_client", "leads_agency"],
+  lead_history: ["leads_fynix", "leads_client", "leads_agency"],
+  // Phase 3 meetings access:
+  meeting: ["leads_fynix", "leads_client", "leads_agency"],
 };
 /** The tables nobody but leads_auth touches. `user` is not one of them any more: Fynix reads four columns of it. */
 const AUTH_TABLES = ["session", "account", "verification"] as const;

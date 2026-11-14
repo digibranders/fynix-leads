@@ -30,6 +30,9 @@ export const AUDIT_ACTIONS = [
   "host_hours.set",
   "host_block.add",
   "host_block.remove",
+  "lead.resolve_dispute",
+  "conversation.create",
+  "conversation.message",
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
@@ -45,7 +48,10 @@ export type AuditSubjectTable =
   | "campaign_share"
   | "campaign_host"
   | "host_hours"
-  | "host_block";
+  | "host_block"
+  | "lead"
+  | "conversation"
+  | "conversation_message";
 
 export type Json = string | number | boolean | null | readonly Json[] | JsonObject;
 export interface JsonObject {

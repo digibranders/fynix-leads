@@ -49,6 +49,15 @@ export async function withScope<T>(
   });
 }
 
+/** Runs `work` on a database pool with a tenant scope (orgId and userId). */
+export async function withTenantScope<T>(
+  db: Database,
+  scope: TenantScope,
+  work: (tx: ScopedTransaction) => Promise<T>,
+): Promise<T> {
+  return withScope(db, scope, work);
+}
+
 /**
  * Runs `work` as the client or agency role, scoped to one organisation and user. Both ids are required and must be
  * UUIDs: a request with no organisation must not reach a tenant pool at all. The role is checked at runtime as well

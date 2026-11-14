@@ -1,9 +1,11 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import type { Database } from "@/server/db/pool";
 import { agreement, agreementAcceptance, campaign, member } from "@/server/db/schema";
+import { withTenantScope } from "@/server/db/scope";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError, isUniqueViolation } from "@/server/domain/errors";
 import { fynixRead, fynixWrite, type FynixActor } from "@/server/domain/fynix-write";
-import { publishAgreementSchema, recordAgreementAcceptanceSchema, uuidSchema } from "@/server/domain/inputs";
+import { acceptTenantAgreementSchema, publishAgreementSchema, recordAgreementAcceptanceSchema, uuidSchema } from "@/server/domain/inputs";
 import { parseInput } from "@/server/domain/parse";
 import { snapshotAcceptance, snapshotAgreement } from "@/server/domain/snapshots";
 
@@ -170,5 +172,70 @@ export async function recordAgreementAcceptance(deps: DomainDeps, actor: FynixAc
       after: snapshotAcceptance({ agreementId: target.id, userId: parsed.userId, networkAddress: parsed.networkAddress }),
     });
     return { agreementId: target.id, userId: parsed.userId, acceptedAt: created.acceptedAt, networkAddress: parsed.networkAddress };
+  });
+}
+
+/**
+ * Accepts a campaign agreement by a tenant manager (client manager or supplier manager).
+ * Runs within tenant scope on leads_client or leads_agency role, gated by database RLS.
+ */
+export async function acceptAgreementByTenant(
+  db: Database,
+  _deps: Pick<DomainDeps, "now">,
+  actor: { readonly userId: string; readonly orgId: string; readonly role: "member" | "manager" },
+  input: unknown,
+  networkAddress: string,
+): Promise<AcceptanceRecord & { readonly agreementId: string }> {
+  if (actor.role !== "manager") {
+    throw new DomainError("not-authorised", "Only an organisation manager can accept an agreement.");
+  }
+  const parsed = parseInput(acceptTenantAgreementSchema, input);
+
+  return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
+    const [target] = await tx
+      .select({
+        id: agreement.id,
+        party: agreement.party,
+        version: agreement.version,
+        status: agreement.status,
+      })
+      .from(agreement)
+      .where(eq(agreement.id, parsed.agreementId))
+      .limit(1);
+
+    if (target === undefined) {
+      throw new DomainError("not-found", "There is no such agreement.");
+    }
+    if (target.status !== "current") {
+      throw new DomainError("agreement-superseded", "That version has been replaced. The current version is the one to accept.");
+    }
+
+    try {
+      const [created] = await tx
+        .insert(agreementAcceptance)
+        .values({
+          agreementId: target.id,
+          userId: actor.userId,
+          networkAddress,
+        })
+        .returning({
+          id: agreementAcceptance.id,
+          acceptedAt: agreementAcceptance.acceptedAt,
+        });
+
+      if (created === undefined) throw new Error("The acceptance insert returned no row");
+
+      return {
+        agreementId: target.id,
+        userId: actor.userId,
+        acceptedAt: created.acceptedAt,
+        networkAddress,
+      };
+    } catch (error) {
+      if (isUniqueViolation(error, "agreement_acceptance_agreement_user_unique")) {
+        throw new DomainError("already-accepted", "That person has accepted this version already.");
+      }
+      throw error;
+    }
   });
 }

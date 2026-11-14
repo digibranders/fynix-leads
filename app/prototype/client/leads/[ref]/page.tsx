@@ -10,12 +10,12 @@ export function generateStaticParams(): { ref: string }[] {
   return SAMPLE_LEADS.map((l) => ({ ref: l.ref }));
 }
 
-export async function generateMetadata({ params }: PageProps<"/client/leads/[ref]">): Promise<Metadata> {
+export async function generateMetadata({ params }: PageProps<"/prototype/client/leads/[ref]">): Promise<Metadata> {
   const { ref } = await params;
   return { title: SAMPLE_LEADS.some((l) => l.ref === ref) ? `Lead ${ref}` : "Lead not found" };
 }
 
-async function Record({ params }: { params: PageProps<"/client/leads/[ref]">["params"] }) {
+async function Record({ params }: { params: PageProps<"/prototype/client/leads/[ref]">["params"] }) {
   const { ref } = await params;
   const lead = SAMPLE_LEADS.find((l) => l.ref === ref);
   if (!lead) notFound();
@@ -24,7 +24,7 @@ async function Record({ params }: { params: PageProps<"/client/leads/[ref]">["pa
   );
 }
 
-export default function LeadRecordPage({ params }: PageProps<"/client/leads/[ref]">) {
+export default function LeadRecordPage({ params }: PageProps<"/prototype/client/leads/[ref]">) {
   return (
     <Suspense fallback={<PageHeader title="Lead record" />}>
       <Record params={params} />

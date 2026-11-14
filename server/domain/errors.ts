@@ -23,7 +23,14 @@ export type DomainErrorCode =
   | "not-a-client-member"
   | "agreement-superseded"
   | "not-an-agreement-signer"
-  | "already-accepted";
+  | "already-accepted"
+  | "invalid-code"
+  | "exclusion-conflict"
+  | "prospect-excluded"
+  | "prospect-duplicate"
+  | "alias-not-verified"
+  | "invalid-lead-stage"
+  | "dispute-window-expired";
 
 export class DomainError extends Error {
   constructor(

@@ -26,15 +26,25 @@ describe("generatePublicRef", () => {
   it("is accepted by the same pattern the database check constraints use", () => {
     const campaignPattern = /^CMP-[0-9A-HJKMNP-TV-Z]{4}$/;
     const organisationPattern = /^ORG-[0-9A-HJKMNP-TV-Z]{4}$/;
+    const aliasPattern = /^ALI-[0-9A-HJKMNP-TV-Z]{4}$/;
+    const leadPattern = /^LD-[0-9A-HJKMNP-TV-Z]{4}$/;
+    const meetingPattern = /^MTG-[0-9A-HJKMNP-TV-Z]{4}$/;
+    const messagePattern = /^MSG-[0-9A-HJKMNP-TV-Z]{4}$/;
     for (let byte = 0; byte < 256; byte += 1) {
       const bytes = () => Uint8Array.from([byte, byte >> 1, 255 - byte, byte ^ 0x5a]);
       expect(generatePublicRef("CMP", bytes)).toMatch(campaignPattern);
       expect(generatePublicRef("ORG", bytes)).toMatch(organisationPattern);
+      expect(generatePublicRef("ALI", bytes)).toMatch(aliasPattern);
+      expect(generatePublicRef("LD", bytes)).toMatch(leadPattern);
+      expect(generatePublicRef("MTG", bytes)).toMatch(meetingPattern);
+      expect(generatePublicRef("MSG", bytes)).toMatch(messagePattern);
     }
   });
 });
 
 describe("isPublicRef", () => {
   it.each(["CMP-7Q2X", "CMP-0000", "CMP-ZZZZ"])("accepts %s", (value) => expect(isPublicRef(value, "CMP")).toBe(true));
+  it.each(["MTG-7Q2X", "MTG-0000", "MTG-ZZZZ"])("accepts meeting %s", (value) => expect(isPublicRef(value, "MTG")).toBe(true));
+  it.each(["MSG-7Q2X", "MSG-0000", "MSG-ZZZZ"])("accepts message %s", (value) => expect(isPublicRef(value, "MSG")).toBe(true));
   it.each(["CMP-7Q2", "CMP-7Q2XY", "cmp-7q2x", "CMP-7QIX", "CMP-7QLX", "CMP-7QOX", "CMP-7QUX", "ORG-7Q2X", "CMP7Q2X"])("refuses %s", (value) => expect(isPublicRef(value, "CMP")).toBe(false));
 });

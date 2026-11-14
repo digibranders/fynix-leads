@@ -1,9 +1,11 @@
 import { asc, eq } from "drizzle-orm";
+import type { Database } from "@/server/db/pool";
 import { organisation } from "@/server/db/schema";
+import { withTenantScope } from "@/server/db/scope";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
 import { fynixRead, fynixWrite, type FynixActor } from "@/server/domain/fynix-write";
-import { createPartnerAgencySchema, createSupplierSchema } from "@/server/domain/inputs";
+import { createPartnerAgencySchema, createSupplierPartnerAgencySchema, createSupplierSchema } from "@/server/domain/inputs";
 import { insertOrganisation, organisationColumns, type OrganisationRecord } from "@/server/domain/organisations";
 import { parseInput } from "@/server/domain/parse";
 import { snapshotOrganisation } from "@/server/domain/snapshots";
@@ -55,4 +57,29 @@ export async function listSuppliers(deps: DomainDeps, actor: FynixActor): Promis
     if (row.parentOrgId !== null) partners.set(row.parentOrgId, [...(partners.get(row.parentOrgId) ?? []), row]);
   }
   return agencies.filter((row) => row.parentOrgId === null).map((supplier) => ({ supplier, agencies: partners.get(supplier.id) ?? [] }));
+}
+
+/**
+ * Creates a partner agency under a supplier by the supplier's own manager.
+ * Uses the supplier's own orgId as parentOrgId, enforced by Postgres RLS.
+ */
+export async function createPartnerAgencyBySupplier(
+  db: Database,
+  deps: Pick<DomainDeps, "randomBytes">,
+  actor: { readonly userId: string; readonly orgId: string; readonly role: "member" | "manager" },
+  input: unknown,
+): Promise<OrganisationRecord> {
+  if (actor.role !== "manager") {
+    throw new DomainError("not-authorised", "Only a supplier manager can create partner agencies.");
+  }
+  const parsed = parseInput(createSupplierPartnerAgencySchema, input);
+  return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
+    const created = await insertOrganisation(tx, deps.randomBytes, {
+      kind: "agency",
+      name: parsed.name,
+      brandName: null,
+      parentOrgId: actor.orgId,
+    });
+    return created;
+  });
 }

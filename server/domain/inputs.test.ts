@@ -1,6 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { DomainError } from "@/server/domain/errors";
-import { createCampaignSchema, createOrganisationSchema, issueInviteSchema, updateCampaignSchema, updateOrganisationSchema } from "@/server/domain/inputs";
+import {
+  clientReviewLeadSchema,
+  createCampaignSchema,
+  createOrganisationSchema,
+  disputeLeadSchema,
+  forwardMessageSchema,
+  getOrCreateConversationSchema,
+  issueInviteSchema,
+  markNotificationReadSchema,
+  postMessageSchema,
+  recordMeetingOutcomeSchema,
+  resolveDisputeSchema,
+  submitLeadSchema,
+  updateCampaignSchema,
+  updateOrganisationSchema,
+} from "@/server/domain/inputs";
 import { parseInput } from "@/server/domain/parse";
 
 const UUID = "11111111-1111-4111-8111-111111111111";
@@ -96,5 +111,128 @@ describe("campaign settings input", () => {
     };
     expect(message({ timeZone: "Mars/Olympus" })).toBe("timeZone must be an IANA time zone such as Europe/London");
     expect(message({ meetingMinutes: 5 })).toContain("meetingMinutes");
+  });
+});
+
+describe("lead inputs", () => {
+  const validLead = {
+    campaignId: UUID,
+    aliasIdentityId: UUID,
+    hostMemberId: UUID,
+    prospectName: "Sarah Connor",
+    prospectTitle: "VP Engineering",
+    prospectCompany: "Cyberdyne Systems",
+    prospectDomain: "cyberdyne.com",
+    prospectLinkedinUrl: "https://linkedin.com/in/sarahconnor",
+    prospectEmail: "sarah@cyberdyne.com",
+    bantBudget: "Approved annual budget of $150k",
+    bantAuthority: "Final decision maker",
+    bantNeed: "Automated warehouse logistics",
+    bantTimeline: "Q1 deployment",
+    proposedTimes: ["2026-12-01T10:00:00Z", "2026-12-02T14:00:00Z"],
+  };
+
+  it("accepts valid lead submission input", () => {
+    const parsed = parseInput(submitLeadSchema, validLead);
+    expect(parsed.prospectName).toBe("Sarah Connor");
+    expect(parsed.prospectEmail).toBe("sarah@cyberdyne.com");
+    expect(parsed.proposedTimes).toHaveLength(2);
+  });
+
+  it("refuses lead submission without proposed meeting times", () => {
+    expect(submitLeadSchema.safeParse({ ...validLead, proposedTimes: [] }).success).toBe(false);
+  });
+
+  it("refuses lead submission with more than 3 proposed meeting times", () => {
+    expect(
+      submitLeadSchema.safeParse({
+        ...validLead,
+        proposedTimes: [
+          "2026-12-01T10:00:00Z",
+          "2026-12-02T14:00:00Z",
+          "2026-12-03T10:00:00Z",
+          "2026-12-04T10:00:00Z",
+        ],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("validates client review actions", () => {
+    expect(
+      clientReviewLeadSchema.safeParse({
+        leadId: UUID,
+        action: "accept",
+        selectedMeetingTime: "2026-12-01T10:00:00Z",
+      }).success,
+    ).toBe(true);
+
+    expect(
+      clientReviewLeadSchema.safeParse({
+        leadId: UUID,
+        action: "accept",
+      }).success,
+    ).toBe(false);
+
+    expect(
+      clientReviewLeadSchema.safeParse({
+        leadId: UUID,
+        action: "decline",
+        declineReason: "Not in target market",
+      }).success,
+    ).toBe(true);
+
+    expect(
+      clientReviewLeadSchema.safeParse({
+        leadId: UUID,
+        action: "decline",
+      }).success,
+    ).toBe(false);
+
+    expect(
+      clientReviewLeadSchema.safeParse({
+        leadId: UUID,
+        action: "propose_times",
+        proposedTimes: ["2026-12-05T11:00:00Z"],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("validates dispute input and resolution input", () => {
+    expect(disputeLeadSchema.safeParse({ leadId: UUID, disputeReason: "Short reason" }).success).toBe(true);
+    expect(disputeLeadSchema.safeParse({ leadId: UUID, disputeReason: "No" }).success).toBe(false);
+    expect(resolveDisputeSchema.safeParse({ leadId: UUID, resolution: "upheld" }).success).toBe(true);
+    expect(resolveDisputeSchema.safeParse({ leadId: UUID, resolution: "rejected", note: "Valid lead" }).success).toBe(true);
+    expect(resolveDisputeSchema.safeParse({ leadId: UUID, resolution: "other" }).success).toBe(false);
+  });
+
+  it("validates recordMeetingOutcomeSchema", () => {
+    expect(recordMeetingOutcomeSchema.safeParse({ meetingId: UUID, outcome: "held" }).success).toBe(true);
+    expect(recordMeetingOutcomeSchema.safeParse({ meetingId: UUID, outcome: "client_no_show", notes: "Client was absent" }).success).toBe(true);
+    expect(recordMeetingOutcomeSchema.safeParse({ meetingId: UUID, outcome: "prospect_no_show" }).success).toBe(true);
+    expect(recordMeetingOutcomeSchema.safeParse({ meetingId: UUID, outcome: "cancelled" }).success).toBe(false);
+    expect(recordMeetingOutcomeSchema.safeParse({ meetingId: "not-a-uuid", outcome: "held" }).success).toBe(false);
+  });
+
+  it("validates getOrCreateConversationSchema", () => {
+    expect(getOrCreateConversationSchema.safeParse({ campaignId: UUID, side: "client_fynix", clientOrgId: UUID }).success).toBe(true);
+    expect(getOrCreateConversationSchema.safeParse({ campaignId: UUID, side: "supplier_agency", supplierOrgId: UUID, agencyOrgId: UUID, subject: "Test thread" }).success).toBe(true);
+    expect(getOrCreateConversationSchema.safeParse({ campaignId: "bad-id", side: "client_fynix" }).success).toBe(false);
+    expect(getOrCreateConversationSchema.safeParse({ campaignId: UUID, side: "invalid_side" }).success).toBe(false);
+  });
+
+  it("validates postMessageSchema", () => {
+    expect(postMessageSchema.safeParse({ conversationId: UUID, body: "Hello team" }).success).toBe(true);
+    expect(postMessageSchema.safeParse({ conversationId: UUID, body: "   " }).success).toBe(false);
+    expect(postMessageSchema.safeParse({ conversationId: "not-a-uuid", body: "Hello" }).success).toBe(false);
+  });
+
+  it("validates forwardMessageSchema", () => {
+    expect(forwardMessageSchema.safeParse({ messageId: UUID, targetConversationId: UUID }).success).toBe(true);
+    expect(forwardMessageSchema.safeParse({ messageId: "invalid", targetConversationId: UUID }).success).toBe(false);
+  });
+
+  it("validates markNotificationReadSchema", () => {
+    expect(markNotificationReadSchema.safeParse({ notificationId: UUID }).success).toBe(true);
+    expect(markNotificationReadSchema.safeParse({ notificationId: "invalid" }).success).toBe(false);
   });
 });

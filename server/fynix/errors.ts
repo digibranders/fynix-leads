@@ -22,6 +22,13 @@ const MESSAGES: Readonly<Record<DomainErrorCode, string>> = {
   "agreement-superseded": "That version has been replaced. Refresh the page.",
   "not-an-agreement-signer": "Only an active manager of that organisation can accept an agreement.",
   "already-accepted": "That person has accepted this version already.",
+  "invalid-code": "The verification code is incorrect. Check the code sent to your mailbox.",
+  "exclusion-conflict": "That exclusion rule already exists for this client.",
+  "prospect-excluded": "This prospect matches an exclusion rule on the client's exclusion list.",
+  "prospect-duplicate": "A lead for this prospect has already been submitted for this client.",
+  "alias-not-verified": "The selected client-brand alias identity has not been verified yet.",
+  "invalid-lead-stage": "This action cannot be performed on a lead in its current stage.",
+  "dispute-window-expired": "The 48-hour dispute window for this delivered meeting has expired.",
 };
 
 export function domainMessage(code: DomainErrorCode, overrides: Partial<Record<DomainErrorCode, string>> = {}): string {

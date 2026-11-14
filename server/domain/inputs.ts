@@ -148,3 +148,157 @@ export const addHostBlockSchema = z
   // Zod 4 still runs an object level refine after a field failed, with that field unparsed, so it waits for a clean parse.
   .refine((input) => input.endsAt.getTime() > input.startsAt.getTime(), { path: ["endsAt"], message: "must be after the start", when: (payload) => payload.issues.length === 0 });
 export type AddHostBlockInput = z.input<typeof addHostBlockSchema>;
+
+export const createAliasIdentitySchema = z
+  .object({
+    clientBrandName: name(100),
+    displayName: name(100),
+    jobTitle: name(100),
+    aliasEmail: z.string().trim().email("must be a valid email address").toLowerCase(),
+  })
+  .strict();
+export type CreateAliasIdentityInput = z.infer<typeof createAliasIdentitySchema>;
+
+export const verifyAliasCodeSchema = z
+  .object({
+    publicRef: z.string().trim().regex(/^ALI-[0-9A-HJKMNP-TV-Z]{4}$/, "must be an ALI reference"),
+    code: z.string().trim().regex(/^\d{6}$/, "must be a 6-digit code"),
+  })
+  .strict();
+export type VerifyAliasCodeInput = z.infer<typeof verifyAliasCodeSchema>;
+
+export const createSupplierPartnerAgencySchema = z
+  .object({
+    name: name(120),
+  })
+  .strict();
+export type CreateSupplierPartnerAgencyInput = z.infer<typeof createSupplierPartnerAgencySchema>;
+
+export const acceptTenantAgreementSchema = z
+  .object({
+    agreementId: z.uuid(),
+    networkAddress: name(64).default("tenant web"),
+  })
+  .strict();
+export type AcceptTenantAgreementInput = z.input<typeof acceptTenantAgreementSchema>;
+
+export const addExclusionSchema = z
+  .object({
+    clientOrgId: z.uuid(),
+    kind: z.enum(["domain", "email", "company"]),
+    value: name(255),
+    reason: optionalText(500).optional(),
+  })
+  .strict();
+export type AddExclusionInput = z.infer<typeof addExclusionSchema>;
+
+export const removeExclusionSchema = z
+  .object({
+    exclusionId: z.uuid(),
+  })
+  .strict();
+export type RemoveExclusionInput = z.infer<typeof removeExclusionSchema>;
+
+export const submitLeadSchema = z
+  .object({
+    campaignId: z.uuid(),
+    aliasIdentityId: z.uuid(),
+    hostMemberId: z.uuid(),
+    prospectName: name(120),
+    prospectTitle: name(120),
+    prospectCompany: name(120),
+    prospectDomain: name(255),
+    prospectLinkedinUrl: name(255),
+    prospectEmail: z.string().trim().email("must be a valid email address").toLowerCase(),
+    prospectPhone: optionalText(40).optional(),
+    prospectNotes: optionalText(2000).optional(),
+    bantBudget: name(500),
+    bantAuthority: name(500),
+    bantNeed: name(500),
+    bantTimeline: name(500),
+    proposedTimes: z.array(instant).min(1, "at least one proposed meeting time is required").max(3, "at most 3 proposed meeting times"),
+  })
+  .strict();
+export type SubmitLeadInput = z.input<typeof submitLeadSchema>;
+
+export const clientReviewLeadSchema = z
+  .object({
+    leadId: z.uuid(),
+    action: z.enum(["accept", "propose_times", "decline"]),
+    selectedMeetingTime: instant.optional(),
+    proposedTimes: z.array(instant).max(3).optional(),
+    declineReason: optionalText(500).optional(),
+  })
+  .strict()
+  .refine(
+    (input) => {
+      if (input.action === "accept") return input.selectedMeetingTime !== undefined;
+      if (input.action === "propose_times") return (input.proposedTimes?.length ?? 0) > 0;
+      if (input.action === "decline") return typeof input.declineReason === "string" && input.declineReason.length > 0;
+      return true;
+    },
+    { message: "action requirements not met (accept requires selected time, decline requires reason, propose requires times)" },
+  );
+export type ClientReviewLeadInput = z.input<typeof clientReviewLeadSchema>;
+
+export const disputeLeadSchema = z
+  .object({
+    leadId: z.uuid(),
+    disputeReason: z.string().trim().min(5, "must be at least 5 characters").max(1000),
+  })
+  .strict();
+export type DisputeLeadInput = z.infer<typeof disputeLeadSchema>;
+
+export const resolveDisputeSchema = z
+  .object({
+    leadId: z.uuid(),
+    resolution: z.enum(["upheld", "rejected"]),
+    note: optionalText(500).optional(),
+  })
+  .strict();
+export type ResolveDisputeInput = z.infer<typeof resolveDisputeSchema>;
+
+export const recordMeetingOutcomeSchema = z
+  .object({
+    meetingId: z.uuid(),
+    outcome: z.enum(["held", "client_no_show", "prospect_no_show"]),
+    notes: optionalText(2000).optional(),
+  })
+  .strict();
+export type RecordMeetingOutcomeInput = z.infer<typeof recordMeetingOutcomeSchema>;
+
+export const getOrCreateConversationSchema = z
+  .object({
+    campaignId: z.uuid(),
+    leadId: z.uuid().optional(),
+    side: z.enum(["client_fynix", "supplier_fynix", "supplier_agency"]),
+    clientOrgId: z.uuid().optional(),
+    supplierOrgId: z.uuid().optional(),
+    agencyOrgId: z.uuid().optional(),
+    subject: optionalText(200).optional(),
+  })
+  .strict();
+export type GetOrCreateConversationInput = z.infer<typeof getOrCreateConversationSchema>;
+
+export const postMessageSchema = z
+  .object({
+    conversationId: z.uuid(),
+    body: z.string().trim().min(1, "message body is required").max(10_000, "must be at most 10000 characters"),
+  })
+  .strict();
+export type PostMessageInput = z.infer<typeof postMessageSchema>;
+
+export const forwardMessageSchema = z
+  .object({
+    messageId: z.uuid(),
+    targetConversationId: z.uuid(),
+  })
+  .strict();
+export type ForwardMessageInput = z.infer<typeof forwardMessageSchema>;
+
+export const markNotificationReadSchema = z
+  .object({
+    notificationId: z.uuid(),
+  })
+  .strict();
+export type MarkNotificationReadInput = z.infer<typeof markNotificationReadSchema>;
