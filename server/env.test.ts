@@ -111,7 +111,10 @@ describe("generated environment file", () => {
 
 describe(".env.example", () => {
   it("lists exactly the variables the schemas declare, and holds no values", () => {
-    const lines = readFileSync(join(process.cwd(), ".env.example"), "utf8").split("\n").filter((line) => /^[A-Z_]+=/.test(line));
+    const lines = readFileSync(join(process.cwd(), ".env.example"), "utf8")
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => /^[A-Z_]+=/.test(line));
     expect(lines.map((line) => line.slice(0, line.indexOf("="))).sort()).toEqual([...declaredVariables().runtime, ...declaredVariables().tooling].sort());
     expect(lines.every((line) => line.endsWith("="))).toBe(true);
   });
