@@ -8,20 +8,21 @@ export interface FynixNavItem {
   readonly href: string | null;
 }
 
-/** The Fynix rail, in the order of the approved comps. Only Suppliers and Campaigns exist in phase 1D. */
+/** The Fynix rail, in the order of the approved comps. */
 export const FYNIX_NAV: readonly FynixNavItem[] = [
-  { label: "Overview", icon: House, href: null },
-  { label: "Clients", icon: Buildings, href: null },
+  { label: "Overview", icon: House, href: "/fynix" },
+  { label: "Clients", icon: Buildings, href: "/fynix/clients" },
   { label: "Suppliers", icon: UsersThree, href: "/fynix/suppliers" },
   { label: "Campaigns", icon: Megaphone, href: "/fynix/campaigns" },
   { label: "Leads", icon: Table, href: "/fynix/leads" },
-  { label: "Meetings", icon: CalendarBlank, href: null },
+  { label: "Meetings", icon: CalendarBlank, href: "/fynix/meetings" },
   { label: "Inbox", icon: ChatsCircle, href: "/fynix/inbox" },
-  { label: "Disputes", icon: Scales, href: null },
-  { label: "Settings", icon: Gear, href: null },
+  { label: "Disputes", icon: Scales, href: "/fynix/disputes" },
+  { label: "Settings", icon: Gear, href: "/fynix/settings" },
 ];
 
-/** A link item is current on its own path and below it, so a campaign page keeps Campaigns lit. */
+/** A link item is current on its own path and below it, so a campaign page keeps Campaigns lit. Overview is the root, so it matches only itself. */
 export function isCurrent(href: string, pathname: string): boolean {
+  if (href === "/fynix") return pathname === href;
   return pathname === href || pathname.startsWith(`${href}/`);
 }

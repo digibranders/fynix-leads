@@ -1,11 +1,11 @@
 "use client";
 
-import { CaretDown } from "@phosphor-icons/react";
-import { useId } from "react";
+import { useId, useState } from "react";
+import { Choice } from "@/components/ui/choice";
+import { DateField, TimeField } from "@/components/ui/date-time";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 import { useFormState } from "./action-form";
 
 /** What a field shows: after a failed attempt, what was typed; otherwise the starting value. */
@@ -22,6 +22,17 @@ const ariaFor = (id: string, error: string | undefined, helper: string | undefin
   "aria-describedby": error !== undefined || helper !== undefined ? `${id}-message` : undefined,
 });
 
+/** A date or a time of day, with the app's own pickers; the value posts under `name` as the browser's boxes would post it. */
+function PickerField({ id, name, label, helper, error, type, initial }: { id: string; name: string; label: string; helper: string | undefined; error: string | undefined; type: "date" | "time"; initial: string }) {
+  const [value, setValue] = useState(initial);
+  const aria = { invalid: error !== undefined, "aria-describedby": error !== undefined || helper !== undefined ? `${id}-message` : undefined };
+  return (
+    <Field id={id} label={label} helper={helper} error={error}>
+      {type === "date" ? <DateField id={id} name={name} value={value} onChange={setValue} {...aria} /> : <TimeField id={id} name={name} value={value} onChange={setValue} {...aria} />}
+    </Field>
+  );
+}
+
 export function TextField({
   name,
   label,
@@ -34,6 +45,7 @@ export function TextField({
 }: Common & { type?: "text" | "email" | "time" | "date"; inputMode?: "text" | "email" | "numeric"; autoComplete?: string; placeholder?: string }) {
   const id = `${useId()}-${name}`;
   const { value, error } = useField(name, defaultValue);
+  if (type === "date" || type === "time") return <PickerField id={id} name={name} label={label} helper={helper} error={error} type={type} initial={value} />;
   return (
     <Field id={id} label={label} helper={helper} error={error}>
       <Input
@@ -67,7 +79,7 @@ export function TextAreaField({ name, label, helper, defaultValue = "", rows = 3
   );
 }
 
-/** A native select in the tonal input's look: the platform's own picker is the best one on a phone. */
+/** A dropdown in the tonal input's look: a styled list, not the browser's own. Its value posts under `name`. */
 export function SelectField({
   name,
   label,
@@ -80,29 +92,7 @@ export function SelectField({
   const { value, error } = useField(name, defaultValue);
   return (
     <Field id={id} label={label} helper={helper} error={error}>
-      <div className="relative">
-        <select
-          id={id}
-          name={name}
-          defaultValue={value}
-          {...ariaFor(id, error, helper)}
-          className={cn(
-            "h-11 w-full appearance-none rounded-sm bg-input py-1 pr-10 pl-3.5 text-base text-foreground outline-none transition-[box-shadow,background-color] focus-visible:ring-2 focus-visible:ring-ring aria-invalid:bg-red-soft aria-invalid:ring-2 aria-invalid:ring-red-solid md:text-sm",
-          )}
-        >
-          {placeholder !== undefined && (
-            <option value="" disabled>
-              {placeholder}
-            </option>
-          )}
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        <CaretDown aria-hidden size={16} className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2 text-muted-foreground" />
-      </div>
+      <Choice id={id} name={name} defaultValue={value} options={options} placeholder={placeholder} invalid={error !== undefined} aria-describedby={error !== undefined || helper !== undefined ? `${id}-message` : undefined} />
     </Field>
   );
 }

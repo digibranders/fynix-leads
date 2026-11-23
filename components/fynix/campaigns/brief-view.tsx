@@ -23,14 +23,14 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
-/** The brief as stored, read only. Editing it comes in a later phase. */
+/** The brief as stored. An admin changes it with the Edit campaign button in the campaign header. */
 export function BriefView({ campaign }: { campaign: CampaignHeader }) {
   const { brief } = campaign;
   return (
     <div className="flex flex-col gap-4">
       <p className="flex items-start gap-2 text-table text-ink-2">
         <Info aria-hidden size={15} className="mt-px shrink-0" />
-        The brief is read only here. Editing it comes in a later phase.
+        Use Edit campaign above to change the brief. The supplier and its agencies see it, except the internal notes.
       </p>
       <Group title="Dates and targets">
         <Row label="Runs">{`${brief.startDate} to ${brief.endDate}`}</Row>

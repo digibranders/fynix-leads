@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, foreignKey, index, integer, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { check, foreignKey, index, integer, pgTable, primaryKey, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import { user } from "./auth";
 import { campaign } from "./campaign";
 import { lead } from "./lead";
@@ -9,6 +9,7 @@ export const CONVERSATION_SIDES = [
   "client_fynix",
   "supplier_fynix",
   "supplier_agency",
+  "group",
 ] as const;
 
 export type ConversationSide = (typeof CONVERSATION_SIDES)[number];
@@ -43,9 +44,12 @@ export const conversation = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     publicRef: text("public_ref").notNull(),
-    campaignId: uuid("campaign_id").notNull(),
+    /** Null for a group, which belongs to no campaign. */
+    campaignId: uuid("campaign_id"),
     leadId: uuid("lead_id"),
     side: text("side").notNull(),
+    /** Set for a group conversation (migration 0051), and then no organisation id is. */
+    groupId: uuid("group_id"),
     clientOrgId: uuid("client_org_id"),
     supplierOrgId: uuid("supplier_org_id"),
     agencyOrgId: uuid("agency_org_id"),
@@ -83,7 +87,7 @@ export const conversation = pgTable(
     check("conversation_public_ref_format", sql`${table.publicRef} ~ '^MSG-[0-9A-HJKMNP-TV-Z]{4}$'`),
     check(
       "conversation_side_check",
-      sql`${table.side} IN ('client_fynix', 'supplier_fynix', 'supplier_agency')`,
+      sql`${table.side} IN ('client_fynix', 'supplier_fynix', 'supplier_agency', 'group')`,
     ),
     index("conversation_campaign_idx").on(table.campaignId),
     index("conversation_lead_idx").on(table.leadId),
@@ -174,5 +178,62 @@ export const notification = pgTable(
     ),
     index("notification_user_read_idx").on(table.userId, table.readAt),
     index("notification_user_created_idx").on(table.userId, table.createdAt),
+  ],
+);
+
+/**
+ * When each person last opened a conversation (migration 0049). No runtime role touches this table: two database functions
+ * record a read and answer "when did the other side last look", so a sender can show "seen" without learning who looked.
+ */
+export const conversationRead = pgTable(
+  "conversation_read",
+  {
+    conversationId: uuid("conversation_id").notNull(),
+    userId: uuid("user_id").notNull(),
+    readAt: timestamp("read_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ name: "conversation_read_pk", columns: [table.conversationId, table.userId] }),
+    foreignKey({ name: "conversation_read_conversation_fk", columns: [table.conversationId], foreignColumns: [conversation.id] }).onDelete("cascade"),
+    foreignKey({ name: "conversation_read_user_fk", columns: [table.userId], foreignColumns: [user.id] }).onDelete("cascade"),
+  ],
+);
+
+/**
+ * A group chat (migration 0051): a named set of people from any side. No runtime role touches this table or its members; database
+ * functions check who is asking and answer with first names and roles only.
+ */
+export const chatGroup = pgTable(
+  "chat_group",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    publicRef: text("public_ref").notNull(),
+    name: text("name").notNull(),
+    createdByUserId: uuid("created_by_user_id").notNull(),
+    status: text("status").notNull().default("active"),
+    kind: text("kind").notNull().default("group"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("chat_group_public_ref_unique").on(table.publicRef),
+    foreignKey({ name: "chat_group_creator_fk", columns: [table.createdByUserId], foreignColumns: [user.id] }).onDelete("cascade"),
+  ],
+);
+
+export const chatGroupMember = pgTable(
+  "chat_group_member",
+  {
+    groupId: uuid("group_id").notNull(),
+    userId: uuid("user_id").notNull(),
+    addedByUserId: uuid("added_by_user_id").notNull(),
+    joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
+    leftAt: timestamp("left_at", { withTimezone: true }),
+  },
+  (table) => [
+    primaryKey({ name: "chat_group_member_pk", columns: [table.groupId, table.userId] }),
+    foreignKey({ name: "chat_group_member_group_fk", columns: [table.groupId], foreignColumns: [chatGroup.id] }).onDelete("cascade"),
+    foreignKey({ name: "chat_group_member_user_fk", columns: [table.userId], foreignColumns: [user.id] }).onDelete("cascade"),
+    foreignKey({ name: "chat_group_member_added_by_fk", columns: [table.addedByUserId], foreignColumns: [user.id] }).onDelete("cascade"),
   ],
 );

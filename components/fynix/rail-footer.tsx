@@ -1,4 +1,5 @@
 import { SignOut } from "@phosphor-icons/react/dist/ssr";
+import { Hint } from "@/components/ui/hint";
 import { initialsOf } from "@/lib/auth/display";
 import { signOutAction } from "@/server/auth/actions";
 import { cn } from "@/lib/utils";
@@ -20,26 +21,28 @@ export function FynixRailFooter({ name, canWrite, collapsing = false }: Props) {
           <span className="block text-[12.5px] leading-4 text-on-navy-text">{role}</span>
         </span>
         <form action={signOutAction} className={cn(collapsing && "max-lg:hidden")}>
-          <button
-            type="submit"
-            aria-label="Sign out"
-            title="Sign out"
-            className="grid size-9 place-items-center rounded-full text-on-navy-text outline-offwhite transition-colors duration-(--dur-hover) hover:bg-on-navy-10 hover:text-offwhite"
-          >
-            <SignOut aria-hidden size={18} />
-          </button>
+          <Hint label="Sign out" side="right">
+            <button
+              type="submit"
+              aria-label="Sign out"
+              className="grid size-9 place-items-center rounded-full text-on-navy-text outline-offwhite transition-colors duration-(--dur-hover) hover:bg-on-navy-10 hover:text-offwhite"
+            >
+              <SignOut aria-hidden size={18} />
+            </button>
+          </Hint>
         </form>
       </div>
       {collapsing && (
         <form action={signOutAction} className="mt-2 hidden max-lg:block">
-          <button
-            type="submit"
-            aria-label="Sign out"
-            title="Sign out"
-            className="mx-auto grid size-10 place-items-center rounded-full text-on-navy-text outline-offwhite transition-colors duration-(--dur-hover) hover:bg-on-navy-10 hover:text-offwhite"
-          >
-            <SignOut aria-hidden size={18} />
-          </button>
+          <Hint label="Sign out" side="right">
+            <button
+              type="submit"
+              aria-label="Sign out"
+              className="mx-auto grid size-10 place-items-center rounded-full text-on-navy-text outline-offwhite transition-colors duration-(--dur-hover) hover:bg-on-navy-10 hover:text-offwhite"
+            >
+              <SignOut aria-hidden size={18} />
+            </button>
+          </Hint>
         </form>
       )}
     </div>

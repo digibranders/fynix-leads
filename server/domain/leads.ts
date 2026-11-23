@@ -87,6 +87,7 @@ export async function submitLead(
         id: aliasIdentity.id,
         memberId: aliasIdentity.memberId,
         verifiedAt: aliasIdentity.verifiedAt,
+        clientBrandName: aliasIdentity.clientBrandName,
       })
       .from(aliasIdentity)
       .where(eq(aliasIdentity.id, parsed.aliasIdentityId))
@@ -108,6 +109,7 @@ export async function submitLead(
         agencyOrgId: campaign.agencyOrgId,
         status: campaign.status,
         monthlyTarget: campaign.monthlyTarget,
+        clientBrandName: campaign.clientBrandName,
       })
       .from(campaign)
       .where(eq(campaign.id, parsed.campaignId))
@@ -119,6 +121,11 @@ export async function submitLead(
 
     if (campaignRow.status !== "active") {
       throw new DomainError("not-authorised", "Cannot submit leads to a campaign that is not active.");
+    }
+
+    // An alias is a name used towards one client's brand: it cannot front a lead for another client's campaign.
+    if (aliasRow.clientBrandName.trim().toLowerCase() !== campaignRow.clientBrandName.trim().toLowerCase()) {
+      throw new DomainError("invalid-input", "That alias is for a different client brand than this campaign.");
     }
 
     // Check assignment: actor org is supplier itself, or has a campaign_share record
@@ -739,6 +746,7 @@ export async function getLeadSubmissionOptions(
       aliases,
       hosts: hosts.map((h) => ({
         id: h.id,
+        campaignId: h.campaignId,
         name: `Host (${h.jobTitle})`,
         jobTitle: h.jobTitle,
       })),

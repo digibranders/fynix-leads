@@ -1,5 +1,6 @@
 "use client";
 
+import { IDLE_TENANT_ACTION } from "@/lib/tenant/action-state";
 import { Check, CircleNotch, WarningCircle, X } from "@phosphor-icons/react";
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,6 @@ import { NATIVE_FIELD, NATIVE_TEXTAREA } from "./field-classes";
 import {
   clientReviewLeadAction,
   disputeLeadAction,
-  IDLE_TENANT_ACTION,
 } from "@/server/domain/lead-actions";
 
 export function AcceptLeadTimeButton({
@@ -22,7 +22,7 @@ export function AcceptLeadTimeButton({
   const [state, formAction, pending] = useActionState(clientReviewLeadAction, IDLE_TENANT_ACTION);
 
   return (
-    <form action={formAction} className="inline-flex flex-col items-start gap-1">
+    <form noValidate action={formAction} className="inline-flex flex-col items-start gap-1">
       <input type="hidden" name="leadId" value={leadId} />
       <input type="hidden" name="action" value="accept" />
       <input type="hidden" name="selectedMeetingTime" value={meetingTimeIso} />
@@ -66,7 +66,7 @@ export function DeclineLeadForm({ leadId }: { readonly leadId: string }) {
   }
 
   return (
-    <form action={formAction} className="flex flex-col gap-2 rounded  p-3 bg-surface">
+    <form noValidate action={formAction} className="flex flex-col gap-2 rounded  p-3 bg-surface">
       <input type="hidden" name="leadId" value={leadId} />
       <input type="hidden" name="action" value="decline" />
       <label htmlFor={`decline-reason-${leadId}`} className="text-xs font-semibold text-ink-2">
@@ -121,7 +121,7 @@ export function DisputeLeadForm({ leadId }: { readonly leadId: string }) {
   }
 
   return (
-    <form action={formAction} className="flex flex-col gap-2 rounded  p-3 bg-surface">
+    <form noValidate action={formAction} className="flex flex-col gap-2 rounded  p-3 bg-surface">
       <input type="hidden" name="leadId" value={leadId} />
       <label htmlFor={`dispute-reason-${leadId}`} className="text-xs font-semibold text-ink-2">
         Reason for dispute (48-hour window)

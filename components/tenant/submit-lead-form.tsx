@@ -3,7 +3,10 @@
 import { CircleNotch, PaperPlaneRight, Plus, Trash, WarningCircle } from "@phosphor-icons/react";
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { IDLE_TENANT_ACTION, submitLeadAction } from "@/server/domain/lead-actions";
+import { Choice } from "@/components/ui/choice";
+import { DateTimeField } from "@/components/ui/date-time";
+import { IDLE_TENANT_ACTION } from "@/lib/tenant/action-state";
+import { submitLeadAction } from "@/server/domain/lead-actions";
 import { NATIVE_FIELD, NATIVE_TEXTAREA } from "./field-classes";
 
 export interface CampaignOption {
@@ -21,6 +24,7 @@ export interface AliasOption {
 
 export interface HostOption {
   readonly id: string;
+  readonly campaignId: string;
   readonly name: string;
   readonly jobTitle: string;
 }
@@ -31,9 +35,20 @@ interface Props {
   readonly hosts: readonly HostOption[];
 }
 
+/** Today as "YYYY-MM-DD" on this device: a meeting cannot be proposed for a day that has gone. */
+function earliestDay(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
 export function SubmitLeadForm({ campaigns, aliases, hosts }: Props) {
   const [state, formAction, pending] = useActionState(submitLeadAction, IDLE_TENANT_ACTION);
   const [times, setTimes] = useState<string[]>([""]);
+  const [campaignId, setCampaignId] = useState("");
+  const brand = campaigns.find((c) => c.id === campaignId)?.clientBrandName.trim().toLowerCase();
+  // An alias fronts one client's brand and a host belongs to one campaign, so the lists follow the campaign chosen.
+  const campaignAliases = brand === undefined ? [] : aliases.filter((a) => a.clientBrandName.trim().toLowerCase() === brand);
+  const campaignHosts = hosts.filter((h) => h.campaignId === campaignId);
 
   const addTimeSlot = () => {
     if (times.length < 3) {
@@ -54,7 +69,7 @@ export function SubmitLeadForm({ campaigns, aliases, hosts }: Props) {
   };
 
   return (
-    <form action={formAction} className="flex flex-col gap-6 max-w-3xl">
+    <form action={formAction} noValidate className="flex flex-col gap-6 max-w-3xl">
       {state.status === "error" && (
         <div role="alert" className="rounded-md border border-destructive/20 bg-destructive/10 p-4 text-destructive flex items-center gap-2">
           <WarningCircle aria-hidden size={18} weight="fill" className="shrink-0" />
@@ -75,57 +90,44 @@ export function SubmitLeadForm({ campaigns, aliases, hosts }: Props) {
             <label htmlFor="lead-campaign" className="text-xs font-semibold text-ink-2">
               Campaign <span className="text-destructive">*</span>
             </label>
-            <select
+            <Choice
               id="lead-campaign"
               name="campaignId"
+              value={campaignId}
+              onValueChange={setCampaignId}
               required
-              className={NATIVE_FIELD}
-            >
-              <option value="">Select campaign</option>
-              {campaigns.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} ({c.clientBrandName})
-                </option>
-              ))}
-            </select>
+              placeholder="Select campaign"
+              emptyLabel="No campaigns are assigned to you yet"
+              options={campaigns.map((c) => ({ value: c.id, label: `${c.name} (${c.clientBrandName})` }))}
+            />
           </div>
 
           <div>
             <label htmlFor="lead-alias" className="text-xs font-semibold text-ink-2">
               Client Brand Alias <span className="text-destructive">*</span>
             </label>
-            <select
+            <Choice
               id="lead-alias"
               name="aliasIdentityId"
               required
-              className={NATIVE_FIELD}
-            >
-              <option value="">Select verified alias</option>
-              {aliases.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.displayName} - {a.clientBrandName} ({a.aliasEmail})
-                </option>
-              ))}
-            </select>
+              placeholder="Select verified alias"
+              emptyLabel={campaignId === "" ? "Choose a campaign first" : "No verified alias for this client yet"}
+              options={campaignAliases.map((a) => ({ value: a.id, label: `${a.displayName}, ${a.clientBrandName} (${a.aliasEmail})` }))}
+            />
           </div>
 
           <div className="md:col-span-2">
             <label htmlFor="lead-host" className="text-xs font-semibold text-ink-2">
               Meeting Host <span className="text-destructive">*</span>
             </label>
-            <select
+            <Choice
               id="lead-host"
               name="hostMemberId"
               required
-              className={NATIVE_FIELD}
-            >
-              <option value="">Select host</option>
-              {hosts.map((h) => (
-                <option key={h.id} value={h.id}>
-                  {h.name} ({h.jobTitle})
-                </option>
-              ))}
-            </select>
+              placeholder="Select host"
+              emptyLabel={campaignId === "" ? "Choose a campaign first" : "No hosts for this campaign yet"}
+              options={campaignHosts.map((h) => ({ value: h.id, label: h.name.includes(h.jobTitle) ? h.name : `${h.name} (${h.jobTitle})` }))}
+            />
           </div>
         </div>
       </div>
@@ -314,13 +316,7 @@ export function SubmitLeadForm({ campaigns, aliases, hosts }: Props) {
         <div className="flex flex-col gap-3">
           {times.map((time, idx) => (
             <div key={idx} className="flex items-center gap-2">
-              <input
-                type="datetime-local"
-                required
-                value={time}
-                onChange={(e) => updateTimeSlot(idx, e.target.value)}
-                className={NATIVE_FIELD}
-              />
+              <DateTimeField value={time} min={earliestDay()} onChange={(next) => updateTimeSlot(idx, next)} aria-label={`Proposed time ${idx + 1}`} />
               {/* Hidden input converts local time to ISO with Z for the server schema */}
               <input
                 type="hidden"

@@ -344,6 +344,55 @@
       "when": 1794684800000,
       "tag": "0048_tenant_insert_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1794684900000,
+      "tag": "0049_conversation_read",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1794685000000,
+      "tag": "0050_message_attachment",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1794685100000,
+      "tag": "0051_chat_groups",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1794685200000,
+      "tag": "0052_conversation_group_insert",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1794685300000,
+      "tag": "0053_direct_chats",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1794685400000,
+      "tag": "0054_campaign_brief_for_agencies",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1794685500000,
+      "tag": "0055_share_check_definer",
+      "breakpoints": true
     }
   ]
 }

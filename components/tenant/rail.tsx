@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarBlank, ChatsCircle, FileText, Funnel, Handshake, House, IdentificationBadge, type Icon, Table, UsersThree } from "@phosphor-icons/react";
+import { CalendarBlank, ChatsCircle, FileText, Funnel, Handshake, House, IdentificationBadge, Megaphone, type Icon, Table, UsersThree } from "@phosphor-icons/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -16,6 +16,7 @@ const GLYPHS: Record<TenantNavIcon, Icon> = {
   handshake: Handshake,
   chats: ChatsCircle,
   badge: IdentificationBadge,
+  megaphone: Megaphone,
 };
 
 type Props = {
@@ -56,7 +57,6 @@ export function TenantRail({ items, portalLabel, homeHref, collapsing = false, o
                 <li key={item.label}>
                   <span
                     aria-disabled="true"
-                    title={`${item.label} comes in a later phase`}
                     className={cn(ITEM, "cursor-default text-on-navy-muted", collapse)}
                   >
                     <Glyph aria-hidden size={20} className="shrink-0" />

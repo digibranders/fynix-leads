@@ -12,7 +12,7 @@ export function CampaignsTable({ rows }: { rows: readonly CampaignRow[] }) {
     return (
       <Card aria-label="Campaigns">
         <EmptyState icon={Megaphone} title="No campaigns yet">
-          Campaigns appear here once they exist. The screen to create one is not built yet.
+          Create the first campaign with the New campaign button.
         </EmptyState>
       </Card>
     );

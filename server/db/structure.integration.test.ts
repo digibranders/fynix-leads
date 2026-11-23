@@ -167,6 +167,13 @@ const EXPECTED_ACCESS: Readonly<Record<string, readonly RuntimeRoleName[]>> = {
   conversation: ["leads_fynix", "leads_client", "leads_agency"],
   conversation_message: ["leads_fynix", "leads_client", "leads_agency"],
   notification: ["leads_fynix", "leads_client", "leads_agency"],
+  // Read receipts: no runtime role touches it. Two SECURITY DEFINER functions (0049) write and read it.
+  conversation_read: [],
+  // File attachment metadata: no runtime role touches it; four SECURITY DEFINER functions (0050) are the only way in and out.
+  message_attachment: [],
+  // Chat groups and their members: no runtime role touches them; the SECURITY DEFINER functions of 0051 are the only way in and out.
+  chat_group: [],
+  chat_group_member: [],
 };
 /** The tables nobody but leads_auth touches. `user` is not one of them any more: Fynix reads four columns of it. */
 const AUTH_TABLES = ["session", "account", "verification"] as const;
@@ -665,8 +672,13 @@ describe("phase 1D: what a tenant role holds on the six set-up tables", () => {
     expect(await grantedColumns(dbs.owner.db, role, "organisation")).toEqual(role === "leads_agency" ? ["public_ref", "kind", "name", "brand_name", "parent_org_id"] : ["public_ref", "kind", "name", "brand_name"]);
     // client_org_id and agency_org_id are readable since migrations 0037 and 0039: the lead, meeting and message policies compare them.
     const campaignColumns = await grantedColumns(dbs.owner.db, role, "campaign");
-    expect(campaignColumns).toEqual(["id", "public_ref", "name", "client_org_id", "agency_org_id", "client_brand_name", "status", "start_date", "end_date", "monthly_target", "total_target"]);
-    for (const hidden of ["time_zone", "meeting_minutes", "internal_notes", "instructions", "icp"]) expect(campaignColumns).not.toContain(hidden);
+    const basics = ["id", "public_ref", "name", "client_org_id", "agency_org_id", "client_brand_name", "status", "start_date", "end_date", "monthly_target", "total_target"];
+    // Migration 0054: the agency role (suppliers and partner agencies) also reads the brief. A client does not, and nobody but Fynix
+    // reads the notes or the settings.
+    const brief = ["geography", "industries", "company_size", "icp", "job_titles", "seniority", "technologies", "bant_budget", "bant_authority", "bant_need", "bant_timeline", "instructions"];
+    expect([...campaignColumns].sort()).toEqual((role === "leads_agency" ? [...basics, ...brief] : basics).sort());
+    for (const hidden of ["time_zone", "meeting_minutes", "internal_notes"]) expect(campaignColumns).not.toContain(hidden);
+    if (role === "leads_client") for (const hidden of brief) expect(campaignColumns).not.toContain(hidden);
   });
 
   it("the Fynix role may write the new columns of organisation and campaign, which it holds table level grants on", async () => {

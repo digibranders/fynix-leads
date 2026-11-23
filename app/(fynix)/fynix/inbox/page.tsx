@@ -1,5 +1,6 @@
+import { canCreateGroup, getGroupInfo } from "@/server/domain/groups";
+import { listConversationAttachments } from "@/server/domain/attachments";
 import type { Metadata } from "next";
-import { FynixPageHeader } from "@/components/fynix/page-header";
 import {
   MessagingView,
   type ConversationSummary,
@@ -10,6 +11,7 @@ import { getDatabase } from "@/server/db/client";
 import { requireFynix } from "@/server/fynix/session";
 import {
   listConversations,
+  getConversationSeenAt,
   listConversationMessages,
   type MessagingActor,
 } from "@/server/domain/messaging";
@@ -38,6 +40,11 @@ export default async function FynixInboxPage(props: {
     ? await listConversationMessages(db, actor, selectedId)
     : [];
 
+  const seenAt = selectedId ? await getConversationSeenAt(db, actor, selectedId) : null;
+  const canCreate = await canCreateGroup(db, actor);
+  const groupInfo = selectedId && rawConversations.find((c) => c.id === selectedId)?.side === "group" ? await getGroupInfo(db, actor, selectedId) : null;
+  const attachments = selectedId ? await listConversationAttachments(db, actor, selectedId) : [];
+
   const conversations: ConversationSummary[] = rawConversations.map((c) => {
     const isClientSide = c.side === "client_fynix";
     return {
@@ -47,6 +54,7 @@ export default async function FynixInboxPage(props: {
       leadId: c.leadId ?? null,
       side: c.side as "client_fynix" | "supplier_fynix",
       subject: c.subject ?? null,
+      isDirect: c.isDirect,
       counterpartyName: isClientSide ? "Client Organization" : "Supplier Organization",
       lastMessageAt: c.updatedAt.toISOString(),
     };
@@ -77,18 +85,17 @@ export default async function FynixInboxPage(props: {
   }));
 
   return (
-    <div className="flex flex-col gap-6">
-      <FynixPageHeader
-        title="Inbox"
-        subtitle="Manage communication threads between clients and suppliers. Conversations between suppliers and sub-agencies remain private."
-      />
-
+    <div>
       <MessagingView
         role="fynix"
         currentUserId={view.actor.userId}
         conversations={conversations}
         initialConversationId={selectedId}
         initialMessages={initialMessages}
+        seenAt={seenAt?.toISOString() ?? null}
+        attachments={attachments}
+        canCreateGroup={canCreate}
+        groupInfo={groupInfo}
         availableForwardTargets={availableForwardTargets}
       />
     </div>

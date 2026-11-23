@@ -31,7 +31,7 @@ function Notice({ state }: { readonly state: AliasActionResult }) {
 function VerifyForm({ publicRef }: { readonly publicRef: string }) {
   const [state, action, pending] = useActionState(verifyAliasAction, IDLE);
   return (
-    <form action={action} className="flex flex-col gap-2.5">
+    <form noValidate action={action} className="flex flex-col gap-2.5">
       <input type="hidden" name="publicRef" value={publicRef} />
       <label htmlFor={`code-${publicRef}`} className="text-label font-semibold text-ink">
         6-digit code from the mailbox
@@ -51,7 +51,7 @@ function VerifyForm({ publicRef }: { readonly publicRef: string }) {
 function AddForm() {
   const [state, action, pending] = useActionState(createAliasAction, IDLE);
   return (
-    <form action={action} className="flex flex-col gap-4 rounded-lg bg-surface p-5 shadow-raised">
+    <form noValidate action={action} className="flex flex-col gap-4 rounded-lg bg-surface p-5 shadow-raised">
       <h2 className="text-section font-semibold text-ink">Add an alias</h2>
       <p className="text-table text-ink-2">One identity per client brand. We email a 6-digit code to the alias address; it works for leads once you enter it.</p>
       <div className="grid gap-4 md:grid-cols-2">

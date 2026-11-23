@@ -42,6 +42,22 @@ export async function listCampaignRows(deps: DomainDeps, actor: FynixActor): Pro
   );
 }
 
+export interface CampaignChoices {
+  readonly clients: readonly { readonly id: string; readonly name: string }[];
+  readonly suppliers: readonly { readonly id: string; readonly name: string }[];
+}
+
+/** The active clients and suppliers a new campaign can be made for. A partner agency is not a supplier, so it is left out. */
+export async function listCampaignChoices(deps: DomainDeps, actor: FynixActor): Promise<CampaignChoices> {
+  return fynixRead(deps.fynixDb, actor, async (tx) => {
+    const rows = await tx.select({ id: organisation.id, name: organisation.name, kind: organisation.kind, parentOrgId: organisation.parentOrgId }).from(organisation).where(eq(organisation.status, "active")).orderBy(asc(organisation.name));
+    return {
+      clients: rows.filter((row) => row.kind === "client").map(({ id, name }) => ({ id, name })),
+      suppliers: rows.filter((row) => row.kind === "agency" && row.parentOrgId === null).map(({ id, name }) => ({ id, name })),
+    };
+  });
+}
+
 /** The campaign's brief as stored (spec section 6). Everything here is Fynix's to read, internal notes included. */
 export interface CampaignBrief {
   readonly startDate: string;

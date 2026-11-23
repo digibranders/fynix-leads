@@ -2,7 +2,7 @@
  * Icons are named, not imported: the nav lists are built in server layouts and handed to the client rail, and a
  * component function cannot cross that boundary. The rail maps each name to its glyph (see rail.tsx).
  */
-export type TenantNavIcon = "house" | "table" | "file-text" | "calendar" | "users" | "handshake" | "chats" | "badge";
+export type TenantNavIcon = "house" | "table" | "file-text" | "calendar" | "users" | "handshake" | "chats" | "badge" | "megaphone";
 
 export interface TenantNavItem {
   readonly label: string;
@@ -12,6 +12,7 @@ export interface TenantNavItem {
 
 export const CLIENT_NAV: readonly TenantNavItem[] = [
   { label: "Overview", icon: "house", href: "/client" },
+  { label: "Campaigns", icon: "megaphone", href: "/client/campaigns" },
   { label: "To respond", icon: "table", href: "/client/review" },
   { label: "Leads", icon: "file-text", href: "/client/leads" },
   { label: "Meetings", icon: "calendar", href: "/client/meetings" },
@@ -22,6 +23,7 @@ export const CLIENT_NAV: readonly TenantNavItem[] = [
 
 export const SUPPLIER_NAV: readonly TenantNavItem[] = [
   { label: "Overview", icon: "house", href: "/supplier" },
+  { label: "Campaigns", icon: "megaphone", href: "/supplier/campaigns" },
   { label: "Leads", icon: "table", href: "/supplier/leads" },
   { label: "Meetings", icon: "calendar", href: "/supplier/meetings" },
   { label: "Partner agencies", icon: "users", href: "/supplier/agencies" },
@@ -32,6 +34,7 @@ export const SUPPLIER_NAV: readonly TenantNavItem[] = [
 
 export const AGENCY_NAV: readonly TenantNavItem[] = [
   { label: "Overview", icon: "house", href: "/agency" },
+  { label: "Campaigns", icon: "megaphone", href: "/agency/campaigns" },
   { label: "Leads", icon: "table", href: "/agency/leads" },
   { label: "Meetings", icon: "calendar", href: "/agency/meetings" },
   { label: "My Aliases", icon: "badge", href: "/agency/aliases" },

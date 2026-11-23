@@ -3,11 +3,16 @@
 import { revalidatePath } from "next/cache";
 import { getSessionContext } from "@/server/auth";
 import { getDatabase } from "@/server/db/client";
+import { cleanFileName, checkUpload, MAX_ATTACHMENTS_PER_MESSAGE } from "@/lib/files/rules";
 import { getDomain } from "@/server/domain";
+import { addMessageAttachment } from "@/server/domain/attachments";
+import { deleteUpload, saveUpload } from "@/server/files/storage";
+import { scanUpload } from "@/server/files/scan";
 import { DomainError } from "@/server/domain/errors";
 import {
   forwardMessage,
   getOrCreateConversation,
+  markConversationRead,
   markNotificationRead,
   postMessage,
   type MessagingActor,
@@ -18,8 +23,6 @@ export interface MessageActionResult {
   readonly message?: string;
   readonly data?: unknown;
 }
-
-export const IDLE_MESSAGE_ACTION: MessageActionResult = { status: "idle" };
 
 function getField(formData: FormData, name: string): string {
   const value = formData.get(name);
@@ -115,21 +118,53 @@ export async function postMessageAction(
   }
 
   const conversationId = getField(formData, "conversationId");
-  const body = getField(formData, "body");
+  const typed = getField(formData, "body");
+  const files = formData.getAll("files").filter((entry): entry is File => entry instanceof File && entry.size > 0);
 
+  if (files.length > MAX_ATTACHMENTS_PER_MESSAGE) {
+    return { status: "error", message: `Attach at most ${MAX_ATTACHMENTS_PER_MESSAGE} files to one message.` };
+  }
+  if (typed === "" && files.length === 0) {
+    return { status: "error", message: "Write a message or attach a file." };
+  }
+
+  // Check every file and scan it before anything is saved, so a refused file leaves no message behind.
+  const checked: { readonly name: string; readonly contentType: string; readonly bytes: Uint8Array }[] = [];
+  try {
+    for (const file of files) {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const verdict = checkUpload({ name: file.name, size: bytes.length }, bytes.subarray(0, 16));
+      if (!verdict.ok) return { status: "error", message: verdict.reason };
+      const scan = await scanUpload(bytes);
+      if (scan.status === "infected") return { status: "error", message: `${file.name} was refused: the malware scan found a problem in it.` };
+      checked.push({ name: cleanFileName(file.name), contentType: verdict.contentType, bytes });
+    }
+  } catch {
+    return { status: "error", message: "Files cannot be sent right now. Try again later." };
+  }
+
+  const body = typed !== "" ? typed : `Attached ${checked.map((file) => file.name).join(", ")}`.slice(0, 10_000);
   const { actor, db } = resolveActorAndDb(context);
   const deps = getDomain();
+  const storedKeys: string[] = [];
 
   try {
     const msg = await postMessage(db, actor, { conversationId, body }, deps);
+    for (const file of checked) {
+      const storageKey = await saveUpload(file.bytes);
+      storedKeys.push(storageKey);
+      await addMessageAttachment(db, actor, { messageId: msg.id, fileName: file.name, contentType: file.contentType, sizeBytes: file.bytes.length, storageKey });
+    }
 
     revalidatePath("/client/messages");
     revalidatePath("/agency/messages");
     revalidatePath("/supplier/messages");
     revalidatePath("/fynix/messages");
+    revalidatePath("/fynix/inbox");
 
     return { status: "success", data: msg };
   } catch (error) {
+    await Promise.all(storedKeys.map((key) => deleteUpload(key)));
     if (error instanceof DomainError) {
       return { status: "error", message: error.message };
     }
@@ -207,5 +242,17 @@ export async function markNotificationReadAction(
       return { status: "error", message: error.message };
     }
     return { status: "error", message: "Failed to mark notification as read." };
+  }
+}
+
+/** Called when a person opens a thread: records the read so the other side's ticks turn to "seen". No page refresh, nothing returned. */
+export async function markConversationReadAction(conversationId: string): Promise<void> {
+  const context = await getSessionContext();
+  if (context === null) return;
+  const { actor, db } = resolveActorAndDb(context);
+  try {
+    await markConversationRead(db, actor, conversationId);
+  } catch (error) {
+    if (!(error instanceof DomainError)) throw error;
   }
 }

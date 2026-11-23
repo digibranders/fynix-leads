@@ -12,7 +12,7 @@ export default async function SupplierAgenciesPage() {
   const partners = await listPartnerAgencies(getDatabase("leads_agency").db, view.actor);
   return (
     <div className="flex flex-col gap-6">
-      <TenantPageHeader title="Partner Agencies" subtitle="The agencies working under your supplier account, and the monthly share of each campaign they hold. Fynix adds agencies and sets shares." />
+      <TenantPageHeader title="Partner Agencies" subtitle="The agencies working under your supplier account, and the monthly share of each campaign they hold. Fynix adds agencies; you give them campaigns on the Campaigns page." />
       <PartnersView partners={partners.map((partner) => ({ id: partner.id, publicRef: partner.publicRef, name: partner.name, active: partner.status === "active", shares: partner.shares }))} />
     </div>
   );

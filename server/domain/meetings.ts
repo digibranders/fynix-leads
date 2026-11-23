@@ -6,6 +6,7 @@ import type { Database } from "@/server/db/pool";
 import { campaign, campaignShare, lead, leadHistory, meeting } from "@/server/db/schema";
 import { withTenantScope } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
+import type { FynixActor } from "@/server/domain/fynix-write";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
 import { recordMeetingOutcomeSchema } from "@/server/domain/inputs";
@@ -217,6 +218,24 @@ export async function listAgencyMeetings(db: Database, actor: TenantActor) {
       )
       .orderBy(desc(meeting.scheduledStartTime));
   });
+}
+
+/** Every meeting on every campaign, newest first. Fynix staff read all of them; the Fynix database role has no row filter on meetings. */
+export async function listFynixMeetings(db: Database, _actor: FynixActor) {
+  return db
+    .select({
+      ...agencyMeetingColumns,
+      prospectName: lead.prospectName,
+      prospectCompany: lead.prospectCompany,
+      leadRef: lead.publicRef,
+      campaignName: campaign.name,
+      campaignRef: campaign.publicRef,
+      clientBrandName: campaign.clientBrandName,
+    })
+    .from(meeting)
+    .innerJoin(lead, eq(meeting.leadId, lead.id))
+    .innerJoin(campaign, eq(meeting.campaignId, campaign.id))
+    .orderBy(desc(meeting.scheduledStartTime));
 }
 
 /**

@@ -1,5 +1,6 @@
+import { canCreateGroup, getGroupInfo } from "@/server/domain/groups";
+import { listConversationAttachments } from "@/server/domain/attachments";
 import type { Metadata } from "next";
-import { TenantPageHeader } from "@/components/tenant/page-header";
 import {
   MessagingView,
   type ConversationSummary,
@@ -7,7 +8,7 @@ import {
 } from "@/components/tenant/messaging-view";
 import { getDatabase } from "@/server/db/client";
 import { requireClient } from "@/server/client/session";
-import { listConversations, listConversationMessages } from "@/server/domain/messaging";
+import { getConversationSeenAt, listConversations, listConversationMessages } from "@/server/domain/messaging";
 
 export const metadata: Metadata = { title: "Messages" };
 
@@ -26,6 +27,11 @@ export default async function ClientMessagesPage(props: {
     ? await listConversationMessages(db, view.actor, selectedId)
     : [];
 
+  const seenAt = selectedId ? await getConversationSeenAt(db, view.actor, selectedId) : null;
+  const canCreate = await canCreateGroup(db, view.actor);
+  const groupInfo = selectedId && rawConversations.find((c) => c.id === selectedId)?.side === "group" ? await getGroupInfo(db, view.actor, selectedId) : null;
+  const attachments = selectedId ? await listConversationAttachments(db, view.actor, selectedId) : [];
+
   const conversations: ConversationSummary[] = rawConversations.map((c) => ({
     id: c.id,
     publicRef: c.publicRef,
@@ -33,6 +39,7 @@ export default async function ClientMessagesPage(props: {
     leadId: c.leadId ?? null,
     side: c.side as "client_fynix",
     subject: c.subject ?? null,
+    isDirect: c.isDirect,
     counterpartyName: "Fynix",
     lastMessageAt: c.updatedAt.toISOString(),
   }));
@@ -50,18 +57,17 @@ export default async function ClientMessagesPage(props: {
   }));
 
   return (
-    <div className="flex flex-col gap-6">
-      <TenantPageHeader
-        title="Messages"
-        subtitle="Direct communication with your Fynix campaign manager."
-      />
-
+    <div>
       <MessagingView
         role="client"
         currentUserId={view.actor.userId}
         conversations={conversations}
         initialConversationId={selectedId}
         initialMessages={initialMessages}
+        seenAt={seenAt?.toISOString() ?? null}
+        attachments={attachments}
+        canCreateGroup={canCreate}
+        groupInfo={groupInfo}
       />
     </div>
   );

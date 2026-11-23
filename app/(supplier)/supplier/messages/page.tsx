@@ -1,5 +1,6 @@
+import { canCreateGroup, getGroupInfo } from "@/server/domain/groups";
+import { listConversationAttachments } from "@/server/domain/attachments";
 import type { Metadata } from "next";
-import { TenantPageHeader } from "@/components/tenant/page-header";
 import {
   MessagingView,
   type ConversationSummary,
@@ -8,7 +9,7 @@ import {
 } from "@/components/tenant/messaging-view";
 import { getDatabase } from "@/server/db/client";
 import { requireSupplier } from "@/server/supplier/session";
-import { listConversations, listConversationMessages } from "@/server/domain/messaging";
+import { getConversationSeenAt, listConversations, listConversationMessages } from "@/server/domain/messaging";
 
 export const metadata: Metadata = { title: "Messages" };
 
@@ -27,6 +28,11 @@ export default async function SupplierMessagesPage(props: {
     ? await listConversationMessages(db, view.actor, selectedId)
     : [];
 
+  const seenAt = selectedId ? await getConversationSeenAt(db, view.actor, selectedId) : null;
+  const canCreate = await canCreateGroup(db, view.actor);
+  const groupInfo = selectedId && rawConversations.find((c) => c.id === selectedId)?.side === "group" ? await getGroupInfo(db, view.actor, selectedId) : null;
+  const attachments = selectedId ? await listConversationAttachments(db, view.actor, selectedId) : [];
+
   const conversations: ConversationSummary[] = rawConversations.map((c) => {
     const isFynixSide = c.side === "supplier_fynix";
     return {
@@ -36,6 +42,7 @@ export default async function SupplierMessagesPage(props: {
       leadId: c.leadId ?? null,
       side: c.side as "supplier_fynix" | "supplier_agency",
       subject: c.subject ?? null,
+      isDirect: c.isDirect,
       counterpartyName: isFynixSide ? "Fynix" : "Partner Agency",
       lastMessageAt: c.updatedAt.toISOString(),
     };
@@ -66,18 +73,17 @@ export default async function SupplierMessagesPage(props: {
   }));
 
   return (
-    <div className="flex flex-col gap-6">
-      <TenantPageHeader
-        title="Messages"
-        subtitle="Manage communication threads with Fynix and your partner agencies."
-      />
-
+    <div>
       <MessagingView
         role="supplier"
         currentUserId={view.actor.userId}
         conversations={conversations}
         initialConversationId={selectedId}
         initialMessages={initialMessages}
+        seenAt={seenAt?.toISOString() ?? null}
+        attachments={attachments}
+        canCreateGroup={canCreate}
+        groupInfo={groupInfo}
         availableForwardTargets={availableForwardTargets}
       />
     </div>

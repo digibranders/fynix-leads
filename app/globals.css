@@ -323,6 +323,13 @@
 }
 
 @layer base {
+  /* The browser's own clear button inside a search box: the app draws its own controls. */
+  input[type="search"]::-webkit-search-cancel-button,
+  input[type="search"]::-webkit-search-decoration {
+    appearance: none;
+    display: none;
+  }
+
   * {
     @apply border-border;
   }

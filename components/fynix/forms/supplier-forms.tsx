@@ -1,6 +1,6 @@
 "use client";
 
-import { addAgencyAction, addSupplierAction, invitePersonAction } from "@/server/fynix/actions";
+import { addAgencyAction, addClientAction, addSupplierAction, invitePersonAction } from "@/server/fynix/actions";
 import { ActionForm } from "./action-form";
 import { Hidden, SelectField, TextField } from "./form-parts";
 
@@ -40,6 +40,15 @@ export function InvitePersonForm({ organisations }: { organisations: readonly { 
       <TextField name="email" label="Email" type="email" inputMode="email" helper="The invite link goes here. It works for 7 days." />
       <SelectField name="role" label="Role" options={ROLES} defaultValue="member" helper="A manager can accept agreements for the supplier." />
       <TextField name="alias" label="Fynix name" helper="What the client sees instead of their real name, for example Asha, Fynix." />
+    </ActionForm>
+  );
+}
+
+export function AddClientForm() {
+  return (
+    <ActionForm action={addClientAction} submitLabel="Add client" pendingLabel="Adding">
+      <TextField name="name" label="Client name" helper="The company name. Only Fynix and the client see it." />
+      <TextField name="brandName" label="Brand name" helper="What agencies see in place of the client's name." />
     </ActionForm>
   );
 }

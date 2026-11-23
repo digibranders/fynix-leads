@@ -2,7 +2,7 @@
 
 import { Plus, X } from "@phosphor-icons/react";
 import { useId, useState } from "react";
-import { Input } from "@/components/ui/input";
+import { TimeField } from "@/components/ui/date-time";
 import { WEEK_ORDER } from "@/lib/fynix/format";
 import { dayField, MAX_RANGES_PER_DAY, rangeField, timeValue } from "@/lib/fynix/hours-form";
 import type { HoursWindow } from "@/lib/domain/weekly-hours";
@@ -47,9 +47,9 @@ function DayRow({ weekday, initial, error }: { weekday: number; initial: readonl
       </div>
       {ranges.map((range, index) => (
         <div key={index} className="flex items-center gap-2">
-          <Input type="time" name={rangeField(weekday, index, "from")} value={range.from} onChange={(event) => change(index, "from", event.target.value)} aria-label={`${DAY_LONG[weekday]}, range ${index + 1}, from`} aria-invalid={error === undefined ? undefined : true} />
+          <TimeField name={rangeField(weekday, index, "from")} value={range.from} onChange={(next) => change(index, "from", next)} aria-label={`${DAY_LONG[weekday]}, range ${index + 1}, from`} invalid={error !== undefined} />
           <span className="text-table text-ink-muted">to</span>
-          <Input type="time" name={rangeField(weekday, index, "to")} value={range.to} onChange={(event) => change(index, "to", event.target.value)} aria-label={`${DAY_LONG[weekday]}, range ${index + 1}, to`} aria-invalid={error === undefined ? undefined : true} />
+          <TimeField name={rangeField(weekday, index, "to")} value={range.to} onChange={(next) => change(index, "to", next)} aria-label={`${DAY_LONG[weekday]}, range ${index + 1}, to`} invalid={error !== undefined} />
           <button
             type="button"
             aria-label={`Remove range ${index + 1} on ${DAY_LONG[weekday]}`}

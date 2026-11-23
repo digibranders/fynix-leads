@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   // Bottom-left (the default) sits on the rail's footer note.
   devIndicators: { position: "bottom-right" },
   cacheComponents: true,
+  // A message may carry up to five files of 10 MB each, and they travel in the form post.
+  experimental: { serverActions: { bodySizeLimit: "52mb" } },
   partialPrefetching: true,
   async headers() {
     return [

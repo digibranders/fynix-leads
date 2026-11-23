@@ -43,7 +43,6 @@ export function FynixRail({ collapsing = false, onNavigate, footer }: Props) {
                 <li key={item.label}>
                   <span
                     aria-disabled="true"
-                    title={`${item.label} comes in a later phase`}
                     className={cn(ITEM, "cursor-default text-on-navy-muted", collapse)}
                   >
                     <Glyph aria-hidden size={20} className="shrink-0" />

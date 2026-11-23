@@ -146,11 +146,12 @@ export const PROBES: readonly Probe[] = [
   { name: "outbox: the link a message carries", statement: "select link from email_outbox", expectedError: DENIED_TABLE },
   { name: "outbox: who was written to", statement: "select recipient, subject from email_outbox", expectedError: DENIED_TABLE },
   { name: "write: cancel a message", statement: "update email_outbox set status = 'cancelled'", expectedError: DENIED_TABLE },
-  { name: "campaign: the ideal customer profile", statement: "select icp from campaign", expectedError: DENIED_TABLE },
-  { name: "campaign: the instructions", statement: "select instructions from campaign", expectedError: DENIED_TABLE },
-  { name: "campaign: the BANT criteria", statement: "select bant_budget, bant_authority, bant_need, bant_timeline from campaign", expectedError: DENIED_TABLE },
-  { name: "campaign: geography, industries, titles, seniority, technologies and size", statement: "select geography, industries, job_titles, seniority, technologies, company_size from campaign", expectedError: DENIED_TABLE },
-  { name: "campaign: probe by a requirement in WHERE", statement: "select id from campaign where icp <> ''", expectedError: DENIED_TABLE },
+  // Since migration 0054 the agency role (suppliers and partner agencies) reads the brief; a client still may not.
+  { name: "campaign: the ideal customer profile", statement: "select icp from campaign", expectedError: DENIED_TABLE, roles: ["leads_client"] },
+  { name: "campaign: the instructions", statement: "select instructions from campaign", expectedError: DENIED_TABLE, roles: ["leads_client"] },
+  { name: "campaign: the BANT criteria", statement: "select bant_budget, bant_authority, bant_need, bant_timeline from campaign", expectedError: DENIED_TABLE, roles: ["leads_client"] },
+  { name: "campaign: geography, industries, titles, seniority, technologies and size", statement: "select geography, industries, job_titles, seniority, technologies, company_size from campaign", expectedError: DENIED_TABLE, roles: ["leads_client"] },
+  { name: "campaign: probe by a requirement in WHERE", statement: "select id from campaign where icp <> ''", expectedError: DENIED_TABLE, roles: ["leads_client"] },
   // Phase 1D: the organisation hierarchy, the campaign settings and the six set-up tables. Nothing here is granted to a tenant until 1E.
   // leads_agency reads organisation.parent_org_id (migration 0032); a client still may not, so the hierarchy probes by id are for clients only.
   { name: "organisation: the supplier a partner agency works under", statement: "select parent_org_id from organisation", expectedError: DENIED_TABLE, roles: ["leads_client"] },

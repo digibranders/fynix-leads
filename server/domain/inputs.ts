@@ -296,9 +296,25 @@ export const forwardMessageSchema = z
   .strict();
 export type ForwardMessageInput = z.infer<typeof forwardMessageSchema>;
 
+export const markConversationReadSchema = z.object({ conversationId: z.uuid() }).strict();
+
 export const markNotificationReadSchema = z
   .object({
     notificationId: z.uuid(),
   })
   .strict();
 export type MarkNotificationReadInput = z.infer<typeof markNotificationReadSchema>;
+
+export const createGroupSchema = z
+  .object({
+    name: z.string().trim().min(1, "a group needs a name").max(80, "must be at most 80 characters"),
+    memberIds: z.array(z.uuid()).max(200, "a group has at most 200 people"),
+  })
+  .strict();
+
+export const directChatSchema = z.object({ userId: z.uuid() }).strict();
+
+export const groupMembersSchema = z.object({ groupId: z.uuid(), memberIds: z.array(z.uuid()).min(1, "choose at least one person").max(200) }).strict();
+export const groupMemberSchema = z.object({ groupId: z.uuid(), userId: z.uuid() }).strict();
+export const renameGroupSchema = z.object({ groupId: z.uuid(), name: z.string().trim().min(1, "a group needs a name").max(80, "must be at most 80 characters") }).strict();
+export const groupIdSchema = z.object({ groupId: z.uuid() }).strict();

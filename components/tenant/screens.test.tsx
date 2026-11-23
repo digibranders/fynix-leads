@@ -3,8 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/client",
+  useRouter: () => ({ refresh: () => undefined }),
 }));
 
+import { CampaignsView } from "./campaigns-view";
 import { TenantShell } from "./app-shell";
 import { AcceptLeadTimeButton } from "./lead-review-actions";
 import {
@@ -96,12 +98,14 @@ describe("TenantShell", () => {
       <SubmitLeadForm
         campaigns={[{ id: "c1", name: "UK Tech", clientBrandName: "Kestrel" }]}
         aliases={[{ id: "a1", displayName: "Alex Vance", clientBrandName: "Kestrel", aliasEmail: "alex@kestrel.com" }]}
-        hosts={[{ id: "h1", name: "Host (VP Sales)", jobTitle: "VP Sales" }]}
+        hosts={[{ id: "h1", campaignId: "c1", name: "Host (VP Sales)", jobTitle: "VP Sales" }]}
       />,
     );
-    expect(html).toContain("UK Tech (Kestrel)");
-    expect(html).toContain("Alex Vance - Kestrel (alex@kestrel.com)");
-    expect(html).toContain("Host (VP Sales)");
+    // The campaign list opens on demand; the closed dropdown posts under its own name.
+    expect(html).toContain('name="campaignId"');
+    expect(html).toContain("Select campaign");
+    expect(html).toContain('name="aliasIdentityId"');
+    expect(html).toContain('name="hostMemberId"');
     expect(html).toContain("Submit Qualified Lead");
   });
 
@@ -163,7 +167,7 @@ describe("TenantShell", () => {
     expect(meetHtml).toContain("https://meet.google.com/abc-defg-hij");
 
     const modalHtml = renderToStaticMarkup(<RecordMeetingOutcomeModal meetingId={meetingData.id} />);
-    expect(modalHtml).toContain("Record Outcome");
+    expect(modalHtml).toContain("Record outcome");
   });
 
   it("links Messages to appropriate tenant routes", () => {
@@ -217,6 +221,7 @@ describe("TenantShell", () => {
         conversations={convs}
         initialConversationId="c1"
         initialMessages={messages}
+        seenAt="2026-11-15T10:05:00Z"
       />,
     );
 
@@ -225,6 +230,37 @@ describe("TenantShell", () => {
     expect(html).toContain("LD-5N7W");
     expect(html).toContain("Jack Strachan");
     expect(html).toContain("Does he sign off spend himself?");
-    expect(html).toContain("Only your team and Fynix see this thread");
+    // Your own message carries a tick, and it is the "Seen" one because the other side opened the thread after it was sent.
+    expect(html).toContain('aria-label="Seen"');
+    // The actions that appear on hover are in the markup for keyboard and touch users.
+    expect(html).toContain('aria-label="Copy text"');
+    expect(html).toContain('aria-label="Send message"');
+  });
+});
+
+describe("CampaignsView", () => {
+  const row = { id: "c1", publicRef: "CMP-4M6R", name: "Retail grocery buyers", clientBrandName: "Halden", status: "active" as const, startDate: "2026-12-01", endDate: "2027-05-31", monthlyTarget: 20, totalTarget: 120, delivered: 12, inProgress: 3, share: 8, agencies: [{ agencyOrgId: "a1", name: "Ridgeway Media", monthlyShare: 6, delivered: 2 }], brief: null };
+
+  it("says what an empty portal waits for, per portal", () => {
+    expect(renderToStaticMarkup(<CampaignsView campaigns={[]} portal="agency" />)).toContain("Fynix has not assigned you a campaign yet");
+    expect(renderToStaticMarkup(<CampaignsView campaigns={[]} portal="client" />)).toContain("Fynix sets your campaigns up with you");
+  });
+
+  it("shows progress to a client and the agency shares to a supplier, and a submit link only on an active campaign", () => {
+    const client = renderToStaticMarkup(<CampaignsView campaigns={[row]} portal="client" />);
+    expect(client).toContain("Retail grocery buyers");
+    expect(client).toContain("10%");
+    expect(client).not.toContain("Ridgeway Media");
+
+    const brief = { geography: "United Kingdom", industries: ["Retail"], companySize: "", icp: "", jobTitles: [], seniority: "", technologies: [], bantBudget: "", bantAuthority: "", bantNeed: "", bantTimeline: "", instructions: "" };
+    const supplier = renderToStaticMarkup(<CampaignsView campaigns={[{ ...row, brief }]} portal="supplier" submitHref="/supplier/leads/new" />);
+    expect(supplier).toContain("Ridgeway Media");
+    expect(supplier).toContain("View brief");
+    expect(client).not.toContain("View brief");
+    expect(supplier).toContain("/supplier/leads/new");
+
+    const paused = renderToStaticMarkup(<CampaignsView campaigns={[{ ...row, status: "paused" }]} portal="agency" submitHref="/agency/leads/new" />);
+    expect(paused).not.toContain("/agency/leads/new");
+    expect(paused).toContain("Your monthly share");
   });
 });

@@ -1,5 +1,5 @@
 import { randomFillSync } from "node:crypto";
-import { and, asc, desc, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { generatePublicRef, type RandomBytes } from "@/lib/domain/public-ref";
 import { relayText } from "@/lib/relay/relay-text";
 import {
@@ -26,6 +26,7 @@ import { fynixRead } from "@/server/domain/fynix-write";
 import {
   forwardMessageSchema,
   getOrCreateConversationSchema,
+  markConversationReadSchema,
   markNotificationReadSchema,
   postMessageSchema,
 } from "@/server/domain/inputs";
@@ -109,6 +110,9 @@ export function assertConversationAccess(
     agencyOrgId: string | null;
   },
 ): void {
+  // A group conversation only reaches this point for a member: the row policy has already decided who may see it.
+  if (conv.side === "group") return;
+
   if (actor.orgKind === "fynix") {
     if (conv.side === "supplier_agency") {
       throw new DomainError("not-authorised", "Fynix cannot access supplier-agency conversations.");
@@ -150,7 +154,7 @@ export function assertConversationAccess(
   throw new DomainError("not-authorised", "Unknown actor role or conversation side.");
 }
 
-async function withActorScope<T>(
+export async function withActorScope<T>(
   db: Database,
   actor: MessagingActor,
   work: (tx: ScopedTransaction) => Promise<T>,
@@ -299,17 +303,27 @@ export async function postMessage(
 
     assertConversationAccess(actor, conv);
 
+    const isGroup = conv.side === "group";
     let senderRole: SenderRole;
     if (actor.orgKind === "fynix") {
       senderRole = "fynix";
     } else if (actor.orgKind === "client") {
       senderRole = "client";
+    } else if (isGroup) {
+      // Both a supplier and a partner agency are `agency` organisations; the one with no supplier above it is the supplier.
+      const partner = await tx.execute<{ partner: boolean }>(sql`select public.app_org_is_partner() as partner`);
+      senderRole = partner.rows[0]?.partner === true ? "agency" : "supplier";
     } else {
       senderRole = conv.supplierOrgId === actor.orgId ? "supplier" : "agency";
     }
 
-    const senderName =
-      actor.displayName ??
+    // In a group people see each other by first name and role only, and contact details are taken out of what is said, because a
+    // group may hold people from both sides.
+    const groupScrub = isGroup ? relayText(parsed.body) : null;
+    const storedBody = groupScrub === null ? parsed.body : groupScrub.text;
+    const senderName = isGroup
+      ? (actor.displayName ?? "").trim().split(/\s+/)[0] || "Member"
+      : actor.displayName ??
       (senderRole === "fynix"
         ? "Fynix Staff"
         : senderRole === "client"
@@ -328,9 +342,9 @@ export async function postMessage(
         senderOrgId: actor.orgId ?? null,
         senderRole,
         senderName,
-        body: parsed.body,
+        body: storedBody,
         forwardOfMessageId: null,
-        scrubbedCount: 0,
+        scrubbedCount: groupScrub?.removed ?? 0,
         createdAt: now,
       })
       .returning(messageCols);
@@ -347,7 +361,11 @@ export async function postMessage(
       });
     }
 
-    await dispatchMessageNotifications(tx, conv, senderRole, senderName, parsed.body, now);
+    if (isGroup) {
+      await tx.execute(sql`select public.app_notify_group(${conv.id}::uuid, ${`New message from ${senderName}`}, ${storedBody.length > 80 ? `${storedBody.slice(0, 77)}...` : storedBody})`);
+    } else {
+      await dispatchMessageNotifications(tx, conv, senderRole, senderName, parsed.body, now);
+    }
 
     return msg;
   });
@@ -402,6 +420,9 @@ export async function forwardMessage(
       throw new DomainError("not-found", "Source conversation not found.");
     }
     assertConversationAccess(actor, sourceConv);
+    if (sourceConv.side === "group") {
+      throw new DomainError("not-authorised", "A message from a group cannot be forwarded.");
+    }
 
     const [targetConv] = await tx
       .select({
@@ -416,6 +437,9 @@ export async function forwardMessage(
       .where(eq(conversation.id, parsed.targetConversationId))
       .limit(1);
 
+    if (targetConv?.side === "group") {
+      throw new DomainError("not-authorised", "A message cannot be forwarded into a group.");
+    }
     if (targetConv === undefined) {
       throw new DomainError("not-found", "Target conversation not found.");
     }
@@ -646,13 +670,13 @@ export async function listConversations(
     const conditions = [];
 
     if (actor.orgKind === "fynix") {
-      conditions.push(inArray(conversation.side, ["client_fynix", "supplier_fynix"]));
+      conditions.push(inArray(conversation.side, ["client_fynix", "supplier_fynix", "group"]));
     } else if (actor.orgKind === "client") {
-      conditions.push(eq(conversation.side, "client_fynix"));
-      if (actor.orgId) conditions.push(eq(conversation.clientOrgId, actor.orgId));
+      conditions.push(or(and(eq(conversation.side, "client_fynix"), eq(conversation.clientOrgId, actor.orgId ?? "")), eq(conversation.side, "group")));
     } else if (actor.orgKind === "agency") {
       conditions.push(
         or(
+          eq(conversation.side, "group"),
           and(
             eq(conversation.supplierOrgId, actor.orgId ?? ""),
             inArray(conversation.side, ["supplier_fynix", "supplier_agency"]),
@@ -669,11 +693,22 @@ export async function listConversations(
     if (filters?.leadId) conditions.push(eq(conversation.leadId, filters.leadId));
     if (filters?.side) conditions.push(eq(conversation.side, filters.side));
 
-    return tx
+    const rows = await tx
       .select(cols)
       .from(conversation)
       .where(and(...conditions))
       .orderBy(desc(conversation.updatedAt));
+
+    // A chat between two people is titled with the other person's first name, which differs for each of them.
+    const groupIds = rows.filter((row) => row.side === "group").map((row) => row.id);
+    const titles = new Map<string, string>();
+    if (groupIds.length > 0) {
+      const result = await tx.execute<{ id: string; title: string | null }>(
+        sql`select id, public.app_direct_title(id) as title from unnest(${`{${groupIds.join(",")}}`}::uuid[]) as id`,
+      );
+      for (const row of result.rows) if (row.title !== null) titles.set(row.id, row.title);
+    }
+    return rows.map((row) => ({ ...row, subject: titles.get(row.id) ?? row.subject, isDirect: titles.has(row.id) }));
   });
 }
 
@@ -769,5 +804,23 @@ export async function markNotificationRead(
       .returning(cols);
 
     return updated;
+  });
+}
+
+/** Records that the person has opened a conversation they belong to. Anything else is ignored by the database (migration 0049). */
+export async function markConversationRead(db: Database, actor: MessagingActor, conversationId: string): Promise<void> {
+  parseInput(markConversationReadSchema, { conversationId });
+  await withActorScope(db, actor, async (tx) => {
+    await tx.execute(sql`select public.app_mark_conversation_read(${conversationId}::uuid)`);
+  });
+}
+
+/** The latest moment someone on the other side opened the conversation, or null. A message sent before this has been seen. */
+export async function getConversationSeenAt(db: Database, actor: MessagingActor, conversationId: string): Promise<Date | null> {
+  parseInput(markConversationReadSchema, { conversationId });
+  return withActorScope(db, actor, async (tx) => {
+    const result = await tx.execute<{ seen: string | Date | null }>(sql`select public.app_conversation_seen_at(${conversationId}::uuid) as seen`);
+    const seen = result.rows[0]?.seen ?? null;
+    return seen === null ? null : new Date(seen);
   });
 }

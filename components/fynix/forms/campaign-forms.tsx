@@ -1,6 +1,8 @@
 "use client";
 
-import { addHostAction, publishAgreementAction, setShareAction } from "@/server/fynix/actions";
+import { CAMPAIGN_STATUSES, canMoveCampaign, type CampaignStatus } from "@/lib/domain/campaign-status";
+import { addHostAction, createCampaignAction, publishAgreementAction, setShareAction, updateCampaignAction } from "@/server/fynix/actions";
+import type { CampaignChoices, CampaignHeader } from "@/server/domain/campaign-overview";
 import { ActionForm } from "./action-form";
 import { Hidden, NumberField, SelectField, TextAreaField, TextField } from "./form-parts";
 
@@ -56,6 +58,70 @@ export function AddHostForm({ campaignId, candidates, clientName }: { campaignId
       <Hidden name="campaignId" value={campaignId} />
       <SelectField name="memberId" label={`Person at ${clientName}`} options={candidates.map((row) => ({ value: row.memberId, label: row.displayName }))} placeholder="Choose a person" />
       <TextField name="jobTitle" label="Job title" helper="What the supplier is told this person does, for example Head of FP&A." />
+    </ActionForm>
+  );
+}
+
+type Brief = CampaignHeader["brief"];
+
+const STATUS_LABEL: Record<CampaignStatus, string> = { draft: "Draft", active: "Active", paused: "Paused", completed: "Completed", archived: "Archived" };
+
+/** The fields a campaign has, whether it is being made or changed: dates and targets, who to reach, how a lead is qualified, and the settings. */
+function CampaignFields({ brief, name, timeZone, meetingMinutes }: { brief: Brief | null; name: string; timeZone: string; meetingMinutes: number }) {
+  return (
+    <>
+      <TextField name="name" label="Campaign name" defaultValue={name} />
+      <div className="grid grid-cols-2 gap-3">
+        <TextField name="startDate" label="Starts" type="date" defaultValue={brief?.startDate ?? ""} />
+        <TextField name="endDate" label="Ends" type="date" defaultValue={brief?.endDate ?? ""} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <NumberField name="monthlyTarget" label="Meetings per month" defaultValue={brief === null ? "" : String(brief.monthlyTarget)} />
+        <NumberField name="totalTarget" label="Meetings in total" defaultValue={brief === null ? "" : String(brief.totalTarget)} />
+      </div>
+      <p className="text-table font-semibold text-ink">Who to reach</p>
+      <TextField name="geography" label="Geography" defaultValue={brief?.geography ?? ""} />
+      <TextField name="industries" label="Industries" defaultValue={brief?.industries.join(", ") ?? ""} helper="Separate with commas." />
+      <TextField name="companySize" label="Company size" defaultValue={brief?.companySize ?? ""} />
+      <TextAreaField name="icp" label="Ideal customer" rows={3} defaultValue={brief?.icp ?? ""} />
+      <TextField name="jobTitles" label="Job titles" defaultValue={brief?.jobTitles.join(", ") ?? ""} helper="Separate with commas." />
+      <TextField name="seniority" label="Seniority" defaultValue={brief?.seniority ?? ""} />
+      <TextField name="technologies" label="Technologies" defaultValue={brief?.technologies.join(", ") ?? ""} helper="Separate with commas." />
+      <p className="text-table font-semibold text-ink">How a lead is qualified</p>
+      <TextAreaField name="bantBudget" label="Budget" rows={2} defaultValue={brief?.bantBudget ?? ""} />
+      <TextAreaField name="bantAuthority" label="Authority" rows={2} defaultValue={brief?.bantAuthority ?? ""} />
+      <TextAreaField name="bantNeed" label="Need" rows={2} defaultValue={brief?.bantNeed ?? ""} />
+      <TextAreaField name="bantTimeline" label="Timeline" rows={2} defaultValue={brief?.bantTimeline ?? ""} />
+      <p className="text-table font-semibold text-ink">For the supplier</p>
+      <TextAreaField name="instructions" label="Instructions" rows={4} defaultValue={brief?.instructions ?? ""} helper="Shown to the supplier and its agencies." />
+      <TextAreaField name="internalNotes" label="Internal notes" rows={3} defaultValue={brief?.internalNotes ?? ""} helper="For Fynix only. Nobody outside Fynix sees this." />
+      <div className="grid grid-cols-2 gap-3">
+        <TextField name="timeZone" label="Time zone" defaultValue={timeZone} helper="For example Europe/London. Counting uses it." />
+        <NumberField name="meetingMinutes" label="Meeting length, minutes" defaultValue={String(meetingMinutes)} />
+      </div>
+    </>
+  );
+}
+
+/** Makes a draft campaign for one client, served by one supplier. Neither can be changed afterwards. */
+export function CreateCampaignForm({ choices }: { choices: CampaignChoices }) {
+  return (
+    <ActionForm action={createCampaignAction} submitLabel="Create campaign" pendingLabel="Creating">
+      <SelectField name="clientOrgId" label="Client" options={choices.clients.map((row) => ({ value: row.id, label: row.name }))} placeholder="Choose the client" />
+      <SelectField name="agencyOrgId" label="Supplier" options={choices.suppliers.map((row) => ({ value: row.id, label: row.name }))} placeholder="Choose the supplier" helper="The supplier then gives the campaign to its own agencies." />
+      <CampaignFields brief={null} name="" timeZone="Europe/London" meetingMinutes={30} />
+    </ActionForm>
+  );
+}
+
+/** Changes a campaign's details, brief, settings and status. Only the moves a campaign may make are offered. */
+export function EditCampaignForm({ campaign }: { campaign: CampaignHeader }) {
+  const moves = CAMPAIGN_STATUSES.filter((status) => status === campaign.status || canMoveCampaign(campaign.status, status));
+  return (
+    <ActionForm action={updateCampaignAction} submitLabel="Save changes" pendingLabel="Saving">
+      <Hidden name="campaignId" value={campaign.id} />
+      <SelectField name="status" label="Status" defaultValue={campaign.status} options={moves.map((status) => ({ value: status, label: STATUS_LABEL[status] }))} helper="A campaign takes leads only while it is Active." />
+      <CampaignFields brief={campaign.brief} name={campaign.name} timeZone={campaign.timeZone} meetingMinutes={campaign.meetingMinutes} />
     </ActionForm>
   );
 }

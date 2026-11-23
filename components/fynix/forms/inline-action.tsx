@@ -2,6 +2,7 @@
 
 import { CircleNotch, WarningCircle } from "@phosphor-icons/react";
 import { useActionState } from "react";
+import { Hint } from "@/components/ui/hint";
 import { Button } from "@/components/ui/button";
 import { IDLE_FORM, type FormState } from "@/lib/fynix/form-state";
 
@@ -26,9 +27,11 @@ export function InlineAction({ action, fields, children, label, variant = "secon
       {Object.entries(fields).map(([name, value]) => (
         <input key={name} type="hidden" name={name} value={value} />
       ))}
-      <Button type="submit" variant={variant} size={size} aria-label={label} title={label} disabled={pending} aria-busy={pending}>
-        {pending ? <CircleNotch aria-hidden className="motion-safe:animate-spin" /> : children}
-      </Button>
+      <Hint label={label}>
+        <Button type="submit" variant={variant} size={size} aria-label={label} disabled={pending} aria-busy={pending}>
+          {pending ? <CircleNotch aria-hidden className="motion-safe:animate-spin" /> : children}
+        </Button>
+      </Hint>
       {state.status === "error" && (
         <p role="alert" className="mt-1.5 flex max-w-[260px] items-start gap-1 text-xs text-destructive">
           <WarningCircle aria-hidden size={14} weight="fill" className="mt-px shrink-0" />

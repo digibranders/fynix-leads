@@ -7,7 +7,7 @@ import { requireFynix } from "@/server/fynix/session";
 async function Title({ params }: { params: LayoutProps<"/fynix/campaigns/[ref]">["params"] }) {
   const view = await requireFynix();
   const { ref } = await params;
-  return <CampaignTitle campaign={await loadCampaign(ref, view.actor.userId)} />;
+  return <CampaignTitle campaign={await loadCampaign(ref, view.actor.userId)} canWrite={view.canWrite} />;
 }
 
 /** The title and tabs sit in their own boundary, so a tab's content does not wait for them. Each tab asks for the campaign itself. */

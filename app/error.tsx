@@ -14,12 +14,12 @@ export default function ErrorPage({ retry }: { error: unknown; retry: () => void
         <>
           <Button onClick={() => retry()}>Try again</Button>
           <Button variant="secondary" nativeButton={false} render={<Link href="/" />}>
-            Back to the prototype index
+            Back to the start
           </Button>
         </>
       }
     >
-      This screen could not be shown. Try again, or go back to the index. Nothing was saved or lost.
+      This screen could not be shown. Try again, or go back to the start. Nothing was saved or lost.
     </MessagePage>
   );
 }

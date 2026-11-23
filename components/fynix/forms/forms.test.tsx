@@ -4,11 +4,11 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => undefined }) }));
 vi.mock("@/server/fynix/actions", () => {
   const action = async () => ({ status: "idle" as const });
-  return { addSupplierAction: action, addAgencyAction: action, invitePersonAction: action, publishAgreementAction: action, setShareAction: action, removeShareAction: action, addHostAction: action, pauseHostAction: action, setHoursAction: action, addBlockAction: action, removeBlockAction: action };
+  return { addSupplierAction: action, addAgencyAction: action, invitePersonAction: action, publishAgreementAction: action, setShareAction: action, removeShareAction: action, addHostAction: action, pauseHostAction: action, setHoursAction: action, addBlockAction: action, removeBlockAction: action, createCampaignAction: action, updateCampaignAction: action };
 });
 
 const { AddAgencyForm, AddSupplierForm, InvitePersonForm } = await import("@/components/fynix/forms/supplier-forms");
-const { AddHostForm, NewAgreementForm, ShareForm } = await import("@/components/fynix/forms/campaign-forms");
+const { AddHostForm, CreateCampaignForm, EditCampaignForm, NewAgreementForm, ShareForm } = await import("@/components/fynix/forms/campaign-forms");
 const { BlockForm, HoursForm } = await import("@/components/fynix/forms/availability-forms");
 
 describe("the forms render", () => {
@@ -25,8 +25,9 @@ describe("the forms render", () => {
     expect(alone).toContain('name="organisationId" value="s1"');
     expect(alone).toContain('name="alias"');
     const many = renderToStaticMarkup(<InvitePersonForm organisations={[{ id: "s1", name: "Northgate" }, { id: "a1", name: "Calder Bay" }]} />);
-    expect(many).toContain("<select");
-    expect(many).toContain("Calder Bay");
+    // A styled dropdown: its list opens on demand, so the markup carries the closed button and the posted name.
+    expect(many).toContain('role="combobox"');
+    expect(many).toContain('name="organisationId"');
   });
 
   it("New version starts from the version in force, and the first version starts from 48 hours", () => {
@@ -45,7 +46,8 @@ describe("the forms render", () => {
 
   it("Add host lists the people who can be hosts", () => {
     const html = renderToStaticMarkup(<AddHostForm campaignId="c1" clientName="Kestrel" candidates={[{ memberId: "m1", displayName: "Imogen Price" }]} />);
-    expect(html).toContain("Imogen Price");
+    expect(html).toContain('name="memberId"');
+    expect(html).toContain("Choose a person");
     expect(html).toContain('name="jobTitle"');
   });
 
@@ -63,6 +65,29 @@ describe("the forms render", () => {
     const html = renderToStaticMarkup(<BlockForm memberId="m1" timeZone="Europe/London" />);
     expect(html).toContain('name="timeZone" value="Europe/London"');
     expect(html).toContain('name="allDay"');
-    expect(html).toContain('type="date"');
+    expect(html).toContain('name="date"');
+    expect(html).toContain("Pick a date");
+  });
+
+  it("New campaign asks for a client and a supplier, the dates, the targets and the brief", () => {
+    const html = renderToStaticMarkup(<CreateCampaignForm choices={{ clients: [{ id: "c1", name: "Halden Foods" }], suppliers: [{ id: "s1", name: "Brightpath" }] }} />);
+    for (const name of ["clientOrgId", "agencyOrgId", "name", "startDate", "endDate", "monthlyTarget", "totalTarget", "geography", "industries", "bantBudget", "instructions", "internalNotes", "timeZone", "meetingMinutes"]) {
+      expect(html, name).toContain(`name="${name}"`);
+    }
+    expect(html).toContain("Create campaign");
+  });
+
+  it("Edit campaign starts from what is stored, fixes the client and offers only the moves a status may make", () => {
+    const campaign = {
+      id: "k1", publicRef: "CMP-4M6R", name: "Retail grocery buyers", status: "draft" as const, clientOrgId: "c1", clientName: "Halden", supplierOrgId: "s1", supplierName: "Brightpath", timeZone: "Europe/London", meetingMinutes: 30, activeHostCount: 0,
+      brief: { startDate: "2026-12-01", endDate: "2027-05-31", monthlyTarget: 20, totalTarget: 120, geography: "United Kingdom", industries: ["Retail", "Food"], companySize: "", icp: "", jobTitles: [], seniority: "", technologies: [], bantBudget: "", bantAuthority: "", bantNeed: "", bantTimeline: "", instructions: "", internalNotes: "Careful" },
+    };
+    const html = renderToStaticMarkup(<EditCampaignForm campaign={campaign} />);
+    expect(html).toContain('name="campaignId" value="k1"');
+    expect(html).toContain("Retail grocery buyers");
+    expect(html).toContain("Retail, Food");
+    expect(html).toContain("Careful");
+    expect(html).not.toContain('name="clientOrgId"');
+    expect(html).toContain("Save changes");
   });
 });

@@ -16,8 +16,6 @@ export interface TenantActionResult {
   readonly message?: string;
 }
 
-export const IDLE_TENANT_ACTION: TenantActionResult = { status: "idle" };
-
 function getField(formData: FormData, name: string): string {
   const value = formData.get(name);
   return typeof value === "string" ? value.trim() : "";

@@ -13,11 +13,11 @@ export default function NotFound() {
       title="Page not found"
       actions={
         <Button nativeButton={false} render={<Link href="/" />}>
-          Back to the prototype index
+          Back to the start
         </Button>
       }
     >
-      This address does not match a screen in the prototype. Check the address, or pick a screen from the index.
+      This address does not match a page. Check the address, or go back to the start.
     </MessagePage>
   );
 }

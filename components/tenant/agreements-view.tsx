@@ -23,7 +23,7 @@ const IDLE: AgreementActionResult = { status: "idle" };
 function AcceptForm({ agreementId }: { readonly agreementId: string }) {
   const [state, action, pending] = useActionState(acceptAgreementAction, IDLE);
   return (
-    <form action={action} className="flex flex-col gap-2.5">
+    <form noValidate action={action} className="flex flex-col gap-2.5">
       <input type="hidden" name="agreementId" value={agreementId} />
       <div>
         <Button type="submit" disabled={pending} className="gap-2">
