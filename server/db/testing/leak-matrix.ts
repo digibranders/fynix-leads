@@ -1,6 +1,6 @@
 import { and, asc, eq, isNotNull } from "drizzle-orm";
 import type { TenantRoleName } from "@/server/db/roles";
-import { campaign } from "@/server/db/schema";
+import { campaign, member } from "@/server/db/schema";
 import type { ScopedTransaction } from "@/server/db/scope";
 import { selectCampaigns, selectOrganisations } from "@/server/db/tenant-reads";
 import type { SeedWorld, SeededOrganisation } from "@/server/db/testing/seed";
@@ -33,6 +33,8 @@ export interface Probe {
   readonly statement: string;
   /** What the error must say. Always a plain permission error, never a description of data. */
   readonly expectedError: RegExp;
+  /** The roles the probe applies to, when the column it asks for is readable by the other role. Every tenant role when absent. */
+  readonly roles?: readonly TenantRoleName[];
 }
 
 /** The campaigns this viewer is allowed to know about. */
@@ -45,6 +47,12 @@ export const READ_PATHS: readonly ReadPath[] = [
     name: "organisations, typed column list",
     run: (tx, viewer) => selectOrganisations(tx, viewer.role),
     mustContain: (viewer) => [viewer.organisation.publicRef, viewer.organisation.name],
+  },
+  {
+    // Every membership the role may read. Own-organisation people only: the ids of other organisations' people are forbidden tokens.
+    name: "member rows, every column a tenant role may read except the organisation",
+    run: (tx) => tx.select({ id: member.id, userId: member.userId, role: member.role, displayName: member.displayName, status: member.status }).from(member),
+    mustContain: (viewer, world) => world.users.filter((person) => person.organisation.id === viewer.organisation.id).map((person) => person.id),
   },
   {
     name: "campaigns, typed column list",
@@ -76,12 +84,13 @@ const DENIED_TABLE = /permission denied for table [a-z_]+$/m;
 export const PROBES: readonly Probe[] = [
   { name: "select * from campaign", statement: "select * from campaign", expectedError: DENIED_TABLE },
   { name: "select * from organisation", statement: "select * from organisation", expectedError: DENIED_TABLE },
-  { name: "client organisation id", statement: "select client_org_id from campaign", expectedError: DENIED_TABLE },
-  { name: "agency organisation id", statement: "select agency_org_id from campaign", expectedError: DENIED_TABLE },
+  // Since migrations 0037 and 0039 both roles read campaign.client_org_id and agency_org_id (opaque ids on rows they already see), so the kinds stay the probe.
+  { name: "client organisation kind", statement: "select client_org_kind from campaign", expectedError: DENIED_TABLE },
+  { name: "agency organisation kind", statement: "select agency_org_kind from campaign", expectedError: DENIED_TABLE },
   { name: "internal notes", statement: "select internal_notes from campaign", expectedError: DENIED_TABLE },
   { name: "organisation id", statement: "select id from organisation", expectedError: DENIED_TABLE },
-  { name: "probe by WHERE on a hidden column", statement: "select id from campaign where agency_org_id is not null", expectedError: DENIED_TABLE },
-  { name: "probe by ORDER BY on a hidden column", statement: "select id from campaign order by client_org_id", expectedError: DENIED_TABLE },
+  { name: "probe by WHERE on a hidden column", statement: "select id from campaign where internal_notes like 'INTERNAL%'", expectedError: DENIED_TABLE },
+  { name: "probe by ORDER BY on a hidden column", statement: "select id from campaign order by agency_org_kind", expectedError: DENIED_TABLE },
   { name: "probe by GROUP BY on a hidden column", statement: "select count(*) from campaign group by internal_notes", expectedError: DENIED_TABLE },
   {
     name: "join through the hidden organisation ids",
@@ -104,7 +113,9 @@ export const PROBES: readonly Probe[] = [
   { name: "auth: session tokens", statement: "select token from session", expectedError: DENIED_TABLE },
   { name: "auth: reset tokens", statement: "select identifier, value from verification", expectedError: DENIED_TABLE },
   { name: "auth: join every auth table", statement: 'select u.email, a.password, s.token from "user" u join account a on a.user_id = u.id join session s on s.user_id = u.id', expectedError: DENIED_TABLE },
-  { name: "member: every membership", statement: "select * from member", expectedError: DENIED_TABLE },
+  // Tenant roles read member (migration 0032), so the read path "member rows" covers what they may see; writes stay refused.
+  { name: "write: add a membership", statement: "insert into member (user_id, org_id, org_kind, role) values (gen_random_uuid(), gen_random_uuid(), 'client', 'manager')", expectedError: DENIED_TABLE },
+  { name: "write: remove every membership", statement: "delete from member", expectedError: DENIED_TABLE },
   { name: "rate limits", statement: "select * from rate_limit", expectedError: DENIED_TABLE },
   { name: "email outbox", statement: "select * from email_outbox", expectedError: DENIED_TABLE },
   { name: "write: create a user", statement: `insert into "user" (name, email) values ('x', 'x@example.com')`, expectedError: DENIED_TABLE },
@@ -141,9 +152,12 @@ export const PROBES: readonly Probe[] = [
   { name: "campaign: geography, industries, titles, seniority, technologies and size", statement: "select geography, industries, job_titles, seniority, technologies, company_size from campaign", expectedError: DENIED_TABLE },
   { name: "campaign: probe by a requirement in WHERE", statement: "select id from campaign where icp <> ''", expectedError: DENIED_TABLE },
   // Phase 1D: the organisation hierarchy, the campaign settings and the six set-up tables. Nothing here is granted to a tenant until 1E.
-  { name: "organisation: the supplier a partner agency works under", statement: "select parent_org_id from organisation", expectedError: DENIED_TABLE },
+  // leads_agency reads organisation.parent_org_id (migration 0032); a client still may not, so the hierarchy probes by id are for clients only.
+  { name: "organisation: the supplier a partner agency works under", statement: "select parent_org_id from organisation", expectedError: DENIED_TABLE, roles: ["leads_client"] },
+  { name: "organisation: the status", statement: "select status from organisation", expectedError: DENIED_TABLE },
   { name: "organisation: the kind of the parent", statement: "select parent_org_kind from organisation", expectedError: DENIED_TABLE },
-  { name: "organisation: probe the hierarchy by WHERE", statement: "select name from organisation where parent_org_id is not null", expectedError: DENIED_TABLE },
+  { name: "organisation: probe the hierarchy by WHERE", statement: "select name from organisation where parent_org_id is not null", expectedError: DENIED_TABLE, roles: ["leads_client"] },
+  { name: "organisation: probe by the status in WHERE", statement: "select name from organisation where status = 'active'", expectedError: DENIED_TABLE },
   { name: "organisation: join an organisation to its parent", statement: "select c.name from organisation c join organisation p on p.id = c.parent_org_id", expectedError: DENIED_TABLE },
   { name: "write: give an organisation a parent", statement: "update organisation set parent_org_id = null", expectedError: DENIED_TABLE },
   { name: "campaign: the time zone", statement: "select time_zone from campaign", expectedError: DENIED_TABLE },
@@ -167,7 +181,8 @@ export const PROBES: readonly Probe[] = [
 
 /**
  * Every string in the world a viewer must not find, whether in a result or in an error message:
- * - every organisation id, the viewer's own included, because tenants never read an organisation id column;
+ * - every organisation id, the viewer's own included, because tenants never read an organisation id column (the one exception
+ *   is the supplier's own id, which it reads as the parent_org_id of its partner agencies);
  * - the reference and name of every other organisation, and the brand of every other client, except that an agency
  *   may know the brand of the clients of its own campaigns (never their legal names);
  * - every campaign's internal notes, and the id, reference and name of every campaign that is not the viewer's.
@@ -175,9 +190,11 @@ export const PROBES: readonly Probe[] = [
 export function forbiddenTokens(viewer: Viewer, world: SeedWorld): string[] {
   const own = ownCampaigns(viewer, world);
   const brandVisibleFor = new Set(viewer.role === "leads_agency" ? own.map((row) => row.client.id) : []);
+  const ownIdVisible = viewer.role === "leads_agency" && world.setup !== null && viewer.organisation.id === world.brightpath.id;
   const tokens: string[] = [];
   for (const org of [world.fynix, ...world.clients, ...world.agencies]) {
-    tokens.push(org.id);
+    // The supplier reads parent_org_id on its partner agencies (migration 0032), which is its own id; no tenant reads an organisation.id column.
+    if (!(org.id === viewer.organisation.id && ownIdVisible)) tokens.push(org.id);
     if (org.id === viewer.organisation.id) continue;
     tokens.push(org.publicRef, org.name);
     if (org.brandName !== null && !brandVisibleFor.has(org.id)) tokens.push(org.brandName);

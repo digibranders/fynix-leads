@@ -1,6 +1,7 @@
-import { and, desc, eq, notInArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, notInArray, sql } from "drizzle-orm";
 import { extractDomainFromEmail, normaliseDomain, normaliseLinkedinUrl } from "@/lib/leads/normalize";
 import { type LeadStage } from "@/lib/leads/stage";
+import { generateGoogleMeetUrl } from "@/lib/meetings/meet-url";
 import { agencyLeadColumns, clientLeadColumns } from "@/server/db/columns";
 import type { Database } from "@/server/db/pool";
 import {
@@ -10,13 +11,13 @@ import {
   campaignShare,
   lead,
   leadHistory,
+  meeting,
   member,
 } from "@/server/db/schema";
 import { withTenantScope } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
-import { isProspectExcluded } from "@/server/domain/exclusions";
 import { fynixWrite, type FynixActor } from "@/server/domain/fynix-write";
 import {
   clientReviewLeadSchema,
@@ -155,37 +156,26 @@ export async function submitLead(
     const normalizedDomain = normaliseDomain(parsed.prospectDomain || fallbackDomain);
     const normalizedLinkedin = normaliseLinkedinUrl(parsed.prospectLinkedinUrl);
 
-    const isExcluded = await isProspectExcluded(tx, campaignRow.clientOrgId, {
-      email: normalizedEmail,
-      domain: normalizedDomain,
-      company: parsed.prospectCompany.trim(),
-    });
-
-    if (isExcluded) {
+    // Both checks read rows an agency may not see (the client's exclusion list, other agencies' leads), so they run as
+    // database functions that answer a boolean or a reference and nothing else (migration 0042).
+    const excludedResult = await tx.execute<{ excluded: boolean }>(
+      sql`select public.app_prospect_excluded(${campaignRow.clientOrgId}::uuid, ${normalizedEmail}, ${normalizedDomain}, ${parsed.prospectCompany.trim()}) as excluded`,
+    );
+    if (excludedResult.rows[0]?.excluded === true) {
       throw new DomainError("prospect-excluded", "This prospect is on the client exclusion list.");
     }
 
     // 6. Check duplicates across client campaigns
-    const [duplicate] = await tx
-      .select({ id: lead.id, publicRef: lead.publicRef })
-      .from(lead)
-      .innerJoin(campaign, eq(lead.campaignId, campaign.id))
-      .where(
-        and(
-          eq(campaign.clientOrgId, campaignRow.clientOrgId),
-          or(
-            eq(lead.prospectEmail, normalizedEmail),
-            eq(lead.prospectLinkedinUrl, normalizedLinkedin),
-          ),
-          notInArray(lead.stage, ["withdrawn", "lost", "rejected", "declined"]),
-        ),
-      )
-      .limit(1);
-
-    if (duplicate !== undefined) {
+    const duplicateResult = await tx.execute<{ ref: string | null }>(
+      sql`select public.app_find_duplicate_lead(${campaignRow.clientOrgId}::uuid, ${normalizedEmail}, ${normalizedLinkedin}) as ref`,
+    );
+    const duplicateRef = duplicateResult.rows[0]?.ref ?? null;
+    if (duplicateRef !== null) {
       throw new DomainError(
         "prospect-duplicate",
-        `This prospect has already been submitted for this client under reference ${duplicate.publicRef}.`,
+        duplicateRef === "OTHER"
+          ? "This prospect has already been submitted for this client."
+          : `This prospect has already been submitted for this client under reference ${duplicateRef}.`,
       );
     }
 
@@ -281,7 +271,7 @@ export async function submitLead(
  */
 export async function clientReviewLead(
   db: Database,
-  deps: Pick<DomainDeps, "now">,
+  deps: Pick<DomainDeps, "now" | "randomBytes">,
   actor: TenantActor,
   input: unknown,
 ) {
@@ -297,6 +287,7 @@ export async function clientReviewLead(
         id: lead.id,
         stage: lead.stage,
         campaignId: lead.campaignId,
+        hostMemberId: lead.hostMemberId,
         publicRef: lead.publicRef,
       })
       .from(lead)
@@ -337,6 +328,31 @@ export async function clientReviewLead(
         snapshot: { scheduledMeetingTime: parsed.selectedMeetingTime },
         createdAt: now,
       });
+
+      // Accepting a time books the meeting: one row, with the lead's host. The room link is generated here until the Meet API
+      // is connected (spec 9.1, gate G4), so it is a placeholder and not a real room.
+      await insertWithPublicRef(
+        tx,
+        { prefix: "MTG", constraint: "meeting_public_ref_unique", randomBytes: deps.randomBytes },
+        async (innerTx, publicRef: string) => {
+          const [row] = await innerTx
+            .insert(meeting)
+            .values({
+              publicRef,
+              leadId: leadRow.id,
+              campaignId: leadRow.campaignId,
+              hostMemberId: leadRow.hostMemberId,
+              scheduledStartTime: new Date(parsed.selectedMeetingTime!),
+              durationMinutes: 30,
+              googleMeetUrl: generateGoogleMeetUrl(deps.randomBytes),
+              outcome: "scheduled",
+              createdAt: now,
+              updatedAt: now,
+            })
+            .returning({ id: meeting.id });
+          return row;
+        },
+      );
 
       return updated;
     }
@@ -581,7 +597,9 @@ export async function listAgencyLeads(
   filter?: { readonly stage?: LeadStage; readonly campaignId?: string },
 ) {
   return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
-    const conditions = [eq(lead.sourceOrgId, actor.orgId)];
+    // No source filter: the lead policy already limits an agency to its own leads, and a supplier to its own and those of the
+    // partner agencies on its campaigns.
+    const conditions = [];
     if (filter?.stage !== undefined) {
       conditions.push(eq(lead.stage, filter.stage));
     }

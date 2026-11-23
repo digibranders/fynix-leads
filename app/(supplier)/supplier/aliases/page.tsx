@@ -1,21 +1,22 @@
 import type { Metadata } from "next";
-import { IdentificationBadge } from "@phosphor-icons/react/dist/ssr";
-import { EmptyState } from "@/components/fynix/empty-state";
+import { AliasesView } from "@/components/tenant/aliases-view";
 import { TenantPageHeader } from "@/components/tenant/page-header";
 import { requireSupplier } from "@/server/supplier/session";
+import { getDatabase } from "@/server/db/client";
+import { listAliasIdentities } from "@/server/domain/alias-identity";
 
 export const metadata: Metadata = { title: "Aliases" };
 
 export default async function SupplierAliasesPage() {
-  await requireSupplier();
+  const view = await requireSupplier();
+  const aliases = await listAliasIdentities(getDatabase("leads_agency").db, view.actor);
   return (
     <div className="flex flex-col gap-6">
-      <TenantPageHeader title="Client-Brand Aliases" subtitle="Verified alias identities used by your SDRs to contact prospects under the client brand." />
-      <div className="rounded-lg bg-surface p-6 shadow-raised">
-        <EmptyState icon={IdentificationBadge} title="No aliases configured yet">
-          Create client-brand alias identities and verify them with code verification to begin booking.
-        </EmptyState>
-      </div>
+      <TenantPageHeader title="Aliases" subtitle="Your prospect-facing identities. Each one is verified through its own mailbox before it can send a lead." />
+      <AliasesView
+        canWrite={view.canWrite}
+        aliases={aliases.map((alias) => ({ publicRef: alias.publicRef, displayName: alias.displayName, jobTitle: alias.jobTitle, clientBrandName: alias.clientBrandName, aliasEmail: alias.aliasEmail, verified: alias.verifiedAt !== null }))}
+      />
     </div>
   );
 }

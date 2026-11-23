@@ -42,12 +42,12 @@ export default async function ClientReviewQueuePage() {
             return (
               <div
                 key={leadItem.id}
-                className="rounded-lg bg-surface p-6 shadow-raised flex flex-col gap-4 border border-ink-4/10"
+                className="rounded-lg bg-surface p-6 shadow-raised flex flex-col gap-4 "
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-canvas border border-ink-4/20">
+                      <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-canvas ">
                         {leadItem.publicRef}
                       </span>
                       <StatusChip kind="lead" status={leadItem.stage as LeadStage} size="sm" />
@@ -90,7 +90,7 @@ export default async function ClientReviewQueuePage() {
                   </p>
                 )}
 
-                <div className="mt-2 pt-4 border-t border-ink-4/10">
+                <div className="mt-2 pt-4 border-t border-line">
                   <h4 className="text-xs font-semibold text-ink-2 uppercase tracking-wider mb-2">
                     Select a proposed meeting time:
                   </h4>

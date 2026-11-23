@@ -133,11 +133,11 @@ export function MessagingView({
         {/* Left Pane: Threads List */}
         <section
           aria-label="Threads list"
-          className="md:col-span-5 lg:col-span-4 flex flex-col rounded-lg bg-surface border border-ink-4/10 shadow-raised overflow-hidden"
+          className="md:col-span-5 lg:col-span-4 flex flex-col rounded-lg bg-surface  shadow-raised overflow-hidden"
         >
           {/* Header */}
-          <div className="p-4 border-b border-ink-4/10 flex items-center justify-between">
-            <h2 className="text-base font-semibold text-ink-1 flex items-center gap-2">
+          <div className="p-4 border-b border-line flex items-center justify-between">
+            <h2 className="text-base font-semibold text-ink flex items-center gap-2">
               <span>Threads</span>
               <span className="text-xs px-2 py-0.5 rounded-full bg-canvas text-ink-2 font-mono">
                 {conversations.length}
@@ -149,8 +149,8 @@ export function MessagingView({
                 onClick={() => setFilterTab("all")}
                 className={`px-3 py-1 rounded transition-colors ${
                   filterTab === "all"
-                    ? "bg-surface text-ink-1 shadow-sm font-semibold"
-                    : "text-ink-2 hover:text-ink-1"
+                    ? "bg-surface text-ink shadow-sm font-semibold"
+                    : "text-ink-2 hover:text-ink"
                 }`}
               >
                 All
@@ -160,8 +160,8 @@ export function MessagingView({
                 onClick={() => setFilterTab("unread")}
                 className={`px-3 py-1 rounded transition-colors ${
                   filterTab === "unread"
-                    ? "bg-surface text-ink-1 shadow-sm font-semibold"
-                    : "text-ink-2 hover:text-ink-1"
+                    ? "bg-surface text-ink shadow-sm font-semibold"
+                    : "text-ink-2 hover:text-ink"
                 }`}
               >
                 Unread
@@ -170,10 +170,10 @@ export function MessagingView({
           </div>
 
           {/* Search bar */}
-          <div className="p-3 border-b border-ink-4/10 bg-canvas/40">
+          <div className="p-3 border-b border-line bg-canvas/40">
             <div className="relative">
               <MagnifyingGlass
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-3"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted"
                 size={16}
               />
               <label htmlFor={searchInputId} className="sr-only">
@@ -185,22 +185,22 @@ export function MessagingView({
                 placeholder="Name, company, or ref..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 text-xs rounded-md bg-surface border border-ink-4/20 text-ink-1 placeholder:text-ink-3 focus:outline-none focus:ring-1 focus:ring-primary"
+                className="h-11 w-full pl-9 pr-3 text-base rounded-md bg-surface  text-ink placeholder:text-ink-muted focus:outline-none focus:ring-1 focus:ring-primary"
               />
             </div>
           </div>
 
           {/* Threads table / list */}
-          <div className="flex-1 overflow-y-auto divide-y divide-ink-4/10">
+          <div className="flex-1 overflow-y-auto divide-y divide-line">
             {filteredConversations.length === 0 ? (
-              <div className="p-8 text-center text-xs text-ink-3">
+              <div className="p-8 text-center text-xs text-ink-muted">
                 No conversation threads match your filter.
               </div>
             ) : role === "fynix" ? (
               <>
                 {clientSideConversations.length > 0 && (
                   <div>
-                    <div className="px-4 py-1.5 bg-canvas/70 text-[11px] font-semibold uppercase tracking-wider text-ink-3">
+                    <div className="px-4 py-1.5 bg-canvas/70 text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
                       Client side
                     </div>
                     {clientSideConversations.map((conv) => (
@@ -215,7 +215,7 @@ export function MessagingView({
                 )}
                 {supplySideConversations.length > 0 && (
                   <div>
-                    <div className="px-4 py-1.5 bg-canvas/70 text-[11px] font-semibold uppercase tracking-wider text-ink-3">
+                    <div className="px-4 py-1.5 bg-canvas/70 text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
                       Supply side
                     </div>
                     {supplySideConversations.map((conv) => (
@@ -245,18 +245,18 @@ export function MessagingView({
         {/* Right Pane: Active Thread */}
         <section
           aria-label="Active conversation thread"
-          className="md:col-span-7 lg:col-span-8 flex flex-col rounded-lg bg-surface border border-ink-4/10 shadow-raised overflow-hidden"
+          className="md:col-span-7 lg:col-span-8 flex flex-col rounded-lg bg-surface  shadow-raised overflow-hidden"
         >
           {activeConversation ? (
             <>
               {/* Thread Header */}
-              <div className="p-4 border-b border-ink-4/10 flex items-start justify-between gap-4 bg-canvas/20">
+              <div className="p-4 border-b border-line flex items-start justify-between gap-4 bg-canvas/20">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-ink-1 text-base">
+                    <span className="font-semibold text-ink text-base">
                       {activeConversation.counterpartyName}
                     </span>
-                    <span className="font-mono text-xs px-2 py-0.5 rounded bg-canvas text-ink-2 border border-ink-4/10">
+                    <span className="font-mono text-xs px-2 py-0.5 rounded bg-canvas text-ink-2 ">
                       {activeConversation.leadRef ?? activeConversation.publicRef}
                     </span>
                     {activeConversation.leadProspectName && (
@@ -268,7 +268,7 @@ export function MessagingView({
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-1.5 mt-1 text-xs text-ink-3">
+                  <div className="flex items-center gap-1.5 mt-1 text-xs text-ink-muted">
                     <ShieldCheck size={14} className="text-primary flex-shrink-0" />
                     <span>{getPrivacyNote(activeConversation.side)}</span>
                   </div>
@@ -292,10 +292,10 @@ export function MessagingView({
               {/* Messages Flow */}
               <div className="flex-1 p-6 overflow-y-auto flex flex-col gap-4 bg-canvas/10 min-h-[380px]">
                 {initialMessages.length === 0 ? (
-                  <div className="my-auto text-center p-8 text-sm text-ink-3">
-                    <ChatsCircle size={32} className="mx-auto mb-2 text-ink-3/60" />
+                  <div className="my-auto text-center p-8 text-sm text-ink-muted">
+                    <ChatsCircle size={32} className="mx-auto mb-2 text-ink-muted/60" />
                     <p>No messages in this thread yet.</p>
-                    <p className="text-xs text-ink-3/80 mt-1">
+                    <p className="text-xs text-ink-muted/80 mt-1">
                       Type a question or update below to start the conversation.
                     </p>
                   </div>
@@ -309,7 +309,7 @@ export function MessagingView({
                           isMine ? "ml-auto items-end" : "mr-auto items-start"
                         }`}
                       >
-                        <div className="flex items-center gap-2 text-xs text-ink-3">
+                        <div className="flex items-center gap-2 text-xs text-ink-muted">
                           <span className="font-medium text-ink-2">
                             {isMine ? "You" : msg.senderName}
                           </span>
@@ -319,7 +319,7 @@ export function MessagingView({
                             </span>
                           )}
                           <span>
-                            {new Date(msg.createdAt).toLocaleTimeString([], {
+                            {new Date(msg.createdAt).toLocaleTimeString("en-GB", {
                               hour: "2-digit",
                               minute: "2-digit",
                             })}
@@ -329,14 +329,14 @@ export function MessagingView({
                         <div
                           className={`rounded-xl px-4 py-2.5 text-sm shadow-sm ${
                             isMine
-                              ? "bg-navy text-chalk rounded-br-none"
-                              : "bg-surface text-ink-1 border border-ink-4/10 rounded-bl-none"
+                              ? "bg-navy text-offwhite rounded-br-none"
+                              : "bg-surface text-ink  rounded-bl-none"
                           }`}
                         >
                           <p className="whitespace-pre-wrap leading-relaxed">{msg.body}</p>
 
                           {msg.forwardOfMessageId && (
-                            <div className="mt-2 pt-2 border-t border-ink-4/20 text-xs opacity-80 flex items-center gap-1">
+                            <div className="mt-2 pt-2 border-t border-line text-xs opacity-80 flex items-center gap-1">
                               <ArrowBendUpRight size={13} />
                               <span>Forwarded message</span>
                               {msg.scrubbedCount > 0 && (
@@ -359,7 +359,7 @@ export function MessagingView({
                                 availableForwardTargets[0]?.id ?? "",
                               );
                             }}
-                            className="text-[11px] text-ink-3 hover:text-primary flex items-center gap-1 mt-0.5 transition-colors"
+                            className="text-[11px] text-ink-muted hover:text-primary flex items-center gap-1 mt-0.5 transition-colors"
                           >
                             <ArrowBendUpRight size={12} />
                             <span>Forward to other side</span>
@@ -401,7 +401,7 @@ export function MessagingView({
                         id={forwardTargetSelectId}
                         value={targetConvId}
                         onChange={(e) => setTargetConvId(e.target.value)}
-                        className="text-xs p-2 rounded border border-amber-300 bg-surface text-ink-1 focus:ring-1 focus:ring-amber-500"
+                        className="text-xs p-2 rounded border border-amber-300 bg-surface text-ink focus:ring-1 focus:ring-amber-500"
                       >
                         {availableForwardTargets.map((target) => (
                           <option key={target.id} value={target.id}>
@@ -412,7 +412,7 @@ export function MessagingView({
                     </div>
                   )}
 
-                  <div className="p-2.5 rounded bg-surface border border-amber-200 text-xs text-ink-1 whitespace-pre-wrap leading-relaxed">
+                  <div className="p-2.5 rounded bg-surface border border-amber-200 text-xs text-ink whitespace-pre-wrap leading-relaxed">
                     {forwardScrubResult?.text}
                   </div>
 
@@ -470,7 +470,7 @@ export function MessagingView({
               )}
 
               {/* Message Composer */}
-              <div className="p-4 border-t border-ink-4/10 bg-surface flex flex-col gap-2">
+              <div className="p-4 border-t border-line bg-surface flex flex-col gap-2">
                 <form
                   action={async (formData) => {
                     startTransition(async () => {
@@ -485,18 +485,18 @@ export function MessagingView({
                     value={activeConversation.id}
                   />
 
-                  <div className="relative rounded-lg border border-ink-4/20 bg-surface focus-within:border-primary focus-within:ring-1 focus-within:ring-primary overflow-hidden">
+                  <div className="relative rounded-lg  bg-surface focus-within:border-primary focus-within:ring-1 focus-within:ring-primary overflow-hidden">
                     <textarea
                       name="body"
                       required
                       rows={2}
                       placeholder={`Write a message to ${activeConversation.counterpartyName}...`}
-                      className="w-full p-3 text-sm text-ink-1 placeholder:text-ink-3 resize-none focus:outline-none"
+                      className="w-full p-3 text-base text-ink placeholder:text-ink-muted resize-none focus:outline-none"
                     />
 
-                    <div className="p-2 border-t border-ink-4/10 flex items-center justify-between bg-canvas/30">
-                      <div className="text-[11px] text-ink-3 flex items-center gap-1.5">
-                        <Paperclip size={14} className="text-ink-3" />
+                    <div className="p-2 border-t border-line flex items-center justify-between bg-canvas/30">
+                      <div className="text-[11px] text-ink-muted flex items-center gap-1.5">
+                        <Paperclip size={14} className="text-ink-muted" />
                         <span>PDF, Word, Excel, images up to 10 MB</span>
                       </div>
 
@@ -518,10 +518,10 @@ export function MessagingView({
               </div>
             </>
           ) : (
-            <div className="my-auto text-center p-12 text-ink-3">
-              <ChatsCircle size={40} className="mx-auto mb-3 text-ink-3/40" />
+            <div className="my-auto text-center p-12 text-ink-muted">
+              <ChatsCircle size={40} className="mx-auto mb-3 text-ink-muted/40" />
               <h3 className="font-semibold text-ink-2 text-sm">No thread selected</h3>
-              <p className="text-xs text-ink-3 mt-1">
+              <p className="text-xs text-ink-muted mt-1">
                 Select a conversation thread from the left pane to view messages.
               </p>
             </div>
@@ -547,16 +547,16 @@ function ThreadListItem({
       onClick={onSelect}
       className={`w-full text-left p-3.5 flex items-start justify-between gap-3 transition-colors ${
         isSelected
-          ? "bg-primary/10 border-l-4 border-primary"
+          ? "bg-selected shadow-[inset_4px_0_0_var(--peach)]"
           : "hover:bg-canvas/50"
       }`}
     >
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="font-semibold text-xs text-ink-1 truncate">
+          <span className="font-semibold text-xs text-ink truncate">
             {conv.counterpartyName}
           </span>
-          <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-canvas text-ink-3 border border-ink-4/10">
+          <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-canvas text-ink-muted ">
             {conv.leadRef ?? conv.publicRef}
           </span>
         </div>
@@ -568,7 +568,7 @@ function ThreadListItem({
         </div>
 
         {conv.lastMessageSnippet && (
-          <div className="text-xs text-ink-3 truncate mt-1">
+          <div className="text-xs text-ink-muted truncate mt-1">
             {conv.lastMessageSnippet}
           </div>
         )}
@@ -576,15 +576,15 @@ function ThreadListItem({
 
       <div className="flex flex-col items-end gap-1 flex-shrink-0 text-right">
         {conv.lastMessageAt && (
-          <span className="text-[11px] text-ink-3">
-            {new Date(conv.lastMessageAt).toLocaleDateString([], {
+          <span className="text-[11px] text-ink-muted">
+            {new Date(conv.lastMessageAt).toLocaleDateString("en-GB", {
               month: "short",
               day: "numeric",
             })}
           </span>
         )}
         {conv.unreadCount !== undefined && conv.unreadCount > 0 && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary text-chalk font-mono font-bold">
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary text-offwhite font-mono font-bold">
             {conv.unreadCount}
           </span>
         )}

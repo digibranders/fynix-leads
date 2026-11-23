@@ -20,7 +20,7 @@ The prototype screens need no database. The database layer, its scripts and its 
 3. `pnpm env:init` writes `.env.local` with random passwords, mode 600. It never overwrites an existing file. `pnpm env:check` lists any missing or malformed variable by name.
 4. `pnpm db:roles` creates six login roles: `leads_owner`, `leads_auth`, `leads_fynix`, `leads_client`, `leads_agency`, `leads_public`.
 5. `pnpm db:create` creates `fynix_leads` and `fynix_leads_test`, owned by `leads_owner`, with public access removed.
-6. `pnpm db:migrate` applies the migrations to `fynix_leads`. Optionally `pnpm db:seed` adds two clients, two agencies and four campaigns.
+6. `pnpm db:migrate` applies the migrations to `fynix_leads`. Optionally `pnpm db:seed` adds two clients, two agencies and four campaigns. `pnpm db:seed:demo` then adds sample leads, meetings and two conversations for one client campaign, so every portal screen shows rows. It needs the dev accounts `dev-client`, `dev-supplier`, `dev-agency` and `dev-admin` (all `@fynix-leads.test`), writes through the Fynix role, and refuses a database that already holds a lead.
 7. `pnpm test:integration` migrates `fynix_leads_test` and runs the database tests.
 
 Roles are cluster-wide. If other projects share this Postgres server, `pnpm db:roles` only touches roles whose names start with `leads_`, but it resets their passwords for every checkout that shares the cluster. The test helper refuses any database whose name does not end in `_test`.

@@ -1,3 +1,4 @@
+import { agencyHomePath } from "@/server/domain/page-data";
 import { Buildings, Handshake, ShieldCheck } from "@phosphor-icons/react/dist/ssr";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
@@ -45,7 +46,9 @@ async function Welcome() {
   // Phase 1E: Route each role to their dedicated application portal.
   if (context.kind === "fynix") redirect("/fynix");
   if (context.kind === "client") redirect("/client");
-  if (context.kind === "agency") redirect("/supplier");
+  if (context.kind === "agency") {
+    redirect(await agencyHomePath({ userId: context.userId, orgId: context.orgId }));
+  }
 
   return (
     <div className="w-full max-w-[400px] rounded-lg bg-surface px-5 pt-7 pb-6 shadow-raised sm:px-7 sm:pt-8 sm:pb-7">

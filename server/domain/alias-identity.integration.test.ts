@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { eq } from "drizzle-orm";
-import { aliasIdentity } from "@/server/db/schema";
+import { aliasIdentity, emailOutbox } from "@/server/db/schema";
 import {
   createAliasIdentity,
   listAliasIdentities,
@@ -45,6 +45,14 @@ const getClientActor = (): TenantActor => {
   };
 };
 
+/** The code the alias mailbox was sent: the only place it exists in the clear, since the application never returns it. */
+async function mailedCode(aliasEmail: string): Promise<string> {
+  const [row] = await rig.dbs.owner.db.select({ params: emailOutbox.params }).from(emailOutbox).where(eq(emailOutbox.recipient, aliasEmail));
+  const code = (row?.params as { code?: unknown } | undefined)?.code;
+  if (typeof code !== "string") throw new Error("No verification code was queued for that alias");
+  return code;
+}
+
 describe("createAliasIdentity", () => {
   it("creates an alias identity with a generated publicRef and 6-digit code", async () => {
     const actor = getAgencyActor();
@@ -62,7 +70,7 @@ describe("createAliasIdentity", () => {
     expect(created.aliasEmail).toBe("alex@kestrel-outreach.example");
     expect(created.verifiedAt).toBeNull();
     expect(created.status).toBe("active");
-    expect(created.verificationCode).toMatch(/^\d{6}$/);
+    expect(await mailedCode(created.aliasEmail)).toMatch(/^\d{6}$/);
 
     const [row] = await rig.dbs.owner.db
       .select()
@@ -111,7 +119,7 @@ describe("verifyAliasCode", () => {
 
     const verified = await verifyAliasCode(rig.dbs.roles.leads_agency.db, rig.deps(), actor, {
       publicRef: created.publicRef,
-      code: created.verificationCode,
+      code: await mailedCode(created.aliasEmail),
     });
 
     expect(verified.verifiedAt).not.toBeNull();
@@ -133,7 +141,7 @@ describe("verifyAliasCode", () => {
       aliasEmail: "alex@kestrel-outreach.example",
     });
 
-    const wrongCode = created.verificationCode === "123456" ? "654321" : "123456";
+    const wrongCode = (await mailedCode(created.aliasEmail)) === "123456" ? "654321" : "123456";
     const err = await refusal(
       verifyAliasCode(rig.dbs.roles.leads_agency.db, rig.deps(), actor, {
         publicRef: created.publicRef,

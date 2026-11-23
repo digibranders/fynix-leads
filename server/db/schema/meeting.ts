@@ -31,7 +31,7 @@ export const meeting = pgTable(
     notes: text("notes"),
     heldAt: timestamp("held_at", { withTimezone: true }),
     recordedAt: timestamp("recorded_at", { withTimezone: true }),
-    recordedByUserId: text("recorded_by_user_id"),
+    recordedByUserId: uuid("recorded_by_user_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

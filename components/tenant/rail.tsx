@@ -1,11 +1,22 @@
 "use client";
 
-import { Funnel } from "@phosphor-icons/react";
+import { CalendarBlank, ChatsCircle, FileText, Funnel, Handshake, House, IdentificationBadge, type Icon, Table, UsersThree } from "@phosphor-icons/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { isCurrent, type TenantNavItem } from "./nav-config";
+import { isCurrent, type TenantNavIcon, type TenantNavItem } from "./nav-config";
+
+const GLYPHS: Record<TenantNavIcon, Icon> = {
+  house: House,
+  table: Table,
+  "file-text": FileText,
+  calendar: CalendarBlank,
+  users: UsersThree,
+  handshake: Handshake,
+  chats: ChatsCircle,
+  badge: IdentificationBadge,
+};
 
 type Props = {
   items: readonly TenantNavItem[];
@@ -39,7 +50,7 @@ export function TenantRail({ items, portalLabel, homeHref, collapsing = false, o
       <nav aria-label="Main" className="-mx-2 min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 py-1 [scrollbar-width:none]">
         <ul className="flex flex-col gap-1">
           {items.map((item) => {
-            const Glyph = item.icon;
+            const Glyph = GLYPHS[item.icon];
             if (item.href === null) {
               return (
                 <li key={item.label}>
@@ -68,8 +79,8 @@ export function TenantRail({ items, portalLabel, homeHref, collapsing = false, o
                   ITEM,
                   "transition-colors",
                   active
-                    ? "bg-on-navy-selected font-semibold text-offwhite shadow-[inset_0_0_0_1px_var(--on-navy-selected-border)]"
-                    : "text-on-navy-muted hover:bg-on-navy-hover hover:text-offwhite",
+                    ? "bg-peach font-semibold text-navy shadow-nav-active"
+                    : "text-on-navy-text hover:bg-on-navy-07 hover:text-offwhite",
                   collapse,
                 )}
               >
@@ -81,8 +92,8 @@ export function TenantRail({ items, portalLabel, homeHref, collapsing = false, o
             return (
               <li key={item.label}>
                 <Tooltip>
-                  <TooltipTrigger render={link} className="lg:contents" />
-                  <TooltipContent side="right" className="lg:hidden">
+                  <TooltipTrigger render={link} />
+                  <TooltipContent side="right" sideOffset={10} className="lg:hidden">
                     {item.label}
                   </TooltipContent>
                 </Tooltip>

@@ -23,8 +23,11 @@ function setMockData(data: {
   campaigns?: readonly Record<string, unknown>[];
   leads?: readonly Record<string, unknown>[];
   shares?: readonly Record<string, unknown>[];
+  /** What public.app_my_partner_agencies() returns: the supplier's partner agencies by id and name. */
+  partners?: readonly { readonly id: string; readonly name: string }[];
 }) {
   currentMockTx = {
+    execute: vi.fn(() => Promise.resolve({ rows: data.partners ?? [] })),
     select: vi.fn(() => ({
       from: vi.fn((table) => {
         if (table === campaign) {
@@ -120,6 +123,7 @@ describe("analytics domain service", () => {
           { id: "l3", sourceOrgId: agencyActor.orgId, stage: "awaiting_client", overShare: true },
           { id: "l4", sourceOrgId: agencyActor.orgId, stage: "disputed", overShare: false },
         ],
+        partners: [{ id: agencyActor.orgId, name: "Ridgeway Partner Media Ltd" }],
       });
 
       const metrics = await getSupplierOverviewMetrics(dummyDb, supplierActor);
@@ -136,6 +140,7 @@ describe("analytics domain service", () => {
       expect(supplierBreakdown?.agencyName).toBe("Direct Supplier");
 
       const partnerBreakdown = metrics.agencyBreakdown.find((b) => b.agencyOrgId === agencyActor.orgId);
+      expect(partnerBreakdown?.agencyName).toBe("Ridgeway Partner Media Ltd");
       expect(partnerBreakdown?.shareTarget).toBe(15);
       expect(partnerBreakdown?.deliveredCount).toBe(1);
       expect(partnerBreakdown?.awaitingClientCount).toBe(1);

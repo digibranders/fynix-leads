@@ -76,7 +76,9 @@ describe("tenant column lists match the grants", () => {
   };
 
   it.each(TENANT_ROLES)("%s: columns.ts names exactly the columns the database granted", async (role) => {
-    expect(await granted(role, "campaign")).toEqual(columnNames(TENANT_COLUMNS[role].campaign).sort());
+    // The two parent ids are granted so the policies can compare them (migrations 0037 and 0039), and columns.ts does not list them: no read selects them.
+    const policyColumns = ["agency_org_id", "client_org_id"];
+    expect(await granted(role, "campaign")).toEqual([...columnNames(TENANT_COLUMNS[role].campaign), ...policyColumns].sort());
     expect(await granted(role, "organisation")).toEqual(columnNames(TENANT_COLUMNS[role].organisation).sort());
   });
 });

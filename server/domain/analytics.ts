@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import type { Database } from "@/server/db/pool";
 import { campaign, campaignShare, lead } from "@/server/db/schema";
 import { withTenantScope } from "@/server/db/scope";
@@ -215,10 +216,17 @@ export async function getSupplierOverviewMetrics(
       agencyMap.set(l.sourceOrgId, existing);
     }
 
+    // The names come from a database function: a supplier holds no grant on `organisation` (migration 0043).
+    const partnerRows = await tx.execute<{ id: string; name: string }>(sql`select id, name from public.app_my_partner_agencies()`);
+    const partnerNames = new Map(partnerRows.rows.map((row) => [row.id, row.name]));
+    for (const partnerId of partnerNames.keys()) {
+      if (!agencyMap.has(partnerId)) agencyMap.set(partnerId, { shareTarget: 0, deliveredCount: 0, awaitingClientCount: 0, overShareCount: 0, disputedCount: 0 });
+    }
+
     const agencyBreakdown: AgencyBreakdownItem[] = Array.from(agencyMap.entries()).map(([orgId, data]) => ({
       agencyId: orgId,
       agencyOrgId: orgId,
-      agencyName: orgId === actor.orgId ? "Direct Supplier" : `Partner Agency (${orgId.slice(0, 8)})`,
+      agencyName: orgId === actor.orgId ? "Direct Supplier" : (partnerNames.get(orgId) ?? "Partner agency"),
       shareTarget: data.shareTarget,
       deliveredCount: data.deliveredCount,
       awaitingClientCount: data.awaitingClientCount,

@@ -52,7 +52,7 @@ describe.each(TENANT_ROLES)("leak matrix as %s", (role: TenantRoleName) => {
     }
   });
 
-  it.each(PROBES.map((probe) => probe.name))("probe: %s is denied with a plain permission error", async (probeName) => {
+  it.each(PROBES.filter((probe) => probe.roles === undefined || probe.roles.includes(role)).map((probe) => probe.name))("probe: %s is denied with a plain permission error", async (probeName) => {
     const probe = PROBES.find((candidate) => candidate.name === probeName);
     if (probe === undefined) throw new Error(`Unknown probe ${probeName}`);
     for (const viewer of viewers().filter((candidate) => candidate.role === role)) {
@@ -117,8 +117,9 @@ describe("the matrix itself, phase 1D", () => {
     ]);
     const setup = world.setup;
     if (setup === null) throw new Error("The seed world has no phase 1D rows");
-    for (const viewer of [{ role: "leads_client", organisation: world.kestrel }, { role: "leads_agency", organisation: world.brightpath }] as const) {
+    for (const viewer of [{ role: "leads_client", organisation: world.kestrel }, { role: "leads_agency", organisation: world.northgate }] as const) {
       const leaks = findLeaks(everything, forbiddenTokens(viewer, world));
+      // Northgate, not Brightpath: the partner agency works under Brightpath, which may therefore read its name, reference and id.
       for (const expected of [...setup.markers, setup.partner.name, setup.partner.publicRef, setup.partner.id]) expect(leaks, expected).toContain(expected);
     }
   });

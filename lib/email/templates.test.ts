@@ -82,8 +82,13 @@ describe("parseEmailContent", () => {
     expect(() => parseEmailContent(template, params)).toThrow();
   });
 
+  it("reads an alias code message, and refuses a code that is not six digits", () => {
+    expect(parseEmailContent("alias_code", { displayName: "Alex Croft", code: "042917" })).toEqual({ template: "alias_code", params: { displayName: "Alex Croft", code: "042917" } });
+    expect(() => parseEmailContent("alias_code", { displayName: "Alex Croft", code: "4291" })).toThrow();
+  });
+
   it("covers every template in EMAIL_TEMPLATES", () => {
-    expect([...EMAIL_TEMPLATES].sort()).toEqual(["invite", "password_reset"]);
+    expect([...EMAIL_TEMPLATES].sort()).toEqual(["alias_code", "invite", "password_reset"]);
   });
 });
 

@@ -36,7 +36,7 @@ export const lead = pgTable(
     publicRef: text("public_ref").notNull(),
     campaignId: uuid("campaign_id").notNull(),
     sourceOrgId: uuid("source_org_id").notNull(),
-    submittedByUserId: text("submitted_by_user_id").notNull(),
+    submittedByUserId: uuid("submitted_by_user_id").notNull(),
     aliasIdentityId: uuid("alias_identity_id").notNull(),
     hostMemberId: uuid("host_member_id").notNull(),
 

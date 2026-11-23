@@ -37,7 +37,7 @@ CREATE INDEX "conversation_agency_org_idx" ON "conversation" USING btree ("agenc
 CREATE TABLE "conversation_message" (
   "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
   "conversation_id" uuid NOT NULL,
-  "sender_user_id" text NOT NULL,
+  "sender_user_id" uuid NOT NULL,
   "sender_org_id" uuid,
   "sender_role" text NOT NULL,
   "sender_name" text NOT NULL,
@@ -58,7 +58,7 @@ CREATE INDEX "conversation_message_sender_user_idx" ON "conversation_message" US
 --> statement-breakpoint
 CREATE TABLE "notification" (
   "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-  "user_id" text NOT NULL,
+  "user_id" uuid NOT NULL,
   "org_id" uuid,
   "kind" text NOT NULL,
   "title" text NOT NULL,

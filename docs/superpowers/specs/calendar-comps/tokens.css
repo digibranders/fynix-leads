@@ -1,0 +1,170 @@
+/* Fynix Leads, direction D (hybrid): design tokens.
+   Navy shell from B, modular tonal layout from C. Structured softness:
+   zones come from tint and elevation, never from outlines.
+   Rules the tokens enforce:
+   - No 1px outlines on controls, chips, inputs or tiles.
+   - Dividers are 1px at --line (7%), inset, between rows only.
+   - Raised surfaces use a layered shadow plus an inset 1px ring at 6%.
+   - Status never relies on colour alone: every chip pairs an icon with a label. */
+
+:root {
+  /* ---------- Brand ---------- */
+  --navy: #0C1E2E;
+  --navy-hover: #13293D;       /* primary button hover */
+  --peach: #E9AF88;
+  --peach-deep: #A9602F;       /* peach as text or icon on white (4.6:1) */
+  --offwhite: #F3EFE9;         /* text and icons on navy */
+
+  /* ---------- Canvas and surfaces ---------- */
+  --canvas: #F1EDE6;           /* page background, warm neutral */
+  --surface: #FFFFFF;          /* raised panels, lifted cards, tiles on tonal panes */
+  --surface-tonal: rgba(12, 30, 46, .06);   /* list pane, left detail pane */
+  --surface-hero: var(--navy); /* the one hero tile per screen */
+  --selected: #FBF1E7;         /* selected row: pale warm peach, no pink cast */
+  --selected-marker: var(--peach);
+  --bubble-client: #F8E8D8;    /* message bubble, client side: quiet peach */
+  --bubble-fynix: var(--navy-05);  /* message bubble, Fynix side */
+
+  /* ---------- Navy alpha steps (wells, tiles, controls, dividers) ---------- */
+  --navy-03: rgba(12, 30, 46, .03);
+  --navy-04: rgba(12, 30, 46, .04);   /* tiles, wells, row hover, action tray */
+  --navy-05: rgba(12, 30, 46, .05);   /* inputs, tonal panes, segmented track */
+  --navy-06: rgba(12, 30, 46, .06);   /* inset ring on raised surfaces */
+  --navy-07: rgba(12, 30, 46, .07);   /* secondary buttons, key caps */
+  --navy-08: rgba(12, 30, 46, .08);   /* pressed state */
+  --navy-10: rgba(12, 30, 46, .10);   /* hover on secondary buttons */
+  --line: rgba(12, 30, 46, .07);      /* the only divider colour */
+  --ring: rgba(12, 30, 46, .06);
+
+  /* On-navy alpha steps (rail and hero) */
+  --on-navy-05: rgba(255, 255, 255, .05);   /* wells on navy */
+  --on-navy-07: rgba(255, 255, 255, .07);
+  --on-navy-10: rgba(255, 255, 255, .10);
+  --on-navy-text: rgba(243, 239, 233, .68);
+  --on-navy-muted: rgba(243, 239, 233, .6);
+
+  /* ---------- Text ---------- */
+  --ink: #0C1E2E;              /* primary, 16:1 on white */
+  --ink-2: #3F4D59;            /* secondary, 8.6:1 on white */
+  --muted: #56626D;            /* captions and labels, 6:1 on white, 4.6:1 on tonal */
+
+  /* ---------- Status: text, border-free soft fill, solid ---------- */
+  --amber-text: #7A4700;  --amber-soft: #FBEFD3;  --amber-solid: #D9961A;
+  --green-text: #176B3D;  --green-soft: #E0F1E7;  --green-solid: #2E9A5F;
+  --red-text:   #A3251D;  --red-soft:   #FBE6E2;  --red-solid:   #D4483D;
+  --blue-text:  #1D4E8F;  --blue-soft:  #E1ECF9;  --blue-solid:  #3B7BD0;
+
+  /* ---------- Radii ---------- */
+  --r-xs: 7px;       /* key caps */
+  --r-sm: 12px;      /* rows, inputs, wells, search */
+  --r-md: 16px;      /* tiles, lifted card, rail wells */
+  --r-lg: 22px;      /* panels, panes, hero tile */
+  --r-xl: 24px;      /* navy rail */
+  --r-pill: 999px;   /* buttons, chips, segmented control, nav items */
+
+  /* ---------- Shadow stacks ---------- */
+  --shadow-raised:   /* white panels and small tiles on canvas */
+    inset 0 0 0 1px rgba(12, 30, 46, .06),
+    0 1px 2px rgba(12, 30, 46, .04),
+    0 4px 10px -2px rgba(12, 30, 46, .05),
+    0 16px 32px -12px rgba(12, 30, 46, .09);
+  --shadow-selected: /* the lifted selected card inside a tonal pane */
+    inset 0 0 0 1px rgba(12, 30, 46, .06),
+    0 1px 2px rgba(12, 30, 46, .06),
+    0 6px 14px -3px rgba(12, 30, 46, .09),
+    0 18px 30px -12px rgba(12, 30, 46, .14);
+  --shadow-tile-lift: /* white tile sitting on a tonal pane */
+    inset 0 0 0 1px rgba(12, 30, 46, .05),
+    0 1px 2px rgba(12, 30, 46, .05),
+    0 6px 12px -6px rgba(12, 30, 46, .08);
+  --shadow-popover:
+    inset 0 0 0 1px rgba(12, 30, 46, .06),
+    0 4px 8px -2px rgba(12, 30, 46, .08),
+    0 24px 48px -12px rgba(12, 30, 46, .20);
+  --shadow-tray:     /* pinned action bar when content scrolls under it */
+    0 -1px 0 rgba(12, 30, 46, .06),
+    0 -14px 24px -14px rgba(12, 30, 46, .12);
+  --shadow-rail:     /* floating navy rail */
+    inset 0 1px 0 rgba(255, 255, 255, .06),
+    0 1px 2px rgba(12, 30, 46, .20),
+    0 14px 34px rgba(12, 30, 46, .18);
+  --shadow-hero:
+    inset 0 0 0 1px rgba(255, 255, 255, .06),
+    inset 0 1px 0 rgba(255, 255, 255, .08),
+    0 2px 4px rgba(12, 30, 46, .14),
+    0 20px 40px -14px rgba(12, 30, 46, .38);
+  --shadow-btn-primary:
+    inset 0 1px 0 rgba(255, 255, 255, .12),
+    0 1px 2px rgba(12, 30, 46, .25),
+    0 8px 16px -6px rgba(12, 30, 46, .40);
+  --shadow-nav-active: 0 4px 12px -4px rgba(233, 175, 136, .5);
+
+  /* ---------- Spacing (8px grid with a 4px half-step) ---------- */
+  --s-1: 4px;  --s-2: 8px;   --s-3: 12px;  --s-4: 16px;  --s-5: 20px;
+  --s-6: 24px; --s-8: 32px;  --s-10: 40px; --s-12: 48px;
+  --gap-modules: 16px;       /* between panels, panes and bento tiles */
+  --gap-tiles: 12px;         /* between tiles inside a panel */
+  --inset-rail: 12px;        /* rail distance from the window edge */
+  --pad-panel: 24px;         /* panel body padding */
+  --pad-tile: 16px;
+
+  /* ---------- Layout ---------- */
+  --canvas-w: 1440px;
+  --rail-w: 220px;
+  --content-left: 248px;     /* rail inset + rail width + module gap */
+  --content-right: 24px;
+  --list-pane-w: 372px;
+  --detail-pane-w: 380px;    /* record: left column */
+
+  /* ---------- Type ---------- */
+  --font-sans: "Geist", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+  --font-serif: "Geist Serif", Georgia, serif;   /* hero figure only */
+  --fw-regular: 400; --fw-medium: 500; --fw-semibold: 600;
+  --fs-caption: 12px;        /* key caps, small captions, tiny refs */
+  --fs-label: 12.5px;        /* field labels, chip text, helper text */
+  --fs-table: 13px;          /* table cells, row meta */
+  --fs-body: 14px;           /* body, buttons */
+  --fs-row-title: 14.5px;    /* names in lists */
+  --fs-value: 15px;          /* values in tiles, panel titles */
+  --fs-lead: 16px;
+  --fs-title: 28px;          /* page title on the canvas */
+  --fs-name: 34px;           /* lead name */
+  --fs-figure: 38px;         /* big numbers */
+  --fs-hero: 96px;           /* serif hero figure */
+  --lh-tight: 1.1; --lh-body: 1.5;
+  --tracking-title: -.015em;
+  --tracking-figure: -.02em;
+  --tabular: tabular-nums;
+
+  /* ---------- Row heights and control sizes ---------- */
+  --h-table-row: 50px;
+  --h-table-head: 38px;
+  --h-list-row: 96px;
+  --h-timeline-row: 40px;
+  --h-input: 44px;
+  --h-search: 40px;
+  --h-button: 44px;
+  --h-button-sm: 32px;
+  --h-nav: 42px;
+  --h-segment: 32px;
+  --h-chip: 26px;
+  --h-chip-sm: 22px;         /* table chips: smaller and softer */
+  --h-keycap: 22px;
+  --h-action-bar: 76px;
+
+  /* ---------- Motion ---------- */
+  --dur-press: 120ms;
+  --dur-hover: 180ms;
+  --dur-state: 240ms;
+  --dur-panel: 360ms;
+  --dur-slow: 520ms;
+  --ease-out: cubic-bezier(.16, 1, .3, 1);      /* default: fast start, soft landing */
+  --ease-in-out: cubic-bezier(.65, 0, .35, 1);  /* swaps and layout shifts */
+  --ease-spring: cubic-bezier(.34, 1.4, .64, 1);/* press release, count badges */
+  --press-scale: .98;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-press: 0ms; --dur-hover: 0ms; --dur-state: 0ms; --dur-panel: 0ms; --dur-slow: 0ms; }
+}

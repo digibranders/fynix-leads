@@ -27,7 +27,7 @@ function FilterSwitch({ filter, counts, query }: { filter: SupplierFilter; count
           href={suppliersHref({ status: option, q: query })}
           aria-current={option === filter ? "page" : undefined}
           className={cn(
-            "inline-flex h-8 items-center gap-[7px] rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap text-ink-2 transition-[background-color,color] hover:bg-navy-05 max-md:h-8",
+            "inline-flex h-8 items-center gap-[7px] rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap text-ink-2 transition-[background-color,color] hover:bg-navy-05 max-md:h-11",
             option === filter && "bg-primary font-semibold text-primary-foreground shadow-segment hover:bg-primary",
           )}
         >

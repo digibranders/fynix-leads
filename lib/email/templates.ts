@@ -9,7 +9,7 @@ import { escapeHtml, safeHref } from "./escape";
  * own column that is cleared once the message is sent, so `renderEmail(content, null)` is the copy that stays in the
  * table: it says the link is not kept.
  */
-export const EMAIL_TEMPLATES = ["password_reset", "invite"] as const;
+export const EMAIL_TEMPLATES = ["password_reset", "invite", "alias_code"] as const;
 export type EmailTemplate = (typeof EMAIL_TEMPLATES)[number];
 
 export interface PasswordResetParams {
@@ -24,9 +24,17 @@ export interface InviteParams {
   readonly expiresOn: string;
 }
 
+export interface AliasCodeParams {
+  /** The display name of the alias being verified. */
+  readonly displayName: string;
+  /** The 6-digit code, sent only to the alias mailbox: entering it proves the person controls that mailbox. */
+  readonly code: string;
+}
+
 export type EmailContent =
   | { readonly template: "password_reset"; readonly params: PasswordResetParams }
-  | { readonly template: "invite"; readonly params: InviteParams };
+  | { readonly template: "invite"; readonly params: InviteParams }
+  | { readonly template: "alias_code"; readonly params: AliasCodeParams };
 
 export interface RenderedEmail {
   readonly subject: string;
@@ -56,6 +64,15 @@ function layoutFor(content: EmailContent): Layout {
       closing: "If you did not ask for this, ignore this email. Your password stays the same.",
     };
   }
+  if (content.template === "alias_code") {
+    return {
+      subject: "Your Fynix Leads verification code",
+      paragraphs: [`Your verification code for ${content.params.displayName} is ${content.params.code}.`, "Enter it on the aliases page to start using this identity."],
+      linkIntro: "",
+      linkLabel: "",
+      closing: "If you did not ask for this, ignore this email. Nothing changes until the code is entered.",
+    };
+  }
   return {
     subject: "You are invited to Fynix Leads",
     paragraphs: [`Hello ${content.params.name},`, `Fynix has invited you to join ${content.params.organisationName} on Fynix Leads.`],
@@ -70,7 +87,9 @@ const HTML_FONT = "font-family:Helvetica,Arial,sans-serif;font-size:15px;line-he
 function renderHtml(layout: Layout, link: string | null): string {
   const paragraph = (text: string): string => `<p style="margin:0 0 16px 0;">${escapeHtml(text)}</p>`;
   const action =
-    link === null
+    layout.linkIntro === ""
+      ? ""
+      : link === null
       ? `${paragraph(layout.linkIntro)}${paragraph(LINK_REMOVED_TEXT)}`
       : `${paragraph(layout.linkIntro)}<p style="margin:0 0 16px 0;"><a href="${safeHref(link)}" style="display:inline-block;padding:10px 20px;border-radius:999px;background:#0c1e2e;color:#ffffff;text-decoration:none;">${escapeHtml(layout.linkLabel)}</a></p><p style="margin:0 0 16px 0;word-break:break-all;">${escapeHtml(link)}</p>`;
   return `<!doctype html><html lang="en"><body style="margin:0;padding:24px;background:#f4f1ee;${HTML_FONT}"><div style="max-width:520px;margin:0 auto;padding:28px;border-radius:22px;background:#ffffff;">${layout.paragraphs.map(paragraph).join("")}${action}${paragraph(layout.closing)}<p style="margin:0;color:#5b6b78;">Fynix Digital</p></div></body></html>`;
@@ -79,7 +98,7 @@ function renderHtml(layout: Layout, link: string | null): string {
 /** The subject, plain text and HTML of a message. With `link` null the text and HTML say the link is not kept. */
 export function renderEmail(content: EmailContent, link: string | null): RenderedEmail {
   const layout = layoutFor(content);
-  const text = [...layout.paragraphs, "", layout.linkIntro, link ?? LINK_REMOVED_TEXT, "", layout.closing].join("\n");
+  const text = (layout.linkIntro === "" ? [...layout.paragraphs, "", layout.closing] : [...layout.paragraphs, "", layout.linkIntro, link ?? LINK_REMOVED_TEXT, "", layout.closing]).join("\n");
   return { subject: layout.subject, text, html: renderHtml(layout, link) };
 }
 
@@ -101,6 +120,11 @@ export function parseEmailContent(template: string, params: unknown): EmailConte
       throw new Error("invite needs a name, an organisation name and an expiry date.");
     }
     return { template, params: { name, organisationName, expiresOn } };
+  }
+  if (template === "alias_code") {
+    const { displayName, code } = params;
+    if (typeof displayName !== "string" || typeof code !== "string" || !/^[0-9]{6}$/.test(code)) throw new Error("alias_code needs a display name and a 6-digit code.");
+    return { template, params: { displayName, code } };
   }
   throw new Error(`There is no email template named ${template}.`);
 }

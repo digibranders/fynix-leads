@@ -14,7 +14,7 @@ const TONE_CLASSES = {
   default: "bg-navy-07 text-ink-2",
   emerald: "bg-emerald-50 text-emerald-600",
   amber: "bg-amber-50 text-amber-600",
-  rose: "bg-rose-50 text-rose-600",
+  rose: "bg-red-soft text-red-text",
 };
 
 /**
@@ -28,7 +28,7 @@ export function TenantKpiCard({
   tone = "default",
 }: TenantKpiCardProps) {
   return (
-    <div className="flex flex-col justify-between rounded-lg bg-surface p-5 shadow-raised border border-ink-4/10">
+    <div className="flex flex-col justify-between rounded-lg bg-surface p-5 shadow-raised ">
       <div className="flex items-start justify-between gap-3">
         <p className="text-body text-ink-2 font-medium">{title}</p>
         {Glyph && (

@@ -8,9 +8,11 @@ import { getToolingEnv } from "@/server/env";
 import { captureErrorText, openTestDatabases, queryAs, resetDatabase, type TestDatabases } from "@/server/db/testing";
 import { findLeaks } from "@/server/db/testing/leak-matrix";
 import { seedWorld, type SeedWorld } from "@/server/db/testing/seed";
+import { SETUP_TABLES as NEW_TABLES, SETUP_TENANT_GRANTS } from "@/server/db/testing/tenant-grants";
 import {
   creationPrivileges,
   definerFunctionsWithoutSearchPath,
+  AUDIT_EXEMPT_TABLES,
   fynixWritableTablesWithoutAdminTrigger,
   fynixWritableTablesWithoutAuditTrigger,
   grantsToPublic,
@@ -53,6 +55,12 @@ beforeEach(async () => {
 
 class Rollback extends Error {}
 
+/** The only table-level privileges a tenant role may hold, as "role.table". Each is DELETE alone: DELETE has no column form. Adding one is a review decision. */
+const DELETE_ONLY_TABLE_GRANTS: readonly string[] = ["leads_agency.campaign_share", "leads_client.exclusion_entry", "leads_client.host_block", "leads_client.host_hours"];
+
+/** Tenant-visible tables that Fynix writes but that are not set-up: they carry the audit trigger and no `fynix_admin_required` trigger, by design. */
+const NOT_SET_UP_TABLES: readonly string[] = ["lead", "lead_history", "meeting", "conversation", "conversation_message", "notification"];
+
 /** Runs `setup` and then `check` in one transaction that is always rolled back, so nothing is left behind. */
 async function findInBrokenState(handle: DatabaseHandle, setup: readonly string[], check: (executor: Executor) => Promise<string[]>): Promise<string[]> {
   let found: string[] = [];
@@ -77,8 +85,18 @@ describe("catalog checks hold on the migrated database", () => {
     expect(await viewsThatBypassRowLevelSecurity(dbs.owner.db)).toEqual([]);
   });
 
-  it("tenant roles hold no table-level privilege, only column grants", async () => {
-    expect(await tenantTableLevelGrants(dbs.owner.db)).toEqual([]);
+  it("tenant roles hold no table-level privilege, only column grants, apart from the DELETE-only grants listed here", async () => {
+    // DELETE has no column form, so these four tables carry a table-level DELETE (with a policy) and nothing else.
+    expect(await tenantTableLevelGrants(dbs.owner.db)).toEqual([...DELETE_ONLY_TABLE_GRANTS].sort());
+    for (const grant of DELETE_ONLY_TABLE_GRANTS) {
+      const [role, table] = grant.split(".");
+      for (const privilege of ["SELECT", "INSERT", "UPDATE", "TRUNCATE", "REFERENCES", "TRIGGER"]) {
+        const held = await dbs.owner.db.execute<{ held: boolean }>(sql.raw(`select has_table_privilege('${role}', 'public.${table}', '${privilege}') as held`));
+        expect(held.rows, `${grant} ${privilege}`).toEqual([{ held: false }]);
+      }
+      const deletes = await dbs.owner.db.execute<{ held: boolean }>(sql.raw(`select has_table_privilege('${role}', 'public.${table}', 'DELETE') as held`));
+      expect(deletes.rows, `${grant} DELETE`).toEqual([{ held: true }]);
+    }
   });
 
   it("nothing is granted to PUBLIC: no relation, no column, no function", async () => {
@@ -145,6 +163,10 @@ const EXPECTED_ACCESS: Readonly<Record<string, readonly RuntimeRoleName[]>> = {
   lead_history: ["leads_fynix", "leads_client", "leads_agency"],
   // Phase 3 meetings access:
   meeting: ["leads_fynix", "leads_client", "leads_agency"],
+  // Phase 4 and 5 messaging and notifications:
+  conversation: ["leads_fynix", "leads_client", "leads_agency"],
+  conversation_message: ["leads_fynix", "leads_client", "leads_agency"],
+  notification: ["leads_fynix", "leads_client", "leads_agency"],
 };
 /** The tables nobody but leads_auth touches. `user` is not one of them any more: Fynix reads four columns of it. */
 const AUTH_TABLES = ["session", "account", "verification"] as const;
@@ -162,8 +184,13 @@ describe("access matrix", () => {
     expect(await rolesWithAnyPrivilege(dbs.owner.db, table)).toEqual(["leads_auth"]);
   });
 
-  it("member: leads_auth may add a row (an invite was redeemed) and never change one, and Fynix may change only status and display_name", async () => {
-    expect(await rolesWithAnyPrivilege(dbs.owner.db, "member")).toEqual(["leads_auth", "leads_fynix"]);
+  it("member: leads_auth may add a row (an invite was redeemed) and never change one, Fynix may change only status and display_name, and tenant roles only read", async () => {
+    expect(await rolesWithAnyPrivilege(dbs.owner.db, "member")).toEqual(["leads_agency", "leads_auth", "leads_client", "leads_fynix"]);
+    for (const role of TENANT_ROLES) {
+      expect(await grantedColumns(dbs.owner.db, role, "member"), role).toEqual(["id", "user_id", "org_id", "org_kind", "role", "display_name", "status", "created_at"]);
+      const writes = await dbs.owner.db.execute<{ allowed: boolean }>(sql.raw(`select has_any_column_privilege('${role}', 'public.member', 'INSERT') or has_any_column_privilege('${role}', 'public.member', 'UPDATE') or has_table_privilege('${role}', 'public.member', 'DELETE') as allowed`));
+      expect(writes.rows, `${role} writes member`).toEqual([{ allowed: false }]);
+    }
     const column = async (role: string, privilege: string, name: string): Promise<boolean> =>
       (await dbs.owner.db.execute<{ allowed: boolean }>(sql.raw(`select has_column_privilege('${role}', 'public.member', '${name}', '${privilege}') as allowed`))).rows[0]?.allowed ?? false;
     expect(await column("leads_auth", "UPDATE", "org_id")).toBe(false);
@@ -235,7 +262,7 @@ describe("each catalog check finds a deliberately broken object", () => {
         "create table public.fine_grants (id int, secret int)",
         "grant select (id) on public.fine_grants to leads_client",
       ],
-      tenantTableLevelGrants,
+      async (executor) => (await tenantTableLevelGrants(executor)).filter((grant) => !DELETE_ONLY_TABLE_GRANTS.includes(grant)),
     );
     expect(found).toEqual(["leads_agency.broken_grants", "leads_client.broken_grants"]);
   });
@@ -304,7 +331,7 @@ describe("each catalog check finds a deliberately broken object", () => {
         "create table public.fine_admin_read_only (id int)",
         "grant select on public.fine_admin_read_only to leads_fynix",
       ],
-      (executor) => fynixWritableTablesWithoutAdminTrigger(executor, ["audit_log"]),
+      (executor) => fynixWritableTablesWithoutAdminTrigger(executor, ["audit_log", ...NOT_SET_UP_TABLES]),
     );
     expect(found).toEqual(["broken_no_admin", "broken_row_admin", "email_outbox"]);
   });
@@ -379,8 +406,9 @@ describe("the audit log", () => {
     expect(await fynixWritableTablesWithoutAuditTrigger(dbs.owner.db)).toEqual([]);
   });
 
-  it("every table Fynix can write has the fynix_admin_required trigger, apart from the audit log and the outbox", async () => {
-    expect(await fynixWritableTablesWithoutAdminTrigger(dbs.owner.db)).toEqual([]);
+  it("every set-up table Fynix can write has the fynix_admin_required trigger, apart from the audit log, the outbox and the work tables", async () => {
+    // The work tables (leads, meetings, messages, notifications) are written by Fynix staff in the course of the work, so they carry the audit trigger only.
+    expect(await fynixWritableTablesWithoutAdminTrigger(dbs.owner.db, [...AUDIT_EXEMPT_TABLES, ...NOT_SET_UP_TABLES])).toEqual([]);
   });
 
   it("holds no UPDATE, DELETE or TRUNCATE for any runtime role, and only Fynix may read or append", async () => {
@@ -458,16 +486,20 @@ describe("the audit log", () => {
 describe("tenant roles", () => {
   const scoped = (role: TenantRoleName) => ({ db: dbs.roles[role].db, scope: { orgId: role === "leads_client" ? world.kestrel.id : world.brightpath.id, userId: USER } });
 
-  it.each(TENANT_ROLES)("%s: `select *` fails on every table it holds a column grant on, whichever tables exist", async (role) => {
+  it.each(TENANT_ROLES)("%s: `select *` fails on every table it holds a column grant on but not every column, whichever tables exist", async (role) => {
     const { db, scope } = scoped(role);
-    const withGrants: string[] = [];
+    const partial: string[] = [];
     for (const table of await publicTables(dbs.owner.db)) {
-      if ((await grantedColumns(dbs.owner.db, role, table)).length === 0) continue;
-      withGrants.push(table);
+      const granted = await grantedColumns(dbs.owner.db, role, table);
+      if (granted.length === 0) continue;
+      const total = await dbs.owner.db.execute<{ n: number }>(sql`select count(*)::int as n from pg_attribute where attrelid = to_regclass(format('public.%I', ${table}::text)) and attnum > 0 and not attisdropped`);
+      // A role granted every column of a table may `select *` it: nothing is hidden from it.
+      if (granted.length === (total.rows[0]?.n ?? -1)) continue;
+      partial.push(table);
       const message = await captureErrorText(queryAs(db, scope, `select * from ${quoteIdentifier(table)}`));
-      expect(message).toContain(`permission denied for table ${table}`);
+      expect(message, table).toContain(`permission denied for table ${table}`);
     }
-    expect(withGrants).toEqual(["campaign", "organisation"]);
+    expect(partial).toEqual(expect.arrayContaining(["campaign", "organisation", "lead", "agreement"]));
   });
 
   it.each(TENANT_ROLES)("%s: a Drizzle select with no column list fails the same way", async (role) => {
@@ -490,18 +522,22 @@ describe("tenant roles", () => {
   });
 
   it.each(TENANT_ROLES)("%s: policies work although the role cannot read the column they compare", async (role) => {
-    const hiddenColumn = role === "leads_client" ? "client_org_id" : "agency_org_id";
+    // Since migrations 0037 and 0039 each tenant role reads the campaign parent columns its policies compare, so the proof moves to
+    // organisation.id: both organisation policies compare it and neither role may read it.
     const granted = await dbs.owner.db.execute<{ allowed: boolean }>(
-      sql.raw(`select has_column_privilege('${role}', 'public.campaign', '${hiddenColumn}', 'SELECT') as allowed`),
+      sql.raw(`select has_column_privilege('${role}', 'public.organisation', 'id', 'SELECT') as allowed`),
     );
     expect(granted.rows).toEqual([{ allowed: false }]);
     const { db, scope } = scoped(role);
+    expect(await queryAs(db, scope, "select public_ref from organisation order by public_ref")).toHaveLength(role === "leads_client" ? 1 : 1);
     expect(await queryAs(db, scope, "select public_ref from campaign order by public_ref")).toHaveLength(2);
   });
 });
 
 describe("every role", () => {
   const unscoped = (role: RuntimeRoleName) => dbs.roles[role].db;
+  /** Reads the database refuses with permission denied before any row is looked at, as "role.table". Listed so a new one is a review decision. */
+  const POLICY_BLOCKED_READS: readonly string[] = ["leads_agency.invite"];
 
   it.each(TENANT_ROLES)("%s: no scope set returns zero rows from every table it can read, although they hold rows", async (role) => {
     let seededRows = 0;
@@ -511,7 +547,13 @@ describe("every role", () => {
       const name = quoteIdentifier(table);
       const seeded = await dbs.owner.db.execute<{ n: number }>(sql.raw(`select count(*)::int as n from ${name}`));
       seededRows += seeded.rows[0]?.n ?? 0;
-      expect(await queryAs(unscoped(role), null, `select ${columns.map(quoteIdentifier).join(", ")} from ${name}`), table).toEqual([]);
+      const read = `select ${columns.map(quoteIdentifier).join(", ")} from ${name}`;
+      if (POLICY_BLOCKED_READS.includes(`${role}.${table}`)) {
+        // The invite policy of leads_agency subqueries organisation.id, which that role cannot read, so the statement is refused outright: still no rows.
+        expect(await captureErrorText(queryAs(unscoped(role), null, read)), `${role}.${table}`).toContain("permission denied for table organisation");
+        continue;
+      }
+      expect(await queryAs(unscoped(role), null, read), table).toEqual([]);
     }
     expect(seededRows).toBeGreaterThan(0);
   });
@@ -576,7 +618,8 @@ describe("denied writes", () => {
       "update campaign set name = 'changed'",
       "delete from campaign",
       "truncate campaign",
-      "update organisation set name = 'changed'",
+      // leads_agency may rename organisations its policy lets it see (UPDATE on name and status), so both roles are refused a column nobody changes.
+      "update organisation set kind = 'client'",
     ];
     for (const statement of statements) {
       const message = await captureErrorText(queryAs(db, scope, statement));
@@ -592,24 +635,38 @@ describe("denied writes", () => {
   });
 });
 
-describe("phase 1D: nothing new is visible to a tenant role", () => {
-  const NEW_TABLES = ["agreement", "agreement_acceptance", "campaign_share", "campaign_host", "host_hours", "host_block"] as const;
+describe("phase 1D: what a tenant role holds on the six set-up tables", () => {
+  const columnsWith = async (role: string, table: string, privilege: "SELECT" | "INSERT" | "UPDATE"): Promise<string[]> =>
+    (await dbs.owner.db.execute<{ name: string }>(sql`select a.attname::text as name from pg_attribute a
+      where a.attrelid = to_regclass(format('public.%I', ${table}::text)) and a.attnum > 0 and not a.attisdropped
+        and has_column_privilege(${role}::text, a.attrelid, a.attnum, ${privilege}) order by a.attnum`)).rows.map((row) => row.name);
+  const allColumns = async (table: string): Promise<string[]> =>
+    (await dbs.owner.db.execute<{ name: string }>(sql`select a.attname::text as name from pg_attribute a
+      where a.attrelid = to_regclass(format('public.%I', ${table}::text)) and a.attnum > 0 and not a.attisdropped order by a.attnum`)).rows.map((row) => row.name);
 
-  it.each(TENANT_ROLES)("%s holds no privilege of any kind on the six set-up tables", async (role) => {
+  it.each(TENANT_ROLES)("%s holds exactly the listed column grants on the six set-up tables, and nothing on the rest of them", async (role) => {
     for (const table of NEW_TABLES) {
-      expect(await grantedColumns(dbs.owner.db, role, table), `${role} reads ${table}`).toEqual([]);
-      const writes = await dbs.owner.db.execute<{ allowed: boolean }>(
-        sql.raw(`select has_any_column_privilege('${role}', 'public.${table}', 'INSERT') or has_any_column_privilege('${role}', 'public.${table}', 'UPDATE') or has_table_privilege('${role}', 'public.${table}', 'DELETE') as allowed`),
-      );
-      expect(writes.rows, `${role} writes ${table}`).toEqual([{ allowed: false }]);
+      const expected = SETUP_TENANT_GRANTS[role][table];
+      const columns = await allColumns(table);
+      const label = `${role} ${table}`;
+      if (expected === undefined) {
+        expect(await rolesWithAnyPrivilege(dbs.owner.db, table), label).not.toContain(role);
+        continue;
+      }
+      expect(await columnsWith(role, table, "SELECT"), `${label} reads`).toEqual(columns.filter((name) => !expected.unreadable.includes(name)));
+      expect(await columnsWith(role, table, "UPDATE"), `${label} updates`).toEqual(expected.update);
+      expect(await columnsWith(role, table, "INSERT"), `${label} inserts`).toEqual(expected.insertAll ? columns.filter((name) => !(expected.notInserted ?? []).includes(name)) : []);
+      const deletes = await dbs.owner.db.execute<{ allowed: boolean }>(sql.raw(`select has_table_privilege('${role}', 'public.${table}', 'DELETE') as allowed`));
+      expect(deletes.rows, `${label} deletes`).toEqual([{ allowed: expected.delete }]);
     }
   });
 
-  it.each(TENANT_ROLES)("%s still reads exactly the phase 1A columns of organisation and campaign: the parent and the settings are hidden", async (role) => {
-    expect(await grantedColumns(dbs.owner.db, role, "organisation")).toEqual(["public_ref", "kind", "name", "brand_name"]);
+  it.each(TENANT_ROLES)("%s reads the organisation and campaign columns listed here: the settings and the internal columns stay hidden", async (role) => {
+    expect(await grantedColumns(dbs.owner.db, role, "organisation")).toEqual(role === "leads_agency" ? ["public_ref", "kind", "name", "brand_name", "parent_org_id"] : ["public_ref", "kind", "name", "brand_name"]);
+    // client_org_id and agency_org_id are readable since migrations 0037 and 0039: the lead, meeting and message policies compare them.
     const campaignColumns = await grantedColumns(dbs.owner.db, role, "campaign");
-    expect(campaignColumns).toEqual(["id", "public_ref", "name", "client_brand_name", "status", "start_date", "end_date", "monthly_target", "total_target"]);
-    for (const hidden of ["time_zone", "meeting_minutes"]) expect(campaignColumns).not.toContain(hidden);
+    expect(campaignColumns).toEqual(["id", "public_ref", "name", "client_org_id", "agency_org_id", "client_brand_name", "status", "start_date", "end_date", "monthly_target", "total_target"]);
+    for (const hidden of ["time_zone", "meeting_minutes", "internal_notes", "instructions", "icp"]) expect(campaignColumns).not.toContain(hidden);
   });
 
   it("the Fynix role may write the new columns of organisation and campaign, which it holds table level grants on", async () => {
@@ -619,7 +676,10 @@ describe("phase 1D: nothing new is visible to a tenant role", () => {
     }
   });
 
-  it("every phase 1D table is in the access matrix with Fynix as its only role", () => {
-    for (const table of NEW_TABLES) expect(EXPECTED_ACCESS[table], table).toEqual(["leads_fynix"]);
+  it("every phase 1D table is in the access matrix with Fynix and exactly the tenant roles that hold a grant on it", () => {
+    for (const table of NEW_TABLES) {
+      const tenants = TENANT_ROLES.filter((role) => SETUP_TENANT_GRANTS[role][table] !== undefined);
+      expect(EXPECTED_ACCESS[table], table).toEqual(["leads_fynix", ...tenants]);
+    }
   });
 });

@@ -4,6 +4,7 @@ import { Check, CircleNotch, DownloadSimple, VideoCamera, WarningCircle, X } fro
 import { useActionState, useId, useState } from "react";
 import { generateIcsCalendar } from "@/lib/meetings/ics";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { NATIVE_FIELD } from "./field-classes";
 import {
   IDLE_TENANT_ACTION,
   recordMeetingOutcomeAction,
@@ -88,7 +89,7 @@ export function RecordMeetingOutcomeModal({
   }
 
   return (
-    <form action={formAction} className="flex flex-col gap-2 rounded border border-ink-4/20 p-3 bg-surface text-left">
+    <form action={formAction} className="flex flex-col gap-2 rounded  p-3 bg-surface text-left">
       <input type="hidden" name="meetingId" value={meetingId} />
       <input type="hidden" name="outcome" value={outcome} />
 
@@ -99,7 +100,7 @@ export function RecordMeetingOutcomeModal({
         id={selectId}
         value={outcome}
         onChange={(e) => setOutcome(e.target.value as "held" | "client_no_show" | "prospect_no_show")}
-        className="rounded border border-ink-4/30 px-2 py-1 text-sm bg-canvas focus:outline-none focus:ring-1 focus:ring-primary"
+        className={NATIVE_FIELD}
       >
         <option value="held">Held (Meeting completed successfully)</option>
         <option value="client_no_show">Client No-Show</option>
@@ -116,7 +117,7 @@ export function RecordMeetingOutcomeModal({
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
         placeholder="Add context or notes"
-        className="rounded border border-ink-4/30 px-2 py-1 text-sm bg-canvas focus:outline-none focus:ring-1 focus:ring-primary"
+        className={NATIVE_FIELD}
       />
 
       <div className="flex items-center gap-2 mt-1">

@@ -260,6 +260,90 @@
       "when": 1794683400000,
       "tag": "0036_messaging_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1794683500000,
+      "tag": "0037_campaign_policy_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1794683600000,
+      "tag": "0038_tenant_insert_grants",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1794683700000,
+      "tag": "0039_tenant_policy_helpers",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1794683800000,
+      "tag": "0040_conversation_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1794683900000,
+      "tag": "0041_conversation_touch",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1794684000000,
+      "tag": "0042_lead_submission_checks",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1794684100000,
+      "tag": "0043_partner_agency_list",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1794684200000,
+      "tag": "0044_alias_verification",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1794684300000,
+      "tag": "0045_email_template_alias_code",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1794684400000,
+      "tag": "0046_alias_code_mail",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1794684700000,
+      "tag": "0047_org_is_partner",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1794684800000,
+      "tag": "0048_tenant_insert_columns",
+      "breakpoints": true
     }
   ]
 }

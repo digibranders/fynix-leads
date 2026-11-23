@@ -30,9 +30,9 @@ export default async function ClientLeadsPage() {
           </EmptyState>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg bg-surface shadow-raised border border-ink-4/10">
+        <div className="overflow-hidden rounded-lg bg-surface shadow-raised ">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-ink-4/10 bg-canvas text-xs uppercase tracking-wider text-ink-2">
+            <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wider text-ink-2">
               <tr>
                 <th className="px-4 py-3">Reference</th>
                 <th className="px-4 py-3">Prospect</th>
@@ -43,7 +43,7 @@ export default async function ClientLeadsPage() {
                 <th className="px-4 py-3 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-ink-4/10">
+            <tbody className="divide-y divide-line">
               {leads.map((leadItem) => {
                 const isDisputed = leadItem.stage === "disputed";
 

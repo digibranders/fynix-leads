@@ -12,7 +12,7 @@ CREATE POLICY "member_agency_own" ON "member" AS PERMISSIVE FOR SELECT TO leads_
 --> statement-breakpoint
 
 -- 2. agreement: client reads its client agreements, agency reads its supplier agreements
-GRANT SELECT ("id", "public_ref", "campaign_id", "party", "monthly_target", "total_target", "dispute_window_hours", "rules", "version", "status", "created_at") ON "agreement" TO leads_client, leads_agency;
+GRANT SELECT ("id", "campaign_id", "party", "monthly_target", "total_target", "dispute_window_hours", "rules", "version", "status", "created_at") ON "agreement" TO leads_client, leads_agency;
 --> statement-breakpoint
 CREATE POLICY "agreement_client_own" ON "agreement" AS PERMISSIVE FOR SELECT TO leads_client
   USING (
@@ -35,9 +35,9 @@ CREATE POLICY "agreement_agency_own" ON "agreement" AS PERMISSIVE FOR SELECT TO 
 --> statement-breakpoint
 
 -- 3. agreement_acceptance: tenant managers accept current agreements
-GRANT SELECT ("id", "agreement_id", "accepted_by_user_id", "accepted_at") ON "agreement_acceptance" TO leads_client, leads_agency;
+GRANT SELECT ("id", "agreement_id", "user_id", "accepted_at") ON "agreement_acceptance" TO leads_client, leads_agency;
 --> statement-breakpoint
-GRANT INSERT ("agreement_id", "accepted_by_user_id", "network_address") ON "agreement_acceptance" TO leads_client, leads_agency;
+GRANT INSERT ("agreement_id", "user_id", "network_address") ON "agreement_acceptance" TO leads_client, leads_agency;
 --> statement-breakpoint
 CREATE POLICY "agreement_acceptance_client_own" ON "agreement_acceptance" AS PERMISSIVE FOR ALL TO leads_client
   USING (
@@ -50,7 +50,7 @@ CREATE POLICY "agreement_acceptance_client_own" ON "agreement_acceptance" AS PER
     )
   )
   WITH CHECK (
-    "accepted_by_user_id" = public.app_current_user_id() AND
+    "user_id" = public.app_current_user_id() AND
     EXISTS (
       SELECT 1 FROM public.agreement a
       JOIN public.campaign c ON c.id = a.campaign_id
@@ -76,7 +76,7 @@ CREATE POLICY "agreement_acceptance_agency_own" ON "agreement_acceptance" AS PER
     )
   )
   WITH CHECK (
-    "accepted_by_user_id" = public.app_current_user_id() AND
+    "user_id" = public.app_current_user_id() AND
     EXISTS (
       SELECT 1 FROM public.agreement a
       JOIN public.campaign c ON c.id = a.campaign_id
@@ -219,9 +219,9 @@ CREATE POLICY "organisation_supplier_manage_partners" ON "organisation" AS PERMI
     )
   );
 --> statement-breakpoint
-GRANT SELECT ("id", "public_ref", "org_id", "email", "role", "expires_at", "redeemed_at", "revoked_at", "created_at") ON "invite" TO leads_agency;
+GRANT SELECT ("id", "org_id", "email", "role", "expires_at", "redeemed_at", "revoked_at", "created_at") ON "invite" TO leads_agency;
 --> statement-breakpoint
-GRANT INSERT ("public_ref", "org_id", "email", "role", "token_hash", "expires_at", "created_by_user_id") ON "invite" TO leads_agency;
+GRANT INSERT ("org_id", "email", "role", "token_hash", "expires_at", "created_by") ON "invite" TO leads_agency;
 --> statement-breakpoint
 GRANT UPDATE ("revoked_at") ON "invite" TO leads_agency;
 --> statement-breakpoint

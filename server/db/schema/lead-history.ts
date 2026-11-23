@@ -12,7 +12,7 @@ export const leadHistory = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     leadId: uuid("lead_id").notNull(),
-    actorUserId: text("actor_user_id").notNull(),
+    actorUserId: uuid("actor_user_id").notNull(),
     actorRole: text("actor_role").notNull(),
     action: text("action").notNull(),
     fromStage: text("from_stage"),

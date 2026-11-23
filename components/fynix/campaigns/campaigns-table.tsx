@@ -39,7 +39,7 @@ export function CampaignsTable({ rows }: { rows: readonly CampaignRow[] }) {
           {rows.map((row) => (
             <TableRow key={row.id} className="relative">
               <TableCell className="font-mono text-[12.5px] max-md:hidden">{row.publicRef}</TableCell>
-              <TableCell className="max-w-[320px] max-md:h-[68px] md:h-[50px]">
+              <TableCell className="max-w-[320px] max-md:h-[68px] max-md:w-full max-md:max-w-0 md:h-[50px]">
                 <Link href={`/fynix/campaigns/${row.publicRef}`} className="block truncate rounded-xs text-row font-semibold after:absolute after:inset-0 after:content-['']">
                   {row.name}
                 </Link>

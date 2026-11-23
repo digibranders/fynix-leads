@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { generateVerificationCode, hashVerificationCode } from "@/lib/domain/alias-code";
 import type { Database } from "@/server/db/pool";
 import { aliasIdentity, member } from "@/server/db/schema";
@@ -29,9 +29,7 @@ export interface AliasIdentityRecord {
   readonly createdAt: Date;
 }
 
-export interface CreatedAliasIdentity extends AliasIdentityRecord {
-  readonly verificationCode: string;
-}
+export type CreatedAliasIdentity = AliasIdentityRecord;
 
 export const aliasIdentityColumns = {
   id: aliasIdentity.id,
@@ -98,6 +96,9 @@ export async function createAliasIdentity(
 
       if (created === undefined) throw new Error("Insert of alias_identity returned no row");
 
+      // The code goes to the alias mailbox only (migration 0046); it is never handed back to the person who is verifying.
+      await tx.execute(sql`select public.app_queue_alias_code_mail(${created.publicRef}, ${code})`);
+
       return {
         id: created.id,
         publicRef: created.publicRef,
@@ -109,7 +110,6 @@ export async function createAliasIdentity(
         verifiedAt: created.verifiedAt,
         status: created.status,
         createdAt: created.createdAt,
-        verificationCode: code,
       };
     } catch (error) {
       if (isUniqueViolation(error, "alias_identity_member_brand_email_unique")) {
@@ -135,72 +135,31 @@ export async function verifyAliasCode(
   const parsed = parseInput(verifyAliasCodeSchema, input);
 
   return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
-    const [row] = await tx
-      .select({
-        id: aliasIdentity.id,
-        publicRef: aliasIdentity.publicRef,
-        memberId: aliasIdentity.memberId,
-        clientBrandName: aliasIdentity.clientBrandName,
-        displayName: aliasIdentity.displayName,
-        jobTitle: aliasIdentity.jobTitle,
-        aliasEmail: aliasIdentity.aliasEmail,
-        verificationCodeHash: aliasIdentity.verificationCodeHash,
-        verifiedAt: aliasIdentity.verifiedAt,
-        status: aliasIdentity.status,
-        createdAt: aliasIdentity.createdAt,
-      })
-      .from(aliasIdentity)
-      .where(eq(aliasIdentity.publicRef, parsed.publicRef))
-      .limit(1);
-
-    if (row === undefined) {
+    // The code is checked inside the database (migration 0044): the hash is not readable to this role.
+    const result = await tx.execute<{ outcome: string }>(
+      sql`select public.app_verify_alias_code(${parsed.publicRef}, ${hashVerificationCode(parsed.code)}) as outcome`,
+    );
+    const outcome = result.rows[0]?.outcome;
+    if (outcome === "missing" || outcome === undefined) {
       throw new DomainError("not-found", "There is no such alias identity.");
     }
-
-    if (row.verifiedAt !== null) {
-      return {
-        id: row.id,
-        publicRef: row.publicRef,
-        memberId: row.memberId,
-        clientBrandName: row.clientBrandName,
-        displayName: row.displayName,
-        jobTitle: row.jobTitle,
-        aliasEmail: row.aliasEmail,
-        verifiedAt: row.verifiedAt,
-        status: row.status,
-        createdAt: row.createdAt,
-      };
-    }
-
-    const hashedInput = hashVerificationCode(parsed.code);
-    if (row.verificationCodeHash !== hashedInput) {
+    if (outcome === "wrong") {
       throw new DomainError("invalid-code", "The verification code is incorrect.");
     }
 
-    const now = deps.now();
-    const [updated] = await tx
-      .update(aliasIdentity)
-      .set({
-        verifiedAt: now,
-        verificationCodeHash: null,
-        updatedAt: now,
-      })
-      .where(eq(aliasIdentity.id, row.id))
-      .returning(aliasIdentityColumns);
-
-    if (updated === undefined) throw new Error("Update of alias_identity returned no row");
-
+    const [row] = await tx.select(aliasIdentityColumns).from(aliasIdentity).where(eq(aliasIdentity.publicRef, parsed.publicRef)).limit(1);
+    if (row === undefined) throw new Error("The alias identity vanished after it was verified");
     return {
-      id: updated.id,
-      publicRef: updated.publicRef,
-      memberId: updated.memberId,
-      clientBrandName: updated.clientBrandName,
-      displayName: updated.displayName,
-      jobTitle: updated.jobTitle,
-      aliasEmail: updated.aliasEmail,
-      verifiedAt: updated.verifiedAt,
-      status: updated.status,
-      createdAt: updated.createdAt,
+      id: row.id,
+      publicRef: row.publicRef,
+      memberId: row.memberId,
+      clientBrandName: row.clientBrandName,
+      displayName: row.displayName,
+      jobTitle: row.jobTitle,
+      aliasEmail: row.aliasEmail,
+      verifiedAt: row.verifiedAt,
+      status: row.status,
+      createdAt: row.createdAt,
     };
   });
 }

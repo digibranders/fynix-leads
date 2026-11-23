@@ -4,6 +4,8 @@ import { agreement, agreementAcceptance, campaignHost, campaignShare, hostBlock,
 import { withScope } from "@/server/db/scope";
 import { captureErrorText, openTestDatabases, resetDatabase, type TestDatabases } from "@/server/db/testing";
 import { seedWorld, type SeedWorld } from "@/server/db/testing/seed";
+import { SETUP_TENANT_GRANTS, type SetupTable } from "@/server/db/testing/tenant-grants";
+import { TENANT_ROLES } from "@/server/db/roles";
 
 /**
  * The phase 1D tables as the database enforces them: who may touch each, which columns Fynix may change, the checks, the
@@ -48,6 +50,22 @@ async function updatableColumns(role: string, table: string): Promise<string[]> 
   return result.rows.map((row) => row.name);
 }
 
+/**
+ * What the two tenant roles and the two roles that never touch set-up hold on a table. Tenant grants come from the shared spec
+ * (testing/tenant-grants.ts): their table-level privileges are the DELETE some hold, and their UPDATE columns are the listed ones.
+ */
+async function expectOthersHold(table: SetupTable): Promise<void> {
+  for (const role of TENANT_ROLES) {
+    const grant = SETUP_TENANT_GRANTS[role][table];
+    expect(await tablePrivileges(role, table), `${role} table level`).toEqual(grant?.delete === true ? ["DELETE"] : []);
+    expect(await updatableColumns(role, table), `${role} update columns`).toEqual(grant?.update ?? []);
+  }
+  for (const role of ["leads_auth", "leads_public"]) {
+    expect(await tablePrivileges(role, table), role).toEqual([]);
+    expect(await updatableColumns(role, table), role).toEqual([]);
+  }
+}
+
 function firstOf<T>(rows: readonly T[], what: string): T {
   const row = rows[0];
   if (row === undefined) throw new Error(`No ${what} in the seed world`);
@@ -69,13 +87,10 @@ async function newAgreement(overrides: Partial<typeof agreement.$inferInsert> = 
 }
 
 describe("agreement", () => {
-  it("is Fynix only: Fynix reads and inserts, and may change the status and nothing else; no other role holds anything", async () => {
+  it("Fynix reads and inserts, and may change the status and nothing else; the other roles hold what the shared tenant grant spec lists", async () => {
     expect(await tablePrivileges("leads_fynix", "agreement")).toEqual(["INSERT", "SELECT"]);
     expect(await updatableColumns("leads_fynix", "agreement")).toEqual(["status"]);
-    for (const role of ["leads_client", "leads_agency", "leads_auth", "leads_public"]) {
-      expect(await tablePrivileges(role, "agreement"), role).toEqual([]);
-      expect(await updatableColumns(role, "agreement"), role).toEqual([]);
-    }
+    await expectOthersHold("agreement");
   });
 
   it("holds one row per campaign, party and version, and one current version per campaign and party", async () => {
@@ -130,13 +145,10 @@ describe("agreement", () => {
 });
 
 describe("agreement_acceptance", () => {
-  it("lets Fynix read and add, and nothing else: an acceptance is never changed or removed; no other role holds anything", async () => {
+  it("lets Fynix read and add, and nothing else: an acceptance is never changed or removed; the other roles hold what the shared tenant grant spec lists", async () => {
     expect(await tablePrivileges("leads_fynix", "agreement_acceptance")).toEqual(["INSERT", "SELECT"]);
     expect(await updatableColumns("leads_fynix", "agreement_acceptance")).toEqual([]);
-    for (const role of ["leads_client", "leads_agency", "leads_auth", "leads_public"]) {
-      expect(await tablePrivileges(role, "agreement_acceptance"), role).toEqual([]);
-      expect(await updatableColumns(role, "agreement_acceptance"), role).toEqual([]);
-    }
+    await expectOthersHold("agreement_acceptance");
   });
 
   it("holds one acceptance per agreement and user, and each must name a real agreement and user", async () => {
@@ -162,13 +174,10 @@ async function newShare(agencyOrgId: string, monthlyShare = 5): Promise<string> 
 }
 
 describe("campaign_share", () => {
-  it("is Fynix only: Fynix reads, adds and removes shares and may change the amount; no other role holds anything", async () => {
+  it("Fynix reads, adds and removes shares and may change the amount; the other roles hold what the shared tenant grant spec lists", async () => {
     expect(await tablePrivileges("leads_fynix", "campaign_share")).toEqual(["DELETE", "INSERT", "SELECT"]);
     expect(await updatableColumns("leads_fynix", "campaign_share")).toEqual(["monthly_share", "updated_at"]);
-    for (const role of ["leads_client", "leads_agency", "leads_auth", "leads_public"]) {
-      expect(await tablePrivileges(role, "campaign_share"), role).toEqual([]);
-      expect(await updatableColumns(role, "campaign_share"), role).toEqual([]);
-    }
+    await expectOthersHold("campaign_share");
   });
 
   it("accepts the campaign's supplier and a partner agency of that supplier", async () => {
@@ -215,13 +224,10 @@ async function newHost(overrides: Partial<typeof campaignHost.$inferInsert> = {}
 }
 
 describe("campaign_host", () => {
-  it("is Fynix only: Fynix reads and adds hosts and may change the title and the active flag, never remove one; no other role holds anything", async () => {
+  it("Fynix reads and adds hosts and may change the title and the active flag, never remove one; the other roles hold what the shared tenant grant spec lists", async () => {
     expect(await tablePrivileges("leads_fynix", "campaign_host")).toEqual(["INSERT", "SELECT"]);
     expect(await updatableColumns("leads_fynix", "campaign_host")).toEqual(["job_title", "active"]);
-    for (const role of ["leads_client", "leads_agency", "leads_auth", "leads_public"]) {
-      expect(await tablePrivileges(role, "campaign_host"), role).toEqual([]);
-      expect(await updatableColumns(role, "campaign_host"), role).toEqual([]);
-    }
+    await expectOthersHold("campaign_host");
   });
 
   it("accepts a member of the campaign's client, active by default", async () => {
@@ -256,13 +262,10 @@ async function newHours(overrides: Partial<typeof hostHours.$inferInsert> = {}):
 }
 
 describe("host_hours", () => {
-  it("is Fynix only: Fynix reads, adds and removes rows and changes none; no other role holds anything", async () => {
+  it("Fynix reads, adds and removes rows and changes none; the other roles hold what the shared tenant grant spec lists", async () => {
     expect(await tablePrivileges("leads_fynix", "host_hours")).toEqual(["DELETE", "INSERT", "SELECT"]);
     expect(await updatableColumns("leads_fynix", "host_hours")).toEqual([]);
-    for (const role of ["leads_client", "leads_agency", "leads_auth", "leads_public"]) {
-      expect(await tablePrivileges(role, "host_hours"), role).toEqual([]);
-      expect(await updatableColumns(role, "host_hours"), role).toEqual([]);
-    }
+    await expectOthersHold("host_hours");
   });
 
   it("belongs to a client member, never to an agency member or to Fynix", async () => {
@@ -310,13 +313,10 @@ describe("host_block", () => {
     return firstOf(rows, "block").id;
   };
 
-  it("is Fynix only: Fynix reads, adds and removes rows and changes none; no other role holds anything", async () => {
+  it("Fynix reads, adds and removes rows and changes none; the other roles hold what the shared tenant grant spec lists", async () => {
     expect(await tablePrivileges("leads_fynix", "host_block")).toEqual(["DELETE", "INSERT", "SELECT"]);
     expect(await updatableColumns("leads_fynix", "host_block")).toEqual([]);
-    for (const role of ["leads_client", "leads_agency", "leads_auth", "leads_public"]) {
-      expect(await tablePrivileges(role, "host_block"), role).toEqual([]);
-      expect(await updatableColumns(role, "host_block"), role).toEqual([]);
-    }
+    await expectOthersHold("host_block");
   });
 
   it("belongs to a client member, and overlapping blocks are allowed", async () => {

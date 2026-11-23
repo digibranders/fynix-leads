@@ -34,9 +34,9 @@ export default async function ClientMeetingsPage() {
           </EmptyState>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg bg-surface shadow-raised border border-ink-4/10">
+        <div className="overflow-hidden rounded-lg bg-surface shadow-raised ">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-ink-4/10 bg-canvas text-xs uppercase tracking-wider text-ink-2">
+            <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wider text-ink-2">
               <tr>
                 <th className="px-4 py-3">Reference</th>
                 <th className="px-4 py-3">Prospect</th>
@@ -47,7 +47,7 @@ export default async function ClientMeetingsPage() {
                 <th className="px-4 py-3 text-right">Outcome</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-ink-4/10">
+            <tbody className="divide-y divide-line">
               {meetings.map((item) => {
                 const meetingDate = new Date(item.scheduledStartTime);
                 const hasPassed = meetingDate <= now;
@@ -92,7 +92,7 @@ export default async function ClientMeetingsPage() {
                       {isScheduled && hasPassed && view.canWrite ? (
                         <RecordMeetingOutcomeModal meetingId={item.id} />
                       ) : isScheduled ? (
-                        <span className="text-xs text-ink-3">Awaiting call</span>
+                        <span className="text-xs text-ink-muted">Awaiting call</span>
                       ) : (
                         <span className="text-xs font-medium text-ink-2">
                           {item.notes ? item.notes : "Outcome recorded"}

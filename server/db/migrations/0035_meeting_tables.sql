@@ -14,7 +14,7 @@ CREATE TABLE "meeting" (
   "notes" text,
   "held_at" timestamp with time zone,
   "recorded_at" timestamp with time zone,
-  "recorded_by_user_id" text,
+  "recorded_by_user_id" uuid,
   "created_at" timestamp with time zone DEFAULT now() NOT NULL,
   "updated_at" timestamp with time zone DEFAULT now() NOT NULL,
   CONSTRAINT "meeting_public_ref_unique" UNIQUE ("public_ref"),

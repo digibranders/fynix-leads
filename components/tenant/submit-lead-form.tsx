@@ -4,6 +4,7 @@ import { CircleNotch, PaperPlaneRight, Plus, Trash, WarningCircle } from "@phosp
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { IDLE_TENANT_ACTION, submitLeadAction } from "@/server/domain/lead-actions";
+import { NATIVE_FIELD, NATIVE_TEXTAREA } from "./field-classes";
 
 export interface CampaignOption {
   readonly id: string;
@@ -78,7 +79,7 @@ export function SubmitLeadForm({ campaigns, aliases, hosts }: Props) {
               id="lead-campaign"
               name="campaignId"
               required
-              className="mt-1 w-full rounded border border-ink-4/30 bg-canvas px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              className={NATIVE_FIELD}
             >
               <option value="">Select campaign</option>
               {campaigns.map((c) => (
@@ -97,7 +98,7 @@ export function SubmitLeadForm({ campaigns, aliases, hosts }: Props) {
               id="lead-alias"
               name="aliasIdentityId"
               required
-              className="mt-1 w-full rounded border border-ink-4/30 bg-canvas px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              className={NATIVE_FIELD}
             >
               <option value="">Select verified alias</option>
               {aliases.map((a) => (
@@ -116,7 +117,7 @@ export function SubmitLeadForm({ campaigns, aliases, hosts }: Props) {
               id="lead-host"
               name="hostMemberId"
               required
-              className="mt-1 w-full rounded border border-ink-4/30 bg-canvas px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              className={NATIVE_FIELD}
             >
               <option value="">Select host</option>
               {hosts.map((h) => (
@@ -141,7 +142,7 @@ export function SubmitLeadForm({ campaigns, aliases, hosts }: Props) {
               name="prospectName"
               type="text"
               required
-              className="mt-1 w-full rounded border border-ink-4/30 bg-canvas px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              className={NATIVE_FIELD}
             />
           </div>
 
@@ -154,7 +155,7 @@ export function SubmitLeadForm({ campaigns, aliases, hosts }: Props) {
               name="prospectTitle"
               type="text"
               required
-              className="mt-1 w-full rounded border border-ink-4/30 bg-canvas px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              className={NATIVE_FIELD}
             />
           </div>
 
@@ -167,7 +168,7 @@ export function SubmitLeadForm({ campaigns, aliases, hosts }: Props) {
               name="prospectCompany"
               type="text"
               required
-              className="mt-1 w-full rounded border border-ink-4/30 bg-canvas px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              className={NATIVE_FIELD}
             />
           </div>
 
@@ -181,7 +182,7 @@ export function SubmitLeadForm({ campaigns, aliases, hosts }: Props) {
               type="text"
               required
               placeholder="example.com"
-              className="mt-1 w-full rounded border border-ink-4/30 bg-canvas px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              className={NATIVE_FIELD}
             />
           </div>
 
@@ -194,7 +195,7 @@ export function SubmitLeadForm({ campaigns, aliases, hosts }: Props) {
               name="prospectEmail"
               type="email"
               required
-              className="mt-1 w-full rounded border border-ink-4/30 bg-canvas px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              className={NATIVE_FIELD}
             />
           </div>
 
@@ -206,7 +207,7 @@ export function SubmitLeadForm({ campaigns, aliases, hosts }: Props) {
               id="prospect-phone"
               name="prospectPhone"
               type="tel"
-              className="mt-1 w-full rounded border border-ink-4/30 bg-canvas px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              className={NATIVE_FIELD}
             />
           </div>
 
@@ -220,7 +221,7 @@ export function SubmitLeadForm({ campaigns, aliases, hosts }: Props) {
               type="url"
               required
               placeholder="https://linkedin.com/in/prospect"
-              className="mt-1 w-full rounded border border-ink-4/30 bg-canvas px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              className={NATIVE_FIELD}
             />
           </div>
 
@@ -232,7 +233,7 @@ export function SubmitLeadForm({ campaigns, aliases, hosts }: Props) {
               id="prospect-notes"
               name="prospectNotes"
               rows={2}
-              className="mt-1 w-full rounded border border-ink-4/30 bg-canvas px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              className={NATIVE_TEXTAREA}
             />
           </div>
         </div>
@@ -251,7 +252,7 @@ export function SubmitLeadForm({ campaigns, aliases, hosts }: Props) {
               type="text"
               required
               placeholder="Confirmed budget or spend bracket"
-              className="mt-1 w-full rounded border border-ink-4/30 bg-canvas px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              className={NATIVE_FIELD}
             />
           </div>
 
@@ -265,7 +266,7 @@ export function SubmitLeadForm({ campaigns, aliases, hosts }: Props) {
               type="text"
               required
               placeholder="Role in procurement or signing authority"
-              className="mt-1 w-full rounded border border-ink-4/30 bg-canvas px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              className={NATIVE_FIELD}
             />
           </div>
 
@@ -279,7 +280,7 @@ export function SubmitLeadForm({ campaigns, aliases, hosts }: Props) {
               type="text"
               required
               placeholder="Pain point or active evaluation"
-              className="mt-1 w-full rounded border border-ink-4/30 bg-canvas px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              className={NATIVE_FIELD}
             />
           </div>
 
@@ -293,7 +294,7 @@ export function SubmitLeadForm({ campaigns, aliases, hosts }: Props) {
               type="text"
               required
               placeholder="e.g. Q1 rollout, starting next month"
-              className="mt-1 w-full rounded border border-ink-4/30 bg-canvas px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              className={NATIVE_FIELD}
             />
           </div>
         </div>
@@ -318,7 +319,7 @@ export function SubmitLeadForm({ campaigns, aliases, hosts }: Props) {
                 required
                 value={time}
                 onChange={(e) => updateTimeSlot(idx, e.target.value)}
-                className="w-full rounded border border-ink-4/30 bg-canvas px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                className={NATIVE_FIELD}
               />
               {/* Hidden input converts local time to ISO with Z for the server schema */}
               <input

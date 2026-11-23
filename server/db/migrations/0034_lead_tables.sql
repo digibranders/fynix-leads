@@ -6,7 +6,7 @@ CREATE TABLE "lead" (
   "public_ref" text NOT NULL,
   "campaign_id" uuid NOT NULL,
   "source_org_id" uuid NOT NULL,
-  "submitted_by_user_id" text NOT NULL,
+  "submitted_by_user_id" uuid NOT NULL,
   "alias_identity_id" uuid NOT NULL,
   "host_member_id" uuid NOT NULL,
   "prospect_name" text NOT NULL,
@@ -57,7 +57,7 @@ CREATE INDEX "lead_prospect_email_idx" ON "lead" USING btree ("campaign_id", "pr
 CREATE TABLE "lead_history" (
   "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
   "lead_id" uuid NOT NULL,
-  "actor_user_id" text NOT NULL,
+  "actor_user_id" uuid NOT NULL,
   "actor_role" text NOT NULL,
   "action" text NOT NULL,
   "from_stage" text,

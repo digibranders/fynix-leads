@@ -4,7 +4,7 @@ import { auditLog, member, organisation } from "@/server/db/schema";
 import { withScope } from "@/server/db/scope";
 import { captureErrorText, openTestDatabases, resetDatabase, type TestDatabases } from "@/server/db/testing";
 import { seedWorld, type SeedWorld } from "@/server/db/testing/seed";
-import { fynixWritableTables, fynixWritableTablesWithoutAdminTrigger, quoteIdentifier } from "@/server/db/testing/structure";
+import { AUDIT_EXEMPT_TABLES, fynixWritableTables, fynixWritableTablesWithoutAdminTrigger, quoteIdentifier } from "@/server/db/testing/structure";
 
 /**
  * The database side of the Fynix admin rule (migration 0029): a change to a table Fynix writes, made as `leads_fynix` by anyone
@@ -46,11 +46,18 @@ async function createAs(userId: string): Promise<void> {
 }
 const organisationCount = async (): Promise<number> => (await dbs.owner.db.select({ id: organisation.id }).from(organisation)).length;
 
+/**
+ * Tables Fynix writes that are not set-up: they carry the audit trigger but deliberately no fynix_admin_required trigger, so staff may
+ * write them at the database level. The domain layer (fynixWrite) is what keeps staff out of lead, meeting, message and notification
+ * changes that only an admin may make; the database does not.
+ */
+const NOT_SET_UP_TABLES: readonly string[] = ["lead", "lead_history", "meeting", "conversation", "conversation_message", "notification"];
+
 // The table list comes from the catalog when the file loads, so a table added later is covered without anyone listing it.
 const writableTables = await (async () => {
   const handles = openTestDatabases();
   try {
-    return await fynixWritableTables(handles.owner.db);
+    return await fynixWritableTables(handles.owner.db, [...AUDIT_EXEMPT_TABLES, ...NOT_SET_UP_TABLES]);
   } finally {
     await handles.closeAll();
   }
@@ -108,7 +115,7 @@ describe("the Fynix admin trigger", () => {
     expect(await captureErrorText(createAs("99999999-9999-4999-8999-999999999999"))).toContain(REFUSED);
   });
 
-  it("is on every table Fynix can write, apart from the audit log and the outbox", async () => {
-    expect(await fynixWritableTablesWithoutAdminTrigger(dbs.owner.db)).toEqual([]);
+  it("is on every set-up table Fynix can write, apart from the audit log, the outbox and the work tables", async () => {
+    expect(await fynixWritableTablesWithoutAdminTrigger(dbs.owner.db, [...AUDIT_EXEMPT_TABLES, ...NOT_SET_UP_TABLES])).toEqual([]);
   });
 });

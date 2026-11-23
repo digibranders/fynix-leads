@@ -3,6 +3,7 @@
 import { Check, CircleNotch, WarningCircle, X } from "@phosphor-icons/react";
 import { useActionState, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { NATIVE_FIELD, NATIVE_TEXTAREA } from "./field-classes";
 import {
   clientReviewLeadAction,
   disputeLeadAction,
@@ -65,7 +66,7 @@ export function DeclineLeadForm({ leadId }: { readonly leadId: string }) {
   }
 
   return (
-    <form action={formAction} className="flex flex-col gap-2 rounded border border-ink-4/20 p-3 bg-surface">
+    <form action={formAction} className="flex flex-col gap-2 rounded  p-3 bg-surface">
       <input type="hidden" name="leadId" value={leadId} />
       <input type="hidden" name="action" value="decline" />
       <label htmlFor={`decline-reason-${leadId}`} className="text-xs font-semibold text-ink-2">
@@ -79,7 +80,7 @@ export function DeclineLeadForm({ leadId }: { readonly leadId: string }) {
         value={reason}
         onChange={(e) => setReason(e.target.value)}
         placeholder="e.g. Budget does not meet requirement"
-        className="rounded border border-ink-4/30 px-2 py-1 text-sm bg-canvas focus:outline-none focus:ring-1 focus:ring-primary"
+        className={NATIVE_FIELD}
       />
       <div className="flex items-center gap-2 mt-1">
         <Button
@@ -120,7 +121,7 @@ export function DisputeLeadForm({ leadId }: { readonly leadId: string }) {
   }
 
   return (
-    <form action={formAction} className="flex flex-col gap-2 rounded border border-ink-4/20 p-3 bg-surface">
+    <form action={formAction} className="flex flex-col gap-2 rounded  p-3 bg-surface">
       <input type="hidden" name="leadId" value={leadId} />
       <label htmlFor={`dispute-reason-${leadId}`} className="text-xs font-semibold text-ink-2">
         Reason for dispute (48-hour window)
@@ -133,7 +134,7 @@ export function DisputeLeadForm({ leadId }: { readonly leadId: string }) {
         value={reason}
         onChange={(e) => setReason(e.target.value)}
         placeholder="Explain why this lead does not meet agreed BANT criteria or meeting requirements."
-        className="rounded border border-ink-4/30 p-2 text-sm bg-canvas focus:outline-none focus:ring-1 focus:ring-primary"
+        className={NATIVE_TEXTAREA}
       />
       <div className="flex items-center gap-2 mt-1">
         <Button

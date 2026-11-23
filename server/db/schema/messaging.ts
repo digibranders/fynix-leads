@@ -102,7 +102,7 @@ export const conversationMessage = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     conversationId: uuid("conversation_id").notNull(),
-    senderUserId: text("sender_user_id").notNull(),
+    senderUserId: uuid("sender_user_id").notNull(),
     senderOrgId: uuid("sender_org_id"),
     senderRole: text("sender_role").notNull(),
     senderName: text("sender_name").notNull(),
@@ -148,7 +148,7 @@ export const notification = pgTable(
   "notification",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: text("user_id").notNull(),
+    userId: uuid("user_id").notNull(),
     orgId: uuid("org_id"),
     kind: text("kind").notNull(),
     title: text("title").notNull(),

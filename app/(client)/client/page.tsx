@@ -81,8 +81,8 @@ export default async function ClientOverviewPage() {
         />
       </TenantKpiGrid>
 
-      <div className="rounded-lg bg-surface p-6 shadow-raised border border-ink-4/10">
-        <div className="flex items-center justify-between pb-4 border-b border-ink-4/10">
+      <div className="rounded-lg bg-surface p-6 shadow-raised ">
+        <div className="flex items-center justify-between pb-4 border-b border-line">
           <div>
             <h2 className="text-section font-semibold">Leads Awaiting Review</h2>
             <p className="mt-1 text-body text-ink-2">Prospects submitted by partner agencies requiring your approval or meeting time selection.</p>
@@ -104,9 +104,9 @@ export default async function ClientOverviewPage() {
             </EmptyState>
           </div>
         ) : (
-          <div className="mt-4 overflow-hidden rounded-md border border-ink-4/10">
+          <div className="mt-4 overflow-hidden rounded-md ">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-ink-4/10 bg-canvas text-xs uppercase tracking-wider text-ink-2">
+              <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wider text-ink-2">
                 <tr>
                   <th className="px-4 py-3">Reference</th>
                   <th className="px-4 py-3">Prospect</th>
@@ -115,13 +115,13 @@ export default async function ClientOverviewPage() {
                   <th className="px-4 py-3 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-ink-4/10">
+              <tbody className="divide-y divide-line">
                 {awaitingLeads.slice(0, 5).map((l) => (
                   <tr key={l.id} className="hover:bg-canvas/50">
                     <td className="px-4 py-3 font-mono font-medium text-ink">{l.publicRef}</td>
                     <td className="px-4 py-3 font-medium text-ink">{l.prospectName}</td>
                     <td className="px-4 py-3 text-ink-2">{l.prospectCompany}</td>
-                    <td className="px-4 py-3 text-ink-2">{new Date(l.submittedAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 text-ink-2">{new Date(l.submittedAt).toLocaleDateString("en-GB")}</td>
                     <td className="px-4 py-3 text-right">
                       <Link
                         href="/client/review"

@@ -229,6 +229,9 @@ it. One function decides the month, so the rule can change without a migration.
 
 ## 9. Meetings
 
+The calendar page, the slot picker and the pool of client hosts with RSVP are specified in
+`2026-11-23-calendar-design.md` (draft, awaiting owner approval). Where it differs from this section, it wins once approved.
+
 ### 9.1 Booking
 
 1. When the client accepts a time, the portal creates an **open Google Meet room with no invitees** from a
