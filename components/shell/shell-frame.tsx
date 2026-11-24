@@ -1,6 +1,8 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState, useSyncExternalStore } from "react";
+import { CaretLeft } from "@phosphor-icons/react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { cn } from "@/lib/utils";
 import { SIDEBAR_COOKIE, type SidebarPreference } from "./sidebar-preference";
 
 /** The widths where `auto` shows the rail. Keep in step with the media query in globals.css. */
@@ -51,6 +53,18 @@ export function ShellFrame({ initial, sidebar, children }: Props) {
 
   const value = useMemo(() => ({ rail, toggle }), [rail, toggle]);
 
+  // Cmd or Ctrl and B, the shortcut editors use for the sidebar.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "b") {
+        event.preventDefault();
+        toggle();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [toggle]);
+
   return (
     <SidebarContext value={value}>
       <div data-sidebar={preference} className="shell min-h-dvh bg-canvas max-md:bg-navy">
@@ -59,6 +73,16 @@ export function ShellFrame({ initial, sidebar, children }: Props) {
         </a>
         <aside aria-label="Sidebar" className="fixed inset-y-0 left-0 z-30 w-(--sidebar-w) bg-navy transition-[width] duration-300 ease-(--ease-out) max-md:hidden">
           {sidebar}
+          {/* The handle on the sidebar's edge: always in view, so folding the sidebar never needs hunting for. */}
+          <button
+            type="button"
+            onClick={toggle}
+            aria-label={rail ? "Expand sidebar" : "Collapse sidebar"}
+            title={`${rail ? "Expand" : "Collapse"} sidebar (Ctrl or Cmd and B)`}
+            className="absolute top-[22px] -right-3.5 z-40 grid size-7 place-items-center rounded-full bg-surface text-ink shadow-raised outline-offset-2 transition-[box-shadow,background-color] duration-(--dur-hover) hover:bg-offwhite hover:shadow-lift focus-visible:outline-2 focus-visible:outline-navy"
+          >
+            <CaretLeft aria-hidden size={14} weight="bold" className={cn("transition-transform duration-300 ease-(--ease-out)", rail && "rotate-180")} />
+          </button>
         </aside>
         {children}
       </div>
