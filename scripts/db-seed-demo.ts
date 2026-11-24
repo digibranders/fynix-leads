@@ -193,7 +193,7 @@ runScript(async () => {
           hostMemberId: clientUser.memberId,
           scheduledStartTime: meetingTime,
           durationMinutes: 30,
-          googleMeetUrl: `https://meet.google.com/${sample.meetingRef.slice(4).toLowerCase()}-demo-room`,
+          googleMeetUrl: null,
           outcome: sample.outcome ?? "scheduled",
           heldAt: sample.outcome === "held" ? meetingTime : null,
           recordedAt: sample.outcome === undefined ? null : meetingTime,

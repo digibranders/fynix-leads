@@ -1,6 +1,5 @@
 import { desc, eq, or, sql } from "drizzle-orm";
 import type { LeadStage } from "@/lib/leads/stage";
-import { generateGoogleMeetUrl } from "@/lib/meetings/meet-url";
 import { agencyMeetingColumns, clientMeetingColumns } from "@/server/db/columns";
 import type { Database } from "@/server/db/pool";
 import { campaign, campaignShare, lead, leadHistory, meeting } from "@/server/db/schema";
@@ -32,7 +31,6 @@ export async function scheduleMeeting(
   actor: TenantActor,
   input: CreateMeetingInput,
 ) {
-  const meetUrl = input.googleMeetUrl ?? generateGoogleMeetUrl(deps.randomBytes);
   const now = deps.now();
 
   return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
@@ -49,7 +47,7 @@ export async function scheduleMeeting(
             hostMemberId: input.hostMemberId,
             scheduledStartTime: input.scheduledStartTime,
             durationMinutes: input.durationMinutes ?? 30,
-            googleMeetUrl: meetUrl,
+            googleMeetUrl: input.googleMeetUrl ?? null,
             outcome: "scheduled",
             notes: input.notes ?? null,
             createdAt: now,

@@ -26,7 +26,8 @@ export const meeting = pgTable(
     hostMemberId: uuid("host_member_id").notNull(),
     scheduledStartTime: timestamp("scheduled_start_time", { withTimezone: true }).notNull(),
     durationMinutes: integer("duration_minutes").notNull().default(30),
-    googleMeetUrl: text("google_meet_url").notNull(),
+    // Null until a host adds a real link: Meet codes cannot be invented, only issued by Google.
+    googleMeetUrl: text("google_meet_url"),
     outcome: text("outcome").notNull().default("scheduled"),
     notes: text("notes"),
     heldAt: timestamp("held_at", { withTimezone: true }),

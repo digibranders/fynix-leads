@@ -19,7 +19,7 @@ export interface MeetingItemData {
   readonly campaignName: string;
   readonly prospectName: string;
   readonly prospectCompany: string;
-  readonly googleMeetUrl: string;
+  readonly googleMeetUrl: string | null;
   readonly scheduledStartTime: Date | string;
   readonly durationMinutes: number;
   readonly outcome: string;
@@ -31,8 +31,8 @@ export function DownloadIcsButton({ meeting }: { readonly meeting: MeetingItemDa
   const ics = generateIcsCalendar({
     uid: `${meeting.publicRef}@fynix.digital`,
     summary: `Meeting: ${meeting.campaignName} - ${meeting.prospectName}`,
-    description: `Campaign meeting with ${meeting.prospectName} (${meeting.prospectCompany}). Join with Google Meet: ${meeting.googleMeetUrl}`,
-    location: meeting.googleMeetUrl,
+    description: `Campaign meeting with ${meeting.prospectName} (${meeting.prospectCompany}).${meeting.googleMeetUrl === null ? "" : ` Join with Google Meet: ${meeting.googleMeetUrl}`}`,
+    location: meeting.googleMeetUrl ?? undefined,
     startTime,
     durationMinutes: meeting.durationMinutes,
   });
@@ -54,7 +54,8 @@ export function DownloadIcsButton({ meeting }: { readonly meeting: MeetingItemDa
   );
 }
 
-export function JoinMeetButton({ url }: { readonly url: string }) {
+export function JoinMeetButton({ url }: { readonly url: string | null }) {
+  if (url === null) return <span className="text-xs text-ink-muted">Link to follow</span>;
   return (
     <a
       href={url}

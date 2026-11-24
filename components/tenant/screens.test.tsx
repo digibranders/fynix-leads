@@ -166,6 +166,8 @@ describe("TenantShell", () => {
     expect(meetHtml).toContain("Join Meet");
     expect(meetHtml).toContain("https://meet.google.com/abc-defg-hij");
 
+    expect(renderToStaticMarkup(<JoinMeetButton url={null} />)).toContain("Link to follow");
+
     const modalHtml = renderToStaticMarkup(<RecordMeetingOutcomeModal meetingId={meetingData.id} />);
     expect(modalHtml).toContain("Record outcome");
   });
