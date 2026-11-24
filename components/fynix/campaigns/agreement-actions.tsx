@@ -2,13 +2,12 @@ import { PencilSimple, Plus, Trash } from "@phosphor-icons/react/dist/ssr";
 import { Button } from "@/components/ui/button";
 import { removeShareAction } from "@/server/fynix/actions";
 import { FormSheet } from "../forms/form-sheet";
-import { InlineAction } from "../forms/inline-action";
+import { ConfirmAction } from "../forms/confirm-action";
 import { NewAgreementForm, ShareForm } from "../forms/campaign-forms";
 
 type Defaults = { monthlyTarget: number; totalTarget: number; disputeWindowHours: number; rules: string; notes: string };
 
-export function NewVersionButton({ campaignId, party, defaults }: { campaignId: string; party: "client" | "supplier"; defaults: Defaults | null }) {
-  const noun = party === "client" ? "client" : "supplier";
+export function NewVersionButton({ campaignId, defaults }: { campaignId: string; defaults: Defaults | null }) {
   return (
     <FormSheet
       trigger={
@@ -17,10 +16,10 @@ export function NewVersionButton({ campaignId, party, defaults }: { campaignId: 
           {defaults === null ? "First version" : "New version"}
         </Button>
       }
-      title={defaults === null ? `First ${noun} agreement` : `New ${noun} agreement version`}
+      title={defaults === null ? "First agreement" : "New agreement version"}
       description={defaults === null ? "Set the numbers and the counting rules." : "It replaces the current version. The current one stays in the history."}
     >
-      <NewAgreementForm campaignId={campaignId} party={party} defaults={defaults} />
+      <NewAgreementForm campaignId={campaignId} defaults={defaults} />
     </FormSheet>
   );
 }
@@ -57,10 +56,21 @@ export function ShareRowActions({ campaignId, agency }: { campaignId: string; ag
       >
         <ShareForm campaignId={campaignId} options={[]} agency={agency} />
       </FormSheet>
-      <InlineAction action={removeShareAction} fields={{ campaignId, agencyOrgId: agency.id }} label={`Remove the share of ${agency.name}`} variant="ghost" size="sm">
-        <Trash aria-hidden />
-        Remove
-      </InlineAction>
+      <ConfirmAction
+        action={removeShareAction}
+        fields={{ campaignId, agencyOrgId: agency.id }}
+        triggerLabel={`Remove the share of ${agency.name}`}
+        trigger={
+          <>
+            <Trash aria-hidden />
+            Remove
+          </>
+        }
+        title={`Remove the share of ${agency.name}?`}
+        description={`${agency.name} stops receiving leads for this campaign, and its share of ${agency.monthlyShare} a month is deleted. The change is recorded in the audit log.`}
+        confirmLabel="Remove share"
+        savedMessage="Share removed"
+      />
     </div>
   );
 }

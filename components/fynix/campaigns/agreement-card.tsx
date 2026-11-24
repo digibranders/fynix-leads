@@ -14,6 +14,8 @@ type Props = {
   campaignId: string;
   timeZone: string;
   canWrite: boolean;
+  /** A closed campaign takes no new version. */
+  closed?: boolean;
 };
 
 function Tile({ label, value, unit }: { label: string; value: number; unit: string }) {
@@ -32,27 +34,27 @@ function monthsLine(monthly: number, total: number): string {
 }
 
 /** One party's agreement: the version in force, who accepted it, the three numbers, the counting rules in words and the history line. */
-export function AgreementCard({ side, withName, campaignId, timeZone, canWrite }: Props) {
-  const title = side.party === "client" ? "Client agreement" : "Coordinator agreement";
+export function AgreementCard({ side, withName, campaignId, timeZone, canWrite, closed = false }: Props) {
+  const title = "Agreement";
   const { current, previous } = side;
 
   if (current === null) {
     return (
       <Panel aria-label={title}>
         <PanelHeader title={title} />
-        <EmptyState icon={Handshake} title="No agreement yet" action={canWrite ? <NewVersionButton campaignId={campaignId} party={side.party} defaults={null} /> : undefined}>
+        <EmptyState icon={Handshake} title="No agreement yet" action={canWrite && !closed ? <NewVersionButton campaignId={campaignId} defaults={null} /> : undefined}>
           {canWrite ? `Write down what Fynix has agreed with ${withName}.` : "A Fynix admin writes the agreement."}
         </EmptyState>
       </Panel>
     );
   }
 
-  const first = current.accepted[0];
-  const extra = current.accepted.length - 1;
-  const sentence =
-    first === undefined
-      ? `Between Fynix and ${withName}. Sent on ${formatWeekdayDate(current.createdAt, timeZone)}, not accepted yet.`
-      : `Between Fynix and ${withName}. Accepted by ${first.name}${extra > 0 ? ` and ${countOf(extra, "other", "others")}` : ""} on ${formatWeekdayDate(first.at, timeZone)}.`;
+  const clientAcceptance = current.accepted.find((entry) => entry.side === "client");
+  const coordinatorAcceptance = current.accepted.find((entry) => entry.side === "supplier");
+  const bothAccepted = clientAcceptance !== undefined && coordinatorAcceptance !== undefined;
+  const sentence = `Between ${withName}. Sent on ${formatWeekdayDate(current.createdAt, timeZone)}.`;
+  const sideLine = (label: string, acceptance: typeof clientAcceptance): string =>
+    acceptance === undefined ? `${label}: waiting` : `${label}: accepted by ${acceptance.name} on ${formatWeekdayDate(acceptance.at, timeZone)}`;
 
   return (
     <Panel aria-label={title} className="flex flex-col gap-4 p-5">
@@ -61,9 +63,14 @@ export function AgreementCard({ side, withName, campaignId, timeZone, canWrite }
         <Badge variant="quiet" className="font-mono font-medium">
           Version {current.version}
         </Badge>
-        <StatusChip kind="agreement" status={first === undefined ? "waiting" : "accepted"} />
+        <StatusChip kind="agreement" status={bothAccepted ? "accepted" : "waiting"} />
       </div>
-      <p className="text-body text-ink-muted">{sentence}</p>
+      <div className="flex flex-col gap-0.5 text-body text-ink-muted">
+        <p>{sentence}</p>
+        <p>{sideLine("Client", clientAcceptance)}</p>
+        <p>{sideLine("Coordinator", coordinatorAcceptance)}</p>
+        {side.inForceVersion !== null ? <p>Version {side.inForceVersion} stays in force until both sides accept this one.</p> : null}
+      </div>
       <div className="grid grid-cols-3 gap-3">
         <Tile label="Per month" value={current.monthlyTarget} unit="meetings" />
         <Tile label="In total" value={current.totalTarget} unit={monthsLine(current.monthlyTarget, current.totalTarget)} />
@@ -80,14 +87,30 @@ export function AgreementCard({ side, withName, campaignId, timeZone, canWrite }
             ? "No earlier versions"
             : `Version ${previous.version} published ${formatDayMonth(previous.createdAt, timeZone)}, superseded ${formatDayMonth(previous.supersededAt, timeZone)}`}
         </p>
-        {canWrite && (
+        {canWrite && !closed && (
           <NewVersionButton
             campaignId={campaignId}
-            party={side.party}
             defaults={{ monthlyTarget: current.monthlyTarget, totalTarget: current.totalTarget, disputeWindowHours: current.disputeWindowHours, rules: current.rules, notes: current.notes }}
           />
         )}
       </div>
+      {side.history.length > 0 ? (
+        <div className="pt-3 shadow-[inset_0_1px_0_var(--line)]">
+          <h3 className="text-label font-semibold text-ink">History</h3>
+          <ul className="mt-2 flex flex-col gap-1.5 text-table text-ink-2">
+            {side.history.map((row) => (
+              <li key={row.version} className="flex flex-wrap items-baseline justify-between gap-x-3">
+                <span>
+                  Version {row.version}: {row.monthlyTarget} a month, {row.totalTarget} in total
+                </span>
+                <span className="text-ink-muted">
+                  {formatDayMonth(row.createdAt, timeZone)}, {row.acceptedByBoth ? "accepted by both sides" : "not accepted by both sides"}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </Panel>
   );
 }

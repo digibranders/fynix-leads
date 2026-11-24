@@ -1,7 +1,6 @@
 "use client";
 
-import { CAMPAIGN_STATUSES, canMoveCampaign, type CampaignStatus } from "@/lib/domain/campaign-status";
-import { addHostAction, createCampaignAction, publishAgreementAction, setShareAction, updateCampaignAction } from "@/server/fynix/actions";
+import { addHostAction, closeCampaignAction, createCampaignAction, publishAgreementAction, setShareAction, updateCampaignAction } from "@/server/fynix/actions";
 import type { CampaignChoices, CampaignHeader } from "@/server/domain/campaign-overview";
 import { ActionForm } from "./action-form";
 import { FormGroup, Hidden, NumberField, SelectField, TextAreaField, TextField } from "./form-parts";
@@ -14,12 +13,11 @@ type Defaults = {
   readonly notes: string;
 };
 
-/** Publishes the next version of one party's agreement. The numbers start from the version in force. */
-export function NewAgreementForm({ campaignId, party, defaults }: { campaignId: string; party: "client" | "supplier"; defaults: Defaults | null }) {
+/** Publishes the next version of the campaign agreement: one set of numbers for the client and the coordinator. The numbers start from the version in force. */
+export function NewAgreementForm({ campaignId, defaults }: { campaignId: string; defaults: Defaults | null }) {
   return (
     <ActionForm action={publishAgreementAction} submitLabel="Publish version" pendingLabel="Publishing">
       <Hidden name="campaignId" value={campaignId} />
-      <Hidden name="party" value={party} />
       <FormGroup title="The numbers">
         <NumberField name="monthlyTarget" label="Meetings per month" defaultValue={defaults === null ? "" : String(defaults.monthlyTarget)} />
         <NumberField name="totalTarget" label="Meetings in total" defaultValue={defaults === null ? "" : String(defaults.totalTarget)} />
@@ -71,8 +69,6 @@ export function AddHostForm({ campaignId, candidates, clientName }: { campaignId
 }
 
 type Brief = CampaignHeader["brief"];
-
-const STATUS_LABEL: Record<CampaignStatus, string> = { draft: "Draft", active: "Active", paused: "Paused", completed: "Completed", archived: "Archived" };
 
 /** The fields a campaign has, whether it is being made or changed: dates and targets, who to reach, how a lead is qualified, and the settings. */
 function CampaignFields({ brief, name, timeZone, meetingMinutes }: { brief: Brief | null; name: string; timeZone: string; meetingMinutes: number }) {
@@ -131,16 +127,27 @@ export function CreateCampaignForm({ choices }: { choices: CampaignChoices }) {
   );
 }
 
-/** Changes a campaign's details, brief, settings and status. Only the moves a campaign may make are offered. */
+/** Changes a campaign's details, brief and settings. Its status changes with Make active, Close and Reopen on the campaign page. */
 export function EditCampaignForm({ campaign }: { campaign: CampaignHeader }) {
-  const moves = CAMPAIGN_STATUSES.filter((status) => status === campaign.status || canMoveCampaign(campaign.status, status));
   return (
     <ActionForm action={updateCampaignAction} submitLabel="Save changes" pendingLabel="Saving">
       <Hidden name="campaignId" value={campaign.id} />
-      <FormGroup title="Status">
-        <SelectField name="status" label="Status" defaultValue={campaign.status} options={moves.map((status) => ({ value: status, label: STATUS_LABEL[status] }))} helper="A campaign takes leads only while it is Active." />
-      </FormGroup>
       <CampaignFields brief={campaign.brief} name={campaign.name} timeZone={campaign.timeZone} meetingMinutes={campaign.meetingMinutes} />
+    </ActionForm>
+  );
+}
+
+/** Closes a campaign. The note is optional and goes on the record. */
+export function CloseCampaignForm({ campaignId, name }: { campaignId: string; name: string }) {
+  return (
+    <ActionForm action={closeCampaignAction} submitLabel="Close campaign" pendingLabel="Closing" savedMessage="Campaign closed">
+      <Hidden name="campaignId" value={campaignId} />
+      <FormGroup>
+        <p className="text-body text-ink-2">
+          {name} stops taking new leads and its shares and hosts become read only. Leads already submitted finish their course. You can reopen it later.
+        </p>
+        <TextAreaField name="note" label="Note (optional)" rows={3} helper="Why it is closing. It goes on the campaign's activity." />
+      </FormGroup>
     </ActionForm>
   );
 }

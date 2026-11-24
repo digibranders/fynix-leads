@@ -14,4 +14,9 @@ describe("leadsHref", () => {
   it("encodes the search", () => {
     expect(leadsHref("/x", { q: "a&b" })).toBe("/x?q=a%26b");
   });
+
+  it("keeps the campaign, before the page", () => {
+    expect(leadsHref("/x", { stage: "due", campaign: "c1", page: 2 })).toBe("/x?stage=due&campaign=c1&page=2");
+    expect(leadsHref("/x", { campaign: null })).toBe("/x");
+  });
 });

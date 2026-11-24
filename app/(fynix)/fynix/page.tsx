@@ -28,13 +28,16 @@ export const metadata: Metadata = { title: "Overview" };
 async function Overview() {
   const view = await requireFynix();
   const deps = getDomain();
-  const [metrics, campaigns, leads, findings] = await Promise.all([
+  const [metrics, campaigns, allLeads, findings] = await Promise.all([
     getFynixOverviewMetrics(deps.fynixDb, view.actor),
     listCampaignRows(deps, view.actor),
     listFynixLeads(getDatabase("leads_fynix").db, view.actor),
     readSetupFindings(deps, view.actor),
   ]);
   const active = campaigns.filter((row) => row.status === "active");
+  // An overview is about active campaigns: the stage bar and the latest leads leave out the rest.
+  const activeIds = new Set(active.map((row) => row.id));
+  const leads = allLeads.filter((lead) => activeIds.has(lead.campaignId));
   const counts = countByGroup(leads);
   const disputed = metrics.disputedCount;
   const waiting = metrics.awaitingClientCount;
@@ -85,9 +88,9 @@ async function Overview() {
         }
         aside={
           <>
-            <p className="text-label font-semibold text-peach">Delivered so far</p>
+            <p className="text-label font-semibold text-peach">Delivered, active campaigns</p>
             <p className="text-display font-semibold tracking-figure">{metrics.deliveredCount}</p>
-            <p className="text-body text-on-navy-text">{metrics.totalTargetCount > 0 ? `Combined monthly target: ${metrics.totalTargetCount} a month` : "No monthly target is set."}</p>
+            <p className="text-body text-on-navy-text">{metrics.totalTargetCount > 0 ? `Combined monthly target, active campaigns: ${metrics.totalTargetCount} a month` : "No active campaign has a monthly target."}</p>
           </>
         }
       />

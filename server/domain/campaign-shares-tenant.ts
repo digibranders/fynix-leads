@@ -3,6 +3,7 @@ import type { Database } from "@/server/db/pool";
 import { campaign, campaignShare } from "@/server/db/schema";
 import { withTenantScope } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
+import { assertCampaignOpen, requireOpenCampaign } from "@/server/domain/campaign-rules";
 import { DomainError } from "@/server/domain/errors";
 import { removeCampaignShareSchema, setCampaignShareSchema } from "@/server/domain/inputs";
 import { parseInput } from "@/server/domain/parse";
@@ -40,7 +41,7 @@ export async function assignCampaignShare(db: Database, actor: TenantActor, inpu
     await withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
       const [target] = await tx.select({ status: campaign.status }).from(campaign).where(eq(campaign.id, parsed.campaignId)).limit(1);
       if (target === undefined) throw new DomainError("not-found", "There is no such campaign.");
-      if (target.status === "archived" || target.status === "completed") throw new DomainError("invalid-transition", `A ${target.status} campaign cannot be assigned.`);
+      assertCampaignOpen(target.status);
       const [existing] = await tx
         .select({ id: campaignShare.id })
         .from(campaignShare)
@@ -62,6 +63,7 @@ export async function unassignCampaignShare(db: Database, actor: TenantActor, in
   const parsed = parseInput(removeCampaignShareSchema, input);
   try {
     await withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
+      await requireOpenCampaign(tx, parsed.campaignId);
       const removed = await tx
         .delete(campaignShare)
         .where(and(eq(campaignShare.campaignId, parsed.campaignId), eq(campaignShare.agencyOrgId, parsed.agencyOrgId)))

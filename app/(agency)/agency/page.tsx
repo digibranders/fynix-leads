@@ -18,6 +18,7 @@ import { countByGroup, PIPELINE_GROUPS } from "@/lib/leads/pipeline";
 import type { LeadStage } from "@/lib/leads/stage";
 import { getDatabase } from "@/server/db/client";
 import { getAgencyOverviewMetrics } from "@/server/domain/analytics";
+import { listTenantCampaigns } from "@/server/domain/campaigns-tenant";
 import { listAgencyLeads } from "@/server/domain/leads";
 import { requireAgency } from "@/server/agency/session";
 
@@ -26,7 +27,10 @@ export const metadata: Metadata = { title: "Overview" };
 async function Overview() {
   const view = await requireAgency();
   const db = getDatabase("leads_agency").db;
-  const [metrics, leads] = await Promise.all([getAgencyOverviewMetrics(db, view.actor), listAgencyLeads(db, view.actor)]);
+  const [metrics, allLeads, campaigns] = await Promise.all([getAgencyOverviewMetrics(db, view.actor), listAgencyLeads(db, view.actor), listTenantCampaigns(db, view.actor, "agency")]);
+  // An overview is about active campaigns: the stage bar and the latest leads leave out the rest.
+  const activeIds = new Set(campaigns.filter((row) => row.status === "active").map((row) => row.id));
+  const leads = allLeads.filter((lead) => activeIds.has(lead.campaignId));
   const counts = countByGroup(leads);
   const latest = leads.slice(0, 5);
 
@@ -58,9 +62,9 @@ async function Overview() {
         }
         aside={
           <>
-            <p className="text-label font-semibold text-peach">Delivered so far</p>
+            <p className="text-label font-semibold text-peach">Delivered, active campaigns</p>
             <p className="text-display font-semibold tracking-figure">{metrics.deliveredCount}</p>
-            <p className="text-body text-on-navy-text">{metrics.agencyShareTarget > 0 ? `Your monthly share: ${metrics.agencyShareTarget} a month` : "No monthly share is allocated."}</p>
+            <p className="text-body text-on-navy-text">{metrics.agencyShareTarget > 0 ? `Your monthly share, active campaigns: ${metrics.agencyShareTarget} a month` : "No active campaign has a share for you."}</p>
           </>
         }
       />

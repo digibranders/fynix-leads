@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getSessionContext } from "@/server/auth";
 import { getDatabase } from "@/server/db/client";
 import { getDomain } from "@/server/domain";
-import { createAliasIdentity, verifyAliasCode } from "@/server/domain/alias-identity";
+import { createAliasIdentity, retireAliasIdentity, updateAliasIdentity, verifyAliasCode } from "@/server/domain/alias-identity";
 import { DomainError } from "@/server/domain/errors";
 
 export interface AliasActionResult {
@@ -34,7 +34,7 @@ export async function createAliasAction(_previous: AliasActionResult, formData: 
   if (actor === null) return { status: "error", message: "Only agency or coordinator members can add an alias." };
   try {
     const created = await createAliasIdentity(getDatabase("leads_agency").db, getDomain(), actor, {
-      clientBrandName: field(formData, "clientBrandName"),
+      clientOrgId: field(formData, "clientOrgId"),
       displayName: field(formData, "displayName"),
       jobTitle: field(formData, "jobTitle"),
       aliasEmail: field(formData, "aliasEmail"),
@@ -58,5 +58,38 @@ export async function verifyAliasAction(_previous: AliasActionResult, formData: 
   } catch (error) {
     if (error instanceof DomainError) return { status: "error", message: error.message };
     return { status: "error", message: "The code could not be checked. Try again." };
+  }
+}
+
+/** Changes an alias's client, display name or job title. The mailbox stays: a new one would need a new code. */
+export async function updateAliasAction(_previous: AliasActionResult, formData: FormData): Promise<AliasActionResult> {
+  const actor = await agencyActor();
+  if (actor === null) return { status: "error", message: "Only agency or coordinator members can edit an alias." };
+  try {
+    await updateAliasIdentity(getDatabase("leads_agency").db, actor, {
+      publicRef: field(formData, "publicRef"),
+      clientOrgId: field(formData, "clientOrgId"),
+      displayName: field(formData, "displayName"),
+      jobTitle: field(formData, "jobTitle"),
+    });
+    refresh();
+    return { status: "success", message: "The alias is saved." };
+  } catch (error) {
+    if (error instanceof DomainError) return { status: "error", message: error.message };
+    return { status: "error", message: "The alias could not be saved. Try again." };
+  }
+}
+
+/** Retires an alias: it stays on the leads it fronted and can front no new one. */
+export async function retireAliasAction(_previous: AliasActionResult, formData: FormData): Promise<AliasActionResult> {
+  const actor = await agencyActor();
+  if (actor === null) return { status: "error", message: "Only agency or coordinator members can retire an alias." };
+  try {
+    await retireAliasIdentity(getDatabase("leads_agency").db, actor, { publicRef: field(formData, "publicRef") });
+    refresh();
+    return { status: "success", message: "The alias is retired." };
+  } catch (error) {
+    if (error instanceof DomainError) return { status: "error", message: error.message };
+    return { status: "error", message: "The alias could not be retired. Try again." };
   }
 }

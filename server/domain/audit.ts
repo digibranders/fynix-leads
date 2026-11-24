@@ -17,6 +17,8 @@ export const AUDIT_ACTIONS = [
   "campaign.update",
   "campaign.archive",
   "campaign.restore",
+  "campaign.close",
+  "campaign.reopen",
   "invite.issue",
   "invite.revoke",
   "member.suspend",

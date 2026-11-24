@@ -17,6 +17,7 @@ import {
   updateClientProfileSchema,
   updateOrganisationSchema,
   addHostBlockSchema,
+  closeCampaignSchema,
   createCampaignSchema,
   createPartnerAgencySchema,
   createOrganisationSchema,
@@ -34,7 +35,7 @@ import {
 } from "@/server/domain/inputs";
 import { issueInvite, resendInvite, revokeInvite } from "@/server/domain/invites";
 import { reactivateMember, suspendMember, updateMemberDetails } from "@/server/domain/members";
-import { createCampaign, updateCampaign } from "@/server/domain/campaigns";
+import { closeCampaign, createCampaign, reopenCampaign, updateCampaign } from "@/server/domain/campaigns";
 import { removeCampaignShare, setCampaignShare } from "@/server/domain/shares";
 import { fynixResolveDispute } from "@/server/domain/leads";
 import { addCollateral, createOrganisation, removeCollateral, setOrganisationStatus, updateClientProfile, updateOrganisation } from "@/server/domain/organisations";
@@ -121,6 +122,55 @@ export async function updateCampaignAction(_previous: FormState, formData: FormD
     labels: CAMPAIGN_LABELS,
     perform: async (deps, actor, input) => {
       await updateCampaign(deps, actor, campaignId, input);
+    },
+  });
+}
+
+/** Makes a campaign active. The going-live rule decides, and its refusal says which side has not accepted the agreement, or that there is no host. */
+export async function makeCampaignActiveAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  const campaignId = field(formData, "campaignId");
+  return runAction({
+    formData,
+    fieldNames: [],
+    build: () => ({ status: "active" }),
+    schema: updateCampaignSchema,
+    labels: {},
+    ownMessages: ["agreement-not-accepted", "no-host"],
+    perform: async (deps, actor, input) => {
+      await updateCampaign(deps, actor, campaignId, input);
+    },
+  });
+}
+
+/** Closes a campaign with an optional note for the record. A closed campaign is read only. */
+export async function closeCampaignAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runAction({
+    formData,
+    fieldNames: ["note"],
+    build: () => ({ campaignId: field(formData, "campaignId"), note: field(formData, "note") }),
+    schema: closeCampaignSchema,
+    labels: { note: "Note" },
+    messages: { "invalid-transition": "That campaign is closed already." },
+    perform: async (deps, actor, input) => {
+      const parsed = closeCampaignSchema.parse(input);
+      await closeCampaign(deps, actor, parsed.campaignId, parsed.note);
+    },
+  });
+}
+
+const reopenInput = z.object({ campaignId: uuidSchema }).strict();
+
+/** Reopens a closed campaign as a campaign being set up. Fynix then makes it active, and the going-live rule applies again. */
+export async function reopenCampaignAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runAction({
+    formData,
+    fieldNames: [],
+    build: () => ({ campaignId: field(formData, "campaignId") }),
+    schema: reopenInput,
+    labels: {},
+    messages: { "invalid-transition": "That campaign is not closed." },
+    perform: async (deps, actor, input) => {
+      await reopenCampaign(deps, actor, reopenInput.parse(input).campaignId);
     },
   });
 }
@@ -402,7 +452,6 @@ export async function publishAgreementAction(_previous: FormState, formData: For
     fieldNames: ["monthlyTarget", "totalTarget", "disputeWindowHours", "rules", "notes"],
     build: () => ({
       campaignId: field(formData, "campaignId"),
-      party: field(formData, "party"),
       monthlyTarget: numberField(formData, "monthlyTarget"),
       totalTarget: numberField(formData, "totalTarget"),
       disputeWindowHours: numberField(formData, "disputeWindowHours"),
@@ -410,7 +459,7 @@ export async function publishAgreementAction(_previous: FormState, formData: For
       notes: field(formData, "notes"),
     }),
     schema: publishAgreementSchema,
-    labels: { monthlyTarget: "Per month", totalTarget: "In total", disputeWindowHours: "Dispute window", rules: "Counting rules", notes: "Notes", party: "Agreement" },
+    labels: { monthlyTarget: "Per month", totalTarget: "In total", disputeWindowHours: "Dispute window", rules: "Counting rules", notes: "Notes" },
     perform: async (deps, actor, input) => {
       await publishAgreement(deps, actor, input);
     },

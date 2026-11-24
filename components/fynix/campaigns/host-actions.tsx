@@ -1,7 +1,7 @@
 import { ArrowCounterClockwise, PencilSimple, Plus, Prohibit, Trash } from "@phosphor-icons/react/dist/ssr";
 import type { HoursWindow } from "@/lib/domain/weekly-hours";
 import { Button } from "@/components/ui/button";
-import { addHostAction, pauseHostAction, removeBlockAction } from "@/server/fynix/actions";
+import { addBlockAction, addHostAction, pauseHostAction, removeBlockAction, setHoursAction } from "@/server/fynix/actions";
 import { AddHostForm } from "../forms/campaign-forms";
 import { BlockForm, HoursForm } from "../forms/availability-forms";
 import { FormSheet } from "../forms/form-sheet";
@@ -37,7 +37,7 @@ export function EditHoursButton({ memberId, hostName, timeZone, windows }: { mem
       title="Weekly hours"
       description={`When ${hostName} takes meetings. Add a second range for a split day.`}
     >
-      <HoursForm memberId={memberId} timeZone={timeZone} windows={windows} />
+      <HoursForm action={setHoursAction} memberId={memberId} timeZone={timeZone} windows={windows} />
     </FormSheet>
   );
 }
@@ -54,7 +54,7 @@ export function BlockTimeButton({ memberId, hostName, timeZone }: { memberId: st
       title="Block a time"
       description={`A time ${hostName} cannot take meetings.`}
     >
-      <BlockForm memberId={memberId} timeZone={timeZone} />
+      <BlockForm action={addBlockAction} memberId={memberId} timeZone={timeZone} />
     </FormSheet>
   );
 }

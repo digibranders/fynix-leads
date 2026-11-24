@@ -9,10 +9,12 @@ describe("canMoveCampaign", () => {
     ["active", "completed"],
     ["completed", "archived"],
     ["archived", "draft"],
+    ["completed", "draft"],
+    ["paused", "draft"],
+    ["draft", "completed"],
   ] as const)("allows %s to %s", (from, to) => expect(canMoveCampaign(from, to)).toBe(true));
 
   it.each([
-    ["draft", "completed"],
     ["draft", "paused"],
     ["completed", "active"],
     ["archived", "active"],

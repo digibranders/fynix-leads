@@ -9,7 +9,7 @@ import { addCampaignHost, deactivateCampaignHost } from "@/server/domain/hosts";
 import { setOrganisationStatus } from "@/server/domain/organisations";
 import { setCampaignShare } from "@/server/domain/shares";
 import { createPartnerAgency } from "@/server/domain/suppliers";
-import { firstCampaign, memberIdFor, refusal, setMemberRole, userIn } from "@/server/domain/test-helpers";
+import { agreeNumbers, firstCampaign, memberIdFor, refusal, setMemberRole, userIn } from "@/server/domain/test-helpers";
 import { openDomainRig } from "@/server/domain/testing";
 
 const rig = openDomainRig();
@@ -47,11 +47,12 @@ describe("listCampaignRows", () => {
 
 describe("readCampaignHeader", () => {
   it("reads the header facts, the brief and the count of hosts that are switched on", async () => {
-    await updateCampaign(rig.deps(), rig.actor, campaignId(), { status: "active", timeZone: "Asia/Kolkata", meetingMinutes: 45, geography: "United Kingdom", industries: ["Finance"], internalNotes: "Handle with care" });
     await addCampaignHost(rig.deps(), rig.actor, { campaignId: campaignId(), memberId: await hostMember(), jobTitle: "Chief Operating Officer" });
     const other = await addClientPerson("Second Person");
     await addCampaignHost(rig.deps(), rig.actor, { campaignId: campaignId(), memberId: other, jobTitle: "Head of Finance" });
     await deactivateCampaignHost(rig.deps(), rig.actor, { campaignId: campaignId(), memberId: other });
+    await agreeNumbers(rig, campaignId(), { monthlyTarget: 20, totalTarget: 120 });
+    await updateCampaign(rig.deps(), rig.actor, campaignId(), { status: "active", timeZone: "Asia/Kolkata", meetingMinutes: 45, geography: "United Kingdom", industries: ["Finance"], internalNotes: "Handle with care" });
 
     const header = await readCampaignHeader(rig.deps(), rig.staffActor, firstCampaign(rig).publicRef);
     expect(header).toMatchObject({
@@ -63,6 +64,7 @@ describe("readCampaignHeader", () => {
       timeZone: "Asia/Kolkata",
       meetingMinutes: 45,
       activeHostCount: 1,
+      closedAt: null,
     });
     expect(header.brief).toMatchObject({ geography: "United Kingdom", industries: ["Finance"], internalNotes: "Handle with care", monthlyTarget: 20, totalTarget: 120, startDate: "2026-12-01" });
   });
@@ -108,29 +110,43 @@ describe("listCampaignHosts", () => {
 });
 
 describe("readAgreementsPage", () => {
-  it("reads both agreements, who accepted the client's, the version it replaced, and the shares with who changed them", async () => {
+  it("reads the one agreement, who accepted it on each side, the version it replaced, and the shares with who changed them", async () => {
     const { kestrel, brightpath } = rig.world();
     await setMemberRole(rig, userIn(rig, kestrel).id, "manager");
-    await publishAgreement(rig.deps(), rig.actor, { campaignId: campaignId(), party: "client", monthlyTarget: 10, totalTarget: 60 });
-    const second = await publishAgreement(rig.deps(), rig.actor, { campaignId: campaignId(), party: "client", monthlyTarget: 12, totalTarget: 72, rules: "Counted when held." });
+    await setMemberRole(rig, userIn(rig, brightpath).id, "manager");
+    await publishAgreement(rig.deps(), rig.actor, { campaignId: campaignId(), monthlyTarget: 10, totalTarget: 60 });
+    const second = await publishAgreement(rig.deps(), rig.actor, { campaignId: campaignId(), monthlyTarget: 14, totalTarget: 84, rules: "Counted when held." });
     await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: second.id, userId: userIn(rig, kestrel).id });
-    await publishAgreement(rig.deps(), rig.actor, { campaignId: campaignId(), party: "supplier", monthlyTarget: 14, totalTarget: 84 });
+    await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: second.id, userId: userIn(rig, brightpath).id });
     const partner = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: brightpath.id, name: "Ridgeway Partner Ltd" });
     await setCampaignShare(rig.deps(), rig.actor, { campaignId: campaignId(), agencyOrgId: brightpath.id, monthlyShare: 4 });
     await setCampaignShare(rig.deps(), rig.actor, { campaignId: campaignId(), agencyOrgId: partner.id, monthlyShare: 11 });
 
     const page = await readAgreementsPage(rig.deps(), rig.staffActor, campaignId());
-    expect(page.client.current).toMatchObject({ version: 2, monthlyTarget: 12, totalTarget: 72, rules: "Counted when held.", accepted: [{ name: userIn(rig, kestrel).name }] });
-    expect(page.client.previous).toMatchObject({ version: 1 });
-    expect(page.client.previous?.supersededAt).toEqual(page.client.current?.createdAt);
-    expect(page.supplier.current).toMatchObject({ version: 1, accepted: [] });
-    expect(page.supplier.previous).toBeNull();
+    expect(page.agreement.current).toMatchObject({ version: 2, monthlyTarget: 14, totalTarget: 84, rules: "Counted when held.", accepted: [{ name: userIn(rig, kestrel).name, side: "client" }, { name: userIn(rig, brightpath).name, side: "supplier" }] });
+    expect(page.agreement.previous).toMatchObject({ version: 1 });
+    expect(page.agreement.history).toMatchObject([{ version: 1, acceptedByBoth: false }]);
+    expect(page.agreement.previous?.supersededAt).toEqual(page.agreement.current?.createdAt);
+    expect(page.agreement.inForceVersion).toBeNull();
     expect(page.shares.map((row) => [row.agencyName, row.ownBookings, row.monthlyShare, row.changedBy])).toEqual([
       [brightpath.name, true, 4, "Person 1 of ORG-7F2A"],
       ["Ridgeway Partner Ltd", false, 11, "Person 1 of ORG-7F2A"],
     ]);
-    expect(page.summary).toEqual({ totalShares: 15, supplierMonthlyTarget: 14, overAllocated: true });
+    expect(page.summary).toEqual({ totalShares: 15, campaignMonthlyTarget: 14, overAllocated: true });
     expect(page.options).toEqual([]);
+  });
+
+  it("names the version in force while a newer one waits for the second side", async () => {
+    const { kestrel, brightpath } = rig.world();
+    const first = await agreeNumbers(rig, campaignId(), { monthlyTarget: 10, totalTarget: 60 });
+    const waiting = await publishAgreement(rig.deps(), rig.actor, { campaignId: campaignId(), monthlyTarget: 14, totalTarget: 84 });
+    await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: waiting.id, userId: userIn(rig, kestrel).id });
+    const page = await readAgreementsPage(rig.deps(), rig.actor, campaignId());
+    expect(page.agreement.current).toMatchObject({ version: 2, accepted: [{ side: "client" }] });
+    expect(page.agreement.inForceVersion).toBe(1);
+    expect(page.summary.campaignMonthlyTarget).toBe(10);
+    expect(first).not.toBe(waiting.id);
+    expect(brightpath.id).toBeDefined();
   });
 
   it("offers the coordinator and its partner agencies that have no share yet, and not an archived one or another coordinator's", async () => {
@@ -144,8 +160,8 @@ describe("readAgreementsPage", () => {
       { id: brightpath.id, name: brightpath.name, ownBookings: true },
       { id: partner.id, name: "Ridgeway Partner Ltd", ownBookings: false },
     ]);
-    expect(page.client).toEqual({ party: "client", current: null, previous: null });
-    expect(page.summary).toEqual({ totalShares: 0, supplierMonthlyTarget: null, overAllocated: false });
+    expect(page.agreement).toEqual({ current: null, inForceVersion: null, previous: null, history: [] });
+    expect(page.summary).toEqual({ totalShares: 0, campaignMonthlyTarget: 20, overAllocated: false });
   });
 
   it("answers not-found for an unknown campaign", async () => {

@@ -78,19 +78,22 @@ describe("analytics domain service", () => {
       await expect(getClientOverviewMetrics(dummyDb, supplierActor)).rejects.toThrow(DomainError);
     });
 
-    it("calculates client KPI counts correctly", async () => {
+    it("calculates client KPI counts correctly, over active campaigns only", async () => {
       setMockData({
         campaigns: [
           { id: "c1", monthlyTarget: 20, totalTarget: 60, status: "active" },
           { id: "c2", monthlyTarget: 15, totalTarget: 45, status: "active" },
+          { id: "c3", monthlyTarget: 99, totalTarget: 99, status: "completed" },
+          { id: "c4", monthlyTarget: 98, totalTarget: 98, status: "draft" },
         ],
         leads: [
-          { id: "l1", stage: "delivered" },
-          { id: "l2", stage: "delivered" },
-          { id: "l3", stage: "awaiting_client" },
-          { id: "l4", stage: "scheduled" },
-          { id: "l5", stage: "disputed" },
-          { id: "l6", stage: "rejected" },
+          { id: "l1", campaignId: "c1", stage: "delivered" },
+          { id: "l2", campaignId: "c1", stage: "delivered" },
+          { id: "l3", campaignId: "c1", stage: "awaiting_client" },
+          { id: "l4", campaignId: "c1", stage: "scheduled" },
+          { id: "l5", campaignId: "c1", stage: "disputed" },
+          { id: "l6", campaignId: "c1", stage: "rejected" },
+          { id: "l7", campaignId: "c3", stage: "delivered" },
         ],
       });
 
@@ -118,10 +121,10 @@ describe("analytics domain service", () => {
           { id: "s2", campaignId: "c1", agencyOrgId: agencyActor.orgId, monthlyShare: 15 },
         ],
         leads: [
-          { id: "l1", sourceOrgId: supplierActor.orgId, stage: "delivered", overShare: false },
-          { id: "l2", sourceOrgId: agencyActor.orgId, stage: "delivered", overShare: false },
-          { id: "l3", sourceOrgId: agencyActor.orgId, stage: "awaiting_client", overShare: true },
-          { id: "l4", sourceOrgId: agencyActor.orgId, stage: "disputed", overShare: false },
+          { id: "l1", campaignId: "c1", sourceOrgId: supplierActor.orgId, stage: "delivered", overShare: false },
+          { id: "l2", campaignId: "c1", sourceOrgId: agencyActor.orgId, stage: "delivered", overShare: false },
+          { id: "l3", campaignId: "c1", sourceOrgId: agencyActor.orgId, stage: "awaiting_client", overShare: true },
+          { id: "l4", campaignId: "c1", sourceOrgId: agencyActor.orgId, stage: "disputed", overShare: false },
         ],
         partners: [{ id: agencyActor.orgId, name: "Ridgeway Partner Media Ltd" }],
       });
@@ -156,15 +159,16 @@ describe("analytics domain service", () => {
 
     it("calculates agency KPI metrics isolated to actor sourceOrgId", async () => {
       setMockData({
+        campaigns: [{ id: "c1", monthlyTarget: 20, totalTarget: 60, status: "active" }],
         shares: [
-          { id: "s1", agencyOrgId: agencyActor.orgId, monthlyShare: 15 },
+          { id: "s1", campaignId: "c1", agencyOrgId: agencyActor.orgId, monthlyShare: 15 },
         ],
         leads: [
-          { id: "l1", sourceOrgId: agencyActor.orgId, stage: "delivered", overShare: false },
-          { id: "l2", sourceOrgId: agencyActor.orgId, stage: "awaiting_client", overShare: true },
-          { id: "l3", sourceOrgId: agencyActor.orgId, stage: "disputed", overShare: false },
+          { id: "l1", campaignId: "c1", sourceOrgId: agencyActor.orgId, stage: "delivered", overShare: false },
+          { id: "l2", campaignId: "c1", sourceOrgId: agencyActor.orgId, stage: "awaiting_client", overShare: true },
+          { id: "l3", campaignId: "c1", sourceOrgId: agencyActor.orgId, stage: "disputed", overShare: false },
           // Lead from another agency should be ignored
-          { id: "l4", sourceOrgId: "other-org-id", stage: "delivered", overShare: false },
+          { id: "l4", campaignId: "c1", sourceOrgId: "other-org-id", stage: "delivered", overShare: false },
         ],
       });
 
@@ -178,25 +182,27 @@ describe("analytics domain service", () => {
   });
 
   describe("getFynixOverviewMetrics", () => {
-    it("calculates global KPIs across all campaigns and leads", async () => {
+    it("calculates global KPIs across all campaigns, summing targets and leads of active campaigns only", async () => {
       setMockData({
         campaigns: [
           { id: "c1", monthlyTarget: 20, totalTarget: 60, status: "active" },
           { id: "c2", monthlyTarget: 30, totalTarget: 90, status: "paused" },
         ],
         leads: [
-          { id: "l1", stage: "delivered", overShare: false },
-          { id: "l2", stage: "awaiting_client", overShare: true },
-          { id: "l3", stage: "scheduled", overShare: false },
-          { id: "l4", stage: "disputed", overShare: false },
-          { id: "l5", stage: "rejected", overShare: false },
+          { id: "l1", campaignId: "c1", stage: "delivered", overShare: false },
+          { id: "l2", campaignId: "c1", stage: "awaiting_client", overShare: true },
+          { id: "l3", campaignId: "c1", stage: "scheduled", overShare: false },
+          { id: "l4", campaignId: "c1", stage: "disputed", overShare: false },
+          { id: "l5", campaignId: "c1", stage: "rejected", overShare: false },
+          // A lead on the paused (closed) campaign counts for nothing on the overview.
+          { id: "l6", campaignId: "c2", stage: "delivered", overShare: true },
         ],
       });
 
       const metrics = await getFynixOverviewMetrics(dummyDb, fynixActor);
       expect(metrics.totalCampaignsCount).toBe(2);
       expect(metrics.activeCampaignsCount).toBe(1);
-      expect(metrics.totalTargetCount).toBe(50);
+      expect(metrics.totalTargetCount).toBe(20);
       expect(metrics.deliveredCount).toBe(1);
       expect(metrics.awaitingClientCount).toBe(1);
       expect(metrics.scheduledCount).toBe(1);

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Table as TableIcon } from "@phosphor-icons/react/dist/ssr";
 import { Suspense } from "react";
+import { CampaignFilter } from "@/components/kit/campaign-filter";
+import { ClosedTag } from "@/components/kit/closed-tag";
 import { EmptyState } from "@/components/kit/empty-state";
 import { PageHeader } from "@/components/kit/page-header";
 import { Pager } from "@/components/kit/pager";
@@ -13,11 +15,13 @@ import { When } from "@/components/kit/when";
 import { DisputeButton } from "@/components/leads/dispute-button";
 import { PipelineBar } from "@/components/leads/pipeline-bar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { campaignFilterHrefs, closedCampaignIds, parseCampaignFilter } from "@/lib/campaign-status";
 import { leadsHref } from "@/lib/leads/href";
 import { filterLeads, paginate, parsePage } from "@/lib/leads/list";
 import { parseGroup } from "@/lib/leads/pipeline";
 import type { LeadStage } from "@/lib/leads/stage";
 import { getDatabase } from "@/server/db/client";
+import { listTenantCampaigns } from "@/server/domain/campaigns-tenant";
 import { listClientLeads } from "@/server/domain/leads";
 import { requireClient } from "@/server/client/session";
 
@@ -32,10 +36,14 @@ async function Leads({ searchParams }: { searchParams: PageProps<"/client/leads"
   const group = parseGroup(params.stage);
   const q = one(params.q) ?? "";
 
-  const all = await listClientLeads(getDatabase("leads_client").db, view.actor);
-  const filtered = filterLeads(all, { group, q });
+  const db = getDatabase("leads_client").db;
+  const [all, campaigns] = await Promise.all([listClientLeads(db, view.actor), listTenantCampaigns(db, view.actor, "client")]);
+  const campaign = parseCampaignFilter(params.campaign, campaigns);
+  const names = new Map(campaigns.map((row) => [row.id, row.name]));
+  const closed = closedCampaignIds(campaigns);
+  const filtered = filterLeads(all, { group, q, campaign });
   const page = paginate(filtered, parsePage(params.page));
-  const href = (nextPage: number) => leadsHref(BASE, { stage: group, q, page: nextPage });
+  const href = (nextPage: number) => leadsHref(BASE, { stage: group, q, campaign, page: nextPage });
 
   return (
     <div className="flex flex-col gap-4">
@@ -49,14 +57,15 @@ async function Leads({ searchParams }: { searchParams: PageProps<"/client/leads"
         </Panel>
       ) : (
         <>
-          <PipelineBar leads={all} basePath={BASE} group={group} q={q} />
+          <PipelineBar leads={all} basePath={BASE} group={group} q={q} campaign={campaign} />
           <Panel aria-label="Leads">
             <Toolbar trailing={`${filtered.length} ${filtered.length === 1 ? "lead" : "leads"}`}>
-              <SearchForm defaultValue={q} placeholder="Search by name, company or reference" hidden={{ stage: group ?? undefined }} />
+              <SearchForm defaultValue={q} placeholder="Search by name, company or reference" hidden={{ stage: group ?? undefined, campaign: campaign ?? undefined }} />
+              <CampaignFilter campaigns={campaigns} selected={campaign} {...campaignFilterHrefs(campaigns, (id) => leadsHref(BASE, { stage: group, q, campaign: id }))} />
             </Toolbar>
             {page.rows.length === 0 ? (
               <EmptyState icon={TableIcon} title="No leads match">
-                Clear the search or pick another stage to see more.
+                Clear the search or pick another stage or campaign to see more.
               </EmptyState>
             ) : (
               <div className="px-2.5">
@@ -65,6 +74,7 @@ async function Leads({ searchParams }: { searchParams: PageProps<"/client/leads"
                     <TableRow className="hover:[&>th]:bg-navy-04">
                       <TableHead>Prospect</TableHead>
                       <TableHead className="max-md:hidden">Company</TableHead>
+                      <TableHead className="max-xl:hidden">Campaign</TableHead>
                       <TableHead>Stage</TableHead>
                       <TableHead className="max-lg:hidden">Meeting</TableHead>
                       <TableHead className="max-lg:hidden">Submitted</TableHead>
@@ -83,6 +93,12 @@ async function Leads({ searchParams }: { searchParams: PageProps<"/client/leads"
                           <span className="block leading-tight">
                             {lead.prospectCompany}
                             <span className="block text-caption text-ink-muted">{lead.prospectDomain}</span>
+                          </span>
+                        </TableCell>
+                        <TableCell className="max-xl:hidden">
+                          <span className="flex flex-wrap items-center gap-1.5 leading-tight">
+                            {names.get(lead.campaignId) ?? "Campaign"}
+                            {closed.has(lead.campaignId) ? <ClosedTag /> : null}
                           </span>
                         </TableCell>
                         <TableCell>

@@ -217,7 +217,7 @@ export async function getLeadSubmissionOptions(
         aliasEmail: aliasIdentity.aliasEmail,
       })
       .from(aliasIdentity)
-      .where(sql`${aliasIdentity.verifiedAt} IS NOT NULL`);
+      .where(and(sql`${aliasIdentity.verifiedAt} IS NOT NULL`, eq(aliasIdentity.status, "active")));
 
     const hosts = await tx
       .select({

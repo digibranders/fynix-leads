@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { campaign, campaignHost, member } from "@/server/db/schema";
 import type { DomainDeps } from "@/server/domain/deps";
+import { assertCampaignOpen } from "@/server/domain/campaign-rules";
 import { DomainError, isUniqueViolation } from "@/server/domain/errors";
 import { fynixWrite, type FynixActor } from "@/server/domain/fynix-write";
 import { addCampaignHostSchema, deactivateCampaignHostSchema } from "@/server/domain/inputs";
@@ -28,8 +29,9 @@ export interface HostRecord {
 export async function addCampaignHost(deps: DomainDeps, actor: FynixActor, input: unknown): Promise<HostRecord> {
   const parsed = parseInput(addCampaignHostSchema, input);
   return fynixWrite(deps.fynixDb, actor, async ({ tx, audit }) => {
-    const [target] = await tx.select({ id: campaign.id, clientOrgId: campaign.clientOrgId, publicRef: campaign.publicRef }).from(campaign).where(eq(campaign.id, parsed.campaignId)).limit(1).for("share");
+    const [target] = await tx.select({ id: campaign.id, clientOrgId: campaign.clientOrgId, publicRef: campaign.publicRef, status: campaign.status }).from(campaign).where(eq(campaign.id, parsed.campaignId)).limit(1).for("share");
     if (target === undefined) throw new DomainError("not-found", "There is no such campaign.");
+    assertCampaignOpen(target.status);
     const [person] = await tx
       .select({ id: member.id, orgId: member.orgId, orgKind: member.orgKind, status: member.status, displayName: member.displayName })
       .from(member)
@@ -72,7 +74,7 @@ export async function deactivateCampaignHost(deps: DomainDeps, actor: FynixActor
   const parsed = parseInput(deactivateCampaignHostSchema, input);
   return fynixWrite(deps.fynixDb, actor, async ({ tx, audit }) => {
     const [existing] = await tx
-      .select({ id: campaignHost.id, jobTitle: campaignHost.jobTitle, active: campaignHost.active, displayName: member.displayName, campaignRef: campaign.publicRef })
+      .select({ id: campaignHost.id, jobTitle: campaignHost.jobTitle, active: campaignHost.active, displayName: member.displayName, campaignRef: campaign.publicRef, campaignStatus: campaign.status })
       .from(campaignHost)
       .innerJoin(member, eq(member.id, campaignHost.memberId))
       .innerJoin(campaign, eq(campaign.id, campaignHost.campaignId))
@@ -80,6 +82,7 @@ export async function deactivateCampaignHost(deps: DomainDeps, actor: FynixActor
       .limit(1)
       .for("update", { of: campaignHost });
     if (existing === undefined) throw new DomainError("not-found", "That person is not a host of the campaign.");
+    assertCampaignOpen(existing.campaignStatus);
     if (!existing.active) throw new DomainError("invalid-transition", "That host is deactivated already.");
     await tx.update(campaignHost).set({ active: false }).where(eq(campaignHost.id, existing.id));
     const row = { campaignId: parsed.campaignId, memberId: parsed.memberId, jobTitle: existing.jobTitle };

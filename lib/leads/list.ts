@@ -4,20 +4,22 @@ export const PAGE_SIZE = 20;
 
 interface Searchable {
   readonly stage: string;
+  readonly campaignId?: string;
   readonly publicRef: string;
   readonly prospectName: string;
   readonly prospectCompany: string;
 }
 
 /** Narrows a lead list to a pipeline group and a search word. The search matches the name, company and reference, ignoring case. */
-export function filterLeads<T extends Searchable>(leads: readonly T[], filter: { group: PipelineKey | null; q: string }): T[] {
+export function filterLeads<T extends Searchable>(leads: readonly T[], filter: { group: PipelineKey | null; q: string; campaign?: string | null }): T[] {
   const needle = filter.q.trim().toLowerCase();
   return inGroup(leads, filter.group).filter(
     (lead) =>
-      needle === "" ||
+      (!filter.campaign || lead.campaignId === filter.campaign) &&
+      (needle === "" ||
       lead.prospectName.toLowerCase().includes(needle) ||
       lead.prospectCompany.toLowerCase().includes(needle) ||
-      lead.publicRef.toLowerCase().includes(needle),
+      lead.publicRef.toLowerCase().includes(needle)),
   );
 }
 

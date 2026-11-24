@@ -16,6 +16,7 @@ import { recordMeetingOutcomeAction } from "@/server/domain/meeting-actions";
 export interface MeetingItemData {
   readonly id: string;
   readonly publicRef: string;
+  readonly campaignId?: string;
   readonly campaignName: string;
   readonly prospectName: string;
   readonly prospectCompany: string;

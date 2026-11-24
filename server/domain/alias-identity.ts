@@ -1,11 +1,11 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { generateVerificationCode, hashVerificationCode } from "@/lib/domain/alias-code";
 import type { Database } from "@/server/db/pool";
-import { aliasIdentity, member } from "@/server/db/schema";
-import { withTenantScope } from "@/server/db/scope";
+import { aliasIdentity, campaign, member } from "@/server/db/schema";
+import { withTenantScope, type ScopedTransaction } from "@/server/db/scope";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError, isUniqueViolation } from "@/server/domain/errors";
-import { createAliasIdentitySchema, verifyAliasCodeSchema } from "@/server/domain/inputs";
+import { createAliasIdentitySchema, retireAliasIdentitySchema, updateAliasIdentitySchema, verifyAliasCodeSchema } from "@/server/domain/inputs";
 import { parseInput } from "@/server/domain/parse";
 import { insertWithPublicRef } from "@/server/domain/refs";
 
@@ -20,7 +20,10 @@ export interface AliasIdentityRecord {
   readonly id: string;
   readonly publicRef: string;
   readonly memberId: string;
+  /** The client's brand, copied from the client by the database. */
   readonly clientBrandName: string;
+  /** The client the alias is for; null only on an alias made before phase 2. */
+  readonly clientOrgId: string | null;
   readonly displayName: string;
   readonly jobTitle: string;
   readonly aliasEmail: string;
@@ -36,6 +39,7 @@ export const aliasIdentityColumns = {
   publicRef: aliasIdentity.publicRef,
   memberId: aliasIdentity.memberId,
   clientBrandName: aliasIdentity.clientBrandName,
+  clientOrgId: aliasIdentity.clientOrgId,
   displayName: aliasIdentity.displayName,
   jobTitle: aliasIdentity.jobTitle,
   aliasEmail: aliasIdentity.aliasEmail,
@@ -44,9 +48,34 @@ export const aliasIdentityColumns = {
   createdAt: aliasIdentity.createdAt,
 };
 
+export interface AliasClient {
+  readonly id: string;
+  /** The brand the agency knows the client by. */
+  readonly name: string;
+}
+
+/** The clients of the campaigns an agency or coordinator sees, by name: the list an alias picks its client from. Campaign status does not matter. */
+export async function listAliasClients(db: Database, actor: TenantActor): Promise<readonly AliasClient[]> {
+  if (actor.orgKind !== "agency") throw new DomainError("not-authorised", "Only agency and coordinator members have aliases.");
+  return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
+    const rows = await tx.select({ id: campaign.clientOrgId, name: campaign.clientBrandName }).from(campaign);
+    const byId = new Map(rows.map((row) => [row.id, row.name]));
+    return [...byId].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  });
+}
+
+/** The brand of a client the organisation serves; `invalid-input` for any other client id, so the person gets a plain refusal before the database's. */
+async function clientBrandFor(tx: ScopedTransaction, clientOrgId: string): Promise<string> {
+  const [row] = await tx.select({ name: campaign.clientBrandName }).from(campaign).where(eq(campaign.clientOrgId, clientOrgId)).limit(1);
+  if (row === undefined) throw new DomainError("invalid-input", "Choose a client of one of your campaigns.");
+  return row.name;
+}
+
 /**
- * Creates an alias identity for an agency or supplier member (spec v2 section 9.3).
- * Generates an unguessable public reference, an initial 6-digit verification code, and persists the record.
+ * Creates an alias identity for an agency or supplier member (spec v2 section 9.3). The client is picked from the clients of the campaigns the
+ * organisation sees (`listAliasClients`); the database refuses any other (trigger `alias_identity_set_client`, migration 0064) and copies the
+ * client's brand into `clientBrandName`, which older readers still use. Generates an unguessable public reference and an initial 6-digit
+ * verification code, and persists the record.
  */
 export async function createAliasIdentity(
   db: Database,
@@ -70,6 +99,7 @@ export async function createAliasIdentity(
       throw new DomainError("not-authorised", "The signed-in user is not an active agency member.");
     }
 
+    const brand = await clientBrandFor(tx, parsed.clientOrgId);
     const { code, codeHash } = generateVerificationCode(deps.randomBytes);
 
     try {
@@ -82,7 +112,8 @@ export async function createAliasIdentity(
             .values({
               publicRef: ref,
               memberId: currentMember.id,
-              clientBrandName: parsed.clientBrandName,
+              clientBrandName: brand,
+              clientOrgId: parsed.clientOrgId,
               displayName: parsed.displayName,
               jobTitle: parsed.jobTitle,
               aliasEmail: parsed.aliasEmail,
@@ -99,18 +130,7 @@ export async function createAliasIdentity(
       // The code goes to the alias mailbox only (migration 0046); it is never handed back to the person who is verifying.
       await tx.execute(sql`select public.app_queue_alias_code_mail(${created.publicRef}, ${code})`);
 
-      return {
-        id: created.id,
-        publicRef: created.publicRef,
-        memberId: created.memberId,
-        clientBrandName: created.clientBrandName,
-        displayName: created.displayName,
-        jobTitle: created.jobTitle,
-        aliasEmail: created.aliasEmail,
-        verifiedAt: created.verifiedAt,
-        status: created.status,
-        createdAt: created.createdAt,
-      };
+      return created;
     } catch (error) {
       if (isUniqueViolation(error, "alias_identity_member_brand_email_unique")) {
         throw new DomainError("alias-taken", "An alias identity for that client brand and email already exists.");
@@ -149,18 +169,7 @@ export async function verifyAliasCode(
 
     const [row] = await tx.select(aliasIdentityColumns).from(aliasIdentity).where(eq(aliasIdentity.publicRef, parsed.publicRef)).limit(1);
     if (row === undefined) throw new Error("The alias identity vanished after it was verified");
-    return {
-      id: row.id,
-      publicRef: row.publicRef,
-      memberId: row.memberId,
-      clientBrandName: row.clientBrandName,
-      displayName: row.displayName,
-      jobTitle: row.jobTitle,
-      aliasEmail: row.aliasEmail,
-      verifiedAt: row.verifiedAt,
-      status: row.status,
-      createdAt: row.createdAt,
-    };
+    return row;
   });
 }
 
@@ -175,5 +184,51 @@ export async function listAliasIdentities(db: Database, actor: TenantActor): Pro
       .orderBy(desc(aliasIdentity.createdAt));
 
     return rows;
+  });
+}
+
+/**
+ * Changes an alias's client, display name or title. The mailbox is fixed: a new one would need a new code. Only the organisation's own aliases
+ * are found; a retired alias cannot be edited.
+ */
+export async function updateAliasIdentity(db: Database, actor: TenantActor, input: unknown): Promise<AliasIdentityRecord> {
+  if (actor.orgKind !== "agency") throw new DomainError("not-authorised", "Only agency and coordinator members can edit alias identities.");
+  const parsed = parseInput(updateAliasIdentitySchema, input);
+  return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
+    const [existing] = await tx.select(aliasIdentityColumns).from(aliasIdentity).where(eq(aliasIdentity.publicRef, parsed.publicRef)).limit(1);
+    if (existing === undefined) throw new DomainError("not-found", "There is no such alias identity.");
+    if (existing.status !== "active") throw new DomainError("invalid-transition", "A retired alias cannot be edited.");
+    if (parsed.clientOrgId !== undefined) await clientBrandFor(tx, parsed.clientOrgId);
+    try {
+      const [updated] = await tx
+        .update(aliasIdentity)
+        .set({
+          ...(parsed.clientOrgId === undefined ? {} : { clientOrgId: parsed.clientOrgId }),
+          ...(parsed.displayName === undefined ? {} : { displayName: parsed.displayName }),
+          ...(parsed.jobTitle === undefined ? {} : { jobTitle: parsed.jobTitle }),
+          updatedAt: new Date(),
+        })
+        .where(eq(aliasIdentity.id, existing.id))
+        .returning(aliasIdentityColumns);
+      if (updated === undefined) throw new Error("The alias update returned no row");
+      return updated;
+    } catch (error) {
+      if (isUniqueViolation(error, "alias_identity_member_brand_email_unique")) throw new DomainError("alias-taken", "An alias identity for that client brand and email already exists.");
+      throw error;
+    }
+  });
+}
+
+/** Retires an alias: it stays on the leads it fronted but can front no new one. Nothing is deleted. */
+export async function retireAliasIdentity(db: Database, actor: TenantActor, input: unknown): Promise<AliasIdentityRecord> {
+  if (actor.orgKind !== "agency") throw new DomainError("not-authorised", "Only agency and coordinator members can retire alias identities.");
+  const parsed = parseInput(retireAliasIdentitySchema, input);
+  return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
+    const [existing] = await tx.select(aliasIdentityColumns).from(aliasIdentity).where(eq(aliasIdentity.publicRef, parsed.publicRef)).limit(1);
+    if (existing === undefined) throw new DomainError("not-found", "There is no such alias identity.");
+    if (existing.status !== "active") throw new DomainError("invalid-transition", "That alias is retired already.");
+    const [updated] = await tx.update(aliasIdentity).set({ status: "archived", updatedAt: new Date() }).where(eq(aliasIdentity.id, existing.id)).returning(aliasIdentityColumns);
+    if (updated === undefined) throw new Error("The alias update returned no row");
+    return updated;
   });
 }

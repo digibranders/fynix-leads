@@ -1,14 +1,16 @@
 import { Megaphone } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
+import { CampaignStatusTabs } from "@/components/kit/campaign-status-tabs";
 import { EmptyState } from "@/components/kit/empty-state";
 import { Panel, PanelHeader } from "@/components/kit/panel";
 import { StatusChip } from "@/components/kit/status-chip";
 import { SearchForm, Toolbar } from "@/components/kit/toolbar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { campaignTabLabel, countByTab, DEFAULT_CAMPAIGN_TAB, inCampaignTab, type CampaignTab } from "@/lib/campaign-status";
 import type { CampaignRow } from "@/server/domain/campaign-overview";
 
 /** Every campaign: reference, name, client, supplier and status, with a search. A row opens the campaign. Below `md` a row is two lines. */
-export function CampaignsTable({ rows, query = "" }: { rows: readonly CampaignRow[]; query?: string }) {
+export function CampaignsTable({ rows, query = "", tab = DEFAULT_CAMPAIGN_TAB }: { rows: readonly CampaignRow[]; query?: string; tab?: CampaignTab }) {
   if (rows.length === 0) {
     return (
       <Panel aria-label="Campaigns">
@@ -19,20 +21,25 @@ export function CampaignsTable({ rows, query = "" }: { rows: readonly CampaignRo
     );
   }
   const needle = query.trim().toLowerCase();
+  const inTab = inCampaignTab(rows, tab);
+  const counts = countByTab(rows);
   const shown =
     needle === ""
-      ? rows
-      : rows.filter((row) => [row.name, row.publicRef, row.clientName, row.supplierName].some((text) => text.toLowerCase().includes(needle)));
+      ? inTab
+      : inTab.filter((row) => [row.name, row.publicRef, row.clientName, row.supplierName].some((text) => text.toLowerCase().includes(needle)));
 
   return (
     <Panel aria-label="Campaigns">
-      <PanelHeader title="All campaigns" count={rows.length} />
+      <PanelHeader title="Campaigns" count={rows.length} />
+      <CampaignStatusTabs rows={rows} basePath="/fynix/campaigns" tab={tab} q={query} />
       <Toolbar trailing={`${shown.length} ${shown.length === 1 ? "campaign" : "campaigns"}`}>
-        <SearchForm defaultValue={query} placeholder="Campaign, client or coordinator" />
+        <SearchForm defaultValue={query} placeholder="Campaign, client or coordinator" hidden={{ status: tab === DEFAULT_CAMPAIGN_TAB ? undefined : tab }} />
       </Toolbar>
       {shown.length === 0 ? (
-        <EmptyState icon={Megaphone} title="No campaign matches">
-          Try a different name, or clear the search.
+        <EmptyState icon={Megaphone} title={needle === "" ? `No ${campaignTabLabel(tab).toLowerCase()} campaigns` : "No campaign matches"}>
+          {needle === ""
+            ? `${counts.active} active, ${counts["setting-up"]} being set up, ${counts.closed} closed. Pick another tab to see them.`
+            : "Try a different name, or clear the search."}
         </EmptyState>
       ) : (
         <div className="px-2.5">

@@ -39,6 +39,8 @@ export interface ActionSpec {
   readonly messages?: Partial<Record<DomainErrorCode, string>>;
   /** A refusal that belongs to one field of the form (a duplicate name asks for a tick box), so its sentence lands there and not at the top. */
   readonly errorFields?: Partial<Record<DomainErrorCode, string>>;
+  /** Reasons whose own message is already in plain words and exact (the going-live refusals name the side that is missing), so it is shown as it is. */
+  readonly ownMessages?: readonly DomainErrorCode[];
 }
 
 const failed = (message: string | null, fields: FormValues, values: FormValues): FormState => ({ status: "error", message, fields, values });
@@ -66,7 +68,7 @@ export async function runAction(spec: ActionSpec): Promise<FormState> {
     return { status: "done", redirectTo: result?.redirectTo ?? null };
   } catch (error) {
     if (error instanceof DomainError) {
-      const message = domainMessage(error.code, spec.messages);
+      const message = spec.ownMessages?.includes(error.code) === true ? error.message : domainMessage(error.code, spec.messages);
       const fieldName = spec.errorFields?.[error.code];
       return fieldName === undefined ? failed(message, {}, values) : failed(null, { [fieldName]: message }, values);
     }

@@ -27,7 +27,7 @@ export async function acceptAgreementAction(_previous: AgreementActionResult, fo
     await acceptAgreementByTenant(
       getDatabase(role).db,
       getDomain(),
-      { userId: context.userId, orgId: context.orgId, role: context.memberRole },
+      { userId: context.userId, orgId: context.orgId, orgKind: context.kind, role: context.memberRole },
       { agreementId },
       clientAddressFrom(await headers()),
     );

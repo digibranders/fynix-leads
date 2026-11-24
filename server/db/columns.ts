@@ -46,7 +46,7 @@ export const agencyCampaignColumns = { ...tenantCampaignColumns } as const;
 
 /**
  * The brief of a campaign: who to reach, how a lead is qualified and the instructions. Migration 0054 granted it to the agency role (suppliers and
- * partner agencies), who need it to find and qualify prospects. A client wrote it with Fynix and gets no grant. It is apart from
+ * partner agencies), who need it to find and qualify prospects. A client wrote it with Fynix and has had the same grant since migration 0064. It is apart from
  * `agencyCampaignColumns` because only the campaign screens select it; the structure test adds it for the agency role when it compares the grants.
  */
 export const agencyCampaignBriefColumns = {
@@ -63,6 +63,9 @@ export const agencyCampaignBriefColumns = {
   bantTimeline: campaign.bantTimeline,
   instructions: campaign.instructions,
 } as const;
+
+/** Since migration 0064 a client reads the brief of its own campaigns too: it wrote it with Fynix. Same columns as the agency's. */
+export const clientCampaignBriefColumns = agencyCampaignBriefColumns;
 
 export const clientLeadColumns = {
   id: lead.id,

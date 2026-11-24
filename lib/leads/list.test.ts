@@ -22,6 +22,18 @@ describe("filterLeads", () => {
   });
 });
 
+describe("filterLeads by campaign", () => {
+  const rows = [
+    { stage: "delivered", publicRef: "L1", prospectName: "A", prospectCompany: "X", campaignId: "c1" },
+    { stage: "delivered", publicRef: "L2", prospectName: "B", prospectCompany: "Y", campaignId: "c2" },
+  ];
+
+  it("keeps only the chosen campaign, and everything when none is chosen", () => {
+    expect(filterLeads(rows, { group: null, q: "", campaign: "c2" }).map((row) => row.publicRef)).toEqual(["L2"]);
+    expect(filterLeads(rows, { group: null, q: "", campaign: null })).toHaveLength(2);
+  });
+});
+
 describe("paginate", () => {
   const items = Array.from({ length: 45 }, (_, index) => index);
 

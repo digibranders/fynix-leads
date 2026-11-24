@@ -1,8 +1,9 @@
 import { and, asc, eq } from "drizzle-orm";
 import { summariseShares, type ShareSummary } from "@/lib/domain/share-allocation";
-import { agreement, campaign, campaignShare, organisation } from "@/server/db/schema";
+import { campaign, campaignShare, organisation } from "@/server/db/schema";
 import type { ScopedTransaction } from "@/server/db/scope";
 import type { DomainDeps } from "@/server/domain/deps";
+import { assertCampaignOpen } from "@/server/domain/campaign-rules";
 import { DomainError } from "@/server/domain/errors";
 import { fynixRead, fynixWrite, type FynixActor } from "@/server/domain/fynix-write";
 import { removeCampaignShareSchema, setCampaignShareSchema, uuidSchema } from "@/server/domain/inputs";
@@ -10,8 +11,8 @@ import { parseInput } from "@/server/domain/parse";
 import { snapshotShare } from "@/server/domain/snapshots";
 
 /**
- * The shares of a supplier's monthly target (spec 7.2): the supplier splits its target between itself and its partner
- * agencies. A share goes to the campaign's supplier or one of its partner agencies (the database enforces it, migration
+ * The shares of a campaign's monthly number (spec 7.2): the coordinator splits it between itself and its partner
+ * agencies. A closed campaign refuses every change with `campaign-closed`. A share goes to the campaign's supplier or one of its partner agencies (the database enforces it, migration
  * 0024). A total above the supplier's target is allowed, and the result says so (`overAllocated`) for the screen to show.
  * `setCampaignShare` and `removeCampaignShare` are Fynix admin writes in phase 1D; in 1E the supplier manager sets them.
  */
@@ -29,15 +30,11 @@ export interface ShareResult {
   readonly summary: ShareSummary;
 }
 
-/** The total of a campaign's shares against the monthly target of its current supplier agreement (`null` when there is none). */
+/** The total of a campaign's shares against the campaign's one monthly number (the agreement both sides accepted writes it onto the campaign). */
 async function summarise(tx: ScopedTransaction, campaignId: string): Promise<ShareSummary> {
-  const [supplierAgreement] = await tx
-    .select({ monthlyTarget: agreement.monthlyTarget })
-    .from(agreement)
-    .where(and(eq(agreement.campaignId, campaignId), eq(agreement.party, "supplier"), eq(agreement.status, "current")))
-    .limit(1);
+  const [row] = await tx.select({ monthlyTarget: campaign.monthlyTarget }).from(campaign).where(eq(campaign.id, campaignId)).limit(1);
   const shares = await tx.select({ monthlyShare: campaignShare.monthlyShare }).from(campaignShare).where(eq(campaignShare.campaignId, campaignId));
-  return summariseShares(supplierAgreement?.monthlyTarget ?? null, shares.map((row) => row.monthlyShare));
+  return summariseShares(row?.monthlyTarget ?? null, shares.map((entry) => entry.monthlyShare));
 }
 
 /**
@@ -48,8 +45,9 @@ async function summarise(tx: ScopedTransaction, campaignId: string): Promise<Sha
 export async function setCampaignShare(deps: DomainDeps, actor: FynixActor, input: unknown): Promise<ShareResult> {
   const parsed = parseInput(setCampaignShareSchema, input);
   return fynixWrite(deps.fynixDb, actor, async ({ tx, audit }) => {
-    const [target] = await tx.select({ id: campaign.id, supplierOrgId: campaign.agencyOrgId, publicRef: campaign.publicRef }).from(campaign).where(eq(campaign.id, parsed.campaignId)).limit(1).for("update");
+    const [target] = await tx.select({ id: campaign.id, supplierOrgId: campaign.agencyOrgId, publicRef: campaign.publicRef, status: campaign.status }).from(campaign).where(eq(campaign.id, parsed.campaignId)).limit(1).for("update");
     if (target === undefined) throw new DomainError("not-found", "There is no such campaign.");
+    assertCampaignOpen(target.status);
     const [agency] = await tx
       .select({ id: organisation.id, publicRef: organisation.publicRef, name: organisation.name, kind: organisation.kind, status: organisation.status, parentOrgId: organisation.parentOrgId })
       .from(organisation)
@@ -88,8 +86,9 @@ export async function setCampaignShare(deps: DomainDeps, actor: FynixActor, inpu
 export async function removeCampaignShare(deps: DomainDeps, actor: FynixActor, input: unknown): Promise<ShareSummary> {
   const parsed = parseInput(removeCampaignShareSchema, input);
   return fynixWrite(deps.fynixDb, actor, async ({ tx, audit }) => {
-    const [target] = await tx.select({ id: campaign.id, publicRef: campaign.publicRef }).from(campaign).where(eq(campaign.id, parsed.campaignId)).limit(1).for("update");
+    const [target] = await tx.select({ id: campaign.id, publicRef: campaign.publicRef, status: campaign.status }).from(campaign).where(eq(campaign.id, parsed.campaignId)).limit(1).for("update");
     if (target === undefined) throw new DomainError("not-found", "There is no such campaign.");
+    assertCampaignOpen(target.status);
     const [existing] = await tx
       .select({ id: campaignShare.id, monthlyShare: campaignShare.monthlyShare, agencyRef: organisation.publicRef })
       .from(campaignShare)

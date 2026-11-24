@@ -1,11 +1,11 @@
 import { asc } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { campaignShare } from "@/server/db/schema";
-import { publishAgreement } from "@/server/domain/agreements";
+import { closeCampaign } from "@/server/domain/campaigns";
 import { removeCampaignShare, listCampaignShares, setCampaignShare } from "@/server/domain/shares";
 import { setOrganisationStatus } from "@/server/domain/organisations";
 import { createPartnerAgency } from "@/server/domain/suppliers";
-import { auditRowsFor, firstCampaign, refusal } from "@/server/domain/test-helpers";
+import { agreeNumbers, auditRowsFor, firstCampaign, refusal } from "@/server/domain/test-helpers";
 import { openDomainRig } from "@/server/domain/testing";
 
 const rig = openDomainRig();
@@ -23,14 +23,15 @@ const UNKNOWN = "99999999-9999-4999-8999-999999999999";
 const partnerOf = (supplierId: string, name: string) => createPartnerAgency(rig.deps(), rig.actor, { supplierId, name });
 const shareInput = (agencyOrgId: string, monthlyShare: number) => ({ campaignId: firstCampaign(rig).id, agencyOrgId, monthlyShare });
 const stored = () => rig.dbs.owner.db.select().from(campaignShare).orderBy(asc(campaignShare.monthlyShare));
-const publishSupplierTarget = (monthlyTarget: number) => publishAgreement(rig.deps(), rig.actor, { campaignId: firstCampaign(rig).id, party: "supplier", monthlyTarget, totalTarget: monthlyTarget * 6 });
+/** Both sides agree the campaign's one number. */
+const agreeTarget = (monthlyTarget: number) => agreeNumbers(rig, firstCampaign(rig).id, { monthlyTarget, totalTarget: monthlyTarget * 6 });
 
 describe("setCampaignShare", () => {
-  it("gives the coordinator itself a share, reports there is no coordinator target to compare with, and audits it", async () => {
+  it("gives the coordinator itself a share, compares it with the campaign's own number, and audits it", async () => {
     const { brightpath } = rig.world();
     const result = await setCampaignShare(rig.deps(), rig.actor, shareInput(brightpath.id, 5));
     expect(result.share).toEqual({ campaignId: firstCampaign(rig).id, agencyOrgId: brightpath.id, agencyRef: brightpath.publicRef, agencyName: brightpath.name, monthlyShare: 5 });
-    expect(result.summary).toEqual({ totalShares: 5, supplierMonthlyTarget: null, overAllocated: false });
+    expect(result.summary).toEqual({ totalShares: 5, campaignMonthlyTarget: 20, overAllocated: false });
     const [audit] = await auditRowsFor(rig, "campaign_share.set");
     expect(audit).toMatchObject({ actorUserId: rig.actor.userId, subjectTable: "campaign_share", before: null, after: { campaignId: firstCampaign(rig).id, agencyOrgId: brightpath.id, monthlyShare: 5 } });
     expect(audit?.subjectRef).toBe(`${firstCampaign(rig).publicRef} ${brightpath.publicRef}`);
@@ -46,23 +47,22 @@ describe("setCampaignShare", () => {
     expect(audits[1]).toMatchObject({ before: { monthlyShare: 5 }, after: { monthlyShare: 8 } });
   });
 
-  it("flags a total above the coordinator agreement's monthly target, and clears the flag when the total comes down; equal is not over", async () => {
+  it("flags a total above the campaign's monthly number, and clears the flag when the total comes down; equal is not over", async () => {
     const { brightpath } = rig.world();
     const partner = await partnerOf(brightpath.id, "Ridgeway Partner Ltd");
-    await publishSupplierTarget(10);
-    expect((await setCampaignShare(rig.deps(), rig.actor, shareInput(brightpath.id, 6))).summary).toEqual({ totalShares: 6, supplierMonthlyTarget: 10, overAllocated: false });
+    await agreeTarget(10);
+    expect((await setCampaignShare(rig.deps(), rig.actor, shareInput(brightpath.id, 6))).summary).toEqual({ totalShares: 6, campaignMonthlyTarget: 10, overAllocated: false });
     expect((await setCampaignShare(rig.deps(), rig.actor, shareInput(partner.id, 4))).summary).toMatchObject({ totalShares: 10, overAllocated: false });
-    expect((await setCampaignShare(rig.deps(), rig.actor, shareInput(partner.id, 5))).summary).toEqual({ totalShares: 11, supplierMonthlyTarget: 10, overAllocated: true });
+    expect((await setCampaignShare(rig.deps(), rig.actor, shareInput(partner.id, 5))).summary).toEqual({ totalShares: 11, campaignMonthlyTarget: 10, overAllocated: true });
     expect((await setCampaignShare(rig.deps(), rig.actor, shareInput(partner.id, 1))).summary.overAllocated).toBe(false);
   });
 
-  it("compares with the coordinator's agreement and ignores the client's, and follows a new version of it", async () => {
+  it("compares with the one number both sides agreed, and follows a new version once both accept it", async () => {
     const { brightpath } = rig.world();
-    await publishAgreement(rig.deps(), rig.actor, { campaignId: firstCampaign(rig).id, party: "client", monthlyTarget: 1000, totalTarget: 6000 });
-    await publishSupplierTarget(10);
-    expect((await setCampaignShare(rig.deps(), rig.actor, shareInput(brightpath.id, 12))).summary).toMatchObject({ supplierMonthlyTarget: 10, overAllocated: true });
-    await publishSupplierTarget(15);
-    expect((await setCampaignShare(rig.deps(), rig.actor, shareInput(brightpath.id, 12))).summary).toMatchObject({ supplierMonthlyTarget: 15, overAllocated: false });
+    await agreeTarget(10);
+    expect((await setCampaignShare(rig.deps(), rig.actor, shareInput(brightpath.id, 12))).summary).toMatchObject({ campaignMonthlyTarget: 10, overAllocated: true });
+    await agreeTarget(15);
+    expect((await setCampaignShare(rig.deps(), rig.actor, shareInput(brightpath.id, 12))).summary).toMatchObject({ campaignMonthlyTarget: 15, overAllocated: false });
   });
 
   it("refuses another coordinator, a partner agency of another coordinator, a client and an unknown agency, with the reason, and writes nothing", async () => {
@@ -95,15 +95,26 @@ describe("setCampaignShare", () => {
   });
 });
 
+describe("a closed campaign", () => {
+  it("refuses to set or remove a share with campaign-closed, and leaves the shares as they were", async () => {
+    const { brightpath } = rig.world();
+    await setCampaignShare(rig.deps(), rig.actor, shareInput(brightpath.id, 5));
+    await closeCampaign(rig.deps(), rig.actor, firstCampaign(rig).id);
+    expect((await refusal(setCampaignShare(rig.deps(), rig.actor, shareInput(brightpath.id, 9)))).code).toBe("campaign-closed");
+    expect((await refusal(removeCampaignShare(rig.deps(), rig.actor, { campaignId: firstCampaign(rig).id, agencyOrgId: brightpath.id }))).code).toBe("campaign-closed");
+    expect((await stored()).map((row) => row.monthlyShare)).toEqual([5]);
+  });
+});
+
 describe("removeCampaignShare", () => {
   it("removes a share, returns the new summary and audits what was removed", async () => {
     const { brightpath } = rig.world();
     const partner = await partnerOf(brightpath.id, "Ridgeway Partner Ltd");
-    await publishSupplierTarget(10);
+    await agreeTarget(10);
     await setCampaignShare(rig.deps(), rig.actor, shareInput(brightpath.id, 8));
     await setCampaignShare(rig.deps(), rig.actor, shareInput(partner.id, 6));
     const summary = await removeCampaignShare(rig.deps(), rig.actor, { campaignId: firstCampaign(rig).id, agencyOrgId: partner.id });
-    expect(summary).toEqual({ totalShares: 8, supplierMonthlyTarget: 10, overAllocated: false });
+    expect(summary).toEqual({ totalShares: 8, campaignMonthlyTarget: 10, overAllocated: false });
     expect((await stored()).map((row) => row.monthlyShare)).toEqual([8]);
     const [audit] = await auditRowsFor(rig, "campaign_share.remove");
     expect(audit).toMatchObject({ subjectTable: "campaign_share", before: { agencyOrgId: partner.id, monthlyShare: 6 }, after: null });
@@ -125,7 +136,7 @@ describe("listCampaignShares", () => {
     const { brightpath } = rig.world();
     const zed = await partnerOf(brightpath.id, "Zed Partner Ltd");
     const alpha = await partnerOf(brightpath.id, "Alpha Partner Ltd");
-    await publishSupplierTarget(10);
+    await agreeTarget(10);
     await setCampaignShare(rig.deps(), rig.actor, shareInput(zed.id, 7));
     await setCampaignShare(rig.deps(), rig.actor, shareInput(alpha.id, 5));
     const listed = await listCampaignShares(rig.deps(), rig.staffActor, firstCampaign(rig).id);
@@ -133,11 +144,11 @@ describe("listCampaignShares", () => {
       ["Alpha Partner Ltd", 5],
       ["Zed Partner Ltd", 7],
     ]);
-    expect(listed.summary).toEqual({ totalShares: 12, supplierMonthlyTarget: 10, overAllocated: true });
+    expect(listed.summary).toEqual({ totalShares: 12, campaignMonthlyTarget: 10, overAllocated: true });
   });
 
   it("returns an empty list for a campaign with no shares, and refuses an unknown campaign", async () => {
-    expect(await listCampaignShares(rig.deps(), rig.actor, firstCampaign(rig).id)).toEqual({ shares: [], summary: { totalShares: 0, supplierMonthlyTarget: null, overAllocated: false } });
+    expect(await listCampaignShares(rig.deps(), rig.actor, firstCampaign(rig).id)).toEqual({ shares: [], summary: { totalShares: 0, campaignMonthlyTarget: 20, overAllocated: false } });
     expect((await refusal(listCampaignShares(rig.deps(), rig.actor, UNKNOWN))).code).toBe("not-found");
   });
 });

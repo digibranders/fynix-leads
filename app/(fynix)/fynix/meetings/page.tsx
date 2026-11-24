@@ -3,8 +3,11 @@ import { Suspense } from "react";
 import { PageHeader } from "@/components/kit/page-header";
 import { PageSkeleton } from "@/components/kit/skeletons";
 import { MEETING_SHOWS, PortalMeetings, meetingsSummary } from "@/components/meetings/portal-meetings";
+import { parseCampaignFilter } from "@/lib/campaign-status";
 import { parsePage } from "@/lib/leads/list";
 import { getDatabase } from "@/server/db/client";
+import { getDomain } from "@/server/domain";
+import { listCampaignRows } from "@/server/domain/campaign-overview";
 import { listFynixMeetings } from "@/server/domain/meetings";
 import { requireFynix } from "@/server/fynix/session";
 
@@ -15,7 +18,7 @@ const one = (value: string | string[] | undefined): string | undefined => (typeo
 async function Meetings({ searchParams }: { searchParams: PageProps<"/fynix/meetings">["searchParams"] }) {
   const view = await requireFynix();
   const params = await searchParams;
-  const meetings = await listFynixMeetings(getDatabase("leads_fynix").db, view.actor);
+  const [meetings, campaigns] = await Promise.all([listFynixMeetings(getDatabase("leads_fynix").db, view.actor), listCampaignRows(getDomain(), view.actor)]);
   const now = new Date();
   return (
     <div className="flex flex-col gap-4">
@@ -30,6 +33,8 @@ async function Meetings({ searchParams }: { searchParams: PageProps<"/fynix/meet
         canWrite={false}
         now={now}
         emptyText="Meetings appear here once a client accepts a time."
+        campaigns={campaigns}
+        campaign={parseCampaignFilter(params.campaign, campaigns)}
       />
     </div>
   );

@@ -5,7 +5,7 @@ import { TabNav } from "@/components/kit/tab-nav";
 
 type Props = { reference: string; hostCount: number };
 
-/** The four sub-pages under the campaign title. One path segment each, so a tab is a link and the browser's back button works. */
+/** The sub-pages under the campaign title. One path segment each, so a tab is a link and the browser's back button works. */
 export function CampaignTabs({ reference, hostCount }: Props) {
   const segment = useSelectedLayoutSegment();
   const base = `/fynix/campaigns/${reference}`;
@@ -13,6 +13,8 @@ export function CampaignTabs({ reference, hostCount }: Props) {
     { key: null, label: "Brief", href: base },
     { key: "hosts", label: "Hosts", href: `${base}/hosts`, count: hostCount },
     { key: "agreements", label: "Agreements and shares", href: `${base}/agreements` },
+    { key: "leads", label: "Leads", href: `${base}/leads` },
+    { key: "meetings", label: "Meetings", href: `${base}/meetings` },
     { key: "activity", label: "Activity", href: `${base}/activity` },
   ] as const;
   return (

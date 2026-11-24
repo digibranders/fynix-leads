@@ -1,10 +1,12 @@
 import { asc, desc, eq, getTableColumns } from "drizzle-orm";
 import type { RandomBytes } from "@/lib/domain/public-ref";
-import { auditLog, emailOutbox, member } from "@/server/db/schema";
+import { auditLog, campaign, emailOutbox, member } from "@/server/db/schema";
 import type { SeededCampaign, SeededOrganisation, SeededUser } from "@/server/db/testing/seed";
 import type { AuditAction } from "@/server/domain/audit";
 import { DomainError } from "@/server/domain/errors";
 import { publishTerms } from "@/server/domain/terms";
+import { publishAgreement, recordAgreementAcceptance } from "@/server/domain/agreements";
+import { addCampaignHost } from "@/server/domain/hosts";
 import type { DomainRig } from "@/server/domain/testing";
 
 /** A random source that answers from a list, one entry per call, and repeats the last entry when the list runs out. For forcing a reference collision. */
@@ -74,4 +76,33 @@ export async function memberIdFor(rig: DomainRig, userId: string): Promise<strin
 /** Changes a member's role as the owner, which is how a test makes a client or supplier user a manager. */
 export async function setMemberRole(rig: DomainRig, userId: string, role: "member" | "manager"): Promise<void> {
   await rig.dbs.owner.db.update(member).set({ role }).where(eq(member.userId, userId));
+}
+
+/**
+ * Publishes the campaign agreement and has a manager of the client and a manager of the coordinator accept it, through the services. When
+ * both have, the numbers become the campaign's. Returns the published agreement's id.
+ */
+export async function agreeNumbers(rig: DomainRig, campaignId: string, numbers: { readonly monthlyTarget: number; readonly totalTarget: number } = { monthlyTarget: 12, totalTarget: 72 }): Promise<string> {
+  const [row] = await rig.dbs.owner.db.select({ clientOrgId: campaign.clientOrgId, agencyOrgId: campaign.agencyOrgId }).from(campaign).where(eq(campaign.id, campaignId));
+  if (row === undefined) throw new Error(`No campaign ${campaignId}`);
+  const people = rig.world().users;
+  const clientUser = people.find((person) => person.organisation.id === row.clientOrgId);
+  const supplierUser = people.find((person) => person.organisation.id === row.agencyOrgId);
+  if (clientUser === undefined || supplierUser === undefined) throw new Error("The seed has no user for the campaign's client or coordinator");
+  await setMemberRole(rig, clientUser.id, "manager");
+  await setMemberRole(rig, supplierUser.id, "manager");
+  const published = await publishAgreement(rig.deps(), rig.actor, { campaignId, ...numbers });
+  await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: published.id, userId: clientUser.id });
+  await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: published.id, userId: supplierUser.id });
+  return published.id;
+}
+
+/** Makes a campaign meet the going-live rule: an agreement both sides accepted (`agreeNumbers`) and one active host (the client's seeded person). */
+export async function makeCampaignReady(rig: DomainRig, campaignId: string, numbers?: { readonly monthlyTarget: number; readonly totalTarget: number }): Promise<string> {
+  const agreementId = await agreeNumbers(rig, campaignId, numbers);
+  const [row] = await rig.dbs.owner.db.select({ clientOrgId: campaign.clientOrgId }).from(campaign).where(eq(campaign.id, campaignId));
+  const clientUser = rig.world().users.find((person) => person.organisation.id === row?.clientOrgId);
+  if (clientUser === undefined) throw new Error("The seed has no user for the campaign's client");
+  await addCampaignHost(rig.deps(), rig.actor, { campaignId, memberId: await memberIdFor(rig, clientUser.id), jobTitle: "Head of Sales" });
+  return agreementId;
 }

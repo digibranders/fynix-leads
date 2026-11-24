@@ -7,7 +7,7 @@ import { auditLog, campaign, campaignHost, campaignShare, hostBlock, hostHours, 
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
 import { fynixRead, type FynixActor } from "@/server/domain/fynix-write";
-import { readAgreements, type AgreementHistory, type AgreementParty } from "@/server/domain/agreements";
+import { acceptedByBothSides, readAgreements, type AgreementHistory, type AgreementSide } from "@/server/domain/agreements";
 import { uuidSchema } from "@/server/domain/inputs";
 import { parseInput } from "@/server/domain/parse";
 
@@ -92,6 +92,8 @@ export interface CampaignHeader {
   readonly meetingMinutes: number;
   /** Hosts who are switched on. */
   readonly activeHostCount: number;
+  /** When the campaign was closed; null while it is not closed. */
+  readonly closedAt: Date | null;
   readonly brief: CampaignBrief;
 }
 
@@ -128,6 +130,7 @@ export async function readCampaignHeader(deps: DomainDeps, actor: FynixActor, pu
         bantTimeline: campaign.bantTimeline,
         instructions: campaign.instructions,
         internalNotes: campaign.internalNotes,
+        closedAt: campaign.closedAt,
       })
       .from(campaign)
       .innerJoin(client, eq(client.id, campaign.clientOrgId))
@@ -136,8 +139,8 @@ export async function readCampaignHeader(deps: DomainDeps, actor: FynixActor, pu
       .limit(1);
     if (row === undefined) throw new DomainError("not-found", "There is no such campaign.");
     const [hosts] = await tx.select({ n: count() }).from(campaignHost).where(and(eq(campaignHost.campaignId, row.id), eq(campaignHost.active, true)));
-    const { id, publicRef: ref, name, status, clientOrgId, clientName, supplierOrgId, supplierName, timeZone, meetingMinutes, ...brief } = row;
-    return { id, publicRef: ref, name, status, clientOrgId, clientName, supplierOrgId, supplierName, timeZone, meetingMinutes, activeHostCount: hosts?.n ?? 0, brief };
+    const { id, publicRef: ref, name, status, clientOrgId, clientName, supplierOrgId, supplierName, timeZone, meetingMinutes, closedAt, ...brief } = row;
+    return { id, publicRef: ref, name, status, clientOrgId, clientName, supplierOrgId, supplierName, timeZone, meetingMinutes, activeHostCount: hosts?.n ?? 0, closedAt, brief };
   });
 }
 
@@ -229,15 +232,27 @@ export interface AgreementView {
   readonly rules: string;
   readonly notes: string;
   readonly createdAt: Date;
-  /** Who accepted this version, first acceptance first. Empty while it waits. */
-  readonly accepted: readonly { readonly name: string; readonly at: Date }[];
+  /** Who accepted this version, first acceptance first, with the side they signed for. Empty while it waits. */
+  readonly accepted: readonly { readonly name: string; readonly at: Date; readonly side: AgreementSide }[];
 }
 
+/** The one campaign agreement: the newest version, the version the one before it replaced, and the version in force while a newer one waits. */
 export interface AgreementSideView {
-  readonly party: AgreementParty;
   readonly current: AgreementView | null;
+  /** The newest version both the client and the coordinator accepted, when it is not the current one. Its numbers are the campaign's meanwhile. */
+  readonly inForceVersion: number | null;
   /** The version the current one replaced, with the day it was replaced. */
   readonly previous: { readonly version: number; readonly createdAt: Date; readonly supersededAt: Date } | null;
+  /** Every earlier version, newest first, with its numbers and whether both sides accepted it. */
+  readonly history: readonly AgreementHistoryLine[];
+}
+
+export interface AgreementHistoryLine {
+  readonly version: number;
+  readonly monthlyTarget: number;
+  readonly totalTarget: number;
+  readonly createdAt: Date;
+  readonly acceptedByBoth: boolean;
 }
 
 export interface ShareView {
@@ -258,8 +273,7 @@ export interface AgencyOption {
 }
 
 export interface AgreementsPage {
-  readonly client: AgreementSideView;
-  readonly supplier: AgreementSideView;
+  readonly agreement: AgreementSideView;
   readonly shares: readonly ShareView[];
   readonly summary: ShareSummary;
   /** Active agencies a share can still go to: the supplier and its partner agencies that have none yet. */
@@ -270,7 +284,7 @@ const sideView = (history: AgreementHistory, names: ReadonlyMap<string, string>)
   const { current } = history;
   const previous = history.history[0];
   return {
-    party: history.party,
+    inForceVersion: history.inForce === null || history.inForce.id === current?.id ? null : history.inForce.version,
     current:
       current === null
         ? null
@@ -282,21 +296,22 @@ const sideView = (history: AgreementHistory, names: ReadonlyMap<string, string>)
             rules: current.rules,
             notes: current.notes,
             createdAt: current.createdAt,
-            accepted: current.acceptances.map((entry) => ({ name: names.get(entry.userId) ?? "A signer", at: entry.acceptedAt })),
+            accepted: current.acceptances.map((entry) => ({ name: names.get(entry.userId) ?? "A signer", at: entry.acceptedAt, side: entry.side })),
           },
     previous: previous === undefined || current === null ? null : { version: previous.version, createdAt: previous.createdAt, supersededAt: current.createdAt },
+    history: history.history.map((row) => ({ version: row.version, monthlyTarget: row.monthlyTarget, totalTarget: row.totalTarget, createdAt: row.createdAt, acceptedByBoth: acceptedByBothSides(row) })),
   };
 };
 
-/** Both agreements, the monthly shares with who last changed each, the over-allocation summary and the agencies still without a share. */
+/** The campaign agreement, the monthly shares with who last changed each, the over-allocation summary and the agencies still without a share. */
 export async function readAgreementsPage(deps: DomainDeps, actor: FynixActor, campaignId: string): Promise<AgreementsPage> {
   const id = parseInput(uuidSchema, campaignId);
   const agreements = await readAgreements(deps, actor, id);
   return fynixRead(deps.fynixDb, actor, async (tx) => {
-    const [target] = await tx.select({ id: campaign.id, supplierOrgId: campaign.agencyOrgId }).from(campaign).where(eq(campaign.id, id)).limit(1);
+    const [target] = await tx.select({ id: campaign.id, supplierOrgId: campaign.agencyOrgId, monthlyTarget: campaign.monthlyTarget }).from(campaign).where(eq(campaign.id, id)).limit(1);
     if (target === undefined) throw new DomainError("not-found", "There is no such campaign.");
 
-    const signerIds = [...agreements.client.current?.acceptances ?? [], ...agreements.supplier.current?.acceptances ?? []].map((entry) => entry.userId);
+    const signerIds = (agreements.current?.acceptances ?? []).map((entry) => entry.userId);
     const signers =
       signerIds.length === 0 ? [] : await tx.select({ userId: member.userId, name: member.displayName }).from(member).where(inArray(member.userId, signerIds));
     const names = new Map(signers.map((row) => [row.userId, row.name]));
@@ -340,10 +355,9 @@ export async function readAgreementsPage(deps: DomainDeps, actor: FynixActor, ca
       .map((row): AgencyOption => ({ id: row.id, name: row.name, ownBookings: row.id === target.supplierOrgId }));
 
     return {
-      client: sideView(agreements.client, names),
-      supplier: sideView(agreements.supplier, names),
+      agreement: sideView(agreements, names),
       shares,
-      summary: summariseShares(agreements.supplier.current?.monthlyTarget ?? null, shares.map((row) => row.monthlyShare)),
+      summary: summariseShares(target.monthlyTarget, shares.map((row) => row.monthlyShare)),
       options,
     };
   });

@@ -9,8 +9,11 @@ import { Panel } from "@/components/kit/panel";
 import { SearchForm, Toolbar } from "@/components/kit/toolbar";
 import { TabNav } from "@/components/kit/tab-nav";
 import { MeetingsTable, meetingGroup, type MeetingGroup } from "@/components/meetings/meetings-table";
+import { campaignFilterHrefs, closedCampaignIds, parseCampaignFilter } from "@/lib/campaign-status";
+import { CampaignFilter } from "@/components/kit/campaign-filter";
 import { paginate, parsePage } from "@/lib/leads/list";
 import { getDatabase } from "@/server/db/client";
+import { listTenantCampaigns } from "@/server/domain/campaigns-tenant";
 import { listClientMeetings } from "@/server/domain/meetings";
 import { requireClient } from "@/server/client/session";
 
@@ -24,10 +27,11 @@ const SHOWS: readonly { key: MeetingGroup; label: string }[] = [
   { key: "done", label: "Done" },
 ];
 
-function meetingsHref(filter: { show: MeetingGroup | null; q: string; page?: number }): string {
+function meetingsHref(filter: { show: MeetingGroup | null; q: string; campaign?: string | null; page?: number }): string {
   const params = new URLSearchParams();
   if (filter.show) params.set("show", filter.show);
   if (filter.q.trim() !== "") params.set("q", filter.q.trim());
+  if (filter.campaign) params.set("campaign", filter.campaign);
   if (filter.page && filter.page > 1) params.set("page", String(filter.page));
   const query = params.toString();
   return query === "" ? BASE : `${BASE}?${query}`;
@@ -40,7 +44,9 @@ async function Meetings({ searchParams }: { searchParams: PageProps<"/client/mee
   const q = one(params.q) ?? "";
   const needle = q.trim().toLowerCase();
 
-  const meetings = await listClientMeetings(getDatabase("leads_client").db, view.actor);
+  const db = getDatabase("leads_client").db;
+  const [meetings, campaigns] = await Promise.all([listClientMeetings(db, view.actor), listTenantCampaigns(db, view.actor, "client")]);
+  const campaign = parseCampaignFilter(params.campaign, campaigns);
   const now = new Date();
 
   const counts = { upcoming: 0, due: 0, done: 0 } satisfies Record<MeetingGroup, number>;
@@ -49,6 +55,7 @@ async function Meetings({ searchParams }: { searchParams: PageProps<"/client/mee
   const filtered = meetings.filter(
     (meeting) =>
       (show === null || meetingGroup(meeting, now) === show) &&
+      (campaign === null || meeting.campaignId === campaign) &&
       (needle === "" ||
         meeting.prospectName.toLowerCase().includes(needle) ||
         meeting.prospectCompany.toLowerCase().includes(needle) ||
@@ -88,27 +95,28 @@ async function Meetings({ searchParams }: { searchParams: PageProps<"/client/mee
             <TabNav
               label="Meeting stage"
               items={[
-                { label: "All", href: meetingsHref({ show: null, q }), count: meetings.length, active: show === null },
-                ...SHOWS.map((entry) => ({ label: entry.label, href: meetingsHref({ show: entry.key, q }), count: counts[entry.key], active: show === entry.key })),
+                { label: "All", href: meetingsHref({ show: null, q, campaign }), count: meetings.length, active: show === null },
+                ...SHOWS.map((entry) => ({ label: entry.label, href: meetingsHref({ show: entry.key, q, campaign }), count: counts[entry.key], active: show === entry.key })),
               ]}
             />
           </div>
           <Toolbar trailing={`${filtered.length} ${filtered.length === 1 ? "meeting" : "meetings"}`}>
-            <SearchForm defaultValue={q} placeholder="Search by prospect, company or campaign" hidden={{ show: show ?? undefined }} />
+            <SearchForm defaultValue={q} placeholder="Search by prospect, company or campaign" hidden={{ show: show ?? undefined, campaign: campaign ?? undefined }} />
+            <CampaignFilter campaigns={campaigns} selected={campaign} {...campaignFilterHrefs(campaigns, (id) => meetingsHref({ show, q, campaign: id }))} />
           </Toolbar>
           {page.rows.length === 0 ? (
             <EmptyState icon={CalendarBlank} title="No meetings match">
               Clear the search or pick another stage to see more.
             </EmptyState>
           ) : (
-            <MeetingsTable meetings={page.rows} canWrite={view.canWrite} now={now} />
+            <MeetingsTable meetings={page.rows} canWrite={view.canWrite} now={now} closedCampaigns={closedCampaignIds(campaigns)} />
           )}
           <Pager
             from={page.from}
             to={page.to}
             total={page.total}
-            prevHref={page.page > 1 ? meetingsHref({ show, q, page: page.page - 1 }) : undefined}
-            nextHref={page.page < page.pages ? meetingsHref({ show, q, page: page.page + 1 }) : undefined}
+            prevHref={page.page > 1 ? meetingsHref({ show, q, campaign, page: page.page - 1 }) : undefined}
+            nextHref={page.page < page.pages ? meetingsHref({ show, q, campaign, page: page.page + 1 }) : undefined}
           />
         </Panel>
       )}

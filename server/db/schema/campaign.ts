@@ -57,6 +57,8 @@ export const campaign = pgTable(
      */
     timeZone: text("time_zone").notNull().default("Europe/London"),
     meetingMinutes: integer("meeting_minutes").notNull().default(30),
+    /** When the campaign last moved into a closed status (paused, completed or archived); null while it is not closed. */
+    closedAt: timestamp("closed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

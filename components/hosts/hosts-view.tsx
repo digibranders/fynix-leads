@@ -4,6 +4,9 @@ import { EmptyState } from "@/components/kit/empty-state";
 import { Panel, PanelHeader } from "@/components/kit/panel";
 import { Person } from "@/components/kit/person";
 import { When } from "@/components/kit/when";
+import { ClosedTag } from "@/components/kit/closed-tag";
+import type { HoursWindow } from "@/lib/domain/weekly-hours";
+import { AddHostButton, BlockOwnTimeButton, EditOwnHoursButton, PauseHostButton, RemoveOwnBlockButton } from "./host-actions";
 import { cn } from "@/lib/utils";
 
 export interface HostDay {
@@ -13,6 +16,7 @@ export interface HostDay {
 }
 
 export interface HostBlock {
+  readonly id: string;
   readonly startsAt: string;
   readonly endsAt: string;
   readonly note: string | null;
@@ -22,7 +26,12 @@ export interface HostView {
   readonly memberId: string;
   readonly name: string;
   readonly jobTitle: string;
-  readonly campaigns: readonly string[];
+  /** The campaigns the host takes meetings for. A closed campaign is read only. */
+  readonly assignments: readonly { readonly campaignId: string; readonly name: string; readonly closed: boolean }[];
+  /** The signed-in person: they edit their own hours and blocked times. */
+  readonly own: boolean;
+  /** The weekly hours as stored, for the edit form. */
+  readonly windows: readonly HoursWindow[];
   /** Monday to Sunday, in the host's own time zone. */
   readonly week: readonly HostDay[];
   readonly timeZone: string | null;
@@ -30,13 +39,19 @@ export interface HostView {
   readonly blocks: readonly HostBlock[];
 }
 
+/** What a client manager can do: add a host to an open campaign from the organisation's active people. */
+export interface ManageHosts {
+  readonly campaigns: readonly { readonly id: string; readonly name: string }[];
+  readonly people: readonly { readonly memberId: string; readonly name: string }[];
+}
+
 /** The people who take meetings: a list on the left, and on the right what they do, when they are free and what is blocked. Selection is `?host=`. */
-export function HostsView({ hosts, selectedId, basePath }: { readonly hosts: readonly HostView[]; readonly selectedId?: string; readonly basePath: string }) {
+export function HostsView({ hosts, selectedId, basePath, manage }: { readonly hosts: readonly HostView[]; readonly selectedId?: string; readonly basePath: string; readonly manage?: ManageHosts }) {
   if (hosts.length === 0) {
     return (
       <Panel>
-        <EmptyState icon={UsersThree} title="No hosts assigned yet">
-          Fynix assigns the people who take your meetings to each campaign. They will appear here with their hours.
+        <EmptyState icon={UsersThree} title="No hosts assigned yet" action={manage !== undefined && manage.campaigns.length > 0 ? <AddHostButton campaigns={manage.campaigns} people={manage.people} /> : undefined}>
+          {manage === undefined ? "A manager of your account assigns the people who take your meetings to each campaign." : "Add the people who take your meetings to each campaign. They will appear here with their hours."}
         </EmptyState>
       </Panel>
     );
@@ -73,19 +88,39 @@ export function HostsView({ hosts, selectedId, basePath }: { readonly hosts: rea
         <Panel aria-label={selected.name} className="p-6">
           <h2 className="text-name font-semibold tracking-title text-balance">{selected.name}</h2>
           <p className="mt-0.5 text-lead text-ink-muted">{selected.jobTitle}</p>
-          {selected.campaigns.length > 0 ? (
+          {selected.assignments.length > 0 ? (
             <ul aria-label="Campaigns" className="mt-3 flex flex-wrap gap-1.5">
-              {selected.campaigns.map((name) => (
-                <li key={name} className="rounded-xs bg-navy-05 px-2 py-0.5 text-xs font-semibold text-ink-2">
-                  {name}
+              {selected.assignments.map((entry) => (
+                <li key={entry.campaignId} className="flex items-center gap-1.5 rounded-xs bg-navy-05 px-2 py-0.5 text-xs font-semibold text-ink-2">
+                  {entry.name}
+                  {entry.closed ? <ClosedTag /> : null}
                 </li>
               ))}
             </ul>
           ) : null}
+          {manage !== undefined ? (
+            <div className="mt-3 flex flex-wrap items-center gap-1">
+              {selected.assignments
+                .filter((entry) => !entry.closed)
+                .map((entry) => (
+                  <PauseHostButton key={entry.campaignId} campaignId={entry.campaignId} memberId={selected.memberId} hostName={selected.name} campaignName={entry.name} />
+                ))}
+              {manage.campaigns.length > 0 ? <AddHostButton campaigns={manage.campaigns} people={manage.people} /> : null}
+            </div>
+          ) : null}
         </Panel>
 
         <Panel aria-label={`Weekly hours of ${selected.name}`}>
-          <PanelHeader title="Weekly hours" action={selected.timeZone === null ? undefined : <span className="text-label text-ink-muted">Host time zone: {selected.timeZone}</span>} />
+          <PanelHeader
+            title="Weekly hours"
+            action={
+              selected.own ? (
+                <EditOwnHoursButton timeZone={selected.timeZone ?? "Europe/London"} windows={selected.windows} />
+              ) : selected.timeZone === null ? undefined : (
+                <span className="text-label text-ink-muted">Host time zone: {selected.timeZone}</span>
+              )
+            }
+          />
           {hasHours ? (
             <dl className="px-5 pb-4">
               {selected.week.map((entry) => (
@@ -97,13 +132,13 @@ export function HostsView({ hosts, selectedId, basePath }: { readonly hosts: rea
             </dl>
           ) : (
             <EmptyState icon={Clock} title="No hours set">
-              No meeting can be booked with this person until Fynix sets their hours.
+              {selected.own ? "No meeting can be booked with you until you set your hours." : "No meeting can be booked with this person until they set their hours."}
             </EmptyState>
           )}
         </Panel>
 
         <Panel aria-label={`Blocked times of ${selected.name}`}>
-          <PanelHeader title="Blocked times" count={selected.blocks.length} />
+          <PanelHeader title="Blocked times" count={selected.blocks.length} action={selected.own ? <BlockOwnTimeButton timeZone={selected.timeZone ?? "Europe/London"} /> : undefined} />
           {selected.blocks.length === 0 ? (
             <EmptyState icon={CalendarX} title="Nothing blocked">
               Time off and other blocks appear here, shown in your own time zone.
@@ -111,11 +146,14 @@ export function HostsView({ hosts, selectedId, basePath }: { readonly hosts: rea
           ) : (
             <ul className="px-2 pb-3">
               {selected.blocks.map((block) => (
-                <li key={`${block.startsAt}-${block.endsAt}`} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5 rounded-sm px-3 py-2.5">
+                <li key={block.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5 rounded-sm px-3 py-2.5">
                   <span className="text-body font-semibold text-ink">
                     <When at={block.startsAt} /> to <When at={block.endsAt} />
                   </span>
-                  {block.note ? <span className="text-label text-ink-muted">{block.note}</span> : null}
+                  <span className="flex items-center gap-2">
+                    {block.note ? <span className="text-label text-ink-muted">{block.note}</span> : null}
+                    {selected.own ? <RemoveOwnBlockButton blockId={block.id} label={`Remove the blocked time starting ${block.startsAt}`} /> : null}
+                  </span>
                 </li>
               ))}
             </ul>

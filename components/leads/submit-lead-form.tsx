@@ -33,10 +33,18 @@ export interface HostOption {
   readonly jobTitle: string;
 }
 
+export interface NotLiveCampaign {
+  readonly campaignId: string;
+  readonly name: string;
+  readonly reason: string;
+}
+
 interface Props {
   readonly campaigns: readonly CampaignOption[];
   readonly aliases: readonly AliasOption[];
   readonly hosts: readonly HostOption[];
+  /** Campaigns that take no leads, each with the reason in words that name no person. */
+  readonly notLive?: readonly NotLiveCampaign[];
   /** Where the leads of this portal are listed, for the link after a lead is sent. */
   readonly leadsHref: string;
 }
@@ -60,7 +68,7 @@ function Group({ title, note, children }: { title: string; note?: string; childr
 }
 
 /** A lead submission: four tonal groups of fields in one panel, and one primary action in a sticky foot. Field names are the ones the action reads. */
-export function SubmitLeadForm({ campaigns, aliases, hosts, leadsHref }: Props) {
+export function SubmitLeadForm({ campaigns, aliases, hosts, notLive = [], leadsHref }: Props) {
   const [state, formAction, pending] = useActionState(submitLeadAction, IDLE_TENANT_ACTION);
   const [times, setTimes] = useState<string[]>([""]);
   const [campaignId, setCampaignId] = useState("");
@@ -99,7 +107,7 @@ export function SubmitLeadForm({ campaigns, aliases, hosts, leadsHref }: Props) 
                   onValueChange={setCampaignId}
                   required
                   placeholder="Select a campaign"
-                  emptyLabel="No campaigns are assigned to you yet"
+                  emptyLabel={notLive.length > 0 ? "No campaign is live yet" : "No campaigns are assigned to you yet"}
                   options={campaigns.map((c) => ({ value: c.id, label: `${c.name} (${c.clientBrandName})` }))}
                 />
               </Field>
@@ -128,6 +136,15 @@ export function SubmitLeadForm({ campaigns, aliases, hosts, leadsHref }: Props) 
                 </Field>
               </div>
             </div>
+            {notLive.length > 0 ? (
+              <ul aria-label="Campaigns that are not live" className="flex flex-col gap-1.5 text-table text-ink-2">
+                {notLive.map((row) => (
+                  <li key={row.campaignId}>
+                    <span className="font-semibold text-ink">{row.name}</span>. Not live yet: {row.reason}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </Group>
 
           <Group title="Prospect">

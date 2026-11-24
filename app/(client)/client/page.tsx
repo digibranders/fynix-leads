@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { CalendarBlank, Table, Tray } from "@phosphor-icons/react/dist/ssr";
+import { CampaignFilter } from "@/components/kit/campaign-filter";
 import { EmptyState } from "@/components/kit/empty-state";
 import { Hero } from "@/components/kit/hero";
 import { ListRow, DateTile } from "@/components/kit/list";
@@ -14,11 +15,13 @@ import { MiniStat } from "@/components/kit/stat";
 import { StatusChip } from "@/components/kit/status-chip";
 import { When } from "@/components/kit/when";
 import { buttonVariants } from "@/components/ui/button";
+import { campaignFilterHrefs, parseCampaignFilter } from "@/lib/campaign-status";
 import type { LeadStage } from "@/lib/leads/stage";
 import { countByGroup, PIPELINE_GROUPS } from "@/lib/leads/pipeline";
 import { formatWaiting } from "@/lib/time/age";
 import { getDatabase } from "@/server/db/client";
 import { getClientOverviewMetrics } from "@/server/domain/analytics";
+import { listTenantCampaigns } from "@/server/domain/campaigns-tenant";
 import { listClientLeads } from "@/server/domain/leads";
 import { requireClient } from "@/server/client/session";
 
@@ -26,10 +29,17 @@ export const metadata: Metadata = { title: "Overview" };
 
 const byTime = (a: { when: Date }, b: { when: Date }) => a.when.getTime() - b.when.getTime();
 
-async function Overview() {
+async function Overview({ searchParams }: { searchParams: PageProps<"/client">["searchParams"] }) {
   const view = await requireClient();
+  const params = await searchParams;
   const db = getDatabase("leads_client").db;
-  const [metrics, leads] = await Promise.all([getClientOverviewMetrics(db, view.actor), listClientLeads(db, view.actor)]);
+  const [allLeads, campaigns] = await Promise.all([listClientLeads(db, view.actor), listTenantCampaigns(db, view.actor, "client")]);
+  // The overview is about active campaigns. With more than one, a switcher picks one; a stale or closed campaign in the address shows all of them.
+  const active = campaigns.filter((row) => row.status === "active");
+  const chosen = parseCampaignFilter(params.campaign, active);
+  const metrics = await getClientOverviewMetrics(db, view.actor, chosen ?? undefined);
+  const inScope = new Set(chosen === null ? active.map((row) => row.id) : [chosen]);
+  const leads = allLeads.filter((lead) => inScope.has(lead.campaignId));
   const now = new Date();
 
   const awaiting = leads
@@ -51,13 +61,16 @@ async function Overview() {
     <div className="flex flex-col gap-4">
       <PageHeader
         title="Overview"
-        description="Where your campaign stands today."
+        description={active.length > 1 && chosen === null ? "Where your active campaigns stand today." : "Where your campaign stands today."}
         actions={
           <Link href="/client/leads" className={buttonVariants({ variant: "secondary" })}>
             All leads
           </Link>
         }
       />
+      {active.length > 1 ? (
+        <CampaignFilter campaigns={active} selected={chosen} allLabel="All active campaigns" {...campaignFilterHrefs(active, (id) => (id === null ? "/client" : `/client?campaign=${id}`))} />
+      ) : null}
 
       <Hero
         kicker={waiting > 0 ? "Needs your response" : "All clear"}
@@ -77,9 +90,9 @@ async function Overview() {
         }
         aside={
           <>
-            <p className="text-label font-semibold text-peach">Delivered so far</p>
+            <p className="text-label font-semibold text-peach">{chosen === null ? "Delivered, active campaigns" : "Delivered, this campaign"}</p>
             <p className="text-display font-semibold tracking-figure">{metrics.deliveredCount}</p>
-            <p className="text-body text-on-navy-text">{metrics.targetCount > 0 ? `Monthly target: ${metrics.targetCount} a month` : "No monthly target is set."}</p>
+            <p className="text-body text-on-navy-text">{metrics.targetCount > 0 ? `Monthly target, active campaigns: ${metrics.targetCount} a month` : "No active campaign has a monthly target."}</p>
           </>
         }
       />
@@ -169,11 +182,11 @@ async function Overview() {
   );
 }
 
-export default function ClientOverviewPage() {
+export default function ClientOverviewPage({ searchParams }: PageProps<"/client">) {
   // The session read is in its own boundary: a layout does not run again on a client navigation, so the page must hold its own.
   return (
     <Suspense fallback={<PageSkeleton rows={4} />}>
-      <Overview />
+      <Overview searchParams={searchParams} />
     </Suspense>
   );
 }
