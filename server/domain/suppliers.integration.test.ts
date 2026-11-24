@@ -47,7 +47,7 @@ describe("createSupplier", () => {
 });
 
 describe("createPartnerAgency", () => {
-  it("creates an agency under a supplier and audits it with the parent in the snapshot", async () => {
+  it("creates an agency under a coordinator and audits it with the parent in the snapshot", async () => {
     const { brightpath } = rig.world();
     const created = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: brightpath.id, name: "Ridgeway Partner Ltd" });
     expect(created).toMatchObject({ kind: "agency", name: "Ridgeway Partner Ltd", parentOrgId: brightpath.id, status: "active" });
@@ -55,7 +55,7 @@ describe("createPartnerAgency", () => {
     expect(audit).toMatchObject({ subjectId: created.id, before: null, after: { kind: "agency", parentOrgId: brightpath.id } });
   });
 
-  it("refuses an unknown supplier, a client, the Fynix organisation, a partner agency and an archived supplier, and writes nothing", async () => {
+  it("refuses an unknown coordinator, a client, the Fynix organisation, a partner agency and an archived coordinator, and writes nothing", async () => {
     const { brightpath, kestrel, fynix, northgate } = rig.world();
     const partner = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: brightpath.id, name: "Ridgeway Partner Ltd" });
     const before = await organisationCount();
@@ -83,7 +83,7 @@ describe("createPartnerAgency", () => {
 });
 
 describe("listSuppliers", () => {
-  it("lists every supplier by name with its partner agencies, and no client", async () => {
+  it("lists every coordinator by name with its partner agencies, and no client", async () => {
     const { brightpath, northgate } = rig.world();
     expect((await listSuppliers(rig.deps(), rig.actor)).map((row) => [row.supplier.name, row.agencies.length])).toEqual([
       [brightpath.name, 0],
@@ -98,7 +98,7 @@ describe("listSuppliers", () => {
     expect(JSON.stringify(listed)).not.toContain("Kestrel");
   });
 
-  it("includes an archived supplier with its status, and is open to Fynix staff", async () => {
+  it("includes an archived coordinator with its status, and is open to Fynix staff", async () => {
     const { northgate } = rig.world();
     await setOrganisationStatus(rig.deps(), rig.actor, northgate.id, "archived");
     const listed = await listSuppliers(rig.deps(), rig.staffActor);

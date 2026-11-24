@@ -57,7 +57,7 @@ async function Inbox({ searchParams: pending }: { searchParams: PageProps<"/fyni
       side: c.side as "client_fynix" | "supplier_fynix",
       subject: c.subject ?? null,
       isDirect: c.isDirect,
-      counterpartyName: isClientSide ? "Client Organization" : "Supplier Organization",
+      counterpartyName: isClientSide ? "Client Organization" : "Coordinator Organization",
       lastMessageAt: c.updatedAt.toISOString(),
     };
   });
@@ -70,7 +70,7 @@ async function Inbox({ searchParams: pending }: { searchParams: PageProps<"/fyni
     .map((c) => ({
       id: c.id,
       publicRef: c.publicRef,
-      label: c.side === "client_fynix" ? "Client Side" : "Supplier Side",
+      label: c.side === "client_fynix" ? "Client Side" : "Coordinator Side",
       side: c.side as "client_fynix" | "supplier_fynix",
     }));
 
@@ -88,7 +88,7 @@ async function Inbox({ searchParams: pending }: { searchParams: PageProps<"/fyni
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title="Inbox" description="Conversations with clients and suppliers about campaigns and leads." />
+      <PageHeader title="Inbox" description="Conversations with clients and coordinators about campaigns and leads." />
       <MessagingView
         role="fynix"
         currentUserId={view.actor.userId}

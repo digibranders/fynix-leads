@@ -79,7 +79,7 @@ export function ShellFrame({ initial, sidebar, children }: Props) {
             onClick={toggle}
             aria-label={rail ? "Expand sidebar" : "Collapse sidebar"}
             title={`${rail ? "Expand" : "Collapse"} sidebar (Ctrl or Cmd and B)`}
-            className="absolute top-[22px] -right-3.5 z-40 grid size-7 place-items-center rounded-full bg-surface text-ink shadow-raised outline-offset-2 transition-[box-shadow,background-color] duration-(--dur-hover) hover:bg-offwhite hover:shadow-lift focus-visible:outline-2 focus-visible:outline-navy"
+            className="absolute top-[14px] -right-3.5 z-40 grid size-7 place-items-center rounded-full bg-surface text-ink shadow-raised outline-offset-2 transition-[box-shadow,background-color] duration-(--dur-hover) hover:bg-offwhite hover:shadow-lift focus-visible:outline-2 focus-visible:outline-navy"
           >
             <CaretLeft aria-hidden size={14} weight="bold" className={cn("transition-transform duration-300 ease-(--ease-out)", rail && "rotate-180")} />
           </button>

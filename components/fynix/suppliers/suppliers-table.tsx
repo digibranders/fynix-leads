@@ -24,19 +24,19 @@ export function SuppliersTable({ rows, filter, query, selectedRef, canWrite }: P
 
   if (rows.length === 0) {
     return (
-      <Panel aria-label="Suppliers">
-        <EmptyState icon={UsersThree} title="No suppliers yet" action={canWrite ? <AddSupplierButton /> : undefined}>
-          {canWrite ? "Add the first supplier, then invite its people." : "A Fynix admin adds suppliers."}
+      <Panel aria-label="Coordinators">
+        <EmptyState icon={UsersThree} title="No coordinators yet" action={canWrite ? <AddSupplierButton /> : undefined}>
+          {canWrite ? "Add the first coordinator, then invite its people." : "A Fynix admin adds coordinators."}
         </EmptyState>
       </Panel>
     );
   }
 
   return (
-    <Panel aria-label="Suppliers">
-      <PanelHeader title="All suppliers" count={rows.length} />
+    <Panel aria-label="Coordinators">
+      <PanelHeader title="All coordinators" count={rows.length} />
       <TabNav
-        label="Filter suppliers"
+        label="Filter coordinators"
         items={(["active", "archived"] as const).map((option) => ({
           label: option === "active" ? "Active" : "Archived",
           href: suppliersHref({ status: option, q: query }),
@@ -44,13 +44,13 @@ export function SuppliersTable({ rows, filter, query, selectedRef, canWrite }: P
           active: option === filter,
         }))}
       />
-      <Toolbar trailing={`${shown.length} ${shown.length === 1 ? "supplier" : "suppliers"}`}>
-        <SearchForm defaultValue={query} placeholder="Supplier or agency name" hidden={{ status: filter === "archived" ? "archived" : undefined }} />
+      <Toolbar trailing={`${shown.length} ${shown.length === 1 ? "coordinator" : "coordinators"}`}>
+        <SearchForm defaultValue={query} placeholder="Coordinator or agency name" hidden={{ status: filter === "archived" ? "archived" : undefined }} />
       </Toolbar>
 
       {shown.length === 0 ? (
-        <EmptyState icon={UsersThree} title={query.trim() === "" ? `No ${filter} suppliers` : "No supplier matches"}>
-          {query.trim() === "" ? (filter === "archived" ? "Suppliers that are archived show here." : "Every supplier is archived.") : "Try a different name, or clear the search."}
+        <EmptyState icon={UsersThree} title={query.trim() === "" ? `No ${filter} coordinators` : "No coordinator matches"}>
+          {query.trim() === "" ? (filter === "archived" ? "Coordinators that are archived show here." : "Every coordinator is archived.") : "Try a different name, or clear the search."}
         </EmptyState>
       ) : (
         <div className="px-2.5">
@@ -58,7 +58,7 @@ export function SuppliersTable({ rows, filter, query, selectedRef, canWrite }: P
             <TableHeader>
               <TableRow className="hover:[&>th]:bg-navy-04">
                 <TableHead className="max-md:hidden">Ref</TableHead>
-                <TableHead>Supplier</TableHead>
+                <TableHead>Coordinator</TableHead>
                 <TableHead className="text-right max-md:hidden">Agencies</TableHead>
                 <TableHead className="text-right max-md:hidden">People</TableHead>
                 <TableHead className="text-right">Campaigns</TableHead>
@@ -95,7 +95,7 @@ export function SuppliersTable({ rows, filter, query, selectedRef, canWrite }: P
 
       <p className="flex items-start gap-2 px-5 pt-3 pb-4 text-caption text-ink-muted">
         <Info aria-hidden size={14} className="mt-px shrink-0" />
-        Partner agencies are added by their supplier. A Fynix admin can add one too.
+        Partner agencies are added by their coordinator. A Fynix admin can add one too.
       </p>
     </Panel>
   );

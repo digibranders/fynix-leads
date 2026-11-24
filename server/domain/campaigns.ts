@@ -65,7 +65,7 @@ async function requireActiveOrganisation(tx: ScopedTransaction, id: string, kind
   const [row] = await tx.select({ kind: organisation.kind, status: organisation.status, parentOrgId: organisation.parentOrgId }).from(organisation).where(eq(organisation.id, id)).limit(1);
   if (row === undefined || row.kind !== kind) throw new DomainError("not-found", `There is no such ${kind}.`);
   if (row.status !== "active") throw new DomainError("organisation-archived", `The ${kind} is archived.`);
-  if (kind === "agency" && row.parentOrgId !== null) throw new DomainError("not-a-supplier", "A campaign needs a supplier. That agency is a partner agency of one.");
+  if (kind === "agency" && row.parentOrgId !== null) throw new DomainError("not-a-supplier", "A campaign needs a coordinator. That agency is a partner agency of one.");
 }
 
 /**

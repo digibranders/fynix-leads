@@ -108,7 +108,7 @@ describe("analytics domain service", () => {
       await expect(getSupplierOverviewMetrics(dummyDb, clientActor)).rejects.toThrow(DomainError);
     });
 
-    it("calculates supplier KPI metrics and partner agency breakdown", async () => {
+    it("calculates coordinator KPI metrics and partner agency breakdown", async () => {
       setMockData({
         campaigns: [
           { id: "c1", monthlyTarget: 40, totalTarget: 120, status: "active" },
@@ -137,7 +137,7 @@ describe("analytics domain service", () => {
       const supplierBreakdown = metrics.agencyBreakdown.find((b) => b.agencyOrgId === supplierActor.orgId);
       expect(supplierBreakdown?.shareTarget).toBe(25);
       expect(supplierBreakdown?.deliveredCount).toBe(1);
-      expect(supplierBreakdown?.agencyName).toBe("Direct Supplier");
+      expect(supplierBreakdown?.agencyName).toBe("Direct Coordinator");
 
       const partnerBreakdown = metrics.agencyBreakdown.find((b) => b.agencyOrgId === agencyActor.orgId);
       expect(partnerBreakdown?.agencyName).toBe("Ridgeway Partner Media Ltd");

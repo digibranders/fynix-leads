@@ -30,13 +30,13 @@ export function SupplierPanel({ detail, filter, query, canWrite }: Props) {
   return (
     <SidePanel
       closeHref={closeHref}
-      label={`${detail.name}, supplier`}
+      label={`${detail.name}, coordinator`}
       header={
         <>
           <div className="flex flex-wrap items-center gap-1.5">
             <Badge variant="quiet">
               <UsersThree aria-hidden />
-              Supplier
+              Coordinator
             </Badge>
             <Badge variant="quiet" className="font-mono font-medium">
               {detail.publicRef}
@@ -45,7 +45,7 @@ export function SupplierPanel({ detail, filter, query, canWrite }: Props) {
           </div>
           <h2 className="mt-3 text-name font-semibold tracking-title break-words">{detail.name}</h2>
           <p className="mt-0.5 text-body text-ink-muted">
-            Supplier since {formatDate(detail.createdAt, "UTC")}, {countOf(detail.campaigns.length, "campaign", "campaigns")}
+            Coordinator since {formatDate(detail.createdAt, "UTC")}, {countOf(detail.campaigns.length, "campaign", "campaigns")}
           </p>
         </>
       }
@@ -61,7 +61,7 @@ export function SupplierPanel({ detail, filter, query, canWrite }: Props) {
       <Tonal aria-label="Partner agencies">
         <SectionTitle icon={UsersThree} title="Partner agencies" meta={String(detail.agencies.length)} />
         {detail.agencies.length === 0 ? (
-          <p className="text-table text-ink-muted">No partner agencies. The supplier&apos;s own people submit the leads.</p>
+          <p className="text-table text-ink-muted">No partner agencies. The coordinator&apos;s own people submit the leads.</p>
         ) : (
           <table className="w-full text-table">
             <thead>
@@ -136,8 +136,8 @@ export function SupplierPanel({ detail, filter, query, canWrite }: Props) {
 /** Shown in place of the panel when the reference in the address is not a supplier. The list still works. */
 export function PanelNotFound({ closeHref }: { closeHref: string }) {
   return (
-    <SidePanel closeHref={closeHref} label="Supplier not found" header={<h2 className="text-lead font-semibold">Supplier not found</h2>}>
-      <p className="text-body text-ink-muted">That reference is not a supplier. Pick one from the list.</p>
+    <SidePanel closeHref={closeHref} label="Coordinator not found" header={<h2 className="text-lead font-semibold">Coordinator not found</h2>}>
+      <p className="text-body text-ink-muted">That reference is not a coordinator. Pick one from the list.</p>
     </SidePanel>
   );
 }

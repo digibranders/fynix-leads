@@ -42,7 +42,7 @@ async function Messages({ searchParams: pending }: { searchParams: PageProps<"/a
     side: c.side as "supplier_agency",
     subject: c.subject ?? null,
     isDirect: c.isDirect,
-    counterpartyName: "Lead supplier",
+    counterpartyName: "Lead coordinator",
     lastMessageAt: c.updatedAt.toISOString(),
   }));
 
@@ -60,7 +60,7 @@ async function Messages({ searchParams: pending }: { searchParams: PageProps<"/a
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title="Messages" description="Your conversations with your lead supplier about campaigns and leads." />
+      <PageHeader title="Messages" description="Your conversations with your lead coordinator about campaigns and leads." />
       <MessagingView
         role="agency"
         currentUserId={view.actor.userId}

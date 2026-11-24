@@ -178,7 +178,7 @@ export function MessageFlow({ messages, currentUserId, conversationId, seenAt, a
                 {!mine && newRun ? (
                   <p className="mb-0.5 flex flex-wrap items-center gap-x-1.5 text-caption font-semibold text-ink-2">
                     {message.senderName}
-                    <span className="rounded-xs bg-navy-07 px-1.5 text-[10px] font-semibold tracking-wide text-ink-2 uppercase">{message.senderRole}</span>
+                    <span className="rounded-xs bg-navy-07 px-1.5 text-[10px] font-semibold tracking-wide text-ink-2 uppercase">{message.senderRole === "supplier" ? "coordinator" : message.senderRole}</span>
                   </p>
                 ) : null}
                 {message.forwardOfMessageId ? (

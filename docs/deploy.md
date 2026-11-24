@@ -1,6 +1,6 @@
 # Deploying fynix-leads
 
-What the app expects from the server around it. Nothing here is automated yet: this is the checklist for the first deploy.
+What the app expects from the server around it. The app is live at `leads.fynix.digital` on the Firstfold VPS. A systemd timer (`fynix-leads-autodeploy`, in the `vps-setup` repository under `fynix/leads/`) pulls `main` every minute, runs the migrations, then builds, so a merge to `main` is a deploy. The outbox and the purge run from timers in the same folder. This file is the checklist those units implement.
 
 ## Environment
 

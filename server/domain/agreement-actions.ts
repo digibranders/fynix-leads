@@ -18,7 +18,7 @@ export interface AgreementActionResult {
 export async function acceptAgreementAction(_previous: AgreementActionResult, formData: FormData): Promise<AgreementActionResult> {
   const context = await getSessionContext();
   if (context === null || (context.kind !== "client" && context.kind !== "agency")) {
-    return { status: "error", message: "Only a client or supplier manager can accept an agreement." };
+    return { status: "error", message: "Only a client or coordinator manager can accept an agreement." };
   }
   const agreementId = formData.get("agreementId");
   if (typeof agreementId !== "string") return { status: "error", message: "Choose an agreement to accept." };

@@ -95,7 +95,7 @@ export function assertConversationAccess(
 
   if (actor.orgKind === "fynix") {
     if (conv.side === "supplier_agency") {
-      throw new DomainError("not-authorised", "Fynix cannot access supplier-agency conversations.");
+      throw new DomainError("not-authorised", "Fynix cannot access coordinator-agency conversations.");
     }
     if (conv.side !== "client_fynix" && conv.side !== "supplier_fynix") {
       throw new DomainError("not-authorised", "Not authorised to access this conversation.");
@@ -119,7 +119,7 @@ export function assertConversationAccess(
     }
     if (conv.side === "supplier_fynix") {
       if (actor.orgId && conv.supplierOrgId !== actor.orgId) {
-        throw new DomainError("not-authorised", "Not authorised to access conversations of another supplier organisation.");
+        throw new DomainError("not-authorised", "Not authorised to access conversations of another coordinator organisation.");
       }
       return;
     }

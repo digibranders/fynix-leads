@@ -58,7 +58,7 @@ export async function setCampaignShare(deps: DomainDeps, actor: FynixActor, inpu
     if (agency === undefined || agency.kind !== "agency") throw new DomainError("not-found", "There is no such agency.");
     if (agency.status !== "active") throw new DomainError("organisation-archived", "The agency is archived.");
     if (agency.id !== target.supplierOrgId && agency.parentOrgId !== target.supplierOrgId) {
-      throw new DomainError("share-not-allowed", "A share goes to the campaign's supplier or to one of its partner agencies.");
+      throw new DomainError("share-not-allowed", "A share goes to the campaign's coordinator or to one of its partner agencies.");
     }
     const [existing] = await tx
       .select({ id: campaignShare.id, monthlyShare: campaignShare.monthlyShare })

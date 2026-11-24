@@ -18,7 +18,7 @@ export function PartnersView({ partners }: { readonly partners: readonly Partner
     return (
       <Panel>
         <EmptyState icon={UsersThree} title="No partner agencies yet">
-          Ask Fynix to add a partner agency under your supplier account. It will appear here with the share of each campaign it holds.
+          Ask Fynix to add a partner agency under your coordinator account. It will appear here with the share of each campaign it holds.
         </EmptyState>
       </Panel>
     );

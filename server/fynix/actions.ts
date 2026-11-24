@@ -20,6 +20,7 @@ import {
   deactivateCampaignHostSchema,
   issueInviteSchema,
   publishAgreementSchema,
+  publishTermsSchema,
   removeCampaignShareSchema,
   setCampaignShareSchema,
   setHostHoursSchema,
@@ -32,6 +33,7 @@ import { removeCampaignShare, setCampaignShare } from "@/server/domain/shares";
 import { fynixResolveDispute } from "@/server/domain/leads";
 import { createOrganisation } from "@/server/domain/organisations";
 import { createPartnerAgency, createSupplier } from "@/server/domain/suppliers";
+import { publishTerms } from "@/server/domain/terms";
 import { field, numberField, runAction } from "@/server/fynix/run-action";
 
 /**
@@ -46,7 +48,7 @@ const CAMPAIGN_FIELDS = [
 ] as const;
 
 const CAMPAIGN_LABELS = {
-  name: "Name", clientOrgId: "Client", agencyOrgId: "Supplier", startDate: "Start date", endDate: "End date", monthlyTarget: "Per month", totalTarget: "In total",
+  name: "Name", clientOrgId: "Client", agencyOrgId: "Coordinator", startDate: "Start date", endDate: "End date", monthlyTarget: "Per month", totalTarget: "In total",
   geography: "Geography", industries: "Industries", companySize: "Company size", icp: "Ideal customer", jobTitles: "Job titles", seniority: "Seniority",
   technologies: "Technologies", bantBudget: "Budget", bantAuthority: "Authority", bantNeed: "Need", bantTimeline: "Timeline", instructions: "Instructions",
   internalNotes: "Internal notes", timeZone: "Time zone", meetingMinutes: "Meeting length", status: "Status",
@@ -164,7 +166,7 @@ export async function addAgencyAction(_previous: FormState, formData: FormData):
     fieldNames: ["name"],
     build: () => ({ supplierId: field(formData, "supplierId"), name: field(formData, "name") }),
     schema: createPartnerAgencySchema,
-    labels: { name: "Name", supplierId: "Supplier" },
+    labels: { name: "Name", supplierId: "Coordinator" },
     perform: async (deps, actor, input) => {
       await createPartnerAgency(deps, actor, input);
     },
@@ -215,6 +217,19 @@ export async function publishAgreementAction(_previous: FormState, formData: For
     labels: { monthlyTarget: "Per month", totalTarget: "In total", disputeWindowHours: "Dispute window", rules: "Counting rules", notes: "Notes", party: "Agreement" },
     perform: async (deps, actor, input) => {
       await publishAgreement(deps, actor, input);
+    },
+  });
+}
+
+export async function publishTermsAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runAction({
+    formData,
+    fieldNames: ["party", "title", "body"],
+    build: () => ({ party: field(formData, "party"), title: field(formData, "title"), body: field(formData, "body") }),
+    schema: publishTermsSchema,
+    labels: { party: "Side", title: "Title", body: "Text" },
+    perform: async (deps, actor, input) => {
+      await publishTerms(deps, actor, input);
     },
   });
 }

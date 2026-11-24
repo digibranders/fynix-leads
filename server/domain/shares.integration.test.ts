@@ -26,7 +26,7 @@ const stored = () => rig.dbs.owner.db.select().from(campaignShare).orderBy(asc(c
 const publishSupplierTarget = (monthlyTarget: number) => publishAgreement(rig.deps(), rig.actor, { campaignId: firstCampaign(rig).id, party: "supplier", monthlyTarget, totalTarget: monthlyTarget * 6 });
 
 describe("setCampaignShare", () => {
-  it("gives the supplier itself a share, reports there is no supplier target to compare with, and audits it", async () => {
+  it("gives the coordinator itself a share, reports there is no coordinator target to compare with, and audits it", async () => {
     const { brightpath } = rig.world();
     const result = await setCampaignShare(rig.deps(), rig.actor, shareInput(brightpath.id, 5));
     expect(result.share).toEqual({ campaignId: firstCampaign(rig).id, agencyOrgId: brightpath.id, agencyRef: brightpath.publicRef, agencyName: brightpath.name, monthlyShare: 5 });
@@ -36,7 +36,7 @@ describe("setCampaignShare", () => {
     expect(audit?.subjectRef).toBe(`${firstCampaign(rig).publicRef} ${brightpath.publicRef}`);
   });
 
-  it("gives a partner agency of the supplier a share, and changes it when it is set again, keeping one row", async () => {
+  it("gives a partner agency of the coordinator a share, and changes it when it is set again, keeping one row", async () => {
     const partner = await partnerOf(rig.world().brightpath.id, "Ridgeway Partner Ltd");
     await setCampaignShare(rig.deps(), rig.actor, shareInput(partner.id, 5));
     const again = await setCampaignShare(rig.deps(), rig.actor, shareInput(partner.id, 8));
@@ -46,7 +46,7 @@ describe("setCampaignShare", () => {
     expect(audits[1]).toMatchObject({ before: { monthlyShare: 5 }, after: { monthlyShare: 8 } });
   });
 
-  it("flags a total above the supplier agreement's monthly target, and clears the flag when the total comes down; equal is not over", async () => {
+  it("flags a total above the coordinator agreement's monthly target, and clears the flag when the total comes down; equal is not over", async () => {
     const { brightpath } = rig.world();
     const partner = await partnerOf(brightpath.id, "Ridgeway Partner Ltd");
     await publishSupplierTarget(10);
@@ -56,7 +56,7 @@ describe("setCampaignShare", () => {
     expect((await setCampaignShare(rig.deps(), rig.actor, shareInput(partner.id, 1))).summary.overAllocated).toBe(false);
   });
 
-  it("compares with the supplier's agreement and ignores the client's, and follows a new version of it", async () => {
+  it("compares with the coordinator's agreement and ignores the client's, and follows a new version of it", async () => {
     const { brightpath } = rig.world();
     await publishAgreement(rig.deps(), rig.actor, { campaignId: firstCampaign(rig).id, party: "client", monthlyTarget: 1000, totalTarget: 6000 });
     await publishSupplierTarget(10);
@@ -65,7 +65,7 @@ describe("setCampaignShare", () => {
     expect((await setCampaignShare(rig.deps(), rig.actor, shareInput(brightpath.id, 12))).summary).toMatchObject({ supplierMonthlyTarget: 15, overAllocated: false });
   });
 
-  it("refuses another supplier, a partner agency of another supplier, a client and an unknown agency, with the reason, and writes nothing", async () => {
+  it("refuses another coordinator, a partner agency of another coordinator, a client and an unknown agency, with the reason, and writes nothing", async () => {
     const { northgate, kestrel } = rig.world();
     const strangers = await partnerOf(northgate.id, "Northgate Partner Ltd");
     for (const agencyOrgId of [northgate.id, strangers.id]) {

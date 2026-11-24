@@ -16,7 +16,7 @@ async function Agencies() {
     <div className="flex flex-col gap-4">
       <PageHeader
         title="Partner agencies"
-        description="The agencies working under your supplier account, and the monthly share of each campaign they hold. Fynix adds agencies; you give them campaigns on the Campaigns page."
+        description="The agencies working under your coordinator account, and the monthly share of each campaign they hold. Fynix adds agencies; you give them campaigns on the Campaigns page."
       />
       <PartnersView partners={partners.map((partner) => ({ id: partner.id, publicRef: partner.publicRef, name: partner.name, active: partner.status === "active", shares: partner.shares }))} />
     </div>

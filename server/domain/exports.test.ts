@@ -60,7 +60,7 @@ describe("exports domain service", () => {
   });
 
   describe("generateClientLeadsCsv zero-leakage guarantee", () => {
-    it("never includes supply-side agency or supplier identifiers", () => {
+    it("never includes supply-side agency or coordinator identifiers", () => {
       const testLead = {
         publicRef: "LD-3W4K",
         prospectName: "Alex Vance",
@@ -80,7 +80,7 @@ describe("exports domain service", () => {
         submittedAt: new Date("2026-12-01T10:00:00Z"),
         // Sensitive supply-side identifiers that MUST NOT leak:
         agencyName: "Secret Agency Partner Ltd",
-        supplierName: "Secret Supplier Apex Corp",
+        supplierName: "Secret Coordinator Apex Corp",
         sourceOrgId: "secret-agency-uuid-9999",
         submittedByUserId: "secret-user-uuid-8888",
         aliasIdentityId: "secret-alias-uuid-7777",
@@ -96,7 +96,7 @@ describe("exports domain service", () => {
 
       // Verify zero supply-side leakage
       expect(csv).not.toContain("Secret Agency Partner Ltd");
-      expect(csv).not.toContain("Secret Supplier Apex Corp");
+      expect(csv).not.toContain("Secret Coordinator Apex Corp");
       expect(csv).not.toContain("secret-agency-uuid-9999");
       expect(csv).not.toContain("secret-user-uuid-8888");
       expect(csv).not.toContain("secret-alias-uuid-7777");

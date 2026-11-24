@@ -6,9 +6,9 @@ import { FormGroup, Hidden, SelectField, TextField } from "./form-parts";
 
 export function AddSupplierForm() {
   return (
-    <ActionForm action={addSupplierAction} submitLabel="Add supplier" pendingLabel="Adding">
+    <ActionForm action={addSupplierAction} submitLabel="Add coordinator" pendingLabel="Adding">
       <FormGroup>
-        <TextField name="name" label="Supplier name" helper="The company name. You can invite its people next." />
+        <TextField name="name" label="Coordinator name" helper="The company name. You can invite its people next." />
       </FormGroup>
     </ActionForm>
   );
@@ -45,7 +45,7 @@ export function InvitePersonForm({ organisations }: { organisations: readonly { 
       <FormGroup title="The person">
         <TextField name="name" label="Full name" autoComplete="off" />
         <TextField name="email" label="Email" type="email" inputMode="email" helper="The invite link goes here. It works for 7 days." />
-        <SelectField name="role" label="Role" options={ROLES} defaultValue="member" helper="A manager can accept agreements for the supplier." />
+        <SelectField name="role" label="Role" options={ROLES} defaultValue="member" helper="A manager can accept agreements for the coordinator." />
       </FormGroup>
       <FormGroup title="What the client sees">
         <TextField name="alias" label="Fynix name" helper="What the client sees instead of their real name, for example Asha, Fynix." />

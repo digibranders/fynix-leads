@@ -114,7 +114,7 @@ export interface SupplierDetail {
 
 /** One supplier with its partner agencies, people and campaigns, found by its public reference. An unknown reference, or one that is not a supplier, is `not-found`. */
 export async function readSupplierDetail(deps: DomainDeps, actor: FynixActor, publicRef: string): Promise<SupplierDetail> {
-  if (!ORGANISATION_REF.test(publicRef)) throw new DomainError("not-found", "There is no such supplier.");
+  if (!ORGANISATION_REF.test(publicRef)) throw new DomainError("not-found", "There is no such coordinator.");
   const now = deps.now();
   return fynixRead(deps.fynixDb, actor, async (tx) => {
     const [found] = await tx
@@ -122,7 +122,7 @@ export async function readSupplierDetail(deps: DomainDeps, actor: FynixActor, pu
       .from(organisation)
       .where(eq(organisation.publicRef, publicRef))
       .limit(1);
-    if (found === undefined || found.kind !== "agency" || found.parentOrgId !== null) throw new DomainError("not-found", "There is no such supplier.");
+    if (found === undefined || found.kind !== "agency" || found.parentOrgId !== null) throw new DomainError("not-found", "There is no such coordinator.");
 
     const partners = await tx
       .select({ id: organisation.id, publicRef: organisation.publicRef, name: organisation.name, status: organisation.status })

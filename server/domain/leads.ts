@@ -43,7 +43,7 @@ export async function submitLead(
   input: unknown,
 ) {
   if (actor.orgKind !== "agency") {
-    throw new DomainError("not-authorised", "Only agency or supplier members can submit leads.");
+    throw new DomainError("not-authorised", "Only agency or coordinator members can submit leads.");
   }
   const parsed = parseInput(submitLeadSchema, input);
 

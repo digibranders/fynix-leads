@@ -190,7 +190,7 @@ export async function listClientMeetings(db: Database, actor: TenantActor) {
  */
 export async function listAgencyMeetings(db: Database, actor: TenantActor) {
   if (actor.orgKind !== "agency") {
-    throw new DomainError("not-authorised", "Only agency or supplier members can list agency meetings.");
+    throw new DomainError("not-authorised", "Only agency or coordinator members can list agency meetings.");
   }
 
   return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {

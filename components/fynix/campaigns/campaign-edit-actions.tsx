@@ -15,7 +15,7 @@ export function NewCampaignButton({ choices }: { choices: CampaignChoices }) {
         </Button>
       }
       title="New campaign"
-      description="Choose the client and the supplier, then set the dates, targets and brief. It starts as a draft."
+      description="Choose the client and the coordinator, then set the dates, targets and brief. It starts as a draft."
     >
       <CreateCampaignForm choices={choices} />
     </FormSheet>
@@ -33,7 +33,7 @@ export function EditCampaignButton({ campaign }: { campaign: CampaignHeader }) {
         </Button>
       }
       title="Edit campaign"
-      description="Change the details, the brief, the settings or the status. The client and the supplier stay as they are."
+      description="Change the details, the brief, the settings or the status. The client and the coordinator stay as they are."
     >
       <EditCampaignForm campaign={campaign} />
     </FormSheet>

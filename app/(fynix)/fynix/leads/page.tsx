@@ -44,7 +44,7 @@ async function Leads({ searchParams }: { searchParams: PageProps<"/fynix/leads">
       {all.length === 0 ? (
         <Panel>
           <EmptyState icon={TableIcon} title="No leads submitted yet">
-            As partner agencies and suppliers submit qualified prospects, they will appear here across all campaigns.
+            As partner agencies and coordinators submit qualified prospects, they will appear here across all campaigns.
           </EmptyState>
         </Panel>
       ) : (

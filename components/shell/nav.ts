@@ -71,7 +71,7 @@ export const PORTALS: Record<PortalKind, PortalConfig> = {
   },
   supplier: {
     kind: "supplier",
-    label: "Supplier portal",
+    label: "Coordinator portal",
     homeHref: "/supplier",
     mobileTabs: ["/supplier", "/supplier/leads", "/supplier/meetings", "/supplier/messages"],
     groups: [
@@ -139,7 +139,7 @@ export const PORTALS: Record<PortalKind, PortalConfig> = {
         label: "Accounts",
         items: [
           { label: "Clients", icon: "buildings", href: "/fynix/clients" },
-          { label: "Suppliers", icon: "users", href: "/fynix/suppliers" },
+          { label: "Coordinators", icon: "users", href: "/fynix/suppliers" },
           { label: "Campaigns", icon: "megaphone", href: "/fynix/campaigns" },
         ],
       },
