@@ -2,12 +2,14 @@
 
 import { addAgencyAction, addClientAction, addSupplierAction, invitePersonAction } from "@/server/fynix/actions";
 import { ActionForm } from "./action-form";
-import { Hidden, SelectField, TextField } from "./form-parts";
+import { FormGroup, Hidden, SelectField, TextField } from "./form-parts";
 
 export function AddSupplierForm() {
   return (
     <ActionForm action={addSupplierAction} submitLabel="Add supplier" pendingLabel="Adding">
-      <TextField name="name" label="Supplier name" helper="The company name. You can invite its people next." />
+      <FormGroup>
+        <TextField name="name" label="Supplier name" helper="The company name. You can invite its people next." />
+      </FormGroup>
     </ActionForm>
   );
 }
@@ -16,7 +18,9 @@ export function AddAgencyForm({ supplierId }: { supplierId: string }) {
   return (
     <ActionForm action={addAgencyAction} submitLabel="Add agency" pendingLabel="Adding">
       <Hidden name="supplierId" value={supplierId} />
-      <TextField name="name" label="Agency name" helper="The partner agency's company name." />
+      <FormGroup>
+        <TextField name="name" label="Agency name" helper="The partner agency's company name." />
+      </FormGroup>
     </ActionForm>
   );
 }
@@ -34,12 +38,18 @@ export function InvitePersonForm({ organisations }: { organisations: readonly { 
       {organisations.length === 1 && only !== undefined ? (
         <Hidden name="organisationId" value={only.id} />
       ) : (
-        <SelectField name="organisationId" label="Works at" options={organisations.map((row) => ({ value: row.id, label: row.name }))} defaultValue={only?.id} />
+        <FormGroup title="Where they work">
+          <SelectField name="organisationId" label="Works at" options={organisations.map((row) => ({ value: row.id, label: row.name }))} defaultValue={only?.id} />
+        </FormGroup>
       )}
-      <TextField name="name" label="Full name" autoComplete="off" />
-      <TextField name="email" label="Email" type="email" inputMode="email" helper="The invite link goes here. It works for 7 days." />
-      <SelectField name="role" label="Role" options={ROLES} defaultValue="member" helper="A manager can accept agreements for the supplier." />
-      <TextField name="alias" label="Fynix name" helper="What the client sees instead of their real name, for example Asha, Fynix." />
+      <FormGroup title="The person">
+        <TextField name="name" label="Full name" autoComplete="off" />
+        <TextField name="email" label="Email" type="email" inputMode="email" helper="The invite link goes here. It works for 7 days." />
+        <SelectField name="role" label="Role" options={ROLES} defaultValue="member" helper="A manager can accept agreements for the supplier." />
+      </FormGroup>
+      <FormGroup title="What the client sees">
+        <TextField name="alias" label="Fynix name" helper="What the client sees instead of their real name, for example Asha, Fynix." />
+      </FormGroup>
     </ActionForm>
   );
 }
@@ -47,8 +57,10 @@ export function InvitePersonForm({ organisations }: { organisations: readonly { 
 export function AddClientForm() {
   return (
     <ActionForm action={addClientAction} submitLabel="Add client" pendingLabel="Adding">
-      <TextField name="name" label="Client name" helper="The company name. Only Fynix and the client see it." />
-      <TextField name="brandName" label="Brand name" helper="What agencies see in place of the client's name." />
+      <FormGroup>
+        <TextField name="name" label="Client name" helper="The company name. Only Fynix and the client see it." />
+        <TextField name="brandName" label="Brand name" helper="What agencies see in place of the client's name." />
+      </FormGroup>
     </ActionForm>
   );
 }

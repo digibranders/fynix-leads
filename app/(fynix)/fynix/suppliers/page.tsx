@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { FynixPageHeader } from "@/components/fynix/page-header";
-import { ListBodySkeleton } from "@/components/fynix/skeletons";
 import { AddSupplierButton } from "@/components/fynix/suppliers/supplier-actions";
 import { PanelNotFound, SupplierPanel } from "@/components/fynix/suppliers/supplier-panel";
 import { SuppliersTable } from "@/components/fynix/suppliers/suppliers-table";
+import { PageHeader } from "@/components/kit/page-header";
+import { PageSkeleton } from "@/components/kit/skeletons";
 import { parseSupplierFilter, suppliersHref } from "@/lib/fynix/suppliers";
 import { getDomain } from "@/server/domain";
 import { DomainError } from "@/server/domain/errors";
@@ -14,11 +14,6 @@ import { requireFynix } from "@/server/fynix/session";
 export const metadata: Metadata = { title: "Suppliers" };
 
 const one = (value: string | string[] | undefined): string | undefined => (typeof value === "string" ? value : undefined);
-
-async function HeaderActions() {
-  const view = await requireFynix();
-  return view.canWrite ? <AddSupplierButton /> : null;
-}
 
 async function Suppliers({ searchParams }: { searchParams: PageProps<"/fynix/suppliers">["searchParams"] }) {
   const view = await requireFynix();
@@ -40,29 +35,21 @@ async function Suppliers({ searchParams }: { searchParams: PageProps<"/fynix/sup
   ]);
 
   return (
-    <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start xl:gap-4">
-      <SuppliersTable rows={rows} filter={filter} query={query} selectedRef={selectedRef} canWrite={view.canWrite} />
-      {detail === "missing" && <PanelNotFound closeHref={suppliersHref({ status: filter, q: query })} />}
-      {detail !== null && detail !== "missing" && <SupplierPanel detail={detail} filter={filter} query={query} canWrite={view.canWrite} />}
+    <div className="flex flex-col gap-4">
+      <PageHeader title="Suppliers" description="Suppliers and the partner agencies they bring in." actions={view.canWrite ? <AddSupplierButton /> : null} />
+      <div className={detail === null ? undefined : "xl:grid xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start xl:gap-4"}>
+        <SuppliersTable rows={rows} filter={filter} query={query} selectedRef={selectedRef} canWrite={view.canWrite} />
+        {detail === "missing" && <PanelNotFound closeHref={suppliersHref({ status: filter, q: query })} />}
+        {detail !== null && detail !== "missing" && <SupplierPanel detail={detail} filter={filter} query={query} canWrite={view.canWrite} />}
+      </div>
     </div>
   );
 }
 
 export default function SuppliersPage({ searchParams }: PageProps<"/fynix/suppliers">) {
   return (
-    <>
-      <FynixPageHeader
-        title="Suppliers"
-        subtitle="Suppliers and the partner agencies they bring in"
-        actions={
-          <Suspense fallback={null}>
-            <HeaderActions />
-          </Suspense>
-        }
-      />
-      <Suspense fallback={<ListBodySkeleton withPanel />}>
-        <Suppliers searchParams={searchParams} />
-      </Suspense>
-    </>
+    <Suspense fallback={<PageSkeleton />}>
+      <Suppliers searchParams={searchParams} />
+    </Suspense>
   );
 }

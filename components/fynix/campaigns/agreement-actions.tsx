@@ -44,11 +44,12 @@ export function AddShareButton({ campaignId, options }: { campaignId: string; op
 
 export function ShareRowActions({ campaignId, agency }: { campaignId: string; agency: { id: string; name: string; monthlyShare: number } }) {
   return (
-    <div className="flex items-start justify-end gap-1.5">
+    <div className="flex items-start justify-end gap-1">
       <FormSheet
         trigger={
-          <Button variant="ghost" size="icon-sm" aria-label={`Edit the share of ${agency.name}`} title="Edit share">
+          <Button variant="ghost" size="sm" aria-label={`Edit the share of ${agency.name}`}>
             <PencilSimple aria-hidden />
+            Edit
           </Button>
         }
         title="Edit share"
@@ -56,8 +57,9 @@ export function ShareRowActions({ campaignId, agency }: { campaignId: string; ag
       >
         <ShareForm campaignId={campaignId} options={[]} agency={agency} />
       </FormSheet>
-      <InlineAction action={removeShareAction} fields={{ campaignId, agencyOrgId: agency.id }} label={`Remove the share of ${agency.name}`} variant="ghost" size="icon-sm">
+      <InlineAction action={removeShareAction} fields={{ campaignId, agencyOrgId: agency.id }} label={`Remove the share of ${agency.name}`} variant="ghost" size="sm">
         <Trash aria-hidden />
+        Remove
       </InlineAction>
     </div>
   );

@@ -2,6 +2,8 @@ import { randomFillSync } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { generatePublicRef, type RandomBytes } from "@/lib/domain/public-ref";
 import type { Database } from "@/server/db/pool";
+import type { ScopedTransaction } from "@/server/db/scope";
+import { appendAudit, type AuditEntry } from "@/server/domain/audit";
 import { DomainError } from "@/server/domain/errors";
 import { createGroupSchema, directChatSchema, groupIdSchema, groupMemberSchema, groupMembersSchema, markConversationReadSchema, renameGroupSchema } from "@/server/domain/inputs";
 import { withActorScope, type MessagingActor } from "@/server/domain/messaging";
@@ -43,6 +45,19 @@ function refusal(error: unknown): never {
   throw error;
 }
 
+/**
+ * A group change touches `conversation`, and the database refuses a Fynix change to it at commit unless the same transaction
+ * wrote an audit_log row (migration 0036). So a Fynix actor records one beside the change; tenant roles cannot write the log
+ * and record nothing.
+ */
+async function withGroupWrite<T>(db: Database, actor: MessagingActor, entry: (result: T) => AuditEntry, work: (tx: ScopedTransaction) => Promise<T>): Promise<T> {
+  return withActorScope(db, actor, async (tx) => {
+    const result = await work(tx);
+    if (actor.orgKind === "fynix") await appendAudit(tx, entry(result));
+    return result;
+  });
+}
+
 export async function canCreateGroup(db: Database, actor: MessagingActor): Promise<boolean> {
   return withActorScope(db, actor, async (tx) => {
     const result = await tx.execute<{ allowed: boolean }>(sql`select public.app_can_create_group() as allowed`);
@@ -66,7 +81,7 @@ export async function createGroup(db: Database, actor: MessagingActor, input: un
   const randomBytes = deps?.randomBytes ?? ((count: number) => randomFillSync(new Uint8Array(count)));
   for (let attempt = 0; attempt < 5; attempt += 1) {
     try {
-      return await withActorScope(db, actor, async (tx) => {
+      return await withGroupWrite(db, actor, (id: string) => ({ action: "conversation.create", subject: { table: "conversation", id } }), async (tx) => {
         const result = await tx.execute<{ id: string }>(
           sql`select public.app_create_group(${generatePublicRef("GRP", randomBytes)}, ${generatePublicRef("MSG", randomBytes)}, ${parsed.name}, ${`{${parsed.memberIds.join(",")}}`}::uuid[]) as id`,
         );
@@ -89,7 +104,7 @@ export async function openDirectChat(db: Database, actor: MessagingActor, input:
   const randomBytes = deps?.randomBytes ?? ((count: number) => randomFillSync(new Uint8Array(count)));
   for (let attempt = 0; attempt < 5; attempt += 1) {
     try {
-      return await withActorScope(db, actor, async (tx) => {
+      return await withGroupWrite(db, actor, (id: string) => ({ action: "conversation.open_direct", subject: { table: "conversation", id } }), async (tx) => {
         const result = await tx.execute<{ id: string }>(
           sql`select public.app_open_direct(${generatePublicRef("GRP", randomBytes)}, ${generatePublicRef("MSG", randomBytes)}, ${parsed.userId}::uuid) as id`,
         );
@@ -109,7 +124,7 @@ export async function openDirectChat(db: Database, actor: MessagingActor, input:
 export async function addGroupMembers(db: Database, actor: MessagingActor, input: unknown): Promise<number> {
   const parsed = parseInput(groupMembersSchema, input);
   try {
-    return await withActorScope(db, actor, async (tx) => {
+    return await withGroupWrite(db, actor, () => ({ action: "chat_group.update", subject: { table: "chat_group", id: parsed.groupId } }), async (tx) => {
       const result = await tx.execute<{ added: number }>(sql`select public.app_group_add_members(${parsed.groupId}::uuid, ${`{${parsed.memberIds.join(",")}}`}::uuid[]) as added`);
       return result.rows[0]?.added ?? 0;
     });
@@ -121,7 +136,7 @@ export async function addGroupMembers(db: Database, actor: MessagingActor, input
 export async function removeGroupMember(db: Database, actor: MessagingActor, input: unknown): Promise<void> {
   const parsed = parseInput(groupMemberSchema, input);
   try {
-    await withActorScope(db, actor, async (tx) => {
+    await withGroupWrite(db, actor, () => ({ action: "chat_group.update", subject: { table: "chat_group", id: parsed.groupId } }), async (tx) => {
       await tx.execute(sql`select public.app_group_remove_member(${parsed.groupId}::uuid, ${parsed.userId}::uuid)`);
     });
   } catch (error) {
@@ -131,7 +146,7 @@ export async function removeGroupMember(db: Database, actor: MessagingActor, inp
 
 export async function leaveGroup(db: Database, actor: MessagingActor, input: unknown): Promise<void> {
   const parsed = parseInput(groupIdSchema, input);
-  await withActorScope(db, actor, async (tx) => {
+  await withGroupWrite(db, actor, () => ({ action: "chat_group.update", subject: { table: "chat_group", id: parsed.groupId } }), async (tx) => {
     await tx.execute(sql`select public.app_group_leave(${parsed.groupId}::uuid)`);
   });
 }
@@ -139,7 +154,7 @@ export async function leaveGroup(db: Database, actor: MessagingActor, input: unk
 export async function renameGroup(db: Database, actor: MessagingActor, input: unknown): Promise<void> {
   const parsed = parseInput(renameGroupSchema, input);
   try {
-    await withActorScope(db, actor, async (tx) => {
+    await withGroupWrite(db, actor, () => ({ action: "chat_group.update", subject: { table: "chat_group", id: parsed.groupId } }), async (tx) => {
       await tx.execute(sql`select public.app_group_rename(${parsed.groupId}::uuid, ${parsed.name})`);
     });
   } catch (error) {
@@ -150,7 +165,7 @@ export async function renameGroup(db: Database, actor: MessagingActor, input: un
 export async function deleteGroup(db: Database, actor: MessagingActor, input: unknown): Promise<void> {
   const parsed = parseInput(groupIdSchema, input);
   try {
-    await withActorScope(db, actor, async (tx) => {
+    await withGroupWrite(db, actor, () => ({ action: "chat_group.delete", subject: { table: "chat_group", id: parsed.groupId } }), async (tx) => {
       await tx.execute(sql`select public.app_group_delete(${parsed.groupId}::uuid)`);
     });
   } catch (error) {

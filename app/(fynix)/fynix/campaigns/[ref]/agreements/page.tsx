@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AgreementCard } from "@/components/fynix/campaigns/agreement-card";
 import { SharesCard } from "@/components/fynix/campaigns/shares-card";
-import { CardSkeleton } from "@/components/fynix/skeletons";
+import { TableSkeleton } from "@/components/kit/skeletons";
 import { getDomain } from "@/server/domain";
 import { readAgreementsPage } from "@/server/domain/campaign-overview";
 import { loadCampaign } from "@/server/fynix/campaign";
@@ -34,10 +34,10 @@ export default function AgreementsPage({ params }: PageProps<"/fynix/campaigns/[
       fallback={
         <div className="flex flex-col gap-4">
           <div className="grid gap-4 lg:grid-cols-2">
-            <CardSkeleton />
-            <CardSkeleton />
+            <TableSkeleton rows={3} />
+            <TableSkeleton rows={3} />
           </div>
-          <CardSkeleton />
+          <TableSkeleton rows={3} />
         </div>
       }
     >

@@ -1,21 +1,23 @@
 import { canCreateGroup, getGroupInfo } from "@/server/domain/groups";
 import { listConversationAttachments } from "@/server/domain/attachments";
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { PageHeader } from "@/components/kit/page-header";
+import { PageSkeleton } from "@/components/kit/skeletons";
 import {
   MessagingView,
   type ConversationSummary,
   type ThreadMessageView,
-} from "@/components/tenant/messaging-view";
+} from "@/components/messaging/messaging-view";
 import { getDatabase } from "@/server/db/client";
 import { requireAgency } from "@/server/agency/session";
 import { getConversationSeenAt, listConversations, listConversationMessages } from "@/server/domain/messaging";
 
 export const metadata: Metadata = { title: "Messages" };
 
-export default async function AgencyMessagesPage(props: {
-  searchParams?: Promise<{ conv?: string }>;
-}) {
-  const searchParams = props.searchParams ? await props.searchParams : {};
+async function Messages({ searchParams: pending }: { searchParams: PageProps<"/agency/messages">["searchParams"] }) {
+  const params = await pending;
+  const searchParams = { conv: typeof params.conv === "string" ? params.conv : undefined };
   const view = await requireAgency();
   const db = getDatabase("leads_agency").db;
 
@@ -40,7 +42,7 @@ export default async function AgencyMessagesPage(props: {
     side: c.side as "supplier_agency",
     subject: c.subject ?? null,
     isDirect: c.isDirect,
-    counterpartyName: "Lead Supplier",
+    counterpartyName: "Lead supplier",
     lastMessageAt: c.updatedAt.toISOString(),
   }));
 
@@ -57,7 +59,8 @@ export default async function AgencyMessagesPage(props: {
   }));
 
   return (
-    <div>
+    <div className="flex flex-col gap-4">
+      <PageHeader title="Messages" description="Your conversations with your lead supplier about campaigns and leads." />
       <MessagingView
         role="agency"
         currentUserId={view.actor.userId}
@@ -70,5 +73,13 @@ export default async function AgencyMessagesPage(props: {
         groupInfo={groupInfo}
       />
     </div>
+  );
+}
+
+export default function AgencyMessagesPage({ searchParams }: PageProps<"/agency/messages">) {
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <Messages searchParams={searchParams} />
+    </Suspense>
   );
 }

@@ -1,5 +1,6 @@
 import { X } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -15,9 +16,9 @@ type Props = {
 };
 
 /**
- * The selection panel, chosen by the URL. From `xl` it is the second column of the page; from `md` to `xl` it floats over the
- * page on the right; below `md` it is a bottom sheet. All three are one element and the layout is CSS only, so the close
- * button and the scrim are plain links that drop the selection from the address.
+ * The record panel, chosen by the URL. From `xl` it is the second column of the page; below that it is a drawer: a bottom sheet on a
+ * phone and a right drawer from `md`. All three are one element and the layout is CSS only, so the close button and the scrim are
+ * plain links that drop the selection from the address.
  */
 export function SidePanel({ closeHref, label, header, children, footer }: Props) {
   return (
@@ -28,24 +29,20 @@ export function SidePanel({ closeHref, label, header, children, footer }: Props)
         className={cn(
           "fixed z-50 flex flex-col overflow-hidden bg-surface shadow-popover",
           "inset-x-0 bottom-0 max-h-[88dvh] rounded-t-xl",
-          "md:inset-y-3 md:right-3 md:left-auto md:max-h-none md:w-[400px] md:rounded-xl",
+          "md:inset-y-3 md:right-3 md:left-auto md:max-h-none md:w-[420px] md:rounded-xl",
           "xl:sticky xl:top-5 xl:right-auto xl:bottom-auto xl:left-auto xl:z-auto xl:max-h-[calc(100dvh-40px)] xl:w-auto xl:rounded-lg xl:shadow-raised",
         )}
       >
         <span aria-hidden className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-navy-10 md:hidden" />
         <div className="flex shrink-0 items-start gap-3 px-5 pt-4 pb-3">
           <div className="min-w-0 flex-1">{header}</div>
-          <Link
-            href={closeHref}
-            scroll={false}
-            aria-label="Close panel"
-            className="grid size-10 shrink-0 place-items-center rounded-full bg-navy-05 text-ink transition-colors duration-(--dur-hover) hover:bg-navy-10"
-          >
-            <X aria-hidden size={18} />
+          <Link href={closeHref} scroll={false} className={buttonVariants({ variant: "secondary", size: "sm" })}>
+            <X aria-hidden />
+            Close
           </Link>
         </div>
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain px-4 pb-4">{children}</div>
-        {footer && <div className="flex shrink-0 flex-wrap gap-2.5 bg-surface px-4 py-3.5 shadow-tray">{footer}</div>}
+        {footer ? <div className="flex shrink-0 flex-wrap gap-2.5 bg-surface px-4 py-3.5 shadow-tray">{footer}</div> : null}
       </aside>
     </>
   );

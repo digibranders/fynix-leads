@@ -2,13 +2,13 @@
 
 # fynix-leads
 
-Lead generation tracking portal. A client reviews leads that the Fynix team submits and approves, rejects or asks for clarification. An agency does the work behind Fynix. Fynix runs both. The foundations (database, sign-in, domain, Fynix set-up) and the client, supplier and agency portals are built on a real database: leads and their lifecycle, meetings, messaging and chat groups, and analytics. Sample data in `lib/sample/` now only feeds the design review page `/dev/system`, which a production build does not serve. What is left before production is in `docs/deploy.md` (server set-up, scheduled jobs, gates G1 and G2).
+Lead generation tracking portal. A client reviews leads that the Fynix team submits and approves, rejects or asks for clarification. An agency does the work behind Fynix. Fynix runs both. The foundations (database, sign-in, domain, Fynix set-up) and the client, supplier and agency portals are built on a real database: leads and their lifecycle, meetings, messaging and chat groups, and analytics. What is left before production is in `docs/deploy.md` (server set-up, scheduled jobs, gates G1 and G2).
 
 ## Where things are
 
 - Spec and decisions: `docs/superpowers/specs/2026-11-11-leadgen-portal-design.md` (open questions in section 16).
 - Plans: `docs/superpowers/plans/` (phase 0, the restyle to the hybrid design, the phase 1 master plan and the detailed plan for each sub-phase, `2026-11-11-phase-1a-foundation.md` first, then 1E tenant apps and phase 2 leads).
-- Approved look: `docs/superpowers/specs/design-directions-v2/` (`d-hybrid` is the chosen design; open `index.html` there to compare directions).
+- Approved look: `docs/superpowers/specs/design-directions-v3/` (`b-ledger-soft` is the chosen design, 2026-11-24, replacing the earlier hybrid in `design-directions-v2/d-hybrid`). The redesign plan and route checklist: `docs/superpowers/plans/2026-11-24-ledger-soft-redesign.md`.
 - Design system: `DESIGN.md` is authoritative (tokens, shapes, shadows, components, banned patterns, approved exceptions).
 
 Stack: Next.js 16 (App Router, Cache Components) · React 19 · TypeScript strict · Tailwind CSS v4 · shadcn/ui on Base UI · Phosphor icons · Geist · TanStack Table v9 · PostgreSQL 16 with Drizzle ORM and `pg` · zod · Vitest. pnpm, Node 24.
@@ -16,8 +16,8 @@ Stack: Next.js 16 (App Router, Cache Components) · React 19 · TypeScript stric
 ## Rules
 
 - Work on `development`. `main` is production and only changes through a PR. Remote: `github.com/digibranders/fynix-leads` (private). Its default branch is `development`; `main` does not exist yet, so create it as the PR base when this goes to production.
-- **Design:** the mockups in `d-hybrid` are the visual authority, the owner rejected both boxy outlined UI and borderless clutter ("structured softness"). Never settle a design language from text alone: show a visual first. Layout switches by CSS breakpoints only, never by JavaScript.
-- **Isolation:** the client never sees agency identity; the agency never sees client people, rep names or emails. Agency screens receive only data shaped by `lib/leads/agency-view.ts`. Shared client code must never import `lib/sample/data` (`lib/sample/isolation.test.ts` enforces it). When you add a screen, check the page source and its JavaScript chunks for forbidden names.
+- **Design:** the comps in `design-directions-v3/b-ledger-soft` are the visual authority ("Ledger Soft": tone and ring shadow, no outlines except on form controls). The owner rejected boxy outlined UI, borderless clutter and the earlier hybrid look. Never settle a design language from text alone: show a visual first. Layout switches by CSS breakpoints only, never by JavaScript.
+- **Isolation:** the client never sees agency identity; the agency never sees client people, rep names or emails. Agency screens receive only the columns listed in the `agency*Columns` in `server/db/columns.ts` (read through `server/db/tenant-reads.ts`). When you add a screen, check the page source and its JavaScript chunks for forbidden names.
 - **Logic:** domain rules live in `lib/` as plain TypeScript with tests next to them. Components render; they do not decide business rules. Which month a delivered lead counts toward is an open question and is decided in one place: `lib/domain/counting-month.ts`.
 - **Copy:** sentence case, plain verbs, no exclamation marks, no em or en dashes in any text.
 - **Database (`server/db/`, scripts in `scripts/`):** `lib/` stays pure and never imports `server/` or a database driver (`server/db/boundaries.test.ts` enforces it).

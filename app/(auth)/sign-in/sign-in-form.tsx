@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { AuthLink } from "@/components/auth/auth-link";
 import { Notice } from "@/components/auth/notice";
 import { PasswordField } from "@/components/auth/password-field";
@@ -21,6 +21,7 @@ type Props = {
 export function SignInForm({ notice, nextField }: Props) {
   const [state, formAction, pending] = useActionState(signInAction, IDLE);
   const emailRef = useRef<HTMLInputElement>(null);
+  const [missing, setMissing] = useState(false);
   const { note } = feedbackFor(state, "sign-in");
   const email = state.status === "error" || state.status === "rate-limited" ? state.email : "";
 
@@ -29,9 +30,28 @@ export function SignInForm({ notice, nextField }: Props) {
     if (feedbackFor(state, "sign-in").note !== null) emailRef.current?.focus();
   }, [state]);
 
+  // An empty field never reaches the server, so the person is told what is missing rather than that the details "do not match".
+  function onSubmit(event: React.FormEvent<HTMLFormElement>): void {
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const empty = ["email", "password"].find((name) => String(data.get(name) ?? "").trim() === "");
+    if (empty === undefined) {
+      setMissing(false);
+      return;
+    }
+    event.preventDefault();
+    setMissing(true);
+    const target = form.elements.namedItem(empty);
+    if (target instanceof HTMLElement) target.focus();
+  }
+
   return (
-    <form action={formAction} noValidate className="mt-[22px] flex flex-col gap-[18px]">
-      {note === null ? (
+    <form action={formAction} onSubmit={onSubmit} noValidate className="mt-[22px] flex flex-col gap-[18px]">
+      {missing ? (
+        <Notice id="sign-in-note" tone="red" className="-mt-1">
+          Enter your email and your password.
+        </Notice>
+      ) : note === null ? (
         notice
       ) : (
         <Notice id="sign-in-note" tone={note.tone} className="-mt-1">
@@ -54,7 +74,7 @@ export function SignInForm({ notice, nextField }: Props) {
           aria-invalid={state.status === "error" ? true : undefined}
           aria-describedby={note === null ? undefined : "sign-in-note"}
           // The notice above already says what is wrong, so the field keeps its calm fill; only the focus ring shows.
-          className="aria-invalid:bg-input aria-invalid:ring-0 aria-invalid:focus:ring-2 aria-invalid:focus:ring-ring"
+          className="aria-invalid:bg-input aria-invalid:shadow-[inset_0_0_0_1px_var(--ctl-edge)] aria-invalid:focus-visible:bg-surface aria-invalid:focus-visible:shadow-[inset_0_0_0_2px_var(--navy)]"
         />
       </div>
       <PasswordField id="password" name="password" label="Password" autoComplete="current-password" />

@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Select as SelectPrimitive } from "@base-ui/react/select"
 import { cn } from "cn"
+import { CONTROL } from "./input"
 import { CaretDownIcon, CheckIcon, CaretUpIcon } from "@phosphor-icons/react"
 
 const Select = SelectPrimitive.Root
@@ -40,7 +41,8 @@ function SelectTrigger({
       data-slot="select-trigger"
       data-size={size}
       className={cn(
-        "flex w-fit items-center justify-between gap-2 rounded-sm bg-input py-2 pr-3 pl-3.5 text-sm whitespace-nowrap transition-[box-shadow,background-color] outline-none select-none hover:bg-navy-07 focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:bg-red-soft aria-invalid:ring-2 aria-invalid:ring-red-solid data-placeholder:text-muted-foreground data-[size=default]:h-11 data-[size=sm]:h-8 data-[size=sm]:text-[13px] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        CONTROL,
+        "flex w-fit items-center justify-between gap-2 rounded-sm py-2 pr-2.5 pl-3 text-[13.5px] whitespace-nowrap select-none data-placeholder:text-ink-muted aria-expanded:bg-surface aria-expanded:shadow-[inset_0_0_0_2px_var(--navy)] data-[size=default]:h-(--h-control) data-[size=sm]:h-(--h-control-sm) data-[size=sm]:text-[13px] *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className
       )}
       {...props}
@@ -116,7 +118,7 @@ function SelectItem({
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        "relative flex min-h-9 w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-9 pl-2.5 text-sm outline-hidden select-none focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
+        "relative flex min-h-8 w-full cursor-default items-center gap-2 rounded-xs py-1.5 pr-9 pl-2.5 text-[13.5px] outline-hidden select-none focus:bg-accent focus:text-accent-foreground not-data-[variant=destructive]:focus:**:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 *:[span]:last:flex *:[span]:last:items-center *:[span]:last:gap-2",
         className
       )}
       {...props}

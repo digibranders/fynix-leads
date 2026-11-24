@@ -1,4 +1,4 @@
-import { ArrowCounterClockwise, Plus, Prohibit, Trash } from "@phosphor-icons/react/dist/ssr";
+import { ArrowCounterClockwise, PencilSimple, Plus, Prohibit, Trash } from "@phosphor-icons/react/dist/ssr";
 import type { HoursWindow } from "@/lib/domain/weekly-hours";
 import { Button } from "@/components/ui/button";
 import { addHostAction, pauseHostAction, removeBlockAction } from "@/server/fynix/actions";
@@ -28,10 +28,11 @@ export function EditHoursButton({ memberId, hostName, timeZone, windows }: { mem
   return (
     <FormSheet
       trigger={
-        <button type="button" className="rounded-xs text-table font-semibold text-ink underline-offset-4 hover:underline max-md:py-2">
+        <Button variant="ghost" size="xs">
+          <PencilSimple aria-hidden />
           Edit
           <span className="sr-only"> weekly hours of {hostName}</span>
-        </button>
+        </Button>
       }
       title="Weekly hours"
       description={`When ${hostName} takes meetings. Add a second range for a split day.`}
@@ -60,8 +61,9 @@ export function BlockTimeButton({ memberId, hostName, timeZone }: { memberId: st
 
 export function RemoveBlockButton({ blockId, label }: { blockId: string; label: string }) {
   return (
-    <InlineAction action={removeBlockAction} fields={{ blockId }} label={label} variant="ghost" size="icon-sm">
+    <InlineAction action={removeBlockAction} fields={{ blockId }} label={label} variant="ghost" size="sm">
       <Trash aria-hidden />
+      Remove
     </InlineAction>
   );
 }

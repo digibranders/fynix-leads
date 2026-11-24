@@ -5,6 +5,7 @@ import { Choice } from "@/components/ui/choice";
 import { DateField, TimeField } from "@/components/ui/date-time";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { Tonal } from "@/components/kit/panel";
 import { Textarea } from "@/components/ui/textarea";
 import { useFormState } from "./action-form";
 
@@ -100,4 +101,14 @@ export function SelectField({
 /** A hidden value the action needs, such as the campaign the form belongs to. */
 export function Hidden({ name, value }: { name: string; value: string }) {
   return <input type="hidden" name={name} value={value} />;
+}
+
+/** A tonal block of related fields, with an optional title. A form is a stack of these. */
+export function FormGroup({ title, children }: { title?: string; children: React.ReactNode }) {
+  return (
+    <Tonal className="flex flex-col gap-4">
+      {title ? <h3 className="text-row font-semibold">{title}</h3> : null}
+      {children}
+    </Tonal>
+  );
 }

@@ -1,97 +1,62 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Plus, Table } from "@phosphor-icons/react/dist/ssr";
-import { EmptyState } from "@/components/fynix/empty-state";
-import { StatusChip } from "@/components/fynix/status-chip";
-import { TenantPageHeader } from "@/components/tenant/page-header";
+import { Suspense } from "react";
+import { Plus } from "@phosphor-icons/react/dist/ssr";
+import { PageHeader } from "@/components/kit/page-header";
+import { PageSkeleton } from "@/components/kit/skeletons";
+import { SourceLeadsView } from "@/components/leads/source-leads-view";
 import { buttonVariants } from "@/components/ui/button";
-import type { LeadStage } from "@/lib/leads/stage";
+import { parsePage } from "@/lib/leads/list";
+import { parseGroup } from "@/lib/leads/pipeline";
 import { getDatabase } from "@/server/db/client";
+import { listAliasIdentities } from "@/server/domain/alias-identity";
+import { listTenantCampaigns } from "@/server/domain/campaigns-tenant";
 import { listAgencyLeads } from "@/server/domain/leads";
 import { requireSupplier } from "@/server/supplier/session";
 
-export const metadata: Metadata = { title: "Supplier Leads" };
+export const metadata: Metadata = { title: "Leads" };
 
-export default async function SupplierLeadsPage() {
+const BASE = "/supplier/leads";
+const one = (value: string | string[] | undefined): string | undefined => (typeof value === "string" ? value : undefined);
+
+async function Leads({ searchParams }: { searchParams: PageProps<"/supplier/leads">["searchParams"] }) {
   const view = await requireSupplier();
+  const params = await searchParams;
   const db = getDatabase("leads_agency").db;
-  const leads = await listAgencyLeads(db, view.actor);
+  const [leads, campaigns, aliases] = await Promise.all([listAgencyLeads(db, view.actor), listTenantCampaigns(db, view.actor, "supplier"), listAliasIdentities(db, view.actor)]);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <TenantPageHeader
-          title="Campaign Leads"
-          subtitle="All leads submitted across your campaigns, tracking delivery and client responses."
-        />
-        <Link
-          href="/supplier/leads/new"
-          className={buttonVariants({ variant: "default", size: "default", className: "gap-2" })}
-        >
-          <Plus aria-hidden weight="bold" />
-          <span>Submit Lead</span>
-        </Link>
-      </div>
-
-      {leads.length === 0 ? (
-        <div className="rounded-lg bg-surface p-6 shadow-raised">
-          <EmptyState icon={Table} title="No leads submitted yet">
-            Leads submitted by your team and partner agencies will appear here.
-          </EmptyState>
-        </div>
-      ) : (
-        <div className="overflow-hidden rounded-lg bg-surface shadow-raised ">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wider text-ink-2">
-              <tr>
-                <th className="px-4 py-3">Reference</th>
-                <th className="px-4 py-3">Prospect</th>
-                <th className="px-4 py-3">Company</th>
-                <th className="px-4 py-3">Stage</th>
-                <th className="px-4 py-3">Meeting Time</th>
-                <th className="px-4 py-3">Flags</th>
-                <th className="px-4 py-3">Submitted</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {leads.map((leadItem) => (
-                <tr key={leadItem.id} className="hover:bg-canvas/50">
-                  <td className="px-4 py-3 font-mono font-medium text-xs">{leadItem.publicRef}</td>
-                  <td className="px-4 py-3">
-                    <p className="font-semibold text-ink">{leadItem.prospectName}</p>
-                    <p className="text-xs text-ink-2">{leadItem.prospectTitle}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <p className="text-ink">{leadItem.prospectCompany}</p>
-                    <p className="text-xs text-ink-2">{leadItem.prospectDomain}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusChip kind="lead" status={leadItem.stage as LeadStage} size="sm" />
-                  </td>
-                  <td className="px-4 py-3 text-xs text-ink-2">
-                    {leadItem.scheduledMeetingTime
-                      ? new Date(leadItem.scheduledMeetingTime).toLocaleString("en-GB", {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                        })
-                      : "Awaiting confirmation"}
-                  </td>
-                  <td className="px-4 py-3">
-                    {leadItem.overShare && (
-                      <span className="rounded bg-amber-soft px-2 py-0.5 text-xs font-semibold text-amber-text">
-                        Over-share
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-ink-2">
-                    {new Date(leadItem.submittedAt).toLocaleDateString("en-GB")}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        title="Leads"
+        description="All leads submitted across your campaigns, by your team and your partner agencies."
+        actions={
+          <Link href="/supplier/leads/new" className={buttonVariants({ variant: "default" })}>
+            <Plus aria-hidden weight="bold" />
+            Submit lead
+          </Link>
+        }
+      />
+      <SourceLeadsView
+        leads={leads}
+        basePath={BASE}
+        submitHref="/supplier/leads/new"
+        emptyText="Leads submitted by your team and your partner agencies appear here."
+        group={parseGroup(params.stage)}
+        q={one(params.q) ?? ""}
+        page={parsePage(params.page)}
+        ownOrgId={view.actor.orgId}
+        campaigns={Object.fromEntries(campaigns.map((row) => [row.id, { name: row.name, brand: row.clientBrandName }]))}
+        aliasNames={Object.fromEntries(aliases.map((alias) => [alias.id, alias.displayName]))}
+      />
     </div>
+  );
+}
+
+export default function SupplierLeadsPage({ searchParams }: PageProps<"/supplier/leads">) {
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <Leads searchParams={searchParams} />
+    </Suspense>
   );
 }

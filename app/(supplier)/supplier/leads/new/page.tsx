@@ -1,42 +1,29 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowLeft } from "@phosphor-icons/react/dist/ssr";
-import { SubmitLeadForm } from "@/components/tenant/submit-lead-form";
-import { TenantPageHeader } from "@/components/tenant/page-header";
-import { buttonVariants } from "@/components/ui/button";
+import { Suspense } from "react";
+import { PageHeader } from "@/components/kit/page-header";
+import { PageSkeleton } from "@/components/kit/skeletons";
+import { SubmitLeadForm } from "@/components/leads/submit-lead-form";
 import { getDatabase } from "@/server/db/client";
 import { getLeadSubmissionOptions } from "@/server/domain/leads";
 import { requireSupplier } from "@/server/supplier/session";
 
-export const metadata: Metadata = { title: "Submit Lead" };
+export const metadata: Metadata = { title: "Submit a lead" };
 
-export default async function SupplierSubmitLeadPage() {
+async function SubmitLead() {
   const view = await requireSupplier();
-  const db = getDatabase("leads_agency").db;
-  const options = await getLeadSubmissionOptions(db, view.actor);
-
+  const options = await getLeadSubmissionOptions(getDatabase("leads_agency").db, view.actor);
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-3">
-        <Link
-          href="/supplier/leads"
-          className={buttonVariants({ variant: "ghost", size: "sm", className: "gap-1" })}
-        >
-          <ArrowLeft aria-hidden />
-          <span>Back to Leads</span>
-        </Link>
-      </div>
-
-      <TenantPageHeader
-        title="Submit Qualified Lead"
-        subtitle="Provide prospect details, validated BANT criteria and 1 to 3 proposed meeting times."
-      />
-
-      <SubmitLeadForm
-        campaigns={options.campaigns}
-        aliases={options.aliases}
-        hosts={options.hosts}
-      />
+    <div className="flex max-w-3xl flex-col gap-4">
+      <PageHeader title="Submit a lead" description="Prospect details, the qualification answers, and one to three proposed meeting times." />
+      <SubmitLeadForm campaigns={options.campaigns} aliases={options.aliases} hosts={options.hosts} leadsHref="/supplier/leads" />
     </div>
+  );
+}
+
+export default function SupplierSubmitLeadPage() {
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <SubmitLead />
+    </Suspense>
   );
 }

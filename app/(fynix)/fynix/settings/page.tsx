@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
+import { FileText, Users } from "@phosphor-icons/react/dist/ssr";
 import { Suspense } from "react";
-import { Card } from "@/components/fynix/card";
-import { FynixPageHeader } from "@/components/fynix/page-header";
-import { ListBodySkeleton } from "@/components/fynix/skeletons";
+import { EmptyState } from "@/components/kit/empty-state";
+import { ListRow } from "@/components/kit/list";
+import { PageHeader } from "@/components/kit/page-header";
+import { Panel, PanelHeader } from "@/components/kit/panel";
+import { Person } from "@/components/kit/person";
+import { PageSkeleton } from "@/components/kit/skeletons";
+import { When } from "@/components/kit/when";
 import { Badge } from "@/components/ui/badge";
 import { getDomain } from "@/server/domain";
 import { readSettings } from "@/server/domain/settings-overview";
@@ -17,58 +22,65 @@ async function Settings() {
   const { team, terms } = await readSettings(getDomain(), view.actor);
   return (
     <div className="flex flex-col gap-4">
-      <Card aria-labelledby="team-heading" className="p-4">
-        <h2 id="team-heading" className="text-value font-semibold tracking-[-0.005em]">
-          Fynix team
-        </h2>
-        <ul className="mt-2 divide-y divide-line">
-          {team.map((person) => (
-            <li key={person.email} className="flex flex-wrap items-center justify-between gap-2 py-3">
-              <span>
-                <span className="block text-row font-semibold">{person.name}</span>
-                <span className="block text-table text-ink-2">{person.email}</span>
-              </span>
-              <span className="flex items-center gap-2">
-                <Badge variant="quiet">{person.role === "manager" ? "Admin" : "Staff"}</Badge>
-                {person.status === "suspended" && <Badge variant="red">Suspended</Badge>}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </Card>
-      <Card aria-labelledby="terms-heading" className="p-4">
-        <h2 id="terms-heading" className="text-value font-semibold tracking-[-0.005em]">
-          Terms in force
-        </h2>
-        {terms.length === 0 ? (
-          <p className="mt-2 text-body text-ink-2">No terms are published.</p>
-        ) : (
-          <ul className="mt-2 divide-y divide-line">
-            {terms.map((doc) => (
-              <li key={doc.party} className="flex flex-wrap items-center justify-between gap-2 py-3">
-                <span>
-                  <span className="block text-row font-semibold">{PARTY_LABEL[doc.party]}</span>
-                  <span className="block text-table text-ink-2">
-                    {doc.title}, version {doc.version}, published {doc.publishedAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
-                  </span>
-                </span>
-                {doc.placeholder && <Badge variant="amber">Placeholder text</Badge>}
-              </li>
-            ))}
-          </ul>
-        )}
-      </Card>
+      <PageHeader title="Settings" description="Who works at Fynix and which terms people accept." />
+
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        <Panel aria-label="Fynix team">
+          <PanelHeader title="Fynix team" count={team.length} />
+          {team.length === 0 ? (
+            <EmptyState icon={Users} title="No team members">
+              People appear here once they accept an invite.
+            </EmptyState>
+          ) : (
+            <ul className="flex flex-col pb-3">
+              {team.map((person) => (
+                <ListRow
+                  key={person.email}
+                  title={<Person name={person.name} sub={person.email} />}
+                  trailing={
+                    <span className="flex items-center gap-1.5">
+                      <Badge variant="quiet" size="sm">{person.role === "manager" ? "Admin" : "Staff"}</Badge>
+                      {person.status === "suspended" ? <Badge variant="red" size="sm">Suspended</Badge> : null}
+                    </span>
+                  }
+                />
+              ))}
+            </ul>
+          )}
+        </Panel>
+
+        <Panel aria-label="Terms in force">
+          <PanelHeader title="Terms in force" count={terms.length} />
+          {terms.length === 0 ? (
+            <EmptyState icon={FileText} title="No terms are published">
+              Terms appear here once they are published for a party.
+            </EmptyState>
+          ) : (
+            <ul className="flex flex-col pb-3">
+              {terms.map((doc) => (
+                <ListRow
+                  key={doc.party}
+                  title={PARTY_LABEL[doc.party]}
+                  sub={
+                    <>
+                      {doc.title}, version {doc.version}, published <When at={doc.publishedAt} style="day" />
+                    </>
+                  }
+                  trailing={doc.placeholder ? <Badge variant="amber" size="sm">Placeholder text</Badge> : null}
+                />
+              ))}
+            </ul>
+          )}
+        </Panel>
+      </div>
     </div>
   );
 }
 
 export default function SettingsPage() {
   return (
-    <>
-      <FynixPageHeader title="Settings" subtitle="Who works at Fynix and which terms people accept" />
-      <Suspense fallback={<ListBodySkeleton />}>
-        <Settings />
-      </Suspense>
-    </>
+    <Suspense fallback={<PageSkeleton rows={4} />}>
+      <Settings />
+    </Suspense>
   );
 }

@@ -1,10 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CheckCircle, Clock, Table, Target, Warning } from "@phosphor-icons/react/dist/ssr";
-import { EmptyState } from "@/components/fynix/empty-state";
-import { TenantKpiCard, TenantKpiGrid } from "@/components/tenant/metric-cards";
-import { TenantPageHeader } from "@/components/tenant/page-header";
+import { Suspense } from "react";
+import { PaperPlaneRight, Table } from "@phosphor-icons/react/dist/ssr";
+import { EmptyState } from "@/components/kit/empty-state";
+import { Hero } from "@/components/kit/hero";
+import { ListRow } from "@/components/kit/list";
+import { PageHeader } from "@/components/kit/page-header";
+import { Panel, PanelHeader } from "@/components/kit/panel";
+import { Person } from "@/components/kit/person";
+import { PageSkeleton } from "@/components/kit/skeletons";
+import { StageBar } from "@/components/kit/stage-bar";
+import { MiniStat } from "@/components/kit/stat";
+import { StatusChip } from "@/components/kit/status-chip";
+import { When } from "@/components/kit/when";
 import { buttonVariants } from "@/components/ui/button";
+import { countByGroup, PIPELINE_GROUPS } from "@/lib/leads/pipeline";
+import type { LeadStage } from "@/lib/leads/stage";
 import { getDatabase } from "@/server/db/client";
 import { getAgencyOverviewMetrics } from "@/server/domain/analytics";
 import { listAgencyLeads } from "@/server/domain/leads";
@@ -12,119 +23,112 @@ import { requireAgency } from "@/server/agency/session";
 
 export const metadata: Metadata = { title: "Overview" };
 
-export default async function AgencyOverviewPage() {
+async function Overview() {
   const view = await requireAgency();
   const db = getDatabase("leads_agency").db;
-  const metrics = await getAgencyOverviewMetrics(db, view.actor);
-  const leads = await listAgencyLeads(db, view.actor);
+  const [metrics, leads] = await Promise.all([getAgencyOverviewMetrics(db, view.actor), listAgencyLeads(db, view.actor)]);
+  const counts = countByGroup(leads);
+  const latest = leads.slice(0, 5);
 
   return (
-    <div className="flex flex-col gap-6">
-      <TenantPageHeader
+    <div className="flex flex-col gap-4">
+      <PageHeader
         title="Overview"
-        subtitle="Track your allocated campaign shares and booked meetings."
+        description="Your monthly share, and the leads you have submitted."
         actions={
-          <div className="flex items-center gap-3">
-            <Link
-              href="/agency/leads/new"
-              className={buttonVariants({ variant: "default", size: "sm" })}
-            >
-              Submit Lead
-            </Link>
-            <Link
-              href="/agency/leads"
-              className={buttonVariants({ variant: "secondary", size: "sm" })}
-            >
-              My Leads
-            </Link>
-          </div>
+          <Link href="/agency/leads" className={buttonVariants({ variant: "secondary" })}>
+            All leads
+          </Link>
         }
       />
 
-      <TenantKpiGrid>
-        <TenantKpiCard
-          title="Monthly Share Target"
-          value={metrics.agencyShareTarget}
-          subtitle="Allocated monthly target"
-          icon={Target}
-          tone="default"
-        />
-        <TenantKpiCard
-          title="Delivered Leads"
-          value={metrics.deliveredCount}
-          subtitle={
-            metrics.agencyShareTarget > 0
-              ? `${Math.round((metrics.deliveredCount / metrics.agencyShareTarget) * 100)}% of monthly share delivered`
-              : "Delivered to clients"
-          }
-          icon={CheckCircle}
-          tone="emerald"
-        />
-        <TenantKpiCard
-          title="Awaiting Response"
-          value={metrics.awaitingClientCount}
-          subtitle="Prospects pending client review"
-          icon={Clock}
-          tone={metrics.awaitingClientCount > 0 ? "amber" : "default"}
-        />
-        <TenantKpiCard
-          title="Over-Share Submissions"
-          value={metrics.overShareCount}
-          subtitle="Submitted beyond allocated share"
-          icon={Warning}
-          tone={metrics.overShareCount > 0 ? "rose" : "default"}
-        />
-      </TenantKpiGrid>
+      <Hero
+        kicker={metrics.awaitingClientCount > 0 ? "With the client" : "All clear"}
+        title={
+          metrics.awaitingClientCount > 0
+            ? `${metrics.awaitingClientCount} ${metrics.awaitingClientCount === 1 ? "lead is" : "leads are"} waiting for a client response`
+            : "No lead is waiting on a client"
+        }
+        description="Submit qualified prospects for your campaigns, with proposed meeting times, and follow them here."
+        actions={
+          <Link href="/agency/leads/new" className={buttonVariants({ variant: "peach", size: "lg" })}>
+            <PaperPlaneRight aria-hidden weight="bold" />
+            Submit a lead
+          </Link>
+        }
+        aside={
+          <>
+            <p className="text-label font-semibold text-peach">Delivered so far</p>
+            <p className="text-display font-semibold tracking-figure">{metrics.deliveredCount}</p>
+            <p className="text-body text-on-navy-text">{metrics.agencyShareTarget > 0 ? `Your monthly share: ${metrics.agencyShareTarget} a month` : "No monthly share is allocated."}</p>
+          </>
+        }
+      />
 
-      <div className="rounded-lg bg-surface p-6 shadow-raised ">
-        <div className="flex items-center justify-between pb-4 border-b border-line">
-          <div>
-            <h2 className="text-section font-semibold">My Lead Submissions</h2>
-            <p className="mt-1 text-body text-ink-2">Recent qualified prospects submitted across active client campaigns.</p>
-          </div>
-          {leads.length > 0 && (
-            <Link
-              href="/agency/leads"
-              className={buttonVariants({ variant: "secondary", size: "sm" })}
-            >
-              View All ({leads.length})
-            </Link>
-          )}
-        </div>
-
-        {leads.length === 0 ? (
-          <div className="mt-6 rounded-md bg-canvas">
-            <EmptyState icon={Table} title="No leads submitted yet">
-              New lead submissions and meeting schedules will appear here with live tracking.
-            </EmptyState>
-          </div>
-        ) : (
-          <div className="mt-4 overflow-hidden rounded-md ">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wider text-ink-2">
-                <tr>
-                  <th className="px-4 py-3">Reference</th>
-                  <th className="px-4 py-3">Prospect</th>
-                  <th className="px-4 py-3">Company</th>
-                  <th className="px-4 py-3">Stage</th>
-                  <th className="px-4 py-3">Submitted</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {leads.slice(0, 5).map((l) => (
-                  <tr key={l.id} className="hover:bg-canvas/50">
-                    <td className="px-4 py-3 font-mono font-medium text-ink">{l.publicRef}</td>
-                    <td className="px-4 py-3 font-medium text-ink">{l.prospectName}</td>
-                    <td className="px-4 py-3 text-ink-2">{l.prospectCompany}</td>
-                    <td className="px-4 py-3 font-medium capitalize text-ink-2">{l.stage.replace(/_/g, " ")}</td>
-                    <td className="px-4 py-3 text-ink-2">{new Date(l.submittedAt).toLocaleDateString("en-GB")}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <MiniStat label="Awaiting response" value={metrics.awaitingClientCount} foot="Prospects pending client review" tone="amber" />
+        <MiniStat label="Over share" value={metrics.overShareCount} foot={metrics.overShareCount > 0 ? "Submitted beyond your share" : "None beyond your share"} />
+        <MiniStat label="Disputes" value={metrics.disputedCount} foot={metrics.disputedCount > 0 ? "Under review by Fynix" : "None open"} tone="red" />
       </div>
+
+      {leads.length > 0 ? (
+        <StageBar
+          allHref="/agency/leads"
+          allCount={leads.length}
+          allActive={false}
+          segments={PIPELINE_GROUPS.map((group) => ({
+            key: group.key,
+            label: group.label,
+            count: counts[group.key],
+            color: group.color,
+            href: `/agency/leads?stage=${group.key}`,
+          }))}
+        />
+      ) : null}
+
+      <Panel aria-label="Latest leads">
+        <PanelHeader
+          title="Latest leads"
+          action={
+            leads.length > 0 ? (
+              <Link href="/agency/leads" className={buttonVariants({ variant: "ghost", size: "xs" })}>
+                All leads ({leads.length})
+              </Link>
+            ) : undefined
+          }
+        />
+        {latest.length === 0 ? (
+          <EmptyState icon={Table} title="No leads submitted yet">
+            New lead submissions and meeting times appear here as they move.
+          </EmptyState>
+        ) : (
+          <ul className="flex flex-col pb-3">
+            {latest.map((lead) => (
+              <ListRow
+                key={lead.id}
+                title={<Person name={lead.prospectName} sub={`${lead.prospectCompany}, ${lead.publicRef}`} />}
+                trailing={
+                  <span className="flex items-center gap-3">
+                    <span className="text-caption max-sm:hidden">
+                      <When at={lead.submittedAt} style="day" />
+                    </span>
+                    <StatusChip kind="lead" status={lead.stage as LeadStage} size="sm" />
+                  </span>
+                }
+              />
+            ))}
+          </ul>
+        )}
+      </Panel>
     </div>
+  );
+}
+
+export default function AgencyOverviewPage() {
+  // The session read is in its own boundary: a layout does not run again on a client navigation, so the page must hold its own.
+  return (
+    <Suspense fallback={<PageSkeleton rows={4} />}>
+      <Overview />
+    </Suspense>
   );
 }

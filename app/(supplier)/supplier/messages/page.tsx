@@ -1,22 +1,24 @@
 import { canCreateGroup, getGroupInfo } from "@/server/domain/groups";
 import { listConversationAttachments } from "@/server/domain/attachments";
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { PageHeader } from "@/components/kit/page-header";
+import { PageSkeleton } from "@/components/kit/skeletons";
 import {
   MessagingView,
   type ConversationSummary,
   type ForwardTargetOption,
   type ThreadMessageView,
-} from "@/components/tenant/messaging-view";
+} from "@/components/messaging/messaging-view";
 import { getDatabase } from "@/server/db/client";
 import { requireSupplier } from "@/server/supplier/session";
 import { getConversationSeenAt, listConversations, listConversationMessages } from "@/server/domain/messaging";
 
 export const metadata: Metadata = { title: "Messages" };
 
-export default async function SupplierMessagesPage(props: {
-  searchParams?: Promise<{ conv?: string }>;
-}) {
-  const searchParams = props.searchParams ? await props.searchParams : {};
+async function Messages({ searchParams: pending }: { searchParams: PageProps<"/supplier/messages">["searchParams"] }) {
+  const params = await pending;
+  const searchParams = { conv: typeof params.conv === "string" ? params.conv : undefined };
   const view = await requireSupplier();
   const db = getDatabase("leads_agency").db;
 
@@ -43,7 +45,7 @@ export default async function SupplierMessagesPage(props: {
       side: c.side as "supplier_fynix" | "supplier_agency",
       subject: c.subject ?? null,
       isDirect: c.isDirect,
-      counterpartyName: isFynixSide ? "Fynix" : "Partner Agency",
+      counterpartyName: isFynixSide ? "Fynix" : "Partner agency",
       lastMessageAt: c.updatedAt.toISOString(),
     };
   });
@@ -73,7 +75,8 @@ export default async function SupplierMessagesPage(props: {
   }));
 
   return (
-    <div>
+    <div className="flex flex-col gap-4">
+      <PageHeader title="Messages" description="Your conversations with Fynix and your partner agencies about campaigns and leads." />
       <MessagingView
         role="supplier"
         currentUserId={view.actor.userId}
@@ -87,5 +90,13 @@ export default async function SupplierMessagesPage(props: {
         availableForwardTargets={availableForwardTargets}
       />
     </div>
+  );
+}
+
+export default function SupplierMessagesPage({ searchParams }: PageProps<"/supplier/messages">) {
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <Messages searchParams={searchParams} />
+    </Suspense>
   );
 }

@@ -72,7 +72,7 @@ export function AcceptInviteForm({ token, name, email, party, terms }: Props) {
         <div className="flex min-h-[30px] items-center justify-between gap-4">
           <dt className="shrink-0 text-label font-medium text-ink-muted">{INVITE_ACCOUNT_LABEL}</dt>
           <dd>
-            <span className="inline-flex h-[30px] items-center gap-1.5 rounded-full bg-navy-07 pr-[13px] pl-2.5 text-table font-semibold">
+            <span className="inline-flex h-[30px] items-center gap-1.5 rounded-xs bg-navy-07 pr-[11px] pl-2.5 text-table font-semibold">
               <PartyIcon aria-hidden size={17} />
               {PARTY_LABEL[party]}
             </span>

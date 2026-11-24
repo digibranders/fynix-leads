@@ -1,86 +1,160 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { Card } from "@/components/fynix/card";
-import { FynixPageHeader } from "@/components/fynix/page-header";
-import { ListBodySkeleton } from "@/components/fynix/skeletons";
-import { StatusChip } from "@/components/fynix/status-chip";
+import { Megaphone, Scales } from "@phosphor-icons/react/dist/ssr";
+import { EmptyState } from "@/components/kit/empty-state";
+import { Hero } from "@/components/kit/hero";
+import { ListRow } from "@/components/kit/list";
+import { PageHeader } from "@/components/kit/page-header";
+import { Panel, PanelHeader } from "@/components/kit/panel";
+import { PageSkeleton } from "@/components/kit/skeletons";
+import { StageBar } from "@/components/kit/stage-bar";
+import { MiniStat } from "@/components/kit/stat";
+import { StatusChip } from "@/components/kit/status-chip";
+import { buttonVariants } from "@/components/ui/button";
+import { countByGroup, PIPELINE_GROUPS } from "@/lib/leads/pipeline";
+import { getDatabase } from "@/server/db/client";
 import { getDomain } from "@/server/domain";
 import { getFynixOverviewMetrics } from "@/server/domain/analytics";
 import { listCampaignRows } from "@/server/domain/campaign-overview";
+import { listFynixLeads } from "@/server/domain/leads";
 import { requireFynix } from "@/server/fynix/session";
 
 export const metadata: Metadata = { title: "Overview" };
 
-interface Tile {
-  readonly label: string;
-  readonly value: number;
-  readonly note: string;
-  readonly href: string;
-}
-
 async function Overview() {
   const view = await requireFynix();
   const deps = getDomain();
-  const [metrics, campaigns] = await Promise.all([getFynixOverviewMetrics(deps.fynixDb, view.actor), listCampaignRows(deps, view.actor)]);
-  const tiles: readonly Tile[] = [
-    { label: "Active campaigns", value: metrics.activeCampaignsCount, note: `of ${metrics.totalCampaignsCount} in all`, href: "/fynix/campaigns" },
-    { label: "Delivered", value: metrics.deliveredCount, note: `${metrics.totalTargetCount} a month across campaigns`, href: "/fynix/leads" },
-    { label: "Waiting on a client", value: metrics.awaitingClientCount, note: "leads not yet accepted or declined", href: "/fynix/leads" },
-    { label: "Meetings booked", value: metrics.scheduledCount, note: "scheduled, not yet held", href: "/fynix/meetings" },
-    { label: "Disputed", value: metrics.disputedCount, note: "for Fynix to decide", href: "/fynix/disputes" },
-    { label: "Over share", value: metrics.overShareCount, note: "leads above an agency's monthly share", href: "/fynix/leads" },
-  ];
+  const [metrics, campaigns, leads] = await Promise.all([
+    getFynixOverviewMetrics(deps.fynixDb, view.actor),
+    listCampaignRows(deps, view.actor),
+    listFynixLeads(getDatabase("leads_fynix").db, view.actor),
+  ]);
   const active = campaigns.filter((row) => row.status === "active");
+  const counts = countByGroup(leads);
+  const disputed = metrics.disputedCount;
+  const waiting = metrics.awaitingClientCount;
+
+  const kicker = disputed > 0 ? "Needs a decision" : waiting > 0 ? "Waiting on clients" : "All clear";
+  const title =
+    disputed > 0
+      ? `${disputed} ${disputed === 1 ? "dispute is" : "disputes are"} waiting for Fynix`
+      : waiting > 0
+        ? `${waiting} ${waiting === 1 ? "lead is" : "leads are"} waiting for a client`
+        : "Nothing needs Fynix right now";
+  const description =
+    disputed > 0
+      ? `A client disputed a delivered lead and the decision is open.${waiting > 0 ? ` ${waiting} more ${waiting === 1 ? "lead is" : "leads are"} waiting on a client.` : ""}`
+      : waiting > 0
+        ? "These leads are not yet accepted or declined."
+        : "No disputes are open and no lead is waiting on a client.";
 
   return (
     <div className="flex flex-col gap-4">
-      <ul className="grid grid-cols-2 gap-3 md:grid-cols-3">
-        {tiles.map((tile) => (
-          <li key={tile.label}>
-            <Link href={tile.href} className="block h-full rounded-lg bg-surface p-4 shadow-raised transition-colors hover:bg-navy-05">
-              <p className="text-table text-ink-2">{tile.label}</p>
-              <p className="mt-1 text-title font-semibold text-ink">{tile.value}</p>
-              <p className="mt-0.5 text-table text-ink-2">{tile.note}</p>
+      <PageHeader
+        title="Overview"
+        description="Where every campaign stands today."
+        actions={
+          <Link href="/fynix/campaigns" className={buttonVariants({ variant: "secondary" })}>
+            All campaigns
+          </Link>
+        }
+      />
+
+      <Hero
+        kicker={kicker}
+        title={title}
+        description={description}
+        actions={
+          disputed > 0 ? (
+            <Link href="/fynix/disputes" className={buttonVariants({ variant: "peach", size: "lg" })}>
+              <Scales aria-hidden weight="bold" />
+              {view.canWrite ? "Decide disputes" : "View disputes"}
             </Link>
-          </li>
-        ))}
-      </ul>
-      <Card aria-labelledby="active-heading" className="p-4">
-        <h2 id="active-heading" className="text-value font-semibold tracking-[-0.005em]">
-          Active campaigns
-        </h2>
+          ) : waiting > 0 ? (
+            <Link href="/fynix/leads?stage=awaiting" className={buttonVariants({ variant: "peach", size: "lg" })}>
+              View leads
+            </Link>
+          ) : null
+        }
+        aside={
+          <>
+            <p className="text-label font-semibold text-peach">Delivered so far</p>
+            <p className="text-display font-semibold tracking-figure">{metrics.deliveredCount}</p>
+            <p className="text-body text-on-navy-text">{metrics.totalTargetCount > 0 ? `Combined monthly target: ${metrics.totalTargetCount} a month` : "No monthly target is set."}</p>
+          </>
+        }
+      />
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Link href="/fynix/campaigns" className="block rounded-lg">
+          <MiniStat label="Active campaigns" value={metrics.activeCampaignsCount} foot={`of ${metrics.totalCampaignsCount} in all`} className="h-full" />
+        </Link>
+        <Link href="/fynix/leads?stage=awaiting" className="block rounded-lg">
+          <MiniStat label="Waiting on a client" value={waiting} foot="Not yet accepted or declined" className="h-full" />
+        </Link>
+        <Link href="/fynix/meetings" className="block rounded-lg">
+          <MiniStat label="Meetings booked" value={metrics.scheduledCount} foot="Scheduled, not yet held" className="h-full" />
+        </Link>
+        <Link href="/fynix/leads" className="block rounded-lg">
+          <MiniStat label="Over share" value={metrics.overShareCount} foot="Above an agency's monthly share" className="h-full" />
+        </Link>
+      </div>
+
+      {leads.length > 0 ? (
+        <StageBar
+          allHref="/fynix/leads"
+          allCount={leads.length}
+          allActive={false}
+          segments={PIPELINE_GROUPS.map((group) => ({
+            key: group.key,
+            label: group.label,
+            count: counts[group.key],
+            color: group.color,
+            href: `/fynix/leads?stage=${group.key}`,
+          }))}
+        />
+      ) : null}
+
+      <Panel aria-label="Active campaigns">
+        <PanelHeader
+          title="Active campaigns"
+          count={active.length}
+          action={
+            <Link href="/fynix/campaigns" className={buttonVariants({ variant: "ghost", size: "xs" })}>
+              All campaigns
+            </Link>
+          }
+        />
         {active.length === 0 ? (
-          <p className="mt-2 text-body text-ink-2">No campaign is active.</p>
+          <EmptyState icon={Megaphone} title="No campaign is active">
+            A campaign takes leads only while it is active.
+          </EmptyState>
         ) : (
-          <ul className="mt-2 divide-y divide-line">
+          <ul className="flex flex-col pb-3">
             {active.map((row) => (
-              <li key={row.id}>
-                <Link href={`/fynix/campaigns/${row.publicRef}`} className="flex flex-wrap items-center justify-between gap-2 py-3">
-                  <span>
-                    <span className="block text-row font-semibold">{row.name}</span>
-                    <span className="block text-table text-ink-2">
-                      {row.clientName} via {row.supplierName}
-                    </span>
-                  </span>
-                  <StatusChip kind="campaign" status={row.status} />
-                </Link>
-              </li>
+              <ListRow
+                key={row.id}
+                title={
+                  <Link href={`/fynix/campaigns/${row.publicRef}`} className="rounded-xs hover:underline">
+                    {row.name}
+                  </Link>
+                }
+                sub={`${row.clientName} via ${row.supplierName}`}
+                trailing={<StatusChip kind="campaign" status={row.status} size="sm" />}
+              />
             ))}
           </ul>
         )}
-      </Card>
+      </Panel>
     </div>
   );
 }
 
 export default function FynixHome() {
   return (
-    <>
-      <FynixPageHeader title="Overview" subtitle="Where every campaign stands today" />
-      <Suspense fallback={<ListBodySkeleton />}>
-        <Overview />
-      </Suspense>
-    </>
+    <Suspense fallback={<PageSkeleton rows={4} />}>
+      <Overview />
+    </Suspense>
   );
 }

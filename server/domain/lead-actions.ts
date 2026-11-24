@@ -122,6 +122,8 @@ export async function clientReviewLeadAction(
     await clientReviewLead(db, deps, actor, input);
     revalidatePath("/client/review");
     revalidatePath("/client/leads");
+    // The sidebar count beside "Availability" lives in the layout.
+    revalidatePath("/client", "layout");
     return { status: "success", message: `Lead review completed (${action}).` };
   } catch (error) {
     if (error instanceof DomainError) {
