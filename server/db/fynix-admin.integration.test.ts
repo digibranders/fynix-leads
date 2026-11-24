@@ -51,7 +51,7 @@ const organisationCount = async (): Promise<number> => (await dbs.owner.db.selec
  * write them at the database level. The domain layer (fynixWrite) is what keeps staff out of lead, meeting, message and notification
  * changes that only an admin may make; the database does not.
  */
-const NOT_SET_UP_TABLES: readonly string[] = ["lead", "lead_history", "meeting", "conversation", "conversation_message", "notification"];
+const NOT_SET_UP_TABLES: readonly string[] = ["lead", "lead_history", "meeting", "meeting_reschedule", "rejection_review", "conversation", "conversation_message", "notification"];
 
 // The table list comes from the catalog when the file loads, so a table added later is covered without anyone listing it.
 const writableTables = await (async () => {

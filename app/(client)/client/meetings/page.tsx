@@ -12,6 +12,8 @@ import { MeetingsTable, meetingGroup, type MeetingGroup } from "@/components/mee
 import { campaignFilterHrefs, closedCampaignIds, parseCampaignFilter } from "@/lib/campaign-status";
 import { CampaignFilter } from "@/components/kit/campaign-filter";
 import { paginate, parsePage } from "@/lib/leads/list";
+import { parseSort, sortRows, sortValue } from "@/lib/leads/sort";
+import { ExportButton, exportHref } from "@/components/kit/export-button";
 import { getDatabase } from "@/server/db/client";
 import { listTenantCampaigns } from "@/server/domain/campaigns-tenant";
 import { listClientMeetings } from "@/server/domain/meetings";
@@ -27,11 +29,12 @@ const SHOWS: readonly { key: MeetingGroup; label: string }[] = [
   { key: "done", label: "Done" },
 ];
 
-function meetingsHref(filter: { show: MeetingGroup | null; q: string; campaign?: string | null; page?: number }): string {
+function meetingsHref(filter: { show: MeetingGroup | null; q: string; campaign?: string | null; sort?: string | null; page?: number }): string {
   const params = new URLSearchParams();
   if (filter.show) params.set("show", filter.show);
   if (filter.q.trim() !== "") params.set("q", filter.q.trim());
   if (filter.campaign) params.set("campaign", filter.campaign);
+  if (filter.sort) params.set("sort", filter.sort);
   if (filter.page && filter.page > 1) params.set("page", String(filter.page));
   const query = params.toString();
   return query === "" ? BASE : `${BASE}?${query}`;
@@ -63,8 +66,12 @@ async function Meetings({ searchParams }: { searchParams: PageProps<"/client/mee
         meeting.campaignName.toLowerCase().includes(needle)),
   );
   // Upcoming and due meetings read soonest first; finished ones, newest first (the order the data arrives in).
+  const sort = parseSort(params.sort);
+  const sortParam = sortValue(sort) ?? null;
   const ordered =
-    show === "done"
+    sort !== null
+      ? sortRows(filtered, sort, { prospect: (m) => m.prospectName, stage: (m) => `${meetingGroup(m, now)} ${m.outcome}`, meeting: (m) => new Date(m.scheduledStartTime).getTime() })
+      : show === "done"
       ? filtered
       : [...filtered].sort((a, b) => {
           const rank = (m: (typeof filtered)[number]) => (meetingGroup(m, now) === "done" ? 1 : 0);
@@ -95,28 +102,35 @@ async function Meetings({ searchParams }: { searchParams: PageProps<"/client/mee
             <TabNav
               label="Meeting stage"
               items={[
-                { label: "All", href: meetingsHref({ show: null, q, campaign }), count: meetings.length, active: show === null },
-                ...SHOWS.map((entry) => ({ label: entry.label, href: meetingsHref({ show: entry.key, q, campaign }), count: counts[entry.key], active: show === entry.key })),
+                { label: "All", href: meetingsHref({ show: null, q, campaign, sort: sortParam }), count: meetings.length, active: show === null },
+                ...SHOWS.map((entry) => ({ label: entry.label, href: meetingsHref({ show: entry.key, q, campaign, sort: sortParam }), count: counts[entry.key], active: show === entry.key })),
               ]}
             />
           </div>
-          <Toolbar trailing={`${filtered.length} ${filtered.length === 1 ? "meeting" : "meetings"}`}>
-            <SearchForm defaultValue={q} placeholder="Search by prospect, company or campaign" hidden={{ show: show ?? undefined, campaign: campaign ?? undefined }} />
-            <CampaignFilter campaigns={campaigns} selected={campaign} {...campaignFilterHrefs(campaigns, (id) => meetingsHref({ show, q, campaign: id }))} />
+          <Toolbar
+            trailing={
+              <span className="flex items-center gap-3">
+                {`${filtered.length} ${filtered.length === 1 ? "meeting" : "meetings"}`}
+                <ExportButton href={exportHref("meetings", campaign)} />
+              </span>
+            }
+          >
+            <SearchForm defaultValue={q} placeholder="Search by prospect, company or campaign" hidden={{ show: show ?? undefined, campaign: campaign ?? undefined, sort: sortParam ?? undefined }} />
+            <CampaignFilter campaigns={campaigns} selected={campaign} {...campaignFilterHrefs(campaigns, (id) => meetingsHref({ show, q, campaign: id, sort: sortParam }))} />
           </Toolbar>
           {page.rows.length === 0 ? (
             <EmptyState icon={CalendarBlank} title="No meetings match">
               Clear the search or pick another stage to see more.
             </EmptyState>
           ) : (
-            <MeetingsTable meetings={page.rows} canWrite={view.canWrite} now={now} closedCampaigns={closedCampaignIds(campaigns)} leadsPath="/client/leads" />
+            <MeetingsTable meetings={page.rows} canWrite={view.canWrite} now={now} closedCampaigns={closedCampaignIds(campaigns)} leadsPath="/client/leads" viewer="client" showHost sort={sort} sortHref={(value) => meetingsHref({ show, q, campaign, sort: value })} />
           )}
           <Pager
             from={page.from}
             to={page.to}
             total={page.total}
-            prevHref={page.page > 1 ? meetingsHref({ show, q, campaign, page: page.page - 1 }) : undefined}
-            nextHref={page.page < page.pages ? meetingsHref({ show, q, campaign, page: page.page + 1 }) : undefined}
+            prevHref={page.page > 1 ? meetingsHref({ show, q, campaign, sort: sortParam, page: page.page - 1 }) : undefined}
+            nextHref={page.page < page.pages ? meetingsHref({ show, q, campaign, sort: sortParam, page: page.page + 1 }) : undefined}
           />
         </Panel>
       )}

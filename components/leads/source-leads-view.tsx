@@ -1,5 +1,11 @@
 import Link from "next/link";
 import { Plus, Table as TableIcon } from "@phosphor-icons/react/dist/ssr";
+import { ExportButton, exportHref } from "@/components/kit/export-button";
+import { SortHead } from "@/components/kit/sort-head";
+import { TabNav } from "@/components/kit/tab-nav";
+import { DraftsTable, type DraftRow } from "@/components/leads/drafts-table";
+import { LEAD_SORT_CELLS } from "@/lib/leads/lead-sort";
+import { sortRows, sortValue, type Sort } from "@/lib/leads/sort";
 import { CampaignFilter } from "@/components/kit/campaign-filter";
 import { ClosedTag } from "@/components/kit/closed-tag";
 import { EmptyState } from "@/components/kit/empty-state";
@@ -53,11 +59,19 @@ export interface SourceLeadsViewProps {
   readonly campaign: string | null;
   /** The viewer's own alias names, by alias id. */
   readonly aliasNames: Readonly<Record<string, string>>;
+  /** The names of the coordinator's partner agencies, by organisation id, for "Sent by". Empty for an agency. */
+  readonly partnerNames?: Readonly<Record<string, string>>;
+  /** The organisation's own drafts: a tab beside the leads. */
+  readonly drafts?: readonly DraftRow[];
+  /** `?show=drafts` opens the drafts tab. */
+  readonly showDrafts?: boolean;
+  /** `?sort=`, already read. */
+  readonly sort?: Sort | null;
 }
 
 function sourceOf(lead: SourceLeadRow, props: SourceLeadsViewProps): string {
   const alias = lead.aliasIdentityId === null ? undefined : props.aliasNames[lead.aliasIdentityId];
-  if (lead.sourceOrgId !== props.ownOrgId) return "partner agency";
+  if (lead.sourceOrgId !== props.ownOrgId) return props.partnerNames?.[lead.sourceOrgId] ?? "a partner agency";
   return alias ?? "your team";
 }
 
@@ -65,12 +79,16 @@ function sourceOf(lead: SourceLeadRow, props: SourceLeadsViewProps): string {
 export function SourceLeadsView(props: SourceLeadsViewProps) {
   const { leads, basePath, submitHref, emptyText, group, q } = props;
   const { campaign: chosen, campaignChoices } = props;
-  const filtered = filterLeads(leads, { group, q, campaign: chosen });
+  const drafts = props.drafts ?? [];
+  const sort = props.sort ?? null;
+  const sortParam = sortValue(sort) ?? null;
+  const filtered = sortRows(filterLeads(leads, { group, q, campaign: chosen }), sort, LEAD_SORT_CELLS);
   const page = paginate(filtered, props.page);
-  const href = (next: number) => leadsHref(basePath, { stage: group, q, campaign: chosen, page: next });
+  const href = (next: number) => leadsHref(basePath, { stage: group, q, campaign: chosen, sort: sortParam, page: next });
+  const sortHref = (value: string) => leadsHref(basePath, { stage: group, q, campaign: chosen, sort: value });
   const closed = closedCampaignIds(campaignChoices);
 
-  if (leads.length === 0) {
+  if (leads.length === 0 && drafts.length === 0) {
     return (
       <Panel>
         <EmptyState
@@ -89,13 +107,44 @@ export function SourceLeadsView(props: SourceLeadsViewProps) {
     );
   }
 
+  const tabs = (
+    <Panel aria-label="Leads or drafts">
+      <TabNav
+        label="Leads or drafts"
+        items={[
+          { label: "Leads", href: basePath, count: leads.length, active: props.showDrafts !== true },
+          { label: "Drafts", href: `${basePath}?show=drafts`, count: drafts.length, active: props.showDrafts === true },
+        ]}
+      />
+    </Panel>
+  );
+
+  if (props.showDrafts === true) {
+    return (
+      <>
+        {tabs}
+        <Panel aria-label="Drafts">
+          <DraftsTable drafts={drafts} newHref={submitHref} campaigns={props.campaigns} />
+        </Panel>
+      </>
+    );
+  }
+
   return (
     <>
-      <PipelineBar leads={leads} basePath={basePath} group={group} q={q} campaign={chosen} />
+      {drafts.length > 0 ? tabs : null}
+      <PipelineBar leads={leads} basePath={basePath} group={group} q={q} campaign={chosen} sort={sortParam} />
       <Panel aria-label="Leads">
-        <Toolbar trailing={`${filtered.length} ${filtered.length === 1 ? "lead" : "leads"}`}>
-          <SearchForm defaultValue={q} placeholder="Search by name, company or reference" hidden={{ stage: group ?? undefined, campaign: chosen ?? undefined }} />
-          <CampaignFilter campaigns={campaignChoices} selected={chosen} {...campaignFilterHrefs(campaignChoices, (id) => leadsHref(basePath, { stage: group, q, campaign: id }))} />
+        <Toolbar
+          trailing={
+            <span className="flex items-center gap-3">
+              {`${filtered.length} ${filtered.length === 1 ? "lead" : "leads"}`}
+              <ExportButton href={exportHref("leads", chosen)} />
+            </span>
+          }
+        >
+          <SearchForm defaultValue={q} placeholder="Search by name, company or reference" hidden={{ stage: group ?? undefined, campaign: chosen ?? undefined, sort: sortParam ?? undefined }} />
+          <CampaignFilter campaigns={campaignChoices} selected={chosen} {...campaignFilterHrefs(campaignChoices, (id) => leadsHref(basePath, { stage: group, q, campaign: id, sort: sortParam }))} />
         </Toolbar>
         {page.rows.length === 0 ? (
           <EmptyState icon={TableIcon} title="No leads match">
@@ -106,12 +155,12 @@ export function SourceLeadsView(props: SourceLeadsViewProps) {
             <Table>
               <TableHeader>
                 <TableRow className="hover:[&>th]:bg-navy-04">
-                  <TableHead>Prospect</TableHead>
-                  <TableHead className="max-md:hidden">Company</TableHead>
+                  <SortHead label="Prospect" sortKey="prospect" sort={sort} hrefFor={sortHref} />
+                  <SortHead label="Company" sortKey="company" sort={sort} hrefFor={sortHref} className="max-md:hidden" />
                   <TableHead className="max-xl:hidden">Campaign</TableHead>
-                  <TableHead>Stage</TableHead>
-                  <TableHead className="max-lg:hidden">Meeting</TableHead>
-                  <TableHead className="max-lg:hidden">Submitted</TableHead>
+                  <SortHead label="Stage" sortKey="stage" sort={sort} hrefFor={sortHref} />
+                  <SortHead label="Meeting" sortKey="meeting" sort={sort} hrefFor={sortHref} className="max-lg:hidden" />
+                  <SortHead label="Submitted" sortKey="submitted" sort={sort} hrefFor={sortHref} className="max-lg:hidden" />
                 </TableRow>
               </TableHeader>
               <TableBody>

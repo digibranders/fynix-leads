@@ -1,16 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle, CircleNotch, PaperPlaneRight, Plus, Trash, WarningCircle } from "@phosphor-icons/react";
+import { CheckCircle, CircleNotch, FloppyDisk, PaperPlaneRight, WarningCircle } from "@phosphor-icons/react";
 import { useActionState, useState } from "react";
 import { Panel, Tonal } from "@/components/kit/panel";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Choice } from "@/components/ui/choice";
-import { DateTimeField } from "@/components/ui/date-time";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { IDLE_TENANT_ACTION } from "@/lib/tenant/action-state";
+import { HostTimesField } from "@/components/leads/host-times";
+import type { HostAvailability } from "@/lib/leads/host-hours";
+import { IDLE_DRAFT_ACTION, IDLE_TENANT_ACTION } from "@/lib/tenant/action-state";
+import { saveDraftAction } from "@/server/domain/draft-actions";
 import { submitLeadAction } from "@/server/domain/lead-actions";
 
 export interface CampaignOption {
@@ -39,6 +41,27 @@ export interface NotLiveCampaign {
   readonly reason: string;
 }
 
+/** A draft the form is opened from (`?draft=`): every field it holds, so the form starts where the person left off. */
+export interface DraftPrefill {
+  readonly id: string;
+  readonly campaignId: string;
+  readonly aliasIdentityId: string | null;
+  readonly hostMemberId: string | null;
+  readonly prospectName: string;
+  readonly prospectTitle: string;
+  readonly prospectCompany: string;
+  readonly prospectDomain: string;
+  readonly prospectLinkedinUrl: string;
+  readonly prospectEmail: string;
+  readonly prospectPhone: string | null;
+  readonly prospectNotes: string | null;
+  readonly bantBudget: string;
+  readonly bantAuthority: string;
+  readonly bantNeed: string;
+  readonly bantTimeline: string;
+  readonly proposedTimes: readonly string[];
+}
+
 interface Props {
   readonly campaigns: readonly CampaignOption[];
   readonly aliases: readonly AliasOption[];
@@ -47,12 +70,10 @@ interface Props {
   readonly notLive?: readonly NotLiveCampaign[];
   /** Where the leads of this portal are listed, for the link after a lead is sent. */
   readonly leadsHref: string;
-}
-
-/** Today as "YYYY-MM-DD" on this device: a meeting cannot be proposed for a day that has gone. */
-function earliestDay(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  /** The weekly hours, blocked times and zone of each host, by member id, for the time list and its warnings. */
+  readonly availability?: Readonly<Record<string, HostAvailability>>;
+  /** A draft to continue. */
+  readonly draft?: DraftPrefill | null;
 }
 
 function Group({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
@@ -68,10 +89,14 @@ function Group({ title, note, children }: { title: string; note?: string; childr
 }
 
 /** A lead submission: four tonal groups of fields in one panel, and one primary action in a sticky foot. Field names are the ones the action reads. */
-export function SubmitLeadForm({ campaigns, aliases, hosts, notLive = [], leadsHref }: Props) {
+export function SubmitLeadForm({ campaigns, aliases, hosts, notLive = [], leadsHref, availability = {}, draft = null }: Props) {
   const [state, formAction, pending] = useActionState(submitLeadAction, IDLE_TENANT_ACTION);
-  const [times, setTimes] = useState<string[]>([""]);
-  const [campaignId, setCampaignId] = useState("");
+  const [draftState, draftAction, draftPending] = useActionState(saveDraftAction, IDLE_DRAFT_ACTION);
+  const [campaignId, setCampaignId] = useState(draft?.campaignId ?? "");
+  const [hostId, setHostId] = useState(draft?.hostMemberId ?? "");
+  // The first save of a new draft answers with its id, so the next save and the final send both work on that draft.
+  const draftId = draftState.leadId ?? draft?.id ?? "";
+  const chosenHost = hosts.find((host) => host.id === hostId && host.campaignId === campaignId);
   const brand = campaigns.find((c) => c.id === campaignId)?.clientBrandName.trim().toLowerCase();
   // An alias fronts one client's brand and a host belongs to one campaign, so the lists follow the campaign chosen.
   const campaignAliases = brand === undefined ? [] : aliases.filter((a) => a.clientBrandName.trim().toLowerCase() === brand);
@@ -79,8 +104,24 @@ export function SubmitLeadForm({ campaigns, aliases, hosts, notLive = [], leadsH
 
   return (
     <form action={formAction} noValidate>
+      <input type="hidden" name="draftId" value={draftId} />
       <Panel className="overflow-visible">
         <div className="flex flex-col gap-3 p-3 md:p-4">
+          {draftState.status === "error" ? (
+            <p role="alert" className="flex items-start gap-2 rounded-md bg-red-soft px-4 py-3 text-body text-red-text">
+              <WarningCircle aria-hidden size={18} weight="fill" className="mt-0.5 shrink-0" />
+              <span>{draftState.message ?? "Could not save the draft."}</span>
+            </p>
+          ) : null}
+          {draftState.status === "success" ? (
+            <p role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-green-soft px-4 py-3 text-body text-green-text">
+              <CheckCircle aria-hidden size={18} weight="fill" className="shrink-0" />
+              <span>{draftState.message}</span>
+              <Link href={`${leadsHref}?show=drafts`} className="font-semibold underline underline-offset-2">
+                View your drafts
+              </Link>
+            </p>
+          ) : null}
           {state.status === "error" ? (
             <p role="alert" className="flex items-start gap-2 rounded-md bg-red-soft px-4 py-3 text-body text-red-text">
               <WarningCircle aria-hidden size={18} weight="fill" className="mt-0.5 shrink-0" />
@@ -104,7 +145,11 @@ export function SubmitLeadForm({ campaigns, aliases, hosts, notLive = [], leadsH
                   id="lead-campaign"
                   name="campaignId"
                   value={campaignId}
-                  onValueChange={setCampaignId}
+                  onValueChange={(next) => {
+                    setCampaignId(next);
+                    setHostId("");
+                  }}
+                  disabled={draftId !== ""}
                   required
                   placeholder="Select a campaign"
                   emptyLabel={notLive.length > 0 ? "No campaign is live yet" : "No campaigns are assigned to you yet"}
@@ -116,6 +161,7 @@ export function SubmitLeadForm({ campaigns, aliases, hosts, notLive = [], leadsH
                   key={`alias-${campaignId}`}
                   id="lead-alias"
                   name="aliasIdentityId"
+                  defaultValue={campaignId === draft?.campaignId ? (draft?.aliasIdentityId ?? "") : ""}
                   required
                   placeholder="Select a verified alias"
                   emptyLabel={campaignId === "" ? "Choose a campaign first" : "No verified alias for this client yet"}
@@ -128,6 +174,8 @@ export function SubmitLeadForm({ campaigns, aliases, hosts, notLive = [], leadsH
                     key={`host-${campaignId}`}
                     id="lead-host"
                     name="hostMemberId"
+                    value={hostId}
+                    onValueChange={setHostId}
                     required
                     placeholder="Select a host"
                     emptyLabel={campaignId === "" ? "Choose a campaign first" : "No hosts for this campaign yet"}
@@ -150,31 +198,31 @@ export function SubmitLeadForm({ campaigns, aliases, hosts, notLive = [], leadsH
           <Group title="Prospect">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field id="prospect-name" label="Full name">
-                <Input id="prospect-name" name="prospectName" type="text" required autoComplete="off" />
+                <Input id="prospect-name" name="prospectName" defaultValue={draft?.prospectName} type="text" required autoComplete="off" />
               </Field>
               <Field id="prospect-title" label="Job title">
-                <Input id="prospect-title" name="prospectTitle" type="text" required autoComplete="off" />
+                <Input id="prospect-title" name="prospectTitle" defaultValue={draft?.prospectTitle} type="text" required autoComplete="off" />
               </Field>
               <Field id="prospect-company" label="Company name">
-                <Input id="prospect-company" name="prospectCompany" type="text" required autoComplete="off" />
+                <Input id="prospect-company" name="prospectCompany" defaultValue={draft?.prospectCompany} type="text" required autoComplete="off" />
               </Field>
               <Field id="prospect-domain" label="Company domain">
-                <Input id="prospect-domain" name="prospectDomain" type="text" required placeholder="example.com" autoComplete="off" />
+                <Input id="prospect-domain" name="prospectDomain" defaultValue={draft?.prospectDomain} type="text" required placeholder="example.com" autoComplete="off" />
               </Field>
               <Field id="prospect-email" label="Work email">
-                <Input id="prospect-email" name="prospectEmail" type="email" required autoComplete="off" />
+                <Input id="prospect-email" name="prospectEmail" defaultValue={draft?.prospectEmail} type="email" required autoComplete="off" />
               </Field>
               <Field id="prospect-phone" label="Phone number" helper="Optional">
-                <Input id="prospect-phone" name="prospectPhone" type="tel" autoComplete="off" />
+                <Input id="prospect-phone" name="prospectPhone" defaultValue={draft?.prospectPhone ?? undefined} type="tel" autoComplete="off" />
               </Field>
               <div className="md:col-span-2">
                 <Field id="prospect-linkedin" label="LinkedIn profile URL">
-                  <Input id="prospect-linkedin" name="prospectLinkedinUrl" type="url" required placeholder="https://linkedin.com/in/prospect" autoComplete="off" />
+                  <Input id="prospect-linkedin" name="prospectLinkedinUrl" defaultValue={draft?.prospectLinkedinUrl} type="url" required placeholder="https://linkedin.com/in/prospect" autoComplete="off" />
                 </Field>
               </div>
               <div className="md:col-span-2">
                 <Field id="prospect-notes" label="Outreach context and notes" helper="Optional. What you said and what they replied.">
-                  <Textarea id="prospect-notes" name="prospectNotes" rows={3} />
+                  <Textarea id="prospect-notes" name="prospectNotes" rows={3} defaultValue={draft?.prospectNotes ?? undefined} />
                 </Field>
               </div>
             </div>
@@ -183,44 +231,22 @@ export function SubmitLeadForm({ campaigns, aliases, hosts, notLive = [], leadsH
           <Group title="Qualification" note="Budget, authority, need and timeline, as the prospect confirmed them.">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field id="bant-budget" label="Budget">
-                <Input id="bant-budget" name="bantBudget" type="text" required placeholder="Confirmed budget or spend bracket" />
+                <Input id="bant-budget" name="bantBudget" defaultValue={draft?.bantBudget} type="text" required placeholder="Confirmed budget or spend bracket" />
               </Field>
               <Field id="bant-authority" label="Authority">
-                <Input id="bant-authority" name="bantAuthority" type="text" required placeholder="Role in buying or signing" />
+                <Input id="bant-authority" name="bantAuthority" defaultValue={draft?.bantAuthority} type="text" required placeholder="Role in buying or signing" />
               </Field>
               <Field id="bant-need" label="Need">
-                <Input id="bant-need" name="bantNeed" type="text" required placeholder="Pain point or active evaluation" />
+                <Input id="bant-need" name="bantNeed" defaultValue={draft?.bantNeed} type="text" required placeholder="Pain point or active evaluation" />
               </Field>
               <Field id="bant-timeline" label="Timeline">
-                <Input id="bant-timeline" name="bantTimeline" type="text" required placeholder="For example Q1 rollout" />
+                <Input id="bant-timeline" name="bantTimeline" defaultValue={draft?.bantTimeline} type="text" required placeholder="For example Q1 rollout" />
               </Field>
             </div>
           </Group>
 
           <Group title="Proposed meeting times" note="Offer one to three times. The client picks one.">
-            <div className="flex flex-col gap-3">
-              {times.map((time, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <DateTimeField value={time} min={earliestDay()} onChange={(next) => setTimes(times.map((t, i) => (i === index ? next : t)))} aria-label={`Proposed time ${index + 1}`} />
-                  {/* The browser's local time becomes an ISO instant, the form the server schema reads. */}
-                  <input type="hidden" name="proposedTimes" value={time ? new Date(time).toISOString() : ""} />
-                  {times.length > 1 ? (
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setTimes(times.filter((_, i) => i !== index))} aria-label={`Remove proposed time ${index + 1}`}>
-                      <Trash aria-hidden />
-                      <span className="max-sm:sr-only">Remove</span>
-                    </Button>
-                  ) : null}
-                </div>
-              ))}
-              {times.length < 3 ? (
-                <div>
-                  <Button type="button" variant="secondary" size="sm" onClick={() => setTimes([...times, ""])}>
-                    <Plus aria-hidden weight="bold" />
-                    Add another time
-                  </Button>
-                </div>
-              ) : null}
-            </div>
+            <HostTimesField availability={chosenHost === undefined ? null : (availability[chosenHost.id] ?? null)} hostName={chosenHost?.name ?? null} initialTimes={draft?.proposedTimes ?? []} />
           </Group>
         </div>
 
@@ -228,10 +254,16 @@ export function SubmitLeadForm({ campaigns, aliases, hosts, notLive = [], leadsH
           <Link href={leadsHref} className={buttonVariants({ variant: "ghost" })}>
             Cancel
           </Link>
-          <Button type="submit" size="lg" disabled={pending} aria-busy={pending}>
-            {pending ? <CircleNotch aria-hidden className="motion-safe:animate-spin" /> : <PaperPlaneRight aria-hidden weight="bold" />}
-            Submit lead
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="submit" variant="secondary" size="lg" formAction={draftAction} disabled={draftPending || pending} aria-busy={draftPending}>
+              {draftPending ? <CircleNotch aria-hidden className="motion-safe:animate-spin" /> : <FloppyDisk aria-hidden weight="bold" />}
+              Save draft
+            </Button>
+            <Button type="submit" size="lg" disabled={pending || draftPending} aria-busy={pending}>
+              {pending ? <CircleNotch aria-hidden className="motion-safe:animate-spin" /> : <PaperPlaneRight aria-hidden weight="bold" />}
+              Submit lead
+            </Button>
+          </div>
         </div>
       </Panel>
     </form>

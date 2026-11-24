@@ -57,7 +57,7 @@ export async function listClientQueues(db: Database, actor: TenantActor): Promis
       .orderBy(asc(lead.submittedAt));
 
     const waiting = rows.filter((row) => row.stage === "awaiting_client");
-    const hostIds = [...new Set(waiting.map((row) => row.hostMemberId))];
+    const hostIds = [...new Set(waiting.flatMap((row) => (row.hostMemberId === null ? [] : [row.hostMemberId])))];
     const hosts = hostIds.length === 0 ? [] : await tx.select({ id: member.id, name: member.displayName }).from(member).where(inArray(member.id, hostIds));
     const zones = hostIds.length === 0 ? [] : await tx.select({ memberId: hostHours.memberId, timeZone: hostHours.timeZone }).from(hostHours).where(inArray(hostHours.memberId, hostIds));
 

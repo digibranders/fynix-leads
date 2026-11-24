@@ -32,6 +32,7 @@ export const LEAD: Record<LeadStage, Look> = {
   withdrawn: { label: "Withdrawn", variant: "quiet" },
   lost: { label: "Lost", variant: "quiet" },
   rejected: { label: "Rejected", variant: "red" },
+  outcome_contested: { label: "Outcome contested", variant: "amber" },
 };
 
 const PERSON = {

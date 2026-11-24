@@ -5,6 +5,7 @@ import { PageSkeleton } from "@/components/kit/skeletons";
 import { FynixLeadsView } from "@/components/leads/fynix-leads-view";
 import { parseCampaignFilter } from "@/lib/campaign-status";
 import { parsePage } from "@/lib/leads/list";
+import { parseSort } from "@/lib/leads/sort";
 import { parseGroup } from "@/lib/leads/pipeline";
 import { getDatabase } from "@/server/db/client";
 import { getDomain } from "@/server/domain";
@@ -32,6 +33,7 @@ async function Leads({ searchParams }: { searchParams: PageProps<"/fynix/leads">
         page={parsePage(params.page)}
         campaigns={campaigns}
         campaign={parseCampaignFilter(params.campaign, campaigns)}
+        sort={parseSort(params.sort)}
         emptyText="As partner agencies and coordinators submit qualified prospects, they will appear here across all campaigns."
       />
     </div>

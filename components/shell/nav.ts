@@ -15,6 +15,7 @@ export type NavIcon =
   | "badge"
   | "buildings"
   | "scales"
+  | "prohibit"
   | "gear";
 
 export interface NavItem {
@@ -67,6 +68,7 @@ export const PORTALS: Record<PortalKind, PortalConfig> = {
           { label: "Hosts & hours", icon: "users", href: "/client/hosts" },
           { label: "Agreement", icon: "handshake", href: "/client/agreement" },
           { label: "Team", icon: "team", href: "/client/team" },
+          { label: "Exclusions", icon: "prohibit", href: "/client/exclusions" },
         ],
       },
     ],

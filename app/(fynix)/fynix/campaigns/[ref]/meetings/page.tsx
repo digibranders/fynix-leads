@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { TableSkeleton } from "@/components/kit/skeletons";
 import { MEETING_SHOWS, PortalMeetings } from "@/components/meetings/portal-meetings";
 import { parsePage } from "@/lib/leads/list";
+import { parseSort } from "@/lib/leads/sort";
 import { getDatabase } from "@/server/db/client";
 import { listFynixMeetings } from "@/server/domain/meetings";
 import { loadCampaign } from "@/server/fynix/campaign";
@@ -25,6 +26,10 @@ async function Meetings({ params, searchParams }: { params: PageProps<"/fynix/ca
       show={MEETING_SHOWS.find((entry) => entry.key === one(query.show))?.key ?? null}
       q={one(query.q) ?? ""}
       page={parsePage(query.page)}
+      sort={parseSort(query.sort)}
+      exportCampaignId={campaign.id}
+      viewer="fynix"
+      showHost
       canWrite
       outcomeSide="fynix"
       now={new Date()}

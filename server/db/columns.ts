@@ -5,8 +5,10 @@ import {
   conversationMessage,
   lead,
   meeting,
+  meetingReschedule,
   notification,
   organisation,
+  rejectionReview,
 } from "@/server/db/schema";
 import type { TenantRoleName } from "@/server/db/roles";
 
@@ -101,6 +103,8 @@ const sharedLeadColumns = {
   decisionNote: lead.decisionNote,
   decisionAt: lead.decisionAt,
   decisionSource: lead.decisionSource,
+  // False for a draft and a discarded draft (migration 0069); the policies already hide those rows from anyone but the source organisation.
+  released: lead.released,
 } as const;
 
 export const clientLeadColumns = { ...sharedLeadColumns, decisionByUserId: lead.decisionByUserId } as const;
@@ -111,6 +115,7 @@ export const agencyLeadColumns = {
   aliasIdentityId: lead.aliasIdentityId,
   overShare: lead.overShare,
   duplicateOverride: lead.duplicateOverride,
+  rejectionReviewedAt: lead.rejectionReviewedAt,
 } as const;
 
 export const clientMeetingColumns = {
@@ -127,11 +132,39 @@ export const clientMeetingColumns = {
   heldAt: meeting.heldAt,
   recordedAt: meeting.recordedAt,
   recordedByRole: meeting.recordedByRole,
+  // A contest of the recorded outcome (migration 0069): who contested is a side, never a person.
+  contestedAt: meeting.contestedAt,
+  contestNote: meeting.contestNote,
+  contestedByRole: meeting.contestedByRole,
   createdAt: meeting.createdAt,
   updatedAt: meeting.updatedAt,
 } as const;
 
 export const agencyMeetingColumns = { ...clientMeetingColumns } as const;
+
+/** A proposal to move a meeting. `proposed_by_user_id` is never granted: the other side must not learn which person asked. */
+export const rescheduleColumns = {
+  id: meetingReschedule.id,
+  meetingId: meetingReschedule.meetingId,
+  proposedBySide: meetingReschedule.proposedBySide,
+  proposedTimes: meetingReschedule.proposedTimes,
+  status: meetingReschedule.status,
+  pickedTime: meetingReschedule.pickedTime,
+  createdAt: meetingReschedule.createdAt,
+  resolvedAt: meetingReschedule.resolvedAt,
+} as const;
+export const clientRescheduleColumns = { ...rescheduleColumns } as const;
+export const agencyRescheduleColumns = { ...rescheduleColumns } as const;
+
+/** The coordinator's request for a review of a rejection. No client role reads it. */
+export const agencyRejectionReviewColumns = {
+  id: rejectionReview.id,
+  leadId: rejectionReview.leadId,
+  note: rejectionReview.note,
+  requestedAt: rejectionReview.requestedAt,
+  status: rejectionReview.status,
+  resolvedAt: rejectionReview.resolvedAt,
+} as const;
 
 export const clientConversationColumns = {
   id: conversation.id,

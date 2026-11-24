@@ -1,5 +1,9 @@
 import { Table as TableIcon } from "@phosphor-icons/react/dist/ssr";
 import { CampaignFilter } from "@/components/kit/campaign-filter";
+import { ExportButton, exportHref } from "@/components/kit/export-button";
+import { SortHead } from "@/components/kit/sort-head";
+import { LEAD_SORT_CELLS } from "@/lib/leads/lead-sort";
+import { sortRows, sortValue, type Sort } from "@/lib/leads/sort";
 import { ClosedTag } from "@/components/kit/closed-tag";
 import { EmptyState } from "@/components/kit/empty-state";
 import { Pager } from "@/components/kit/pager";
@@ -30,6 +34,10 @@ export interface FynixLeadRow {
   readonly scheduledMeetingTime: Date | string | null;
   readonly submittedAt: Date | string;
   readonly overShare: boolean;
+  /** The client's host for the meeting. */
+  readonly hostName?: string | null;
+  /** The coordinator or agency that sent the lead. */
+  readonly sourceName?: string;
 }
 
 /**
@@ -44,6 +52,8 @@ export function FynixLeadsView({
   page: requestedPage,
   campaigns,
   campaign = null,
+  sort = null,
+  exportCampaignId,
   emptyText,
 }: {
   readonly leads: readonly FynixLeadRow[];
@@ -54,6 +64,10 @@ export function FynixLeadsView({
   /** The campaigns to filter by; left out inside a campaign. */
   readonly campaigns?: readonly CampaignChoice[];
   readonly campaign?: string | null;
+  /** `?sort=`, already read. */
+  readonly sort?: Sort | null;
+  /** Inside a campaign the export is that campaign's. */
+  readonly exportCampaignId?: string;
   readonly emptyText: string;
 }) {
   if (leads.length === 0) {
@@ -65,18 +79,27 @@ export function FynixLeadsView({
       </Panel>
     );
   }
-  const filtered = filterLeads(leads, { group, q, campaign });
+  const sortParam = sortValue(sort) ?? null;
+  const filtered = sortRows(filterLeads(leads, { group, q, campaign }), sort, LEAD_SORT_CELLS);
   const page = paginate(filtered, requestedPage);
-  const href = (nextPage: number) => leadsHref(basePath, { stage: group, q, campaign, page: nextPage });
+  const href = (nextPage: number) => leadsHref(basePath, { stage: group, q, campaign, sort: sortParam, page: nextPage });
+  const sortHref = (value: string) => leadsHref(basePath, { stage: group, q, campaign, sort: value });
   const closed = closedCampaignIds(campaigns ?? []);
 
   return (
     <>
-      <PipelineBar leads={leads} basePath={basePath} group={group} q={q} campaign={campaign} />
+      <PipelineBar leads={leads} basePath={basePath} group={group} q={q} campaign={campaign} sort={sortParam} />
       <Panel aria-label="Leads">
-        <Toolbar trailing={`${filtered.length} ${filtered.length === 1 ? "lead" : "leads"}`}>
-          <SearchForm defaultValue={q} placeholder="Search by name, company or reference" hidden={{ stage: group ?? undefined, campaign: campaign ?? undefined }} />
-          {campaigns !== undefined ? <CampaignFilter campaigns={campaigns} selected={campaign} {...campaignFilterHrefs(campaigns, (id) => leadsHref(basePath, { stage: group, q, campaign: id }))} /> : null}
+        <Toolbar
+          trailing={
+            <span className="flex items-center gap-3">
+              {`${filtered.length} ${filtered.length === 1 ? "lead" : "leads"}`}
+              <ExportButton href={exportHref("leads", campaign ?? exportCampaignId ?? null)} />
+            </span>
+          }
+        >
+          <SearchForm defaultValue={q} placeholder="Search by name, company or reference" hidden={{ stage: group ?? undefined, campaign: campaign ?? undefined, sort: sortParam ?? undefined }} />
+          {campaigns !== undefined ? <CampaignFilter campaigns={campaigns} selected={campaign} {...campaignFilterHrefs(campaigns, (id) => leadsHref(basePath, { stage: group, q, campaign: id, sort: sortParam }))} /> : null}
         </Toolbar>
         {page.rows.length === 0 ? (
           <EmptyState icon={TableIcon} title="No leads match">
@@ -87,12 +110,14 @@ export function FynixLeadsView({
             <Table>
               <TableHeader>
                 <TableRow className="hover:[&>th]:bg-navy-04">
-                  <TableHead>Prospect</TableHead>
+                  <SortHead label="Prospect" sortKey="prospect" sort={sort} hrefFor={sortHref} />
                   {campaigns !== undefined ? <TableHead className="max-md:hidden">Campaign</TableHead> : null}
-                  <TableHead className="max-xl:hidden">Company</TableHead>
-                  <TableHead>Stage</TableHead>
-                  <TableHead className="max-lg:hidden">Meeting</TableHead>
-                  <TableHead className="max-lg:hidden">Submitted</TableHead>
+                  <SortHead label="Company" sortKey="company" sort={sort} hrefFor={sortHref} className="max-xl:hidden" />
+                  <TableHead className="max-xl:hidden">Host</TableHead>
+                  <TableHead className="max-xl:hidden">Source</TableHead>
+                  <SortHead label="Stage" sortKey="stage" sort={sort} hrefFor={sortHref} />
+                  <SortHead label="Meeting" sortKey="meeting" sort={sort} hrefFor={sortHref} className="max-lg:hidden" />
+                  <SortHead label="Submitted" sortKey="submitted" sort={sort} hrefFor={sortHref} className="max-lg:hidden" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -118,6 +143,8 @@ export function FynixLeadsView({
                         <span className="block text-caption text-ink-muted">{lead.prospectDomain}</span>
                       </span>
                     </TableCell>
+                    <TableCell className="max-xl:hidden">{lead.hostName ?? <span className="text-ink-muted">Not set</span>}</TableCell>
+                    <TableCell className="max-xl:hidden">{lead.sourceName ?? <span className="text-ink-muted">Not shown</span>}</TableCell>
                     <TableCell>
                       <span className="flex flex-wrap items-center gap-1.5">
                         <StatusChip kind="lead" status={lead.stage as LeadStage} size="sm" />

@@ -36,7 +36,10 @@ export type DomainErrorCode =
   | "no-host"
   | "campaign-closed"
   | "agreement-unused"
-  | "outcome-already-recorded";
+  | "outcome-already-recorded"
+  | "contest-window-closed"
+  | "review-window-closed"
+  | "already-requested";
 
 export class DomainError extends Error {
   constructor(

@@ -19,5 +19,7 @@ export * from "./lead";
 export * from "./lead-history";
 export * from "./lead-reminder";
 export * from "./meeting";
+export * from "./meeting-reschedule";
+export * from "./rejection-review";
 export * from "./messaging";
 export * from "./client-profile";

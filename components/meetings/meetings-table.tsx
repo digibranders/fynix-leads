@@ -1,9 +1,16 @@
+import Link from "next/link";
 import { ClosedTag } from "@/components/kit/closed-tag";
+import { SortHead } from "@/components/kit/sort-head";
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
+import type { LeadViewer } from "@/lib/leads/lead-actions";
+import type { Sort } from "@/lib/leads/sort";
+import { contestWindow } from "@/lib/leads/windows";
 import { Person } from "@/components/kit/person";
 import { StatusChip } from "@/components/kit/status-chip";
 import { When } from "@/components/kit/when";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DownloadIcsButton, JoinMeetButton, RecordMeetingOutcomeModal, type MeetingItemData } from "./meeting-actions";
+import { ContestOutcomeModal, DownloadIcsButton, JoinMeetButton, RecordMeetingOutcomeModal, type MeetingItemData } from "./meeting-actions";
 
 export interface MeetingRow extends MeetingItemData {
   readonly leadRef: string;
@@ -39,6 +46,10 @@ export function MeetingsTable({
   closedCampaigns,
   leadsPath,
   outcomeSide = "tenant",
+  viewer = "supply",
+  showHost = false,
+  sort = null,
+  sortHref,
 }: {
   readonly meetings: readonly MeetingRow[];
   readonly canWrite: boolean;
@@ -49,7 +60,15 @@ export function MeetingsTable({
   readonly leadsPath?: string;
   /** Whose action records an outcome: a tenant's own, or Fynix's. */
   readonly outcomeSide?: "tenant" | "fynix";
+  /** Which side is looking: it decides who may contest an outcome and who must pick new times. */
+  readonly viewer?: LeadViewer;
+  /** The client and Fynix see the host's name. */
+  readonly showHost?: boolean;
+  readonly sort?: Sort | null;
+  /** The address of the table with a new `?sort=` value; without it the headers do not sort. */
+  readonly sortHref?: (sortValue: string) => string;
 }) {
+  const sortable = sortHref !== undefined;
   const next = meetings
     .filter((meeting) => meetingGroup(meeting, now) === "upcoming")
     .reduce<MeetingRow | null>((soonest, meeting) => (soonest === null || new Date(meeting.scheduledStartTime) < new Date(soonest.scheduledStartTime) ? meeting : soonest), null);
@@ -59,10 +78,11 @@ export function MeetingsTable({
       <Table>
         <TableHeader>
           <TableRow className="hover:[&>th]:bg-navy-04">
-            <TableHead>Prospect</TableHead>
+            {sortable ? <SortHead label="Prospect" sortKey="prospect" sort={sort} hrefFor={sortHref} /> : <TableHead>Prospect</TableHead>}
             <TableHead className="max-xl:hidden">Campaign</TableHead>
-            <TableHead className="max-xl:hidden">When</TableHead>
-            <TableHead className="max-md:hidden">Stage</TableHead>
+            {showHost ? <TableHead className="max-xl:hidden">Host</TableHead> : null}
+            {sortable ? <SortHead label="When" sortKey="meeting" sort={sort} hrefFor={sortHref} className="max-xl:hidden" /> : <TableHead className="max-xl:hidden">When</TableHead>}
+            {sortable ? <SortHead label="Stage" sortKey="stage" sort={sort} hrefFor={sortHref} className="max-md:hidden" /> : <TableHead className="max-md:hidden">Stage</TableHead>}
             <TableHead className="text-right max-md:hidden">
               <span className="sr-only">Actions</span>
             </TableHead>
@@ -72,8 +92,33 @@ export function MeetingsTable({
           {meetings.map((item) => {
             const group = meetingGroup(item, now);
             const closed = item.campaignId !== undefined && closedCampaigns?.has(item.campaignId) === true;
+            const mySide = viewer === "client" ? "client" : "supply";
+            const pickRequired = item.openProposalBy != null && viewer !== "fynix" && item.openProposalBy !== mySide;
+            const contest = contestWindow({
+              viewer,
+              stage: item.leadStage ?? "",
+              outcome: item.outcome,
+              recordedAt: item.recordedAt == null ? null : new Date(item.recordedAt),
+              recordedByRole: item.recordedByRole ?? null,
+              contestedAt: item.contestedAt == null ? null : new Date(item.contestedAt),
+              now,
+            });
+            const recordHref = leadsPath === undefined ? undefined : `${leadsPath}/${item.leadRef}`;
+            const notes = (
+              <>
+                {pickRequired ? <Badge variant="amber" size="sm">New times proposed</Badge> : null}
+                {item.openProposalBy != null && !pickRequired ? <span className="text-caption text-ink-muted">{viewer === "fynix" ? "New times proposed" : "Times proposed, waiting"}</span> : null}
+                {item.contestedAt != null ? <Badge variant="amber" size="sm">Outcome contested</Badge> : null}
+              </>
+            );
             const actions = (
               <span className="relative inline-flex flex-wrap items-center justify-end gap-1.5">
+                {pickRequired && recordHref !== undefined ? (
+                  <Link href={recordHref} className={buttonVariants({ variant: "default", size: "xs" })}>
+                    Pick a time
+                  </Link>
+                ) : null}
+                {contest.canContest ? <ContestOutcomeModal meetingId={item.id} prospectName={item.prospectName} timeLeft={contest.label} /> : null}
                 {group === "due" && canWrite ? <RecordMeetingOutcomeModal meetingId={item.id} prospectName={item.prospectName} side={outcomeSide} /> : null}
                 {group !== "done" ? <JoinMeetButton url={item.googleMeetUrl} /> : null}
                 {group !== "done" ? <DownloadIcsButton
@@ -108,6 +153,7 @@ export function MeetingsTable({
                   />
                   <span className="mt-1.5 flex max-w-[calc(100vw-8rem)] flex-wrap items-center gap-1.5 whitespace-normal md:hidden">
                     <Stage meeting={item} group={group} />
+                    {notes}
                     {closed ? <ClosedTag /> : null}
                     {item.leadStage === "prospect_no_show" ? <span className="text-caption text-ink-muted">Closed, no further action</span> : null}
                     {actions}
@@ -125,6 +171,7 @@ export function MeetingsTable({
                     {closed ? <ClosedTag /> : null}
                   </span>
                 </TableCell>
+                {showHost ? <TableCell className="max-xl:hidden">{item.hostName ?? <span className="text-ink-muted">Not set</span>}</TableCell> : null}
                 <TableCell className="max-xl:hidden">
                   <span className="block leading-tight">
                     <When at={item.scheduledStartTime} />
@@ -134,6 +181,7 @@ export function MeetingsTable({
                 <TableCell className="max-md:hidden">
                   <span className="inline-flex flex-wrap items-center gap-1.5">
                     <Stage meeting={item} group={group} />
+                    {notes}
                     {closed ? <span className="xl:hidden"><ClosedTag /></span> : null}
                   </span>
                   {item.leadStage === "prospect_no_show" ? <span className="mt-0.5 block text-caption text-ink-muted">Closed, no further action</span> : null}

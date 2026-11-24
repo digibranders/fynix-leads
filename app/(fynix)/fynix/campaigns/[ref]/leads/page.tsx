@@ -4,6 +4,7 @@ import { TableSkeleton } from "@/components/kit/skeletons";
 import { FynixLeadsView } from "@/components/leads/fynix-leads-view";
 import { parsePage } from "@/lib/leads/list";
 import { parseGroup } from "@/lib/leads/pipeline";
+import { parseSort } from "@/lib/leads/sort";
 import { getDatabase } from "@/server/db/client";
 import { listFynixLeads } from "@/server/domain/leads";
 import { loadCampaign } from "@/server/fynix/campaign";
@@ -26,6 +27,8 @@ async function Leads({ params, searchParams }: { params: PageProps<"/fynix/campa
       group={parseGroup(query.stage)}
       q={one(query.q) ?? ""}
       page={parsePage(query.page)}
+      sort={parseSort(query.sort)}
+      exportCampaignId={campaign.id}
       emptyText="Leads submitted for this campaign appear here."
     />
   );

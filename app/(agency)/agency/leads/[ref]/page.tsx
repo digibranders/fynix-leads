@@ -13,7 +13,7 @@ async function Record({ params }: { params: PageProps<"/agency/leads/[ref]">["pa
   const { ref } = await params;
   const record = await orNotFound(getLeadRecordForSupply(getDatabase("leads_agency").db, view.actor, ref));
   const extraFacts = [["Sent by", record.source.own ? "Your team" : (record.source.name ?? "A partner agency")]] as const;
-  return <LeadRecordView record={record} viewer="supply" backHref="/agency/leads" extraFacts={extraFacts} now={new Date()} />;
+  return <LeadRecordView record={record} viewer="supply" draftHref={`/agency/leads/new?draft=${record.publicRef}`} backHref="/agency/leads" extraFacts={extraFacts} now={new Date()} />;
 }
 
 export default function AgencyLeadPage({ params }: PageProps<"/agency/leads/[ref]">) {

@@ -11,6 +11,7 @@ export const PIPELINE_GROUPS = [
   { key: "decision", label: "Awaiting decision", stages: ["held", "awaiting_decision"], color: "var(--teal-solid)" },
   // The key stays `delivered` so an old `?stage=delivered` link still works; the word is Accepted. A client no-show counts at once, so it sits here.
   { key: "delivered", label: "Accepted", stages: ["accepted", "delivered", "client_no_show"], color: "var(--green-solid)" },
+  { key: "contested", label: "Outcome contested", stages: ["outcome_contested"], color: "var(--red-solid)" },
   { key: "disputed", label: "Disputed", stages: ["disputed"], color: "var(--red-solid)" },
   { key: "rejected", label: "Rejected", stages: ["declined", "rejected"], color: "var(--red-solid)" },
   { key: "closed", label: "Closed", stages: ["withdrawn", "lost", "prospect_no_show", "draft"], color: "var(--ink-muted)" },

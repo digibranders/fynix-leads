@@ -19,4 +19,9 @@ describe("leadsHref", () => {
     expect(leadsHref("/x", { stage: "due", campaign: "c1", page: 2 })).toBe("/x?stage=due&campaign=c1&page=2");
     expect(leadsHref("/x", { campaign: null })).toBe("/x");
   });
+
+  it("keeps the sort, before the page", () => {
+    expect(leadsHref("/x", { campaign: "c1", sort: "-submitted", page: 2 })).toBe("/x?campaign=c1&sort=-submitted&page=2");
+    expect(leadsHref("/x", { sort: null })).toBe("/x");
+  });
 });

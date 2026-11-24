@@ -6,5 +6,7 @@ describe("auditSentence", () => {
     expect(auditSentence("organisation.archive")).toBe("Archived");
     expect(auditSentence("campaign.close")).toBe("Campaign closed");
     expect(auditSentence("campaign_share.set")).toBe("Campaign share set");
+    expect(auditSentence("lead.decide_contest")).toBe("Contested outcome decided");
+    expect(auditSentence("lead.mark_lost")).toBe("Lead marked lost");
   });
 });

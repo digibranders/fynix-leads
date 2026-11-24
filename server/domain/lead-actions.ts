@@ -7,6 +7,8 @@ import { firstBlockedLimit } from "@/server/auth/rate-limit";
 import { getDatabase } from "@/server/db/client";
 import { getDomain } from "@/server/domain";
 import { DomainError } from "@/server/domain/errors";
+import { draftInput } from "@/server/domain/lead-form-fields";
+import { submitDraft, updateDraft } from "@/server/domain/lead-drafts";
 import {
   clientReviewLead,
   disputeLead,
@@ -61,6 +63,8 @@ export async function submitLeadAction(
     proposedTimes,
   };
 
+  const draftId = getField(formData, "draftId");
+  let editsSaved = false;
   try {
     const deps = getDomain();
     const db = getDatabase("leads_agency").db;
@@ -71,11 +75,21 @@ export async function submitLeadAction(
       role: context.memberRole,
     };
 
-    await submitLead(db, deps, actor, input);
+    if (draftId === "") {
+      await submitLead(db, deps, actor, input);
+    } else {
+      // Sending a draft: the form's edits are saved to it first, then the full submission rules run on what it holds.
+      await updateDraft(db, deps, actor, draftInput(formData, { leadId: draftId }));
+      editsSaved = true;
+      await submitDraft(db, deps, actor, { leadId: draftId });
+    }
     revalidatePath("/agency/leads");
     revalidatePath("/supplier/leads");
     return { status: "success", message: "Lead submitted successfully." };
   } catch (error) {
+    if (editsSaved && error instanceof DomainError) {
+      return { status: "error", message: `Your changes are saved in the draft, but it was not sent. ${error.message}` };
+    }
     if (error instanceof DomainError) {
       return { status: "error", message: error.message };
     }

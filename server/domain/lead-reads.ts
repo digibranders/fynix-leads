@@ -4,21 +4,24 @@ import {
   eq,
   sql,
 } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { type LeadStage } from "@/lib/leads/stage";
 import { agencyLeadColumns, clientLeadColumns } from "@/server/db/columns";
 import type { Database } from "@/server/db/pool";
 import {
   aliasIdentity,
   campaign,
-  campaignHost,
   campaignShare,
   lead,
   leadHistory,
+  member,
+  organisation,
 } from "@/server/db/schema";
 import { withTenantScope } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import { DomainError } from "@/server/domain/errors";
 import { type FynixActor } from "@/server/domain/fynix-write";
+import { listCampaignHostChoices } from "@/server/domain/host-availability";
 export interface LeadHistoryRecord {
   readonly id: string;
   readonly leadId: string;
@@ -67,10 +70,12 @@ export async function listClientLeads(
       conditions.push(eq(lead.campaignId, filter.campaignId));
     }
 
+    // The host's name is the client's own person: the member row is readable to the client.
     const rows = await tx
-      .select(clientLeadColumns)
+      .select({ ...clientLeadColumns, hostName: member.displayName })
       .from(lead)
       .innerJoin(campaign, eq(lead.campaignId, campaign.id))
+      .leftJoin(member, eq(member.id, lead.hostMemberId))
       .where(and(...conditions))
       .orderBy(desc(lead.submittedAt));
 
@@ -83,7 +88,8 @@ export async function listClientLeads(
 }
 
 /**
- * Lists leads for an agency organisation (source agency or supplier).
+ * Lists leads for an agency organisation (source agency or supplier). Drafts, and drafts that were discarded, are left out: they are not leads yet
+ * (`listAgencyDrafts` reads them), so the tables, the stage bar and the overviews never count them.
  */
 export async function listAgencyLeads(
   db: Database,
@@ -93,7 +99,7 @@ export async function listAgencyLeads(
   return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
     // No source filter: the lead policy already limits an agency to its own leads, and a supplier to its own and those of the
     // partner agencies on its campaigns.
-    const conditions = [];
+    const conditions = [eq(lead.released, true)];
     if (filter?.stage !== undefined) {
       conditions.push(eq(lead.stage, filter.stage));
     }
@@ -108,6 +114,30 @@ export async function listAgencyLeads(
       .orderBy(desc(lead.submittedAt));
 
     return rows;
+  });
+}
+
+/** The drafts of the caller's own organisation, newest edit first. Never another organisation's, and never a discarded one. */
+export async function listAgencyDrafts(db: Database, actor: { readonly userId: string; readonly orgId: string }) {
+  return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) =>
+    tx
+      .select(agencyLeadColumns)
+      .from(lead)
+      .where(and(eq(lead.stage, "draft"), eq(lead.sourceOrgId, actor.orgId)))
+      .orderBy(desc(lead.updatedAt)),
+  );
+}
+
+/** One draft of the caller's own organisation by its reference, for the lead form to continue. `not-found` for anything else, including a lead that was sent. */
+export async function getOwnDraft(db: Database, actor: { readonly userId: string; readonly orgId: string }, publicRef: string) {
+  return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
+    const [row] = await tx
+      .select(agencyLeadColumns)
+      .from(lead)
+      .where(and(eq(lead.publicRef, publicRef), eq(lead.sourceOrgId, actor.orgId), eq(lead.stage, "draft")))
+      .limit(1);
+    if (row === undefined) throw new DomainError("not-found", "There is no such draft.");
+    return row;
   });
 }
 
@@ -219,24 +249,16 @@ export async function getLeadSubmissionOptions(
       .from(aliasIdentity)
       .where(and(sql`${aliasIdentity.verifiedAt} IS NOT NULL`, eq(aliasIdentity.status, "active")));
 
-    const hosts = await tx
-      .select({
-        id: campaignHost.memberId,
-        campaignId: campaignHost.campaignId,
-        jobTitle: campaignHost.jobTitle,
-      })
-      .from(campaignHost)
-      .where(eq(campaignHost.active, true));
+    // The supply side sees the host's name and job title (owner decision, 2026-11-24), through a function that answers for the campaigns it serves.
+    const hosts: { id: string; campaignId: string; name: string; jobTitle: string }[] = [];
+    for (const row of campaigns) {
+      for (const choice of await listCampaignHostChoices(tx, row.id)) hosts.push({ id: choice.memberId, campaignId: row.id, name: choice.displayName, jobTitle: choice.jobTitle });
+    }
 
     return {
       campaigns,
       aliases,
-      hosts: hosts.map((h) => ({
-        id: h.id,
-        campaignId: h.campaignId,
-        name: `Host (${h.jobTitle})`,
-        jobTitle: h.jobTitle,
-      })),
+      hosts,
     };
   });
 }
@@ -249,13 +271,15 @@ export async function listFynixLeads(
   _actor: FynixActor,
   filter?: { readonly campaignId?: string; readonly stage?: LeadStage },
 ) {
-  const conditions = [];
+  // A draft belongs to the agency until it is sent, so it is not listed as a lead.
+  const conditions = [eq(lead.released, true)];
   if (filter?.campaignId !== undefined) {
     conditions.push(eq(lead.campaignId, filter.campaignId));
   }
   if (filter?.stage !== undefined) {
     conditions.push(eq(lead.stage, filter.stage));
   }
+  const sourceOrg = alias(organisation, "source_org");
 
   const rows = await db
     .select({
@@ -274,10 +298,14 @@ export async function listFynixLeads(
       overShare: lead.overShare,
       duplicateOverride: lead.duplicateOverride,
       submittedAt: lead.submittedAt,
+      hostName: member.displayName,
+      sourceName: sourceOrg.name,
     })
     .from(lead)
     .innerJoin(campaign, eq(lead.campaignId, campaign.id))
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .innerJoin(sourceOrg, eq(sourceOrg.id, lead.sourceOrgId))
+    .leftJoin(member, eq(member.id, lead.hostMemberId))
+    .where(and(...conditions))
     .orderBy(desc(lead.submittedAt));
 
   return rows;

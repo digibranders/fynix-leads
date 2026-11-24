@@ -35,6 +35,10 @@ export const meeting = pgTable(
     recordedByUserId: uuid("recorded_by_user_id"),
     // Which side recorded the outcome first: the client, an agency, the coordinator (the agency with no parent) or Fynix. Never a person's name.
     recordedByRole: text("recorded_by_role"),
+    // A recorded outcome the other side disputes inside 48 hours (phase 4). Fynix decides; the columns stay as the record of it.
+    contestedAt: timestamp("contested_at", { withTimezone: true }),
+    contestNote: text("contest_note"),
+    contestedByRole: text("contested_by_role"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -61,6 +65,8 @@ export const meeting = pgTable(
       foreignColumns: [user.id],
     }).onDelete("cascade"),
     check("meeting_recorded_by_role_check", sql`${table.recordedByRole} IS NULL OR ${table.recordedByRole} IN ('client', 'agency', 'coordinator', 'fynix')`),
+    check("meeting_contested_by_role_check", sql`${table.contestedByRole} IS NULL OR ${table.contestedByRole} IN ('client', 'agency', 'coordinator')`),
+    check("meeting_contest_note_length", sql`${table.contestNote} IS NULL OR char_length(btrim(${table.contestNote})) BETWEEN 1 AND 1000`),
     check("meeting_public_ref_format", sql`${table.publicRef} ~ '^MTG-[0-9A-HJKMNP-TV-Z]{4}$'`),
     check(
       "meeting_outcome_check",

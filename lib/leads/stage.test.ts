@@ -27,6 +27,24 @@ describe("lead stages", () => {
     expect(canTransitionLead("disputed", "delivered")).toBe(true);
   });
 
+  it("follows the phase 4 flow: drafts, withdrawing, contesting and losing", () => {
+    expect(canTransitionLead("draft", "awaiting_client")).toBe(true);
+    expect(canTransitionLead("draft", "withdrawn")).toBe(true);
+    expect(canTransitionLead("draft", "scheduled")).toBe(false);
+    expect(canTransitionLead("awaiting_client", "withdrawn")).toBe(true);
+    expect(canTransitionLead("scheduled", "withdrawn")).toBe(true);
+    expect(canTransitionLead("awaiting_decision", "outcome_contested")).toBe(true);
+    expect(canTransitionLead("client_no_show", "outcome_contested")).toBe(true);
+    expect(canTransitionLead("prospect_no_show", "outcome_contested")).toBe(true);
+    expect(canTransitionLead("outcome_contested", "awaiting_decision")).toBe(true);
+    expect(canTransitionLead("outcome_contested", "client_no_show")).toBe(true);
+    expect(canTransitionLead("outcome_contested", "prospect_no_show")).toBe(true);
+    expect(canTransitionLead("outcome_contested", "accepted")).toBe(false);
+    expect(canTransitionLead("accepted", "outcome_contested")).toBe(false);
+    expect(canTransitionLead("withdrawn", "awaiting_client")).toBe(false);
+    expect(leadStageLabel("outcome_contested")).toBe("Outcome contested");
+  });
+
   it("follows the client-decides flow", () => {
     expect(canTransitionLead("scheduled", "declined")).toBe(true);
     expect(canTransitionLead("scheduled", "awaiting_decision")).toBe(true);
