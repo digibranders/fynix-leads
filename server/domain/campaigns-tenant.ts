@@ -1,5 +1,6 @@
 import { asc, sql } from "drizzle-orm";
 import type { Database } from "@/server/db/pool";
+import { agencyCampaignBriefColumns } from "@/server/db/columns";
 import { campaign, campaignShare, lead } from "@/server/db/schema";
 import { withTenantScope } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
@@ -84,21 +85,7 @@ export async function listTenantCampaigns(db: Database, actor: TenantActor, view
       view === "client"
         ? []
         : await tx
-            .select({
-              id: campaign.id,
-              geography: campaign.geography,
-              industries: campaign.industries,
-              companySize: campaign.companySize,
-              icp: campaign.icp,
-              jobTitles: campaign.jobTitles,
-              seniority: campaign.seniority,
-              technologies: campaign.technologies,
-              bantBudget: campaign.bantBudget,
-              bantAuthority: campaign.bantAuthority,
-              bantNeed: campaign.bantNeed,
-              bantTimeline: campaign.bantTimeline,
-              instructions: campaign.instructions,
-            })
+            .select({ id: campaign.id, ...agencyCampaignBriefColumns })
             .from(campaign);
     const briefs = new Map<string, CampaignBrief>(briefRows.map(({ id, ...rest }) => [id, rest]));
 
