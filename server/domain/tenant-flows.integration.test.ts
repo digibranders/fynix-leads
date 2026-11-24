@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { agreement, aliasIdentity, campaign, campaignHost, campaignShare, hostHours, member, organisation, user } from "@/server/db/schema";
+import { agreement, aliasIdentity, auditLog, campaign, campaignHost, campaignShare, hostHours, member, organisation, user } from "@/server/db/schema";
 import { listClientMeetings, listAgencyMeetings, recordMeetingOutcome } from "@/server/domain/meetings";
 import { clientReviewLead, listAgencyLeads, listClientLeads, submitLead } from "@/server/domain/leads";
 import { getConversationSeenAt, getOrCreateConversation, listConversationMessages, listConversations, markConversationRead, postMessage, type MessagingActor } from "@/server/domain/messaging";
@@ -446,6 +446,22 @@ describe("group chats", () => {
 
     await deleteGroup(agencyDb, supplier, { groupId: info.groupId });
     expect(await getGroupInfo(agencyDb, supplier, conversationId)).toBeNull();
+  });
+
+  it("lets a Fynix admin create a group, rename it and open a chat, each leaving an audit row", async () => {
+    const { fynix, supplier, fynixDb, adminId } = actors();
+    const owner = rig.dbs.owner.db;
+    const conversationId = await createGroup(fynixDb, fynix, { name: "Fynix started", memberIds: [supplier.userId, cast.clientActor.userId] });
+    const info = await getGroupInfo(fynixDb, fynix, conversationId);
+    if (info === null) throw new Error("No group");
+    await renameGroup(fynixDb, fynix, { groupId: info.groupId, name: "Fynix renamed" });
+    const chatId = await openDirectChat(fynixDb, fynix, { userId: supplier.userId });
+    await deleteGroup(fynixDb, fynix, { groupId: info.groupId });
+
+    const rows = await owner.select({ action: auditLog.action, actor: auditLog.actorUserId }).from(auditLog);
+    const actions = rows.filter((row) => row.actor === adminId).map((row) => row.action);
+    expect(actions).toEqual(expect.arrayContaining(["conversation.create", "chat_group.update", "conversation.open_direct", "chat_group.delete"]));
+    expect(chatId).not.toBe(conversationId);
   });
 
   it("opens a one-to-one chat titled with the other person, reuses it, and keeps it unmanaged", async () => {
