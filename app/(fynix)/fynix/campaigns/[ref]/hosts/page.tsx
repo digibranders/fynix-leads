@@ -6,6 +6,7 @@ import { TableSkeleton } from "@/components/kit/skeletons";
 import { getDomain } from "@/server/domain";
 import { listCampaignHosts } from "@/server/domain/campaign-overview";
 import { loadCampaign } from "@/server/fynix/campaign";
+import { isClosed } from "@/lib/campaign-status";
 import { orNotFound, requireFynix } from "@/server/fynix/session";
 
 export const metadata: Metadata = { title: "Campaign hosts" };
@@ -31,10 +32,10 @@ async function Hosts({ params, searchParams }: { params: PageProps<"/fynix/campa
         clientName={campaign.clientName}
         campaignZone={campaign.timeZone}
         selectedId={selected?.memberId}
-        canWrite={view.canWrite}
+        canWrite={view.canWrite && !isClosed(campaign.status)}
       />
       {selected !== undefined && (
-        <HostPanel host={selected} reference={campaign.publicRef} campaignId={campaign.id} clientName={campaign.clientName} campaignZone={campaign.timeZone} now={deps.now()} canWrite={view.canWrite} />
+        <HostPanel host={selected} reference={campaign.publicRef} campaignId={campaign.id} clientName={campaign.clientName} campaignZone={campaign.timeZone} now={deps.now()} canWrite={view.canWrite && !isClosed(campaign.status)} />
       )}
     </div>
   );

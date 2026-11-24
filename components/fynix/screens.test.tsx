@@ -9,7 +9,7 @@ import type { SupplierDetail, SupplierRow } from "@/server/domain/supplier-overv
 // The forms call server actions, which need a running app. The screens only need their buttons to render.
 vi.mock("@/server/fynix/actions", () => {
   const action = async () => ({ status: "idle" as const });
-  return { addSupplierAction: action, addAgencyAction: action, invitePersonAction: action, publishAgreementAction: action, setShareAction: action, removeShareAction: action, addHostAction: action, pauseHostAction: action, setHoursAction: action, addBlockAction: action, removeBlockAction: action, setOrganisationStatusAction: action, updateOrganisationAction: action, removeCollateralAction: action, updateProfileAction: action, addCollateralAction: action, addClientAction: action, updatePersonAction: action, suspendPersonAction: action, reactivatePersonAction: action, resendInviteAction: action, revokeInviteAction: action };
+  return { addSupplierAction: action, addAgencyAction: action, invitePersonAction: action, publishAgreementAction: action, setShareAction: action, removeShareAction: action, closeCampaignAction: action, makeCampaignActiveAction: action, reopenCampaignAction: action, addHostAction: action, pauseHostAction: action, setHoursAction: action, addBlockAction: action, removeBlockAction: action, setOrganisationStatusAction: action, updateOrganisationAction: action, removeCollateralAction: action, updateProfileAction: action, addCollateralAction: action, addClientAction: action, updatePersonAction: action, suspendPersonAction: action, reactivatePersonAction: action, resendInviteAction: action, revokeInviteAction: action };
 });
 
 const { SuppliersTable } = await import("@/components/fynix/suppliers/suppliers-table");
@@ -196,6 +196,7 @@ const header: CampaignHeader = {
   timeZone: "Europe/London",
   meetingMinutes: 30,
   activeHostCount: 3,
+  closedAt: null,
   brief: { startDate: "2026-12-01", endDate: "2027-05-31", monthlyTarget: 12, totalTarget: 72, geography: "", industries: [], companySize: "", icp: "", jobTitles: [], seniority: "", technologies: [], bantBudget: "", bantAuthority: "", bantNeed: "", bantTimeline: "", instructions: "", internalNotes: null },
 };
 
@@ -213,38 +214,39 @@ describe("Campaigns", () => {
 });
 
 const agreements: AgreementsPage = {
-  client: { party: "client", current: { version: 2, monthlyTarget: 12, totalTarget: 72, disputeWindowHours: 48, rules: "A meeting counts when it is held.", notes: "", createdAt: day("2026-11-03"), accepted: [{ name: "Daniel Okafor", at: day("2026-11-04") }] }, previous: { version: 1, createdAt: day("2026-10-02"), supersededAt: day("2026-11-03") } },
-  supplier: { party: "supplier", current: { version: 1, monthlyTarget: 14, totalTarget: 84, disputeWindowHours: 48, rules: "", notes: "", createdAt: day("2026-11-02"), accepted: [] }, previous: null },
+  agreement: { inForceVersion: null, current: { version: 2, monthlyTarget: 12, totalTarget: 72, disputeWindowHours: 48, rules: "A meeting counts when it is held.", notes: "", createdAt: day("2026-11-03"), accepted: [{ name: "Daniel Okafor", at: day("2026-11-04"), side: "client" }] }, previous: { version: 1, createdAt: day("2026-10-02"), supersededAt: day("2026-11-03") }, history: [{ version: 1, monthlyTarget: 10, totalTarget: 60, createdAt: day("2026-10-02"), acceptedByBoth: true }] },
   shares: [
     { agencyOrgId: "s1", agencyName: "Northgate Outreach", ownBookings: true, monthlyShare: 4, updatedAt: day("2026-11-02"), changedBy: "Meera Sethi" },
     { agencyOrgId: "a1", agencyName: "Ridgeline Partners", ownBookings: false, monthlyShare: 11, updatedAt: day("2026-11-05"), changedBy: null },
   ],
-  summary: { totalShares: 15, supplierMonthlyTarget: 14, overAllocated: true },
+  summary: { totalShares: 15, campaignMonthlyTarget: 14, overAllocated: true },
   options: [{ id: "a2", name: "Calder Bay Media", ownBookings: false }],
 };
 
 describe("Agreements and shares", () => {
-  it("shows an accepted client agreement, a waiting coordinator agreement and the history line", () => {
-    const client = renderToStaticMarkup(<AgreementCard side={agreements.client} withName="Kestrel Ledger" campaignId="c1" timeZone="Europe/London" canWrite />);
-    expect(client).toContain("Accepted by Daniel Okafor on Wed 4 Nov");
-    expect(client).toContain("over 6 months");
-    expect(client).toContain("Version 1 published 2 Oct, superseded 3 Nov");
-    expect(client).toContain("New version");
-    const supplier = renderToStaticMarkup(<AgreementCard side={agreements.supplier} withName="Northgate Outreach" campaignId="c1" timeZone="Europe/London" canWrite={false} />);
-    expect(supplier).toContain("Waiting");
-    expect(supplier).toContain("Sent on Mon 2 Nov, not accepted yet.");
-    expect(supplier).toContain("No earlier versions");
-    expect(supplier).not.toContain("New version");
+  it("shows the one agreement, who accepted it and the history line, and offers a new version only to an admin", () => {
+    const admin = renderToStaticMarkup(<AgreementCard side={agreements.agreement} withName="Kestrel Ledger and Northgate Outreach" campaignId="c1" timeZone="Europe/London" canWrite />);
+    expect(admin).toContain("Client: accepted by Daniel Okafor on Wed 4 Nov");
+    expect(admin).toContain("Coordinator: waiting");
+    expect(admin).toContain("Version 1: 10 a month, 60 in total");
+    expect(admin).toContain("over 6 months");
+    expect(admin).toContain("Version 1 published 2 Oct, superseded 3 Nov");
+    expect(admin).toContain("New version");
+    const staff = renderToStaticMarkup(<AgreementCard side={{ ...agreements.agreement, previous: null, history: [], current: agreements.agreement.current === null ? null : { ...agreements.agreement.current, accepted: [] } }} withName="Kestrel Ledger and Northgate Outreach" campaignId="c1" timeZone="Europe/London" canWrite={false} />);
+    expect(staff).toContain("Waiting");
+    expect(staff).toContain("Client: waiting");
+    expect(staff).toContain("No earlier versions");
+    expect(staff).not.toContain("New version");
   });
 
   it("offers a first version when there is no agreement", () => {
-    expect(renderToStaticMarkup(<AgreementCard side={{ party: "client", current: null, previous: null }} withName="Kestrel Ledger" campaignId="c1" timeZone="Europe/London" canWrite />)).toContain("First version");
+    expect(renderToStaticMarkup(<AgreementCard side={{ current: null, inForceVersion: null, previous: null, history: [] }} withName="Kestrel Ledger" campaignId="c1" timeZone="Europe/London" canWrite />)).toContain("First version");
   });
 
   it("shows the shares, the total against the target and the over-allocation notice", () => {
     const html = renderToStaticMarkup(<SharesCard page={agreements} campaignId="c1" supplierName="Northgate Outreach" timeZone="Europe/London" now={day("2026-11-13")} canWrite />);
     expect(html).toContain("15 of 14");
-    expect(html).toContain("Shares add up to 15 a month, 1 more than the coordinator&#x27;s target of 14.");
+    expect(html).toContain("Shares add up to 15 a month, 1 more than the campaign&#x27;s target of 14.");
     expect(html).toContain("Delivered in November");
     expect(html).toContain("Meera Sethi, Fynix, 2 Nov");
     expect(html).toContain("Own bookings");
@@ -255,7 +257,7 @@ describe("Agreements and shares", () => {
     const staff = renderToStaticMarkup(<SharesCard page={agreements} campaignId="c1" supplierName="Northgate Outreach" timeZone="Europe/London" now={day("2026-11-13")} canWrite={false} />);
     expect(staff).not.toContain("Add share");
     expect(staff).not.toContain("Edit the share");
-    const empty = renderToStaticMarkup(<SharesCard page={{ ...agreements, shares: [], summary: { totalShares: 0, supplierMonthlyTarget: null, overAllocated: false } }} campaignId="c1" supplierName="Northgate Outreach" timeZone="Europe/London" now={day("2026-11-13")} canWrite />);
+    const empty = renderToStaticMarkup(<SharesCard page={{ ...agreements, shares: [], summary: { totalShares: 0, campaignMonthlyTarget: null, overAllocated: false } }} campaignId="c1" supplierName="Northgate Outreach" timeZone="Europe/London" now={day("2026-11-13")} canWrite />);
     expect(empty).toContain("No shares yet");
   });
 });
@@ -359,6 +361,41 @@ describe("Campaign header", () => {
     expect(admin).toContain("/fynix/campaigns/CMP-7Q2X/hosts");
     expect(admin).toContain("Edit campaign");
     expect(renderToStaticMarkup(<CampaignTitle campaign={header} />)).not.toContain("Edit campaign");
+    for (const label of ["Leads", "Meetings"]) expect(admin).toContain(label);
+    expect(admin).toContain("Close campaign");
+    expect(admin).not.toContain("Reopen");
+    expect(admin).not.toContain("Make active");
+  });
+
+  it("offers Make active while a campaign is being set up", () => {
+    expect(renderToStaticMarkup(<CampaignTitle campaign={{ ...header, status: "draft" }} canWrite />)).toContain("Make active");
+  });
+
+  it("says when a campaign was closed, offers Reopen and switches Edit off", () => {
+    const html = renderToStaticMarkup(<CampaignTitle campaign={{ ...header, status: "completed", closedAt: day("2026-11-20") }} canWrite />);
+    expect(html).toContain("Closed on 20 Nov 2026");
+    expect(html).toContain("Reopen");
+    expect(html).not.toContain("Close campaign");
+    expect(html).toMatch(/<button[^>]*disabled[^>]*>[^]*?Edit campaign/);
+  });
+});
+
+describe("Campaign list tabs", () => {
+  const rows: CampaignRow[] = [campaignRow, { ...campaignRow, id: "c2", publicRef: "CMP-8R3Y", name: "Old one", status: "completed" }, { ...campaignRow, id: "c3", publicRef: "CMP-9S4Z", name: "New one", status: "draft" }];
+
+  it("opens on Active with counts on every tab, and hides the rest", () => {
+    const html = renderToStaticMarkup(<CampaignsTable rows={rows} />);
+    for (const label of ["Active", "Setting up", "Closed", "All"]) expect(html).toContain(label);
+    expect(html).toContain("UK mid-market finance teams");
+    expect(html).not.toContain("Old one");
+    expect(html).not.toContain("New one");
+  });
+
+  it("shows the closed ones on the Closed tab and says what the others hold when a tab is empty", () => {
+    expect(renderToStaticMarkup(<CampaignsTable rows={rows} tab="closed" />)).toContain("Old one");
+    const empty = renderToStaticMarkup(<CampaignsTable rows={[rows[1]!]} />);
+    expect(empty).toContain("No active campaigns");
+    expect(empty).toContain("0 active, 0 being set up, 1 closed");
   });
 });
 

@@ -14,6 +14,16 @@ const SENTENCES: Readonly<Record<string, string>> = {
   "member.rename": "Person renamed",
   "member.update_details": "Person details changed",
   "agency_alias.set": "Fynix name set",
+  "campaign.create": "Campaign created",
+  "campaign.update": "Campaign details changed",
+  "campaign.close": "Campaign closed",
+  "campaign.reopen": "Campaign reopened",
+  "campaign.archive": "Campaign archived",
+  "campaign.restore": "Campaign restored",
+  "agreement.publish": "Agreement version published",
+  "agreement.accept": "Agreement accepted",
+  "campaign_host.add": "Host added",
+  "campaign_host.deactivate": "Host paused",
 };
 
 export function auditSentence(action: string): string {

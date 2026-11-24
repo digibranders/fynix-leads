@@ -1,3 +1,4 @@
+import { ClosedTag } from "@/components/kit/closed-tag";
 import { Person } from "@/components/kit/person";
 import { StatusChip } from "@/components/kit/status-chip";
 import { When } from "@/components/kit/when";
@@ -30,7 +31,7 @@ function Stage({ meeting, group }: { readonly meeting: MeetingRow; readonly grou
  * The meetings of one portal as a table. On a phone the campaign column goes and the time moves under the prospect's name; the stage
  * and the actions always stay. The next meeting to happen carries the selected wash.
  */
-export function MeetingsTable({ meetings, canWrite, showBrand = false, now }: { readonly meetings: readonly MeetingRow[]; readonly canWrite: boolean; readonly showBrand?: boolean; readonly now: Date }) {
+export function MeetingsTable({ meetings, canWrite, showBrand = false, now, closedCampaigns }: { readonly meetings: readonly MeetingRow[]; readonly canWrite: boolean; readonly showBrand?: boolean; readonly now: Date; readonly closedCampaigns?: ReadonlySet<string> }) {
   const next = meetings
     .filter((meeting) => meetingGroup(meeting, now) === "upcoming")
     .reduce<MeetingRow | null>((soonest, meeting) => (soonest === null || new Date(meeting.scheduledStartTime) < new Date(soonest.scheduledStartTime) ? meeting : soonest), null);
@@ -52,6 +53,7 @@ export function MeetingsTable({ meetings, canWrite, showBrand = false, now }: { 
         <TableBody>
           {meetings.map((item) => {
             const group = meetingGroup(item, now);
+            const closed = item.campaignId !== undefined && closedCampaigns?.has(item.campaignId) === true;
             const actions = (
               <>
                 {group === "due" && canWrite ? <RecordMeetingOutcomeModal meetingId={item.id} prospectName={item.prospectName} /> : null}
@@ -87,16 +89,20 @@ export function MeetingsTable({ meetings, canWrite, showBrand = false, now }: { 
                   />
                   <span className="mt-1.5 flex max-w-[calc(100vw-8rem)] flex-wrap items-center gap-1.5 whitespace-normal md:hidden">
                     <Stage meeting={item} group={group} />
+                    {closed ? <ClosedTag /> : null}
                     {actions}
                   </span>
                 </TableCell>
                 <TableCell className="max-xl:hidden">
-                  <span className="block leading-tight">
-                    {item.campaignName}
-                    <span className="block text-caption text-ink-muted">
-                      {showBrand && item.clientBrandName !== undefined ? `${item.clientBrandName}, ` : ""}
-                      {item.prospectCompany}
+                  <span className="flex flex-wrap items-center gap-1.5 leading-tight">
+                    <span>
+                      {item.campaignName}
+                      <span className="block text-caption text-ink-muted">
+                        {showBrand && item.clientBrandName !== undefined ? `${item.clientBrandName}, ` : ""}
+                        {item.prospectCompany}
+                      </span>
                     </span>
+                    {closed ? <ClosedTag /> : null}
                   </span>
                 </TableCell>
                 <TableCell className="max-xl:hidden">
@@ -106,7 +112,10 @@ export function MeetingsTable({ meetings, canWrite, showBrand = false, now }: { 
                   </span>
                 </TableCell>
                 <TableCell className="max-md:hidden">
-                  <Stage meeting={item} group={group} />
+                  <span className="inline-flex flex-wrap items-center gap-1.5">
+                    <Stage meeting={item} group={group} />
+                    {closed ? <span className="xl:hidden"><ClosedTag /></span> : null}
+                  </span>
                   {group === "done" && item.notes ? <span className="mt-0.5 block max-w-[22ch] truncate text-caption text-ink-muted max-md:hidden">{item.notes}</span> : null}
                 </TableCell>
                 <TableCell className="text-right max-md:hidden">

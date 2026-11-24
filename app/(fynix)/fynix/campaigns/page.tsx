@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { CampaignsTable } from "@/components/fynix/campaigns/campaigns-table";
 import { NewCampaignButton } from "@/components/fynix/campaigns/campaign-edit-actions";
+import { parseCampaignTab } from "@/lib/campaign-status";
 import { PageHeader } from "@/components/kit/page-header";
 import { PageSkeleton } from "@/components/kit/skeletons";
 import { getDomain } from "@/server/domain";
@@ -20,7 +21,7 @@ async function Campaigns({ searchParams }: { searchParams: PageProps<"/fynix/cam
   return (
     <div className="flex flex-col gap-4">
       <PageHeader title="Campaigns" description="Every campaign, with its client and the coordinator that serves it." actions={choices === null ? null : <NewCampaignButton choices={choices} />} />
-      <CampaignsTable rows={rows} query={one(params.q) ?? ""} />
+      <CampaignsTable rows={rows} query={one(params.q) ?? ""} tab={parseCampaignTab(params.status)} />
     </div>
   );
 }

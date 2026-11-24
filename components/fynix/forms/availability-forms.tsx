@@ -7,9 +7,11 @@ import { TimeField } from "@/components/ui/date-time";
 import { WEEK_ORDER } from "@/lib/fynix/format";
 import { dayField, MAX_RANGES_PER_DAY, rangeField, timeValue } from "@/lib/fynix/hours-form";
 import type { HoursWindow } from "@/lib/domain/weekly-hours";
-import { addBlockAction, setHoursAction } from "@/server/fynix/actions";
+import type { FormState } from "@/lib/fynix/form-state";
 import { ActionForm, useFormState } from "./action-form";
 import { FormGroup, Hidden, TextAreaField, TextField } from "./form-parts";
+
+type Action = (previous: FormState, formData: FormData) => Promise<FormState>;
 
 const DAY_LONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
 
@@ -81,11 +83,14 @@ function WeekGrid({ windows }: { windows: readonly HoursWindow[] }) {
   );
 }
 
-/** Replaces a host's whole week. Empty days are days off, and an empty week clears the hours. */
-export function HoursForm({ memberId, timeZone, windows }: { memberId: string; timeZone: string; windows: readonly HoursWindow[] }) {
+/**
+ * Replaces a host's whole week. Empty days are days off, and an empty week clears the hours. Fynix sends it for a host (`memberId`); a person
+ * editing their own hours leaves `memberId` out.
+ */
+export function HoursForm({ action, memberId, timeZone, windows }: { action: Action; memberId?: string; timeZone: string; windows: readonly HoursWindow[] }) {
   return (
-    <ActionForm action={setHoursAction} submitLabel="Save hours" pendingLabel="Saving">
-      <Hidden name="memberId" value={memberId} />
+    <ActionForm action={action} submitLabel="Save hours" pendingLabel="Saving">
+      {memberId === undefined ? null : <Hidden name="memberId" value={memberId} />}
       <FormGroup>
         <TextField name="timeZone" label="Time zone" defaultValue={timeZone} helper="The zone the hours are in, for example Europe/London." />
       </FormGroup>
@@ -128,10 +133,10 @@ function BlockFields({ timeZone }: { timeZone: string }) {
 }
 
 /** Blocks a time for a host: a day, or a run of days, whole or part. The times are read in the zone of the hours above. */
-export function BlockForm({ memberId, timeZone }: { memberId: string; timeZone: string }) {
+export function BlockForm({ action, memberId, timeZone }: { action: Action; memberId?: string; timeZone: string }) {
   return (
-    <ActionForm action={addBlockAction} submitLabel="Block this time" pendingLabel="Blocking">
-      <Hidden name="memberId" value={memberId} />
+    <ActionForm action={action} submitLabel="Block this time" pendingLabel="Blocking">
+      {memberId === undefined ? null : <Hidden name="memberId" value={memberId} />}
       <Hidden name="timeZone" value={timeZone} />
       <BlockFields timeZone={timeZone} />
     </ActionForm>

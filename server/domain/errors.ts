@@ -31,7 +31,11 @@ export type DomainErrorCode =
   | "alias-not-verified"
   | "invalid-lead-stage"
   | "dispute-window-expired"
-  | "duplicate-name";
+  | "duplicate-name"
+  | "agreement-not-accepted"
+  | "no-host"
+  | "campaign-closed"
+  | "agreement-unused";
 
 export class DomainError extends Error {
   constructor(

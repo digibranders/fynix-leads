@@ -66,6 +66,8 @@ export async function submitLead(
         memberId: aliasIdentity.memberId,
         verifiedAt: aliasIdentity.verifiedAt,
         clientBrandName: aliasIdentity.clientBrandName,
+        clientOrgId: aliasIdentity.clientOrgId,
+        status: aliasIdentity.status,
       })
       .from(aliasIdentity)
       .where(eq(aliasIdentity.id, parsed.aliasIdentityId))
@@ -73,6 +75,10 @@ export async function submitLead(
 
     if (aliasRow === undefined) {
       throw new DomainError("not-found", "There is no such alias identity.");
+    }
+
+    if (aliasRow.status !== "active") {
+      throw new DomainError("invalid-input", "That alias has been retired.");
     }
 
     if (aliasRow.verifiedAt === null) {
@@ -102,7 +108,9 @@ export async function submitLead(
     }
 
     // An alias is a name used towards one client's brand: it cannot front a lead for another client's campaign.
-    if (aliasRow.clientBrandName.trim().toLowerCase() !== campaignRow.clientBrandName.trim().toLowerCase()) {
+    // An alias made since phase 2 names its client; an older one is matched by brand.
+    const sameClient = aliasRow.clientOrgId !== null ? aliasRow.clientOrgId === campaignRow.clientOrgId : aliasRow.clientBrandName.trim().toLowerCase() === campaignRow.clientBrandName.trim().toLowerCase();
+    if (!sameClient) {
       throw new DomainError("invalid-input", "That alias is for a different client brand than this campaign.");
     }
 

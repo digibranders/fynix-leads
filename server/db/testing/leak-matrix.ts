@@ -88,6 +88,12 @@ export const READ_PATHS: readonly ReadPath[] = [
     mustContain: (viewer, world) => ownCampaigns(viewer, world).flatMap((row) => [row.publicRef, row.name]),
   },
   {
+    // Phase 2: both roles read the brief of their own campaigns, never the notes.
+    name: "campaign brief (migrations 0054 and 0064)",
+    run: (tx) => tx.select({ publicRef: campaign.publicRef, icp: campaign.icp, instructions: campaign.instructions, industries: campaign.industries }).from(campaign),
+    mustContain: (viewer, world) => ownCampaigns(viewer, world).map((row) => row.publicRef),
+  },
+  {
     name: "campaigns, filtered and ordered on granted columns",
     run: (tx, viewer) =>
       selectCampaigns(tx, viewer.role)
@@ -175,12 +181,7 @@ export const PROBES: readonly Probe[] = [
   { name: "outbox: the link a message carries", statement: "select link from email_outbox", expectedError: DENIED_TABLE },
   { name: "outbox: who was written to", statement: "select recipient, subject from email_outbox", expectedError: DENIED_TABLE },
   { name: "write: cancel a message", statement: "update email_outbox set status = 'cancelled'", expectedError: DENIED_TABLE },
-  // Since migration 0054 the agency role (suppliers and partner agencies) reads the brief; a client still may not.
-  { name: "campaign: the ideal customer profile", statement: "select icp from campaign", expectedError: DENIED_TABLE, roles: ["leads_client"] },
-  { name: "campaign: the instructions", statement: "select instructions from campaign", expectedError: DENIED_TABLE, roles: ["leads_client"] },
-  { name: "campaign: the BANT criteria", statement: "select bant_budget, bant_authority, bant_need, bant_timeline from campaign", expectedError: DENIED_TABLE, roles: ["leads_client"] },
-  { name: "campaign: geography, industries, titles, seniority, technologies and size", statement: "select geography, industries, job_titles, seniority, technologies, company_size from campaign", expectedError: DENIED_TABLE, roles: ["leads_client"] },
-  { name: "campaign: probe by a requirement in WHERE", statement: "select id from campaign where icp <> ''", expectedError: DENIED_TABLE, roles: ["leads_client"] },
+  // Since migrations 0054 and 0064 both tenant roles read the campaign brief of the campaigns they see; internal notes and settings stay hidden (probes below).
   // Phase 1D: the organisation hierarchy, the campaign settings and the six set-up tables. Nothing here is granted to a tenant until 1E.
   // leads_agency reads organisation.parent_org_id (migration 0032); a client still may not, so the hierarchy probes by id are for clients only.
   { name: "organisation: the supplier a partner agency works under", statement: "select parent_org_id from organisation", expectedError: DENIED_TABLE, roles: ["leads_client"] },
@@ -190,6 +191,8 @@ export const PROBES: readonly Probe[] = [
   { name: "organisation: probe by the status in WHERE", statement: "select name from organisation where status = 'active'", expectedError: DENIED_TABLE },
   { name: "organisation: join an organisation to its parent", statement: "select c.name from organisation c join organisation p on p.id = c.parent_org_id", expectedError: DENIED_TABLE },
   { name: "write: give an organisation a parent", statement: "update organisation set parent_org_id = null", expectedError: DENIED_TABLE },
+  { name: "campaign: when it was closed", statement: "select closed_at from campaign", expectedError: DENIED_TABLE },
+  { name: "write: close a campaign", statement: "update campaign set closed_at = now()", expectedError: DENIED_TABLE },
   { name: "campaign: the time zone", statement: "select time_zone from campaign", expectedError: DENIED_TABLE },
   { name: "campaign: the meeting length", statement: "select meeting_minutes from campaign", expectedError: DENIED_TABLE },
   { name: "campaign: probe by the time zone in WHERE", statement: "select id from campaign where time_zone = 'Europe/London'", expectedError: DENIED_TABLE },
@@ -222,6 +225,11 @@ export const PROBES: readonly Probe[] = [
   { name: "write: change a person's meeting emails", statement: "update member set meeting_emails = false", expectedError: DENIED_TABLE, roles: ["leads_agency"] },
   { name: "write: add a partner agency without the function", statement: "insert into organisation (public_ref, kind, name) values ('ORG-ZZZZ', 'client', 'x')", expectedError: DENIED_TABLE, roles: ["leads_client"] },
   { name: "write: change a person's role", statement: "update member set role = 'manager'", expectedError: DENIED_TABLE },
+  // Phase 2: the going-live facts are Fynix's; an agency reads its own campaigns' flags through a function a client cannot call.
+  { name: "campaign go-live state, for any campaign", statement: "select * from campaign_go_live_state(gen_random_uuid())", expectedError: /permission denied for function campaign_go_live_state/ },
+  { name: "campaign readiness, as a client", statement: "select * from app_my_campaign_readiness()", expectedError: /permission denied for function app_my_campaign_readiness/, roles: ["leads_client"] },
+  { name: "write: accept the agreement for the other side", statement: "insert into agreement_acceptance (agreement_id, user_id, network_address, side) values (gen_random_uuid(), gen_random_uuid(), 'x', 'supplier')", expectedError: /row-level security|violates foreign key|permission denied/, roles: ["leads_client"] },
+  { name: "write: change an alias's client to anyone", statement: "update alias_identity set client_org_id = gen_random_uuid()", expectedError: DENIED_TABLE, roles: ["leads_client"] },
   { name: "aliases: verification code hash", statement: "select verification_code_hash from alias_identity", expectedError: DENIED_TABLE },
 ];
 

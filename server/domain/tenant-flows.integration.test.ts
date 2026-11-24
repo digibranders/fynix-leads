@@ -8,7 +8,8 @@ import type { TenantActor } from "@/server/domain/alias-identity";
 import { acceptAgreementByTenant } from "@/server/domain/agreements";
 import { listCurrentAgreements } from "@/server/domain/agreements-tenant";
 import { listClientHosts } from "@/server/domain/hosts-tenant";
-import { updateCampaign } from "@/server/domain/campaigns";
+import { closeCampaign, updateCampaign } from "@/server/domain/campaigns";
+import { readCampaignActivity } from "@/server/domain/campaign-activity";
 import { assignCampaignShare, listAssignableAgencies, unassignCampaignShare } from "@/server/domain/campaign-shares-tenant";
 import { listTenantCampaigns } from "@/server/domain/campaigns-tenant";
 import { listPartnerAgencies } from "@/server/domain/partners-tenant";
@@ -135,6 +136,26 @@ describe("a lead from submission to outcome", () => {
   });
 });
 
+describe("a closed campaign and the leads already on it", () => {
+  it("takes no new lead, lets a submitted one finish its course, and shows its history on the campaign's activity", async () => {
+    const db = rig.dbs.roles;
+    await submitLead(db.leads_agency.db, rig.deps(), cast.agencyActor, leadInput([nextWeekdayAt(10, 3)]));
+    await closeCampaign(rig.deps(), rig.actor, cast.campaignId, "Engagement over");
+    await expect(submitLead(db.leads_agency.db, rig.deps(), cast.agencyActor, { ...leadInput([nextWeekdayAt(11, 4)]), prospectEmail: "second@nordvikcold.example" })).rejects.toThrow(/not active/);
+
+    const [created] = await listClientLeads(db.leads_client.db, cast.clientActor);
+    if (created === undefined) throw new Error("No lead");
+    await clientReviewLead(db.leads_client.db, rig.deps(), cast.clientActor, { leadId: created.id, action: "decline", declineReason: "Not in our target market" });
+    expect((await rig.dbs.owner.db.select({ stage: lead.stage }).from(lead).where(eq(lead.id, created.id)))[0]?.stage).toBe("declined");
+
+    const rows = await readCampaignActivity(rig.deps(), rig.staffActor, cast.campaignId);
+    const steps = rows.filter((row) => row.source === "lead");
+    expect(steps.length).toBeGreaterThanOrEqual(2);
+    expect(steps.every((row) => row.leadRef === created.publicRef)).toBe(true);
+    expect(rows.some((row) => row.source === "audit" && row.action === "campaign.close")).toBe(true);
+  });
+});
+
 describe("a client rejects a lead before the meeting", () => {
   it("closes the lead with the reason, as the client's own database role", async () => {
     const db = rig.dbs.roles;
@@ -171,20 +192,24 @@ describe("messaging, as each role", () => {
 describe("agreements, as each role", () => {
   it("shows a client its own agreement and lets a manager accept it once", async () => {
     const db = rig.dbs.roles.leads_client.db;
-    const before = await listCurrentAgreements(db, cast.clientActor, "client");
+    const before = await listCurrentAgreements(db, cast.clientActor);
     expect(before).toHaveLength(1);
     expect(before[0]?.monthlyTarget).toBe(12);
     expect(before[0]?.acceptedAt).toBeNull();
     await acceptAgreementByTenant(db, rig.deps(), cast.clientActor, { agreementId: before[0]?.id }, "203.0.113.9");
-    expect((await listCurrentAgreements(db, cast.clientActor, "client"))[0]?.acceptedAt).not.toBeNull();
+    expect((await listCurrentAgreements(db, cast.clientActor))[0]?.acceptedAt).not.toBeNull();
   });
 
-  it("shows a coordinator its coordinator agreement and never the client's", async () => {
+  it("shows a coordinator the one campaign agreement, never the old coordinator row, and lets its manager accept the same version", async () => {
     const db = rig.dbs.roles.leads_agency.db;
-    const rows = await listCurrentAgreements(db, cast.agencyActor, "supplier");
+    const rows = await listCurrentAgreements(db, cast.agencyActor);
     expect(rows).toHaveLength(1);
-    expect(rows[0]?.monthlyTarget).toBe(10);
-    expect(await listCurrentAgreements(db, cast.agencyActor, "client")).toHaveLength(0);
+    expect(rows[0]?.monthlyTarget).toBe(12);
+    await acceptAgreementByTenant(db, rig.deps(), cast.agencyActor, { agreementId: rows[0]?.id }, "203.0.113.10");
+    const after = await listCurrentAgreements(db, cast.agencyActor);
+    expect(after[0]?.acceptedAt).not.toBeNull();
+    expect(after[0]?.supplierAcceptedAt).not.toBeNull();
+    expect(after[0]?.clientAcceptedAt).toBeNull();
   });
 });
 
@@ -194,6 +219,8 @@ describe("hosts, as a client", () => {
     expect(hosts).toHaveLength(1);
     expect(hosts[0]?.jobTitle).toBe("Chief Operating Officer");
     expect(hosts[0]?.hours).toHaveLength(5);
+    expect(hosts[0]?.assignments).toMatchObject([{ campaignId: cast.campaignId }]);
+    expect(hosts[0]?.own).toBe(true);
   });
 });
 
@@ -299,10 +326,11 @@ describe("campaigns for each portal", () => {
     const supplierView = await listTenantCampaigns(db.leads_agency.db, cast.agencyActor, "supplier");
     const served = supplierView.find((row) => row.id === cast.campaignId);
     expect(served?.inProgress).toBe(1);
-    // The supplier reads the brief; the client does not, and neither ever reads the internal notes.
+    // The supplier and the client both read the brief, and neither ever reads the internal notes.
     expect(served?.brief).toMatchObject({ geography: "United Kingdom", industries: ["Retail"], bantBudget: "50k a year", instructions: "Do not promise dates" });
     expect(JSON.stringify(served)).not.toContain("Fynix eyes only");
-    expect(clientView.every((row) => row.brief === null)).toBe(true);
+    expect(mine?.brief).toMatchObject({ geography: "United Kingdom", industries: ["Retail"], bantBudget: "50k a year", instructions: "Do not promise dates" });
+    expect(JSON.stringify(clientView)).not.toContain("Fynix eyes only");
     const partnerSees = await listTenantCampaigns(db.leads_agency.db, cast.agencyActor, "agency");
     expect(partnerSees.find((row) => row.id === cast.campaignId)?.brief?.geography).toBe("United Kingdom");
     // Each side sees only its own: the client the campaigns of its organisation, the supplier the ones it serves.
@@ -324,7 +352,7 @@ describe("the campaign rules around a lead", () => {
     const [partnerRow] = await owner.insert(organisation).values({ publicRef: "ORG-5T8W", kind: "agency", name: "Late Partner", parentOrgId: cast.supplierOrgId }).returning({ id: organisation.id });
     if (partnerRow === undefined) throw new Error("No partner");
     await updateCampaign(rig.deps(), rig.actor, cast.campaignId, { status: "archived" });
-    await expect(assignCampaignShare(rig.dbs.roles.leads_agency.db, cast.agencyActor, { campaignId: cast.campaignId, agencyOrgId: partnerRow.id, monthlyShare: 2 })).rejects.toThrow(/archived/);
+    await expect(assignCampaignShare(rig.dbs.roles.leads_agency.db, cast.agencyActor, { campaignId: cast.campaignId, agencyOrgId: partnerRow.id, monthlyShare: 2 })).rejects.toThrow(/closed/);
   });
 });
 

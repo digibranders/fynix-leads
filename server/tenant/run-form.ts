@@ -18,6 +18,8 @@ export interface TenantFormSpec {
   readonly fieldNames: readonly string[];
   /** Who may send this form. A person of any other kind is told the session is gone. */
   readonly kinds: readonly SessionContext["kind"][];
+  /** Problems the form can see before the schema does (a grid of times, a date and a time zone), as sentences per field. */
+  readonly precheck?: (formData: FormData) => FormValues;
   readonly build: (formData: FormData) => unknown;
   readonly schema: z.ZodType;
   readonly labels: Readonly<Record<string, string>>;
@@ -41,6 +43,8 @@ export async function runTenantForm(spec: TenantFormSpec): Promise<FormState> {
   const values: FormValues = Object.fromEntries(spec.fieldNames.map((name) => [name, field(spec.formData, name)]));
   const context = await getSessionContext();
   if (context === null || !spec.kinds.includes(context.kind)) return failed(SESSION_GONE, {}, values);
+  const problems = spec.precheck?.(spec.formData) ?? {};
+  if (Object.keys(problems).length > 0) return failed(null, problems, values);
   const input = spec.build(spec.formData);
   const checked = spec.schema.safeParse(input);
   if (!checked.success) return failed(null, fieldErrors(checked.error, spec.labels), values);

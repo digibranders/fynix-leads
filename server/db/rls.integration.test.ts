@@ -78,8 +78,8 @@ describe("tenant column lists match the grants", () => {
   it.each(TENANT_ROLES)("%s: columns.ts names exactly the columns the database granted", async (role) => {
     // The two parent ids are granted so the policies can compare them (migrations 0037 and 0039), and columns.ts does not list them: no read selects them.
     const policyColumns = ["agency_org_id", "client_org_id"];
-    // Since migration 0054 the agency role also reads the campaign brief; a client does not.
-    const briefColumns = role === "leads_agency" ? columnNames(agencyCampaignBriefColumns) : [];
+    // Since migrations 0054 (agency) and 0064 (client) both roles read the campaign brief.
+    const briefColumns = columnNames(agencyCampaignBriefColumns);
     expect(await granted(role, "campaign")).toEqual([...columnNames(TENANT_COLUMNS[role].campaign), ...policyColumns, ...briefColumns].sort());
     expect(await granted(role, "organisation")).toEqual(columnNames(TENANT_COLUMNS[role].organisation).sort());
   });

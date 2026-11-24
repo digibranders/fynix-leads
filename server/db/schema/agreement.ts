@@ -13,7 +13,8 @@ import { member } from "./member";
  * the current one in the same transaction (`one current version per campaign and party`), and a trigger refuses a
  * superseded version becoming current again (migration 0022). Versions count per campaign and party, from 1.
  *
- * No tenant role has a grant on this table until phase 1E, which decides who reads which agreement.
+ * Since phase 2 a campaign has ONE agreement: the `client` party row. The client and the coordinator both accept it (`agreement_acceptance.side`).
+ * Rows with party `supplier` are left as they were and are no longer created or read.
  */
 export const agreement = pgTable(
   "agreement",
@@ -64,6 +65,15 @@ export const agreementAcceptance = pgTable(
       .references(() => user.id, { onDelete: "restrict" }),
     acceptedAt: timestamp("accepted_at", { withTimezone: true }).notNull().defaultNow(),
     networkAddress: text("network_address").notNull(),
+    /**
+     * Which side of the campaign agreement the signer accepted for (phase 2): the client, or the coordinator (`supplier`). Derived from the
+     * signer's organisation, never from input. Rows from before phase 2 are all `client`.
+     */
+    side: text("side").notNull().default("client"),
   },
-  (table) => [unique("agreement_acceptance_agreement_user_unique").on(table.agreementId, table.userId), index("agreement_acceptance_user_idx").on(table.userId)],
+  (table) => [
+    unique("agreement_acceptance_agreement_user_unique").on(table.agreementId, table.userId),
+    index("agreement_acceptance_user_idx").on(table.userId),
+    check("agreement_acceptance_side_check", sql`${table.side} IN ('client', 'supplier')`),
+  ],
 );

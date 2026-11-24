@@ -30,6 +30,10 @@ const MESSAGES: Readonly<Record<DomainErrorCode, string>> = {
   "invalid-lead-stage": "This action cannot be performed on a lead in its current stage.",
   "dispute-window-expired": "The 48-hour dispute window for this delivered meeting has expired.",
   "duplicate-name": "A company with that name already exists. Check the list, or confirm to add it anyway.",
+  "agreement-not-accepted": "The client and the coordinator must both accept the agreement before the campaign can go live.",
+  "no-host": "The campaign needs at least one active host before it can go live.",
+  "campaign-closed": "That campaign is closed. Reopen it first.",
+  "agreement-unused": "Agreements are made for the campaign, not for the coordinator separately.",
 };
 
 export function domainMessage(code: DomainErrorCode, overrides: Partial<Record<DomainErrorCode, string>> = {}): string {

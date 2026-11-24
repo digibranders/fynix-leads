@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { check, foreignKey, pgTable, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { organisationKind } from "./enums";
 import { member } from "./member";
+import { organisation } from "./organisation";
 
 /**
  * Client-brand alias identities for agency and supplier members (spec v2 section 9.3, D31, D32).
@@ -16,6 +17,11 @@ export const aliasIdentity = pgTable(
     memberId: uuid("member_id").notNull(),
     memberOrgKind: organisationKind("member_org_kind").notNull().generatedAlwaysAs(sql`'agency'::organisation_kind`),
     clientBrandName: text("client_brand_name").notNull(),
+    /**
+     * The client the alias is for, picked from the clients of the campaigns the agency sees (phase 2). A trigger (migration 0064) checks that and
+     * copies the client's brand into `client_brand_name`. Null only on aliases made before phase 2.
+     */
+    clientOrgId: uuid("client_org_id").references(() => organisation.id, { onDelete: "restrict" }),
     displayName: text("display_name").notNull(),
     jobTitle: text("job_title").notNull(),
     aliasEmail: text("alias_email").notNull(),

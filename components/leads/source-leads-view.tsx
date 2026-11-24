@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Plus, Table as TableIcon } from "@phosphor-icons/react/dist/ssr";
+import { CampaignFilter } from "@/components/kit/campaign-filter";
+import { ClosedTag } from "@/components/kit/closed-tag";
 import { EmptyState } from "@/components/kit/empty-state";
 import { Pager } from "@/components/kit/pager";
 import { Panel } from "@/components/kit/panel";
@@ -11,6 +13,7 @@ import { PipelineBar } from "@/components/leads/pipeline-bar";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { campaignFilterHrefs, closedCampaignIds, type CampaignChoice } from "@/lib/campaign-status";
 import { leadsHref } from "@/lib/leads/href";
 import { filterLeads, paginate } from "@/lib/leads/list";
 import type { PipelineKey } from "@/lib/leads/pipeline";
@@ -44,6 +47,10 @@ export interface SourceLeadsViewProps {
   readonly ownOrgId: string;
   /** Campaign name and the client's brand, by campaign id. */
   readonly campaigns: Readonly<Record<string, { readonly name: string; readonly brand: string }>>;
+  /** The campaigns the viewer can filter by, with their status. */
+  readonly campaignChoices: readonly CampaignChoice[];
+  /** The campaign chosen in the filter, or null for all. */
+  readonly campaign: string | null;
   /** The viewer's own alias names, by alias id. */
   readonly aliasNames: Readonly<Record<string, string>>;
 }
@@ -57,9 +64,11 @@ function sourceOf(lead: SourceLeadRow, props: SourceLeadsViewProps): string {
 /** The leads of a supplier or an agency: stage bar, search, table, pager. State is in the URL, as on the client's list. */
 export function SourceLeadsView(props: SourceLeadsViewProps) {
   const { leads, basePath, submitHref, emptyText, group, q } = props;
-  const filtered = filterLeads(leads, { group, q });
+  const { campaign: chosen, campaignChoices } = props;
+  const filtered = filterLeads(leads, { group, q, campaign: chosen });
   const page = paginate(filtered, props.page);
-  const href = (next: number) => leadsHref(basePath, { stage: group, q, page: next });
+  const href = (next: number) => leadsHref(basePath, { stage: group, q, campaign: chosen, page: next });
+  const closed = closedCampaignIds(campaignChoices);
 
   if (leads.length === 0) {
     return (
@@ -82,14 +91,15 @@ export function SourceLeadsView(props: SourceLeadsViewProps) {
 
   return (
     <>
-      <PipelineBar leads={leads} basePath={basePath} group={group} q={q} />
+      <PipelineBar leads={leads} basePath={basePath} group={group} q={q} campaign={chosen} />
       <Panel aria-label="Leads">
         <Toolbar trailing={`${filtered.length} ${filtered.length === 1 ? "lead" : "leads"}`}>
-          <SearchForm defaultValue={q} placeholder="Search by name, company or reference" hidden={{ stage: group ?? undefined }} />
+          <SearchForm defaultValue={q} placeholder="Search by name, company or reference" hidden={{ stage: group ?? undefined, campaign: chosen ?? undefined }} />
+          <CampaignFilter campaigns={campaignChoices} selected={chosen} {...campaignFilterHrefs(campaignChoices, (id) => leadsHref(basePath, { stage: group, q, campaign: id }))} />
         </Toolbar>
         {page.rows.length === 0 ? (
           <EmptyState icon={TableIcon} title="No leads match">
-            Clear the search or pick another stage to see more.
+            Clear the search or pick another stage or campaign to see more.
           </EmptyState>
         ) : (
           <div className="px-2.5">
@@ -120,9 +130,12 @@ export function SourceLeadsView(props: SourceLeadsViewProps) {
                       </TableCell>
                       <TableCell className="max-xl:hidden">
                         {campaign ? (
-                          <span className="block leading-tight">
-                            {campaign.name}
-                            <span className="block text-caption text-ink-muted">{campaign.brand}</span>
+                          <span className="flex flex-wrap items-center gap-1.5 leading-tight">
+                            <span>
+                              {campaign.name}
+                              <span className="block text-caption text-ink-muted">{campaign.brand}</span>
+                            </span>
+                            {closed.has(lead.campaignId) ? <ClosedTag /> : null}
                           </span>
                         ) : (
                           <span className="text-ink-muted">Not shown</span>

@@ -8,16 +8,18 @@ export function PipelineBar({
   basePath,
   group,
   q,
+  campaign = null,
 }: {
   leads: readonly { readonly stage: string }[];
   basePath: string;
   group: PipelineKey | null;
   q: string;
+  campaign?: string | null;
 }) {
   const counts = countByGroup(leads);
   return (
     <StageBar
-      allHref={leadsHref(basePath, { q })}
+      allHref={leadsHref(basePath, { q, campaign })}
       allCount={leads.length}
       allActive={group === null}
       segments={PIPELINE_GROUPS.map((entry) => ({
@@ -25,7 +27,7 @@ export function PipelineBar({
         label: entry.label,
         count: counts[entry.key],
         color: entry.color,
-        href: leadsHref(basePath, { stage: entry.key, q }),
+        href: leadsHref(basePath, { stage: entry.key, q, campaign }),
         active: group === entry.key,
       }))}
     />

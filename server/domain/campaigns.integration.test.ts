@@ -1,11 +1,13 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { campaign } from "@/server/db/schema";
-import { createCampaign, updateCampaign } from "@/server/domain/campaigns";
+import { closeCampaign, createCampaign, reopenCampaign, updateCampaign } from "@/server/domain/campaigns";
+import { addCampaignHost, deactivateCampaignHost } from "@/server/domain/hosts";
+import { publishAgreement, recordAgreementAcceptance } from "@/server/domain/agreements";
 import { DomainError } from "@/server/domain/errors";
 import { createOrganisation, setOrganisationStatus } from "@/server/domain/organisations";
 import { createPartnerAgency } from "@/server/domain/suppliers";
-import { auditRowsFor, scriptedBytes } from "@/server/domain/test-helpers";
+import { auditRowsFor, makeCampaignReady, memberIdFor, scriptedBytes, setMemberRole, userIn } from "@/server/domain/test-helpers";
 import { openDomainRig } from "@/server/domain/testing";
 
 const rig = openDomainRig();
@@ -107,21 +109,142 @@ describe("updateCampaign", () => {
 
   it("moves through the lifecycle, and archives and restores with their own audit actions", async () => {
     const { id } = await createCampaign(rig.deps(), rig.actor, input());
+    await makeCampaignReady(rig, id);
     for (const status of ["active", "paused", "active", "completed", "archived", "draft"] as const) {
       expect(await updateCampaign(rig.deps(), rig.actor, id, { status })).toMatchObject({ status });
     }
-    expect((await auditRowsFor(rig)).map((row) => row.action)).toEqual(["campaign.create", "campaign.update", "campaign.update", "campaign.update", "campaign.update", "campaign.archive", "campaign.restore"]);
+    expect((await auditRowsFor(rig)).map((row) => row.action).filter((action) => action.startsWith("campaign."))).toEqual(["campaign.create", "campaign.update", "campaign.update", "campaign.update", "campaign.update", "campaign.archive", "campaign.restore"]);
     expect(await rig.dbs.owner.db.select({ id: campaign.id }).from(campaign)).toHaveLength(5);
   });
 
   it("refuses a move the lifecycle does not allow, an end date before the start date, a change of client and an unknown id, and changes nothing", async () => {
     const { id } = await createCampaign(rig.deps(), rig.actor, input());
-    expect((await refusal(updateCampaign(rig.deps(), rig.actor, id, { status: "completed" }))).code).toBe("invalid-transition");
+    expect((await refusal(updateCampaign(rig.deps(), rig.actor, id, { status: "paused" }))).code).toBe("invalid-transition");
     expect((await refusal(updateCampaign(rig.deps(), rig.actor, id, { endDate: "2026-12-31" }))).code).toBe("invalid-input");
     expect((await refusal(updateCampaign(rig.deps(), rig.actor, id, { clientOrgId: rig.world().halden.id }))).code).toBe("invalid-input");
     expect((await refusal(updateCampaign(rig.deps(), rig.actor, "99999999-9999-4999-8999-999999999999", { name: "x" }))).code).toBe("not-found");
     expect(await row(id)).toMatchObject({ status: "draft", clientOrgId: rig.world().kestrel.id });
     expect((await auditRowsFor(rig)).map((entry) => entry.action)).toEqual(["campaign.create"]);
+  });
+});
+
+describe("the going-live rule", () => {
+  const create = async () => (await createCampaign(rig.deps(), rig.actor, input())).id;
+  const clientUser = () => userIn(rig, rig.world().kestrel);
+  const supplierUser = () => userIn(rig, rig.world().northgate);
+  const goLive = (id: string) => updateCampaign(rig.deps(), rig.actor, id, { status: "active" });
+
+  it("refuses with no agreement, naming both sides, and with no host after the agreement", async () => {
+    const id = await create();
+    const first = await refusal(goLive(id));
+    expect(first).toMatchObject({ code: "agreement-not-accepted", message: "Neither the client nor the coordinator has accepted the agreement yet." });
+    await setMemberRole(rig, clientUser().id, "manager");
+    await setMemberRole(rig, supplierUser().id, "manager");
+    const published = await publishAgreement(rig.deps(), rig.actor, { campaignId: id, monthlyTarget: 12, totalTarget: 72 });
+    await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: published.id, userId: clientUser().id });
+    expect(await refusal(goLive(id))).toMatchObject({ code: "agreement-not-accepted", message: "The coordinator has not accepted the agreement yet." });
+    await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: published.id, userId: supplierUser().id });
+    expect((await refusal(goLive(id))).code).toBe("no-host");
+    expect(await row(id)).toMatchObject({ status: "draft" });
+    await addCampaignHost(rig.deps(), rig.actor, { campaignId: id, memberId: await memberIdFor(rig, clientUser().id), jobTitle: "Head of Sales" });
+    expect(await goLive(id)).toMatchObject({ status: "active" });
+  });
+
+  it("names the client when only the coordinator has accepted", async () => {
+    const id = await create();
+    await setMemberRole(rig, supplierUser().id, "manager");
+    const published = await publishAgreement(rig.deps(), rig.actor, { campaignId: id, monthlyTarget: 12, totalTarget: 72 });
+    await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: published.id, userId: supplierUser().id });
+    expect((await refusal(goLive(id))).message).toBe("The client has not accepted the agreement yet.");
+  });
+
+  it("applies to a resume from paused too, and a paused host with no other counts as no host", async () => {
+    const id = await create();
+    await makeCampaignReady(rig, id);
+    await goLive(id);
+    await deactivateCampaignHost(rig.deps(), rig.actor, { campaignId: id, memberId: await memberIdFor(rig, clientUser().id) });
+    await updateCampaign(rig.deps(), rig.actor, id, { status: "paused" });
+    expect((await refusal(goLive(id))).code).toBe("no-host");
+  });
+
+  it("keeps the accepted version in force while a newer one waits, so the campaign can still go live", async () => {
+    const id = await create();
+    await makeCampaignReady(rig, id);
+    await publishAgreement(rig.deps(), rig.actor, { campaignId: id, monthlyTarget: 20, totalTarget: 120 });
+    expect(await goLive(id)).toMatchObject({ status: "active" });
+  });
+
+  it("takes the monthly and total numbers from the agreement once it is in force, and refuses to edit them directly", async () => {
+    const id = await create();
+    await makeCampaignReady(rig, id, { monthlyTarget: 31, totalTarget: 186 });
+    expect(await row(id)).toMatchObject({ monthlyTarget: 31, totalTarget: 186 });
+    expect((await refusal(updateCampaign(rig.deps(), rig.actor, id, { monthlyTarget: 5 }))).code).toBe("invalid-input");
+    expect(await updateCampaign(rig.deps(), rig.actor, id, { monthlyTarget: 31, name: "Same number, new name" })).toMatchObject({ name: "Same number, new name" });
+  });
+});
+
+describe("closing and reopening", () => {
+  const create = async () => (await createCampaign(rig.deps(), rig.actor, input())).id;
+
+  it("closes a running campaign as completed with the time and a note in the audit row, and refuses to close it again", async () => {
+    const id = await create();
+    await makeCampaignReady(rig, id);
+    await updateCampaign(rig.deps(), rig.actor, id, { status: "active" });
+    const closed = await closeCampaign(rig.deps(), rig.actor, id, "Client ended the engagement");
+    expect(closed).toMatchObject({ status: "completed", closedAt: rig.clock.now });
+    expect(await row(id)).toMatchObject({ status: "completed", closedAt: rig.clock.now });
+    const [audit] = await auditRowsFor(rig, "campaign.close");
+    expect(audit).toMatchObject({ subjectRef: closed.publicRef, before: { status: "active" }, after: { status: "completed", note: "Client ended the engagement" } });
+    expect((await refusal(closeCampaign(rig.deps(), rig.actor, id))).code).toBe("invalid-transition");
+  });
+
+  it("reopens a closed campaign as a draft, clears the closing time, and then needs the rule to go live again", async () => {
+    const id = await create();
+    await makeCampaignReady(rig, id);
+    await updateCampaign(rig.deps(), rig.actor, id, { status: "active" });
+    await closeCampaign(rig.deps(), rig.actor, id);
+    const reopened = await reopenCampaign(rig.deps(), rig.actor, id);
+    expect(reopened).toMatchObject({ status: "draft", closedAt: null });
+    expect((await auditRowsFor(rig, "campaign.reopen"))).toHaveLength(1);
+    expect((await refusal(reopenCampaign(rig.deps(), rig.actor, id))).code).toBe("invalid-transition");
+    expect(await updateCampaign(rig.deps(), rig.actor, id, { status: "active" })).toMatchObject({ status: "active" });
+    await deactivateCampaignHost(rig.deps(), rig.actor, { campaignId: id, memberId: await memberIdFor(rig, userIn(rig, rig.world().kestrel).id) });
+    await closeCampaign(rig.deps(), rig.actor, id);
+    await reopenCampaign(rig.deps(), rig.actor, id);
+    expect((await refusal(updateCampaign(rig.deps(), rig.actor, id, { status: "active" }))).code).toBe("no-host");
+  });
+
+  it("closes a draft without it ever running, reopens an archived one, and stamps closed_at on a pause and clears it on a resume", async () => {
+    const draft = await create();
+    expect(await closeCampaign(rig.deps(), rig.actor, draft)).toMatchObject({ status: "completed" });
+    const other = await create();
+    await updateCampaign(rig.deps(), rig.actor, other, { status: "archived" });
+    expect(await row(other)).toMatchObject({ closedAt: rig.clock.now });
+    expect(await reopenCampaign(rig.deps(), rig.actor, other)).toMatchObject({ status: "draft", closedAt: null });
+    const running = await create();
+    await makeCampaignReady(rig, running);
+    await updateCampaign(rig.deps(), rig.actor, running, { status: "active" });
+    await updateCampaign(rig.deps(), rig.actor, running, { status: "paused" });
+    expect(await row(running)).toMatchObject({ closedAt: rig.clock.now });
+    await updateCampaign(rig.deps(), rig.actor, running, { status: "active" });
+    expect(await row(running)).toMatchObject({ closedAt: null });
+  });
+
+  it("refuses staff and an unknown campaign", async () => {
+    const id = await create();
+    expect((await refusal(closeCampaign(rig.deps(), rig.staffActor, id))).code).toBe("admin-required");
+    expect((await refusal(closeCampaign(rig.deps(), rig.actor, "99999999-9999-4999-8999-999999999999"))).code).toBe("not-found");
+    expect((await refusal(reopenCampaign(rig.deps(), rig.actor, "99999999-9999-4999-8999-999999999999"))).code).toBe("not-found");
+  });
+
+  it("makes a closed campaign read only for hosts: Fynix cannot add or deactivate one, and a new agreement version is refused", async () => {
+    const id = await create();
+    await makeCampaignReady(rig, id);
+    await closeCampaign(rig.deps(), rig.actor, id);
+    const kestrelId = await memberIdFor(rig, userIn(rig, rig.world().kestrel).id);
+    expect((await refusal(deactivateCampaignHost(rig.deps(), rig.actor, { campaignId: id, memberId: kestrelId }))).code).toBe("campaign-closed");
+    expect((await refusal(addCampaignHost(rig.deps(), rig.actor, { campaignId: id, memberId: kestrelId, jobTitle: "x" }))).code).toBe("campaign-closed");
+    expect((await refusal(publishAgreement(rig.deps(), rig.actor, { campaignId: id, monthlyTarget: 1, totalTarget: 1 }))).code).toBe("campaign-closed");
   });
 });
 

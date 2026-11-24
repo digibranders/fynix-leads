@@ -1,4 +1,6 @@
 import { sql } from "drizzle-orm";
+import { sumActiveCampaigns } from "@/lib/campaign-status";
+import type { CampaignStatus } from "@/lib/domain/campaign-status";
 import type { Database } from "@/server/db/pool";
 import { campaign, campaignShare, lead } from "@/server/db/schema";
 import { withTenantScope } from "@/server/db/scope";
@@ -55,11 +57,25 @@ export interface FynixOverviewMetrics {
 }
 
 /**
+ * Every overview counts active campaigns only (lead flow decision, "Campaign status on every screen"): targets, delivered and in-progress leads
+ * of a campaign that is setting up or closed count for nothing. The active campaigns' ids, and their targets with the leads they delivered.
+ */
+function activeScope(campaigns: readonly { readonly id: string; readonly status: CampaignStatus; readonly monthlyTarget: number | null; readonly totalTarget: number | null }[], leads: readonly { readonly campaignId: string; readonly stage: string }[]) {
+  const activeIds = new Set(campaigns.filter((row) => row.status === "active").map((row) => row.id));
+  const totals = sumActiveCampaigns(
+    campaigns.map((row) => ({ status: row.status, monthlyTarget: row.monthlyTarget ?? 0, totalTarget: row.totalTarget ?? 0, delivered: leads.filter((entry) => entry.campaignId === row.id && entry.stage === "delivered").length })),
+  );
+  return { activeIds, totals };
+}
+
+/**
  * Calculates overview metrics for a client organisation.
  */
 export async function getClientOverviewMetrics(
   db: Database,
   actor: TenantActor,
+  /** One campaign to look at, for a client with several active ones; every active campaign when left out. */
+  campaignId?: string,
 ): Promise<ClientOverviewMetrics> {
   if (actor.orgKind !== "client") {
     throw new DomainError("not-authorised", "Only client actors can retrieve client overview metrics.");
@@ -75,14 +91,16 @@ export async function getClientOverviewMetrics(
       })
       .from(campaign);
 
-    const targetCount = campaigns.reduce((sum, c) => sum + (c.monthlyTarget ?? 0), 0);
-
-    const leads = await tx
+    const allLeads = await tx
       .select({
         id: lead.id,
+        campaignId: lead.campaignId,
         stage: lead.stage,
       })
       .from(lead);
+    const { activeIds, totals } = activeScope(campaignId === undefined ? campaigns : campaigns.filter((c) => c.id === campaignId), allLeads);
+    const targetCount = totals.monthlyTarget;
+    const leads = allLeads.filter((l) => activeIds.has(l.campaignId));
 
     let deliveredCount = 0;
     let awaitingClientCount = 0;
@@ -132,9 +150,7 @@ export async function getSupplierOverviewMetrics(
       })
       .from(campaign);
 
-    const supplierTarget = campaigns.reduce((sum, c) => sum + (c.monthlyTarget ?? 0), 0);
-
-    const shares = await tx
+    const allShares = await tx
       .select({
         id: campaignShare.id,
         campaignId: campaignShare.campaignId,
@@ -143,14 +159,19 @@ export async function getSupplierOverviewMetrics(
       })
       .from(campaignShare);
 
-    const leads = await tx
+    const allLeads = await tx
       .select({
         id: lead.id,
+        campaignId: lead.campaignId,
         sourceOrgId: lead.sourceOrgId,
         stage: lead.stage,
         overShare: lead.overShare,
       })
       .from(lead);
+    const { activeIds, totals } = activeScope(campaigns, allLeads);
+    const supplierTarget = totals.monthlyTarget;
+    const shares = allShares.filter((s) => activeIds.has(s.campaignId));
+    const leads = allLeads.filter((l) => activeIds.has(l.campaignId));
 
     let deliveredCount = 0;
     let awaitingClientCount = 0;
@@ -257,24 +278,36 @@ export async function getAgencyOverviewMetrics(
   }
 
   return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
-    const shares = await tx
+    const campaigns = await tx
+      .select({
+        id: campaign.id,
+        monthlyTarget: campaign.monthlyTarget,
+        totalTarget: campaign.totalTarget,
+        status: campaign.status,
+      })
+      .from(campaign);
+    const allShares = await tx
       .select({
         id: campaignShare.id,
+        campaignId: campaignShare.campaignId,
         monthlyShare: campaignShare.monthlyShare,
         agencyOrgId: campaignShare.agencyOrgId,
       })
       .from(campaignShare);
-
-    const agencyShareTarget = shares.reduce((sum, s) => sum + s.monthlyShare, 0);
-
-    const leads = await tx
+    const allLeads = await tx
       .select({
         id: lead.id,
+        campaignId: lead.campaignId,
         sourceOrgId: lead.sourceOrgId,
         stage: lead.stage,
         overShare: lead.overShare,
       })
       .from(lead);
+    const { activeIds } = activeScope(campaigns, allLeads);
+    const shares = allShares.filter((s) => activeIds.has(s.campaignId));
+    const leads = allLeads.filter((l) => activeIds.has(l.campaignId));
+
+    const agencyShareTarget = shares.reduce((sum, s) => sum + s.monthlyShare, 0);
 
     let deliveredCount = 0;
     let awaitingClientCount = 0;
@@ -326,13 +359,16 @@ export async function getFynixOverviewMetrics(
       })
       .from(campaign);
 
-    const leads = await tx
+    const allLeads = await tx
       .select({
         id: lead.id,
+        campaignId: lead.campaignId,
         stage: lead.stage,
         overShare: lead.overShare,
       })
       .from(lead);
+    const { activeIds, totals } = activeScope(campaigns, allLeads);
+    const leads = allLeads.filter((l) => activeIds.has(l.campaignId));
 
     let deliveredCount = 0;
     let awaitingClientCount = 0;
@@ -356,13 +392,10 @@ export async function getFynixOverviewMetrics(
       }
     }
 
-    const activeCampaigns = campaigns.filter((c) => c.status === "active");
-    const totalTargetCount = campaigns.reduce((sum, c) => sum + (c.monthlyTarget ?? 0), 0);
-
     return {
       totalCampaignsCount: campaigns.length,
-      activeCampaignsCount: activeCampaigns.length,
-      totalTargetCount,
+      activeCampaignsCount: totals.campaigns,
+      totalTargetCount: totals.monthlyTarget,
       deliveredCount,
       awaitingClientCount,
       scheduledCount,

@@ -3,8 +3,10 @@ import { Suspense } from "react";
 import { PageHeader } from "@/components/kit/page-header";
 import { PageSkeleton } from "@/components/kit/skeletons";
 import { PortalMeetings, MEETING_SHOWS, meetingsSummary } from "@/components/meetings/portal-meetings";
+import { parseCampaignFilter } from "@/lib/campaign-status";
 import { parsePage } from "@/lib/leads/list";
 import { getDatabase } from "@/server/db/client";
+import { listTenantCampaigns } from "@/server/domain/campaigns-tenant";
 import { listAgencyMeetings } from "@/server/domain/meetings";
 import { requireAgency } from "@/server/agency/session";
 
@@ -16,7 +18,8 @@ const EMPTY = "Meetings confirmed by clients appear here with calendar downloads
 async function Meetings({ searchParams }: { searchParams: PageProps<"/agency/meetings">["searchParams"] }) {
   const view = await requireAgency();
   const params = await searchParams;
-  const meetings = await listAgencyMeetings(getDatabase("leads_agency").db, view.actor);
+  const db = getDatabase("leads_agency").db;
+  const [meetings, campaigns] = await Promise.all([listAgencyMeetings(db, view.actor), listTenantCampaigns(db, view.actor, "agency")]);
   const now = new Date();
   return (
     <div className="flex flex-col gap-4">
@@ -30,6 +33,8 @@ async function Meetings({ searchParams }: { searchParams: PageProps<"/agency/mee
         canWrite={view.canWrite}
         now={now}
         emptyText={EMPTY}
+        campaigns={campaigns}
+        campaign={parseCampaignFilter(params.campaign, campaigns)}
       />
     </div>
   );

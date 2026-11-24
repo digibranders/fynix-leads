@@ -1,9 +1,11 @@
-import { asc, sql } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import type { Database } from "@/server/db/pool";
-import { agencyCampaignBriefColumns } from "@/server/db/columns";
+import { agencyCampaignBriefColumns, clientCampaignBriefColumns } from "@/server/db/columns";
 import { campaign, campaignShare, lead } from "@/server/db/schema";
+import { campaignBucket, notLiveReason, type CampaignBucket } from "@/lib/campaign-status";
 import { withTenantScope } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
+import { DomainError } from "@/server/domain/errors";
 
 /** One agency's line on a supplier's campaign: the monthly share it holds and what it has delivered. */
 export interface CampaignAgencyLine {
@@ -13,7 +15,7 @@ export interface CampaignAgencyLine {
   readonly delivered: number;
 }
 
-/** What a campaign looks for and how to pitch it. Suppliers and agencies read it; a client does not need it here. */
+/** What a campaign looks for and how to pitch it. The client wrote it with Fynix and reads it too (migration 0064); internal notes are never part of it. */
 export interface CampaignBrief {
   readonly geography: string;
   readonly industries: readonly string[];
@@ -47,8 +49,7 @@ export interface TenantCampaign {
   readonly share: number | null;
   /** A supplier's partner agencies on this campaign. Empty for everyone else. */
   readonly agencies: readonly CampaignAgencyLine[];
-  /** The brief, for a supplier or agency; null for a client. */
-  readonly brief: CampaignBrief | null;
+  readonly brief: CampaignBrief;
 }
 
 const NO_BRIEF: CampaignBrief = { geography: "", industries: [], companySize: "", icp: "", jobTitles: [], seniority: "", technologies: [], bantBudget: "", bantAuthority: "", bantNeed: "", bantTimeline: "", instructions: "" };
@@ -60,7 +61,7 @@ const IN_PROGRESS = new Set(["awaiting_client", "scheduled", "outcome_due", "res
  * client sees the campaigns it owns, a supplier the ones it serves, a partner agency the ones shared with it. An agency counts only
  * the leads its own organisation submitted; a client and a supplier count every lead on the campaign they can see.
  *
- * Only the columns every tenant role may read are used here: the brief (who to reach, qualification) is not granted to tenants yet.
+ * Only granted columns are used here: the brief (who to reach, qualification, instructions) is read by every tenant role, internal notes by none.
  */
 export async function listTenantCampaigns(db: Database, actor: TenantActor, view: "client" | "supplier" | "agency"): Promise<readonly TenantCampaign[]> {
   return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
@@ -80,13 +81,8 @@ export async function listTenantCampaigns(db: Database, actor: TenantActor, view
       .orderBy(asc(campaign.name));
     if (campaigns.length === 0) return [];
 
-    // The brief columns are granted to the agency role only (migration 0054), so a client never selects them.
-    const briefRows =
-      view === "client"
-        ? []
-        : await tx
-            .select({ id: campaign.id, ...agencyCampaignBriefColumns })
-            .from(campaign);
+    // The brief columns are granted to both tenant roles (migrations 0054 and 0064).
+    const briefRows = await tx.select({ id: campaign.id, ...(view === "client" ? clientCampaignBriefColumns : agencyCampaignBriefColumns) }).from(campaign);
     const briefs = new Map<string, CampaignBrief>(briefRows.map(({ id, ...rest }) => [id, rest]));
 
     // A client may not know which organisation submitted a lead (no grant on the column), so it counts by stage alone.
@@ -111,7 +107,7 @@ export async function listTenantCampaigns(db: Database, actor: TenantActor, view
         delivered: own.filter((entry) => entry.stage === "delivered").length,
         inProgress: own.filter((entry) => IN_PROGRESS.has(entry.stage)).length,
         share: view === "client" ? null : (mine.find((share) => share.agencyOrgId === actor.orgId)?.monthlyShare ?? null),
-        brief: view === "client" ? null : (briefs.get(row.id) ?? NO_BRIEF),
+        brief: briefs.get(row.id) ?? NO_BRIEF,
         agencies:
           view === "supplier"
             ? mine
@@ -125,5 +121,47 @@ export async function listTenantCampaigns(db: Database, actor: TenantActor, view
             : [],
       };
     });
+  });
+}
+
+/** The brief of one campaign the viewer sees: the client's read of its own campaign, and the coordinator's or agency's. `not-found` for any other. */
+export async function readCampaignBrief(db: Database, actor: TenantActor, campaignId: string): Promise<CampaignBrief> {
+  const columns = actor.orgKind === "client" ? clientCampaignBriefColumns : agencyCampaignBriefColumns;
+  return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
+    const [row] = await tx.select(columns).from(campaign).where(eq(campaign.id, campaignId)).limit(1);
+    if (row === undefined) throw new DomainError("not-found", "There is no such campaign.");
+    return row;
+  });
+}
+
+export interface CampaignReadiness {
+  readonly campaignId: string;
+  readonly name: string;
+  readonly status: TenantCampaign["status"];
+  readonly bucket: CampaignBucket;
+  /** Why the campaign takes no leads yet, in words that name no person; null when it is active. The lead form shows "Not live yet: " and this. */
+  readonly notLiveReason: string | null;
+}
+
+/**
+ * For an agency or coordinator: each campaign it sees with whether it takes leads and, when it does not, why (the agreement is waiting for the
+ * client or the coordinator, there is no host, Fynix has not switched it on, or it is closed). Read through `app_my_campaign_readiness`, which returns
+ * flags only: an agency cannot read acceptances or other organisations' hosts.
+ */
+export async function listCampaignReadiness(db: Database, actor: TenantActor): Promise<readonly CampaignReadiness[]> {
+  if (actor.orgKind !== "agency") throw new DomainError("not-authorised", "Only agency and coordinator members read campaign readiness.");
+  return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
+    const flags = await tx.execute<{ campaign_id: string; status: TenantCampaign["status"]; client_accepted: boolean; supplier_accepted: boolean; has_host: boolean }>(
+      sql`select campaign_id, status, client_accepted, supplier_accepted, has_host from public.app_my_campaign_readiness()`,
+    );
+    const names = new Map((await tx.select({ id: campaign.id, name: campaign.name }).from(campaign)).map((row) => [row.id, row.name]));
+    return flags.rows.map((row) => ({
+      campaignId: row.campaign_id,
+      name: names.get(row.campaign_id) ?? "Campaign",
+      status: row.status,
+      bucket: campaignBucket(row.status),
+      // `agreed` is not returned: both flags true is the same fact.
+      notLiveReason: notLiveReason({ status: row.status, agreed: row.client_accepted && row.supplier_accepted, clientAccepted: row.client_accepted, supplierAccepted: row.supplier_accepted, hasHost: row.has_host }),
+    }));
   });
 }

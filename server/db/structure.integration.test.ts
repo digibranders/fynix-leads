@@ -670,12 +670,10 @@ describe("phase 1D: what a tenant role holds on the six set-up tables", () => {
     // client_org_id and agency_org_id are readable since migrations 0037 and 0039: the lead, meeting and message policies compare them.
     const campaignColumns = await grantedColumns(dbs.owner.db, role, "campaign");
     const basics = ["id", "public_ref", "name", "client_org_id", "agency_org_id", "client_brand_name", "status", "start_date", "end_date", "monthly_target", "total_target"];
-    // Migration 0054: the agency role (suppliers and partner agencies) also reads the brief. A client does not, and nobody but Fynix
-    // reads the notes or the settings.
+    // Migrations 0054 and 0064: both tenant roles read the brief. Nobody but Fynix reads the notes or the settings.
     const brief = ["geography", "industries", "company_size", "icp", "job_titles", "seniority", "technologies", "bant_budget", "bant_authority", "bant_need", "bant_timeline", "instructions"];
-    expect([...campaignColumns].sort()).toEqual((role === "leads_agency" ? [...basics, ...brief] : basics).sort());
+    expect([...campaignColumns].sort()).toEqual([...basics, ...brief].sort());
     for (const hidden of ["time_zone", "meeting_minutes", "internal_notes"]) expect(campaignColumns).not.toContain(hidden);
-    if (role === "leads_client") for (const hidden of brief) expect(campaignColumns).not.toContain(hidden);
   });
 
   it("the Fynix role may write the new columns of organisation and campaign, which it holds table level grants on", async () => {

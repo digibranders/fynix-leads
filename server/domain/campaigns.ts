@@ -1,11 +1,13 @@
 import { eq } from "drizzle-orm";
+import { isClosed } from "@/lib/campaign-status";
 import { campaignAuditAction, canMoveCampaign, type CampaignStatus } from "@/lib/domain/campaign-status";
 import { campaign, organisation } from "@/server/db/schema";
 import type { ScopedTransaction } from "@/server/db/scope";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
 import { fynixWrite, type FynixActor } from "@/server/domain/fynix-write";
-import { createCampaignSchema, updateCampaignSchema, uuidSchema } from "@/server/domain/inputs";
+import { assertCanGoLive, readGoLiveState } from "@/server/domain/campaign-rules";
+import { closeCampaignSchema, createCampaignSchema, updateCampaignSchema, uuidSchema } from "@/server/domain/inputs";
 import { parseInput } from "@/server/domain/parse";
 import { insertWithPublicRef } from "@/server/domain/refs";
 import { snapshotCampaign, type CampaignRow } from "@/server/domain/snapshots";
@@ -17,6 +19,8 @@ export interface CampaignRecord {
   readonly status: CampaignStatus;
   readonly timeZone: string;
   readonly meetingMinutes: number;
+  /** When it last moved into a closed status; null while it is not closed. */
+  readonly closedAt: Date | null;
 }
 
 const campaignColumns = {
@@ -45,15 +49,17 @@ const campaignColumns = {
   internalNotes: campaign.internalNotes,
   timeZone: campaign.timeZone,
   meetingMinutes: campaign.meetingMinutes,
+  closedAt: campaign.closedAt,
 };
 
-const record = (row: CampaignRow & { readonly id: string; readonly status: CampaignStatus }): CampaignRecord => ({
+const record = (row: CampaignRow & { readonly id: string; readonly status: CampaignStatus; readonly closedAt: Date | null }): CampaignRecord => ({
   id: row.id,
   publicRef: row.publicRef,
   name: row.name,
   status: row.status,
   timeZone: row.timeZone,
   meetingMinutes: row.meetingMinutes,
+  closedAt: row.closedAt,
 });
 
 /**
@@ -103,12 +109,54 @@ export async function updateCampaign(deps: DomainDeps, actor: FynixActor, campai
     if (nextStatus !== before.status && !canMoveCampaign(before.status, nextStatus)) {
       throw new DomainError("invalid-transition", `A ${before.status} campaign cannot become ${nextStatus}.`);
     }
+    // The going-live rule applies to every move into active, including a resume from paused.
+    if (nextStatus === "active" && before.status !== "active") await assertCanGoLive(tx, id);
+    // Once the client and the coordinator have both accepted an agreement, its numbers are the campaign's number; a new version changes them.
+    const changesNumbers = (parsed.monthlyTarget !== undefined && parsed.monthlyTarget !== before.monthlyTarget) || (parsed.totalTarget !== undefined && parsed.totalTarget !== before.totalTarget);
+    if (changesNumbers && (await readGoLiveState(tx, id)).agreed) {
+      throw new DomainError("invalid-input", "The monthly and total numbers come from the agreement. Publish a new version of it to change them.");
+    }
     const startDate = parsed.startDate ?? before.startDate;
     const endDate = parsed.endDate ?? before.endDate;
     if (endDate < startDate) throw new DomainError("invalid-input", "endDate must not be before the start date");
-    const [after] = await tx.update(campaign).set(parsed).where(eq(campaign.id, id)).returning(campaignColumns);
+    const closedAt = isClosed(nextStatus) === isClosed(before.status) ? {} : { closedAt: isClosed(nextStatus) ? deps.now() : null };
+    const [after] = await tx.update(campaign).set({ ...parsed, ...closedAt }).where(eq(campaign.id, id)).returning(campaignColumns);
     if (after === undefined) throw new Error("The campaign update returned no row");
     await audit({ action: campaignAuditAction(before.status, after.status), subject: { table: "campaign", id, ref: after.publicRef }, before: snapshotCampaign(before), after: snapshotCampaign(after) });
+    return record(after);
+  });
+}
+
+/**
+ * Closes a campaign: its status becomes completed and `closed_at` is stamped. A closed campaign is read only (no new leads, no share or host
+ * changes, no new agreement version) and leads already submitted finish their course. A campaign that is already closed is refused.
+ */
+export async function closeCampaign(deps: DomainDeps, actor: FynixActor, campaignId: string, note?: string): Promise<CampaignRecord> {
+  const parsed = parseInput(closeCampaignSchema, { campaignId, note });
+  return fynixWrite(deps.fynixDb, actor, async ({ tx, audit }) => {
+    const [before] = await tx.select(campaignColumns).from(campaign).where(eq(campaign.id, parsed.campaignId)).limit(1).for("update");
+    if (before === undefined) throw new DomainError("not-found", "There is no such campaign.");
+    if (isClosed(before.status)) throw new DomainError("invalid-transition", "That campaign is closed already.");
+    const [after] = await tx.update(campaign).set({ status: "completed", closedAt: deps.now() }).where(eq(campaign.id, before.id)).returning(campaignColumns);
+    if (after === undefined) throw new Error("The campaign update returned no row");
+    await audit({ action: "campaign.close", subject: { table: "campaign", id: before.id, ref: after.publicRef }, before: snapshotCampaign(before), after: { ...snapshotCampaign(after), note: parsed.note } });
+    return record(after);
+  });
+}
+
+/**
+ * Reopens a closed campaign as a draft, always. Fynix then makes it active with `updateCampaign`, which applies the going-live rule again.
+ * A campaign that is not closed is refused.
+ */
+export async function reopenCampaign(deps: DomainDeps, actor: FynixActor, campaignId: string): Promise<CampaignRecord> {
+  const id = parseInput(uuidSchema, campaignId);
+  return fynixWrite(deps.fynixDb, actor, async ({ tx, audit }) => {
+    const [before] = await tx.select(campaignColumns).from(campaign).where(eq(campaign.id, id)).limit(1).for("update");
+    if (before === undefined) throw new DomainError("not-found", "There is no such campaign.");
+    if (!isClosed(before.status)) throw new DomainError("invalid-transition", "That campaign is not closed.");
+    const [after] = await tx.update(campaign).set({ status: "draft", closedAt: null }).where(eq(campaign.id, id)).returning(campaignColumns);
+    if (after === undefined) throw new Error("The campaign update returned no row");
+    await audit({ action: "campaign.reopen", subject: { table: "campaign", id, ref: after.publicRef }, before: snapshotCampaign(before), after: snapshotCampaign(after) });
     return record(after);
   });
 }

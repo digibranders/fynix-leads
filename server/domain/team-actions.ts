@@ -1,11 +1,14 @@
 "use server";
 
 import { z } from "zod";
+import { parseBlockForm } from "@/lib/fynix/block-form";
+import { parseHoursGrid } from "@/lib/fynix/hours-form";
 import type { FormState } from "@/lib/fynix/form-state";
 import { getDatabase } from "@/server/db/client";
 import { getDomain } from "@/server/domain";
 import type { TenantActor } from "@/server/domain/alias-identity";
-import { createSupplierPartnerAgencySchema, issueInviteSchema, memberDetailsSchema, ownProfileSchema, uuidSchema } from "@/server/domain/inputs";
+import { addClientHost, addOwnBlock, pauseClientHost, removeOwnBlock, setOwnHours } from "@/server/domain/hosts-tenant";
+import { createSupplierPartnerAgencySchema, issueInviteSchema, memberDetailsSchema, ownBlockSchema, ownHoursSchema, ownProfileSchema, tenantAddHostSchema, tenantHostSchema, uuidSchema } from "@/server/domain/inputs";
 import { issueTenantInvite } from "@/server/domain/invites";
 import { updateOwnMemberDetails } from "@/server/domain/members";
 import { field, runTenantForm } from "@/server/tenant/run-form";
@@ -20,6 +23,7 @@ import type { SessionContext } from "@/server/auth/session-context";
 const TENANTS = ["client", "agency"] as const;
 const EVERYONE = ["client", "agency", "fynix"] as const;
 const TEAM_PAGES = ["/client/team", "/supplier/team", "/agency/team", "/supplier/agencies", "/fynix"] as const;
+const HOST_PAGES = ["/client/hosts"] as const;
 const PROFILE_PAGES = ["/client", "/supplier", "/agency", "/fynix"] as const;
 
 function actorOf(context: SessionContext): TenantActor {
@@ -128,5 +132,95 @@ export async function updateProfileAction(_previous: FormState, formData: FormDa
       else await updateOwnProfile(dbFor(context), { orgId: context.orgId, userId: context.userId }, input);
     },
     revalidate: PROFILE_PAGES,
+  });
+}
+
+const CLOSED = { "campaign-closed": "That campaign is closed, so its hosts cannot change. Fynix can reopen it." } as const;
+
+/** A client manager makes one of the organisation's people a host of a campaign. */
+export async function addClientHostAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runTenantForm({
+    formData,
+    fieldNames: ["campaignId", "memberId", "jobTitle"],
+    kinds: ["client"],
+    build: () => ({ campaignId: field(formData, "campaignId"), memberId: field(formData, "memberId"), jobTitle: field(formData, "jobTitle") }),
+    schema: tenantAddHostSchema,
+    labels: { campaignId: "Campaign", memberId: "Person", jobTitle: "Job title" },
+    messages: { ...CLOSED, "invalid-transition": "That person is a host of this campaign already.", "not-a-client-member": "A host is an active person at your organisation." },
+    perform: async (context, input) => {
+      await addClientHost(dbFor(context), actorOf(context), input);
+    },
+    revalidate: HOST_PAGES,
+  });
+}
+
+/** A client manager pauses a host on one campaign. */
+export async function pauseClientHostAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runTenantForm({
+    formData,
+    fieldNames: [],
+    kinds: ["client"],
+    build: () => ({ campaignId: field(formData, "campaignId"), memberId: field(formData, "memberId") }),
+    schema: tenantHostSchema,
+    labels: {},
+    messages: { ...CLOSED, "invalid-transition": "That host is paused already." },
+    perform: async (context, input) => {
+      await pauseClientHost(dbFor(context), actorOf(context), input);
+    },
+    revalidate: HOST_PAGES,
+  });
+}
+
+/** A person replaces their own weekly hours. Empty days are days off. */
+export async function setOwnHoursAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  const grid = parseHoursGrid((name) => field(formData, name));
+  return runTenantForm({
+    formData,
+    fieldNames: ["timeZone"],
+    kinds: ["client"],
+    precheck: () => grid.errors,
+    build: () => ({ timeZone: field(formData, "timeZone"), hours: grid.windows }),
+    schema: ownHoursSchema,
+    labels: { timeZone: "Time zone", hours: "Hours" },
+    perform: async (context, input) => {
+      await setOwnHours(dbFor(context), actorOf(context), input);
+    },
+    revalidate: HOST_PAGES,
+  });
+}
+
+/** A person blocks a time for themselves, in the zone of their hours. */
+export async function addOwnBlockAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  const parsed = parseBlockForm((name) => field(formData, name), field(formData, "timeZone"));
+  return runTenantForm({
+    formData,
+    fieldNames: ["date", "endDate", "allDay", "start", "end", "note"],
+    kinds: ["client"],
+    precheck: () => parsed.errors,
+    build: () => ({ startsAt: parsed.startsAt, endsAt: parsed.endsAt, note: field(formData, "note") }),
+    schema: ownBlockSchema,
+    labels: { note: "Note", startsAt: "Start", endsAt: "End" },
+    perform: async (context, input) => {
+      await addOwnBlock(dbFor(context), actorOf(context), input);
+    },
+    revalidate: HOST_PAGES,
+  });
+}
+
+const blockInput = z.object({ blockId: uuidSchema }).strict();
+
+/** A person removes one of their own blocked times. */
+export async function removeOwnBlockAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runTenantForm({
+    formData,
+    fieldNames: [],
+    kinds: ["client"],
+    build: () => ({ blockId: field(formData, "blockId") }),
+    schema: blockInput,
+    labels: {},
+    perform: async (context, input) => {
+      await removeOwnBlock(dbFor(context), actorOf(context), blockInput.parse(input).blockId);
+    },
+    revalidate: HOST_PAGES,
   });
 }

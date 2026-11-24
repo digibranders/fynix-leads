@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { campaignStatusLabel, campaignStatusTone, type CampaignTone } from "@/lib/campaign-status";
 import type { CampaignStatus } from "@/lib/domain/campaign-status";
 import type { LeadStage } from "@/lib/leads/stage";
 
@@ -8,13 +9,10 @@ interface Look {
   readonly variant: Variant;
 }
 
-const CAMPAIGN: Record<CampaignStatus, Look> = {
-  draft: { label: "Draft", variant: "quiet" },
-  active: { label: "Active", variant: "green" },
-  paused: { label: "Paused", variant: "amber" },
-  completed: { label: "Completed", variant: "blue" },
-  archived: { label: "Archived", variant: "quiet" },
-};
+const CAMPAIGN_VARIANT: Record<CampaignTone, Variant> = { quiet: "quiet", green: "green", amber: "amber" };
+
+/** A campaign shows one of three words, whatever its database status: Setting up, Active or Closed (`lib/campaign-status.ts`). */
+const campaignLook = (status: CampaignStatus): Look => ({ label: campaignStatusLabel(status), variant: CAMPAIGN_VARIANT[campaignStatusTone(status)] });
 
 /** Lead stages by colour: waiting on someone is amber, booked is blue, outcome due is teal, done is green, a problem is red, ended is grey. */
 export const LEAD: Record<LeadStage, Look> = {
@@ -71,7 +69,7 @@ type Props =
 function look(props: Props): Look {
   switch (props.kind) {
     case "campaign":
-      return CAMPAIGN[props.status];
+      return campaignLook(props.status);
     case "lead":
       return LEAD[props.status];
     case "person":

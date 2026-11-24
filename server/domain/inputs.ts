@@ -98,6 +98,9 @@ export const updateCampaignSchema = z
   .refine((input) => Object.keys(input).length > 0, { message: "must change something" });
 export type UpdateCampaignInput = z.infer<typeof updateCampaignSchema>;
 
+export const closeCampaignSchema = z.object({ campaignId: z.uuid(), note: optionalText(500).default("") }).strict();
+export type CloseCampaignInput = z.input<typeof closeCampaignSchema>;
+
 export const publishTermsSchema = z.object({ party: z.enum(["client", "agency", "fynix"]), title: name(160), body: name(60_000) }).strict();
 export type PublishTermsInput = z.infer<typeof publishTermsSchema>;
 
@@ -141,7 +144,6 @@ export type CreatePartnerAgencyInput = z.infer<typeof createPartnerAgencySchema>
 export const publishAgreementSchema = z
   .object({
     campaignId: z.uuid(),
-    party: z.enum(["client", "supplier"]),
     monthlyTarget: count,
     totalTarget: count,
     /** How long after a meeting the client may dispute it. */
@@ -191,13 +193,38 @@ export type AddHostBlockInput = z.input<typeof addHostBlockSchema>;
 
 export const createAliasIdentitySchema = z
   .object({
-    clientBrandName: name(100),
+    /** The client the alias is for, chosen from the clients of the campaigns the agency sees. */
+    clientOrgId: z.uuid(),
     displayName: name(100),
     jobTitle: name(100),
     aliasEmail: z.string().trim().email("must be a valid email address").toLowerCase(),
   })
   .strict();
 export type CreateAliasIdentityInput = z.infer<typeof createAliasIdentitySchema>;
+
+/** Editing an alias changes its client, name or title; the mailbox stays, because a new mailbox would need a new code. */
+export const updateAliasIdentitySchema = z
+  .object({ publicRef: z.string().trim().regex(/^ALI-[0-9A-HJKMNP-TV-Z]{4}$/, "must be an ALI reference"), clientOrgId: z.uuid().optional(), displayName: name(100).optional(), jobTitle: name(100).optional() })
+  .strict()
+  .refine((input) => input.clientOrgId !== undefined || input.displayName !== undefined || input.jobTitle !== undefined, { message: "must change something" });
+export type UpdateAliasIdentityInput = z.infer<typeof updateAliasIdentitySchema>;
+
+export const retireAliasIdentitySchema = z.object({ publicRef: z.string().trim().regex(/^ALI-[0-9A-HJKMNP-TV-Z]{4}$/, "must be an ALI reference") }).strict();
+export type RetireAliasIdentityInput = z.infer<typeof retireAliasIdentitySchema>;
+
+/** A client manager adds a host from its own organisation's people, or pauses one. */
+export const tenantHostSchema = z.object({ campaignId: z.uuid(), memberId: z.uuid() }).strict();
+export const tenantAddHostSchema = z.object({ campaignId: z.uuid(), memberId: z.uuid(), jobTitle: name(120) }).strict();
+export type TenantAddHostInput = z.input<typeof tenantAddHostSchema>;
+
+/** A host's own weekly hours and a blocked time. The person is the signed-in member, so no member id is taken. */
+export const ownHoursSchema = z.object({ timeZone: timeZoneSchema, hours: z.array(hoursWindow).max(70, "must have at most 70 windows") }).strict();
+export type OwnHoursInput = z.input<typeof ownHoursSchema>;
+export const ownBlockSchema = z
+  .object({ startsAt: instant, endsAt: instant, note: optionalText(500).default("") })
+  .strict()
+  .refine((input) => input.endsAt.getTime() > input.startsAt.getTime(), { path: ["endsAt"], message: "must be after the start", when: (payload) => payload.issues.length === 0 });
+export type OwnBlockInput = z.input<typeof ownBlockSchema>;
 
 export const verifyAliasCodeSchema = z
   .object({

@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/kit/page-header";
 import { PageSkeleton } from "@/components/kit/skeletons";
 import { SourceLeadsView } from "@/components/leads/source-leads-view";
 import { buttonVariants } from "@/components/ui/button";
+import { parseCampaignFilter } from "@/lib/campaign-status";
 import { parsePage } from "@/lib/leads/list";
 import { parseGroup } from "@/lib/leads/pipeline";
 import { getDatabase } from "@/server/db/client";
@@ -47,6 +48,8 @@ async function Leads({ searchParams }: { searchParams: PageProps<"/supplier/lead
         page={parsePage(params.page)}
         ownOrgId={view.actor.orgId}
         campaigns={Object.fromEntries(campaigns.map((row) => [row.id, { name: row.name, brand: row.clientBrandName }]))}
+        campaignChoices={campaigns}
+        campaign={parseCampaignFilter(params.campaign, campaigns)}
         aliasNames={Object.fromEntries(aliases.map((alias) => [alias.id, alias.displayName]))}
       />
     </div>
