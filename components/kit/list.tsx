@@ -29,7 +29,7 @@ export function ListRow({
   highlight?: boolean;
 }) {
   return (
-    <li className={cn("flex items-center gap-3 px-3 py-2.5", highlight && "mx-2 rounded-md bg-selected")}>
+    <li className={cn("relative flex items-center gap-3 px-3 py-2.5", highlight && "mx-2 rounded-md bg-selected")}>
       {leading}
       <span className="min-w-0 flex-1 leading-tight">
         <span className="block truncate font-semibold">{title}</span>

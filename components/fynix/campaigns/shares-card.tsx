@@ -2,6 +2,7 @@ import { Info, UsersThree, Warning } from "@phosphor-icons/react/dist/ssr";
 import { Notice } from "@/components/auth/notice";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { capitalise, formatDayMonth, monthName } from "@/lib/fynix/format";
+import { monthInZone } from "@/lib/time/zones";
 import type { AgreementsPage } from "@/server/domain/campaign-overview";
 import { EmptyState } from "@/components/kit/empty-state";
 import { Panel, PanelHeader } from "@/components/kit/panel";
@@ -25,6 +26,7 @@ function overSentence(total: number, target: number): string {
 export function SharesCard({ page, campaignId, supplierName, timeZone, now, canWrite }: Props) {
   const { shares, summary, options } = page;
   const month = capitalise(monthName(now, timeZone));
+  const monthKey = monthInZone(now, timeZone);
   const addButton = canWrite && options.length > 0 ? <AddShareButton campaignId={campaignId} options={options} /> : null;
 
   return (
@@ -51,7 +53,7 @@ export function SharesCard({ page, campaignId, supplierName, timeZone, now, canW
             <TableRow className="hover:[&>th]:bg-navy-04">
               <TableHead>Agency</TableHead>
               <TableHead className="text-right">Monthly share</TableHead>
-              <TableHead className="text-right max-md:hidden">Delivered in {month}</TableHead>
+              <TableHead className="text-right max-md:hidden">Accepted in {month}</TableHead>
               <TableHead className="max-md:hidden">Last changed</TableHead>
               <TableHead className="text-right">
                 <span className="sr-only">Actions</span>
@@ -67,7 +69,7 @@ export function SharesCard({ page, campaignId, supplierName, timeZone, now, canW
                 </TableCell>
                 <TableCell className="text-right">{row.monthlyShare}</TableCell>
                 <TableCell className="text-right max-md:hidden">
-                  <span className="text-ink-muted">Not counted yet</span>
+                  {row.countedByMonth[monthKey] ?? 0}
                 </TableCell>
                 <TableCell className="text-ink-muted max-md:hidden">
                   {row.changedBy === null ? formatDayMonth(row.updatedAt, timeZone) : `${row.changedBy}, Fynix, ${formatDayMonth(row.updatedAt, timeZone)}`}

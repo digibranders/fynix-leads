@@ -231,6 +231,16 @@ export const PROBES: readonly Probe[] = [
   { name: "write: accept the agreement for the other side", statement: "insert into agreement_acceptance (agreement_id, user_id, network_address, side) values (gen_random_uuid(), gen_random_uuid(), 'x', 'supplier')", expectedError: /row-level security|violates foreign key|permission denied/, roles: ["leads_client"] },
   { name: "write: change an alias's client to anyone", statement: "update alias_identity set client_org_id = gen_random_uuid()", expectedError: DENIED_TABLE, roles: ["leads_client"] },
   { name: "aliases: verification code hash", statement: "select verification_code_hash from alias_identity", expectedError: DENIED_TABLE },
+  // Phase 3: the client decides after the meeting. The supply side sees the note as from the client, never the person; nobody forges an answer.
+  { name: "lead: the person who decided, as the coordinator or an agency", statement: "select decision_by_user_id from lead", expectedError: DENIED_TABLE, roles: ["leads_agency"] },
+  { name: "write: forge a decision as the coordinator or an agency", statement: "update lead set decision_note = 'x', decision_source = 'client'", expectedError: DENIED_TABLE, roles: ["leads_agency"] },
+  { name: "lead: the organisation that sent it, as a client", statement: "select source_org_id from lead", expectedError: DENIED_TABLE, roles: ["leads_client"] },
+  { name: "meeting: the person who recorded the outcome", statement: "select recorded_by_user_id from meeting", expectedError: DENIED_TABLE },
+  { name: "lead reminders", statement: "select * from lead_reminder", expectedError: DENIED_TABLE },
+  { name: "write: stamp a reminder as sent", statement: "update lead_reminder set sent_at = now()", expectedError: DENIED_TABLE },
+  { name: "the sweep, as a tenant", statement: "select * from app_sweep_leads(now())", expectedError: /permission denied for function app_sweep_leads/ },
+  { name: "the due reminders, as a tenant", statement: "select * from app_due_lead_reminders(now())", expectedError: /permission denied for function app_due_lead_reminders/ },
+  { name: "the alias of a lead, as an agency", statement: "select * from app_lead_alias_name(gen_random_uuid())", expectedError: /permission denied for function app_lead_alias_name/, roles: ["leads_agency"] },
 ];
 
 /**

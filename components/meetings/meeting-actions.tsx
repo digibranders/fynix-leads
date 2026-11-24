@@ -1,17 +1,11 @@
 "use client";
 
-import { CalendarPlus, CircleNotch, VideoCamera, WarningCircle } from "@phosphor-icons/react";
-import { useActionState, useEffect, useId, useState } from "react";
-import { toast } from "sonner";
+import { CalendarPlus, VideoCamera } from "@phosphor-icons/react";
+import { FormSheet } from "@/components/fynix/forms/form-sheet";
+import { RecordOutcomeForm } from "@/components/leads/lead-forms";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Choice } from "@/components/ui/choice";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Hint } from "@/components/ui/hint";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { generateIcsCalendar } from "@/lib/meetings/ics";
-import { IDLE_TENANT_ACTION } from "@/lib/tenant/action-state";
-import { recordMeetingOutcomeAction } from "@/server/domain/meeting-actions";
 
 export interface MeetingItemData {
   readonly id: string;
@@ -25,6 +19,8 @@ export interface MeetingItemData {
   readonly durationMinutes: number;
   readonly outcome: string;
   readonly notes?: string | null;
+  /** The stage of the lead the meeting belongs to, when the list reads it. */
+  readonly leadStage?: string;
 }
 
 /** A calendar file for one meeting. The file carries the Meet link only when there is one: a link is never invented. */
@@ -67,66 +63,19 @@ export function JoinMeetButton({ url }: { readonly url: string | null }) {
   );
 }
 
-const OUTCOMES = [
-  { value: "held", label: "Held (meeting completed)" },
-  { value: "client_no_show", label: "Client no-show" },
-  { value: "prospect_no_show", label: "Prospect no-show" },
-] as const;
-
-/** Records how a call went. A dialog, because it needs words and cannot be undone. */
-export function RecordMeetingOutcomeModal({ meetingId, prospectName }: { readonly meetingId: string; readonly prospectName?: string }) {
-  const [open, setOpen] = useState(false);
-  const [outcome, setOutcome] = useState<string>("held");
-  const [state, formAction, pending] = useActionState(recordMeetingOutcomeAction, IDLE_TENANT_ACTION);
-  const selectId = useId();
-  const notesId = useId();
-
-  useEffect(() => {
-    if (state.status === "success") {
-      toast.success(state.message ?? "Outcome recorded.");
-    }
-  }, [state]);
-
+/** Records how a call went, in a sheet. `side` picks the action: Fynix has its own, which is audited. */
+export function RecordMeetingOutcomeModal({ meetingId, prospectName, side = "tenant" }: { readonly meetingId: string; readonly prospectName?: string; readonly side?: "tenant" | "fynix" }) {
   return (
-    <>
-      <Button type="button" variant="default" size="xs" onClick={() => setOpen(true)} aria-label={prospectName === undefined ? "Record outcome" : `Record the outcome for ${prospectName}`}>
-        Record outcome
-      </Button>
-      <Dialog open={open && state.status !== "success"} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
-          <form action={formAction} noValidate className="grid gap-4">
-            <input type="hidden" name="meetingId" value={meetingId} />
-            <input type="hidden" name="outcome" value={outcome} />
-            <DialogHeader>
-              <DialogTitle>Record the outcome</DialogTitle>
-              <DialogDescription>Say how the call went. This is final once saved.</DialogDescription>
-            </DialogHeader>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor={selectId}>Meeting outcome</Label>
-              <Choice id={selectId} value={outcome} onValueChange={setOutcome} options={OUTCOMES} />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor={notesId}>Notes (optional)</Label>
-              <Textarea id={notesId} name="notes" rows={3} placeholder="Add context for Fynix" />
-            </div>
-            {state.status === "error" ? (
-              <p role="alert" className="flex items-start gap-2 rounded-sm bg-red-soft px-3.5 py-3 text-table text-red-text">
-                <WarningCircle aria-hidden size={18} weight="fill" className="mt-px shrink-0" />
-                {state.message ?? "Could not record the outcome."}
-              </p>
-            ) : null}
-            <DialogFooter>
-              <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={pending} aria-busy={pending}>
-                {pending ? <CircleNotch aria-hidden className="motion-safe:animate-spin" /> : null}
-                Save outcome
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </>
+    <FormSheet
+      trigger={
+        <Button type="button" variant="default" size="xs" aria-label={prospectName === undefined ? "Record outcome" : `Record the outcome for ${prospectName}`}>
+          Record outcome
+        </Button>
+      }
+      title="Record the outcome"
+      description={prospectName === undefined ? "Say how the meeting went." : `How did the meeting with ${prospectName} go?`}
+    >
+      <RecordOutcomeForm meetingId={meetingId} side={side} />
+    </FormSheet>
   );
 }

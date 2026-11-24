@@ -27,6 +27,22 @@ describe("lead stages", () => {
     expect(canTransitionLead("disputed", "delivered")).toBe(true);
   });
 
+  it("follows the client-decides flow", () => {
+    expect(canTransitionLead("scheduled", "declined")).toBe(true);
+    expect(canTransitionLead("scheduled", "awaiting_decision")).toBe(true);
+    expect(canTransitionLead("awaiting_decision", "accepted")).toBe(true);
+    expect(canTransitionLead("awaiting_decision", "rejected")).toBe(true);
+    expect(canTransitionLead("rejected", "accepted")).toBe(true);
+    expect(canTransitionLead("awaiting_client", "accepted")).toBe(false);
+    expect(canTransitionLead("scheduled", "accepted")).toBe(false);
+    expect(canTransitionLead("accepted", "rejected")).toBe(false);
+  });
+
+  it("reads the old counted stage as Accepted", () => {
+    expect(leadStageLabel("delivered")).toBe("Accepted");
+    expect(leadStageLabel("accepted")).toBe("Accepted");
+  });
+
   it("refuses invalid stage transitions", () => {
     expect(canTransitionLead("draft", "delivered")).toBe(false);
     expect(canTransitionLead("declined", "awaiting_client")).toBe(false);

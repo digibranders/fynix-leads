@@ -17,6 +17,7 @@ export * from "./alias-identity";
 export * from "./exclusion";
 export * from "./lead";
 export * from "./lead-history";
+export * from "./lead-reminder";
 export * from "./meeting";
 export * from "./messaging";
 export * from "./client-profile";

@@ -25,7 +25,8 @@ async function Meetings({ params, searchParams }: { params: PageProps<"/fynix/ca
       show={MEETING_SHOWS.find((entry) => entry.key === one(query.show))?.key ?? null}
       q={one(query.q) ?? ""}
       page={parsePage(query.page)}
-      canWrite={false}
+      canWrite
+      outcomeSide="fynix"
       now={new Date()}
       emptyText="Meetings for this campaign appear here once a client accepts a time."
     />

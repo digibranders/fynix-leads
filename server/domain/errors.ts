@@ -35,7 +35,8 @@ export type DomainErrorCode =
   | "agreement-not-accepted"
   | "no-host"
   | "campaign-closed"
-  | "agreement-unused";
+  | "agreement-unused"
+  | "outcome-already-recorded";
 
 export class DomainError extends Error {
   constructor(

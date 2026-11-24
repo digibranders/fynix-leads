@@ -88,7 +88,7 @@ export function CampaignsView({ campaigns, portal, basePath, tab = DEFAULT_CAMPA
                 <Facts
                   className="sm:grid-cols-3"
                   items={[
-                    ["Delivered", row.delivered],
+                    ["Accepted so far", row.delivered],
                     ["In progress", row.inProgress],
                     [portal === "agency" ? "Your monthly share" : "Monthly target", portal === "agency" ? (row.share ?? 0) : row.monthlyTarget],
                   ]}
@@ -97,10 +97,10 @@ export function CampaignsView({ campaigns, portal, basePath, tab = DEFAULT_CAMPA
                 {portal !== "agency" ? (
                   <div className="flex flex-col gap-1.5">
                     <div className="flex items-center justify-between gap-3 text-label text-ink-2">
-                      <span>Delivered against the total target of {row.totalTarget}</span>
+                      <span>Accepted against the total target of {row.totalTarget}</span>
                       <span className="font-semibold text-ink">{ofTotal}%</span>
                     </div>
-                    <Meter value={row.delivered} max={row.totalTarget} label={`${row.name}: ${ofTotal}% of the total target delivered`} />
+                    <Meter value={row.delivered} max={row.totalTarget} label={`${row.name}: ${ofTotal}% of the total target accepted`} />
                   </div>
                 ) : null}
 
@@ -118,7 +118,7 @@ export function CampaignsView({ campaigns, portal, basePath, tab = DEFAULT_CAMPA
                         <span className="truncate text-ink-2">{agency.name}</span>
                         <span className="flex shrink-0 items-center gap-1">
                           <span className="font-semibold text-ink">
-                            {agency.monthlyShare} a month, {agency.delivered} delivered
+                            {agency.monthlyShare} a month, {agency.delivered} accepted
                           </span>
                           {canAssign ? <TakeBackButton campaignId={row.id} campaignName={row.name} agencyOrgId={agency.agencyOrgId} agencyName={agency.name} /> : null}
                         </span>

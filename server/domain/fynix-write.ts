@@ -71,3 +71,12 @@ export async function fynixSelfWrite<T>(db: Database, actor: FynixActor, work: (
     return work({ tx, actorMemberId: active.id, audit: (entry) => appendAudit(tx, entry) });
   });
 }
+
+/**
+ * A Fynix change to the work tables (leads, meetings, their history), which any active Fynix member may make, staff as well as admins: staff work
+ * leads, meetings and rejections (lead flow decision, "Fynix roles"). It is `fynixWrite` without the admin rule and for nothing else: those tables
+ * carry the audit trigger but not the admin trigger (migration 0029 left them out), so the database agrees. The callback still has to audit.
+ */
+export async function fynixWorkWrite<T>(db: Database, actor: FynixActor, work: (write: FynixWrite) => Promise<T>): Promise<T> {
+  return fynixSelfWrite(db, actor, work);
+}

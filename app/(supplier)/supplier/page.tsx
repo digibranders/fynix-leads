@@ -61,7 +61,7 @@ async function Overview() {
         }
         aside={
           <>
-            <p className="text-label font-semibold text-peach">Delivered, active campaigns</p>
+            <p className="text-label font-semibold text-peach">Accepted so far, active campaigns</p>
             <p className="text-display font-semibold tracking-figure">{metrics.deliveredCount}</p>
             <p className="text-body text-on-navy-text">{metrics.supplierTarget > 0 ? `Monthly target, active campaigns: ${metrics.supplierTarget} a month` : "No active campaign has a monthly target."}</p>
           </>
@@ -71,7 +71,7 @@ async function Overview() {
       <div className="grid gap-4 sm:grid-cols-3">
         <MiniStat label="Awaiting client" value={metrics.awaitingClientCount} foot="Prospects pending a client response" tone="amber" />
         <MiniStat label="Over share" value={metrics.overShareCount} foot={metrics.overShareCount > 0 ? "Submitted above an allocated share" : "None above a share"} />
-        <MiniStat label="Active disputes" value={metrics.disputedCount} foot={metrics.disputedCount > 0 ? "Under review by Fynix" : "None open"} tone="red" />
+        <MiniStat label="Awaiting decision" value={counts.decision} foot={counts.decision > 0 ? "Meeting held, the client has not answered" : "None waiting"} />
       </div>
 
       {leads.length > 0 ? (
@@ -109,10 +109,10 @@ async function Overview() {
                 <ListRow
                   key={item.agencyOrgId}
                   title={item.agencyOrgId === view.actor.orgId ? "Your own team" : item.agencyName}
-                  sub={`${item.awaitingClientCount} awaiting, ${item.overShareCount} over share, ${item.disputedCount} disputed`}
+                  sub={`${item.awaitingClientCount} awaiting, ${item.overShareCount} over share`}
                   trailing={
                     <span className="text-right text-body text-ink-muted">
-                      <b className="font-semibold text-ink">{item.deliveredCount}</b> delivered, share {item.shareTarget} a month
+                      <b className="font-semibold text-ink">{item.deliveredCount}</b> accepted, share {item.shareTarget} a month
                     </span>
                   }
                 />
@@ -139,7 +139,7 @@ async function Overview() {
               {latest.map((lead) => (
                 <ListRow
                   key={lead.id}
-                  title={<Person name={lead.prospectName} sub={lead.prospectCompany} />}
+                  title={<Person name={lead.prospectName} href={`/supplier/leads/${lead.publicRef}`} sub={lead.prospectCompany} />}
                   trailing={<StatusChip kind="lead" status={lead.stage as LeadStage} size="sm" />}
                 />
               ))}

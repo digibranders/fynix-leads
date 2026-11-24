@@ -9,7 +9,9 @@ const FORBIDDEN: Record<"organisation" | "campaign", readonly string[]> = {
 };
 
 const CLIENT_LEAD_FORBIDDEN = ["source_org_id", "submitted_by_user_id", "alias_identity_id", "over_share", "duplicate_override"];
-const TENANT_MEETING_FORBIDDEN = ["recorded_by_user_id", "recorded_at"];
+const TENANT_MEETING_FORBIDDEN = ["recorded_by_user_id"];
+/** The person who decided a lead is the client's alone: the coordinator and the agencies see the note as from "Client". */
+const AGENCY_LEAD_FORBIDDEN = ["decision_by_user_id", "submitted_by_user_id"];
 const CLIENT_CONVERSATION_FORBIDDEN = ["supplier_org_id", "agency_org_id"];
 const AGENCY_CONVERSATION_FORBIDDEN = ["client_org_id"];
 const TENANT_MESSAGE_FORBIDDEN = ["sender_org_id"];
@@ -31,6 +33,12 @@ describe.each(TENANT_ROLES)("%s column lists", (role: TenantRoleName) => {
   it("client lead columns never expose coordinator or agency identities", () => {
     const names = columnNames(TENANT_COLUMNS.leads_client.lead);
     expect(names.filter((name) => CLIENT_LEAD_FORBIDDEN.includes(name))).toEqual([]);
+  });
+
+  it("agency lead columns never expose the person who decided", () => {
+    const names = columnNames(TENANT_COLUMNS.leads_agency.lead);
+    expect(names.filter((name) => AGENCY_LEAD_FORBIDDEN.includes(name))).toEqual([]);
+    expect(names).toEqual(expect.arrayContaining(["decision_note", "decision_source", "decision_at", "outcome_recorded_at"]));
   });
 
   it("tenant meeting columns never expose internal audit fields", () => {

@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { sumActiveCampaigns } from "@/lib/campaign-status";
 import type { CampaignStatus } from "@/lib/domain/campaign-status";
+import { isCountedStage } from "@/lib/domain/counting-month";
 import type { Database } from "@/server/db/pool";
 import { campaign, campaignShare, lead } from "@/server/db/schema";
 import { withTenantScope } from "@/server/db/scope";
@@ -63,7 +64,7 @@ export interface FynixOverviewMetrics {
 function activeScope(campaigns: readonly { readonly id: string; readonly status: CampaignStatus; readonly monthlyTarget: number | null; readonly totalTarget: number | null }[], leads: readonly { readonly campaignId: string; readonly stage: string }[]) {
   const activeIds = new Set(campaigns.filter((row) => row.status === "active").map((row) => row.id));
   const totals = sumActiveCampaigns(
-    campaigns.map((row) => ({ status: row.status, monthlyTarget: row.monthlyTarget ?? 0, totalTarget: row.totalTarget ?? 0, delivered: leads.filter((entry) => entry.campaignId === row.id && entry.stage === "delivered").length })),
+    campaigns.map((row) => ({ status: row.status, monthlyTarget: row.monthlyTarget ?? 0, totalTarget: row.totalTarget ?? 0, delivered: leads.filter((entry) => entry.campaignId === row.id && isCountedStage(entry.stage)).length })),
   );
   return { activeIds, totals };
 }
@@ -108,7 +109,7 @@ export async function getClientOverviewMetrics(
     let disputedCount = 0;
 
     for (const l of leads) {
-      if (l.stage === "delivered") {
+      if (isCountedStage(l.stage)) {
         deliveredCount++;
       } else if (l.stage === "awaiting_client") {
         awaitingClientCount++;
@@ -202,7 +203,7 @@ export async function getSupplierOverviewMetrics(
     }
 
     for (const l of leads) {
-      if (l.stage === "delivered") {
+      if (isCountedStage(l.stage)) {
         deliveredCount++;
       } else if (l.stage === "awaiting_client") {
         awaitingClientCount++;
@@ -222,7 +223,7 @@ export async function getSupplierOverviewMetrics(
         disputedCount: 0,
       };
 
-      if (l.stage === "delivered") {
+      if (isCountedStage(l.stage)) {
         existing.deliveredCount++;
       } else if (l.stage === "awaiting_client") {
         existing.awaitingClientCount++;
@@ -319,7 +320,7 @@ export async function getAgencyOverviewMetrics(
         continue;
       }
 
-      if (l.stage === "delivered") {
+      if (isCountedStage(l.stage)) {
         deliveredCount++;
       } else if (l.stage === "awaiting_client") {
         awaitingClientCount++;
@@ -377,7 +378,7 @@ export async function getFynixOverviewMetrics(
     let overShareCount = 0;
 
     for (const l of leads) {
-      if (l.stage === "delivered") {
+      if (isCountedStage(l.stage)) {
         deliveredCount++;
       } else if (l.stage === "awaiting_client") {
         awaitingClientCount++;

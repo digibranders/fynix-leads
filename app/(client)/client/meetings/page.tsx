@@ -109,7 +109,7 @@ async function Meetings({ searchParams }: { searchParams: PageProps<"/client/mee
               Clear the search or pick another stage to see more.
             </EmptyState>
           ) : (
-            <MeetingsTable meetings={page.rows} canWrite={view.canWrite} now={now} closedCampaigns={closedCampaignIds(campaigns)} />
+            <MeetingsTable meetings={page.rows} canWrite={view.canWrite} now={now} closedCampaigns={closedCampaignIds(campaigns)} leadsPath="/client/leads" />
           )}
           <Pager
             from={page.from}

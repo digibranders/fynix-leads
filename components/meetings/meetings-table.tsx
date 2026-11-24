@@ -31,7 +31,25 @@ function Stage({ meeting, group }: { readonly meeting: MeetingRow; readonly grou
  * The meetings of one portal as a table. On a phone the campaign column goes and the time moves under the prospect's name; the stage
  * and the actions always stay. The next meeting to happen carries the selected wash.
  */
-export function MeetingsTable({ meetings, canWrite, showBrand = false, now, closedCampaigns }: { readonly meetings: readonly MeetingRow[]; readonly canWrite: boolean; readonly showBrand?: boolean; readonly now: Date; readonly closedCampaigns?: ReadonlySet<string> }) {
+export function MeetingsTable({
+  meetings,
+  canWrite,
+  showBrand = false,
+  now,
+  closedCampaigns,
+  leadsPath,
+  outcomeSide = "tenant",
+}: {
+  readonly meetings: readonly MeetingRow[];
+  readonly canWrite: boolean;
+  readonly showBrand?: boolean;
+  readonly now: Date;
+  readonly closedCampaigns?: ReadonlySet<string>;
+  /** The leads list of the portal; a meeting's prospect links to the lead record under it. */
+  readonly leadsPath?: string;
+  /** Whose action records an outcome: a tenant's own, or Fynix's. */
+  readonly outcomeSide?: "tenant" | "fynix";
+}) {
   const next = meetings
     .filter((meeting) => meetingGroup(meeting, now) === "upcoming")
     .reduce<MeetingRow | null>((soonest, meeting) => (soonest === null || new Date(meeting.scheduledStartTime) < new Date(soonest.scheduledStartTime) ? meeting : soonest), null);
@@ -55,8 +73,8 @@ export function MeetingsTable({ meetings, canWrite, showBrand = false, now, clos
             const group = meetingGroup(item, now);
             const closed = item.campaignId !== undefined && closedCampaigns?.has(item.campaignId) === true;
             const actions = (
-              <>
-                {group === "due" && canWrite ? <RecordMeetingOutcomeModal meetingId={item.id} prospectName={item.prospectName} /> : null}
+              <span className="relative inline-flex flex-wrap items-center justify-end gap-1.5">
+                {group === "due" && canWrite ? <RecordMeetingOutcomeModal meetingId={item.id} prospectName={item.prospectName} side={outcomeSide} /> : null}
                 {group !== "done" ? <JoinMeetButton url={item.googleMeetUrl} /> : null}
                 {group !== "done" ? <DownloadIcsButton
                     meeting={{
@@ -71,13 +89,14 @@ export function MeetingsTable({ meetings, canWrite, showBrand = false, now, clos
                       outcome: item.outcome,
                     }}
                   /> : null}
-              </>
+              </span>
             );
             return (
-              <TableRow key={item.id} data-state={item === next ? "selected" : undefined}>
+              <TableRow key={item.id} data-state={item === next ? "selected" : undefined} className="relative">
                 <TableCell className="max-md:py-3">
                   <Person
                     name={item.prospectName}
+                    href={leadsPath === undefined ? undefined : `${leadsPath}/${item.leadRef}`}
                     sub={
                       <>
                         <span className="xl:hidden">
@@ -90,6 +109,7 @@ export function MeetingsTable({ meetings, canWrite, showBrand = false, now, clos
                   <span className="mt-1.5 flex max-w-[calc(100vw-8rem)] flex-wrap items-center gap-1.5 whitespace-normal md:hidden">
                     <Stage meeting={item} group={group} />
                     {closed ? <ClosedTag /> : null}
+                    {item.leadStage === "prospect_no_show" ? <span className="text-caption text-ink-muted">Closed, no further action</span> : null}
                     {actions}
                   </span>
                 </TableCell>
@@ -116,10 +136,11 @@ export function MeetingsTable({ meetings, canWrite, showBrand = false, now, clos
                     <Stage meeting={item} group={group} />
                     {closed ? <span className="xl:hidden"><ClosedTag /></span> : null}
                   </span>
+                  {item.leadStage === "prospect_no_show" ? <span className="mt-0.5 block text-caption text-ink-muted">Closed, no further action</span> : null}
                   {group === "done" && item.notes ? <span className="mt-0.5 block max-w-[22ch] truncate text-caption text-ink-muted max-md:hidden">{item.notes}</span> : null}
                 </TableCell>
                 <TableCell className="text-right max-md:hidden">
-                  <span className="inline-flex items-center justify-end gap-1.5">{actions}</span>
+                  {actions}
                 </TableCell>
               </TableRow>
             );

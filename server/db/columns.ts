@@ -67,7 +67,7 @@ export const agencyCampaignBriefColumns = {
 /** Since migration 0064 a client reads the brief of its own campaigns too: it wrote it with Fynix. Same columns as the agency's. */
 export const clientCampaignBriefColumns = agencyCampaignBriefColumns;
 
-export const clientLeadColumns = {
+const sharedLeadColumns = {
   id: lead.id,
   publicRef: lead.publicRef,
   campaignId: lead.campaignId,
@@ -96,10 +96,17 @@ export const clientLeadColumns = {
   closedAt: lead.closedAt,
   createdAt: lead.createdAt,
   updatedAt: lead.updatedAt,
+  // The client's answer after the meeting (migration 0066). `decisionBy` is a person, so only the client reads it.
+  outcomeRecordedAt: lead.outcomeRecordedAt,
+  decisionNote: lead.decisionNote,
+  decisionAt: lead.decisionAt,
+  decisionSource: lead.decisionSource,
 } as const;
 
+export const clientLeadColumns = { ...sharedLeadColumns, decisionByUserId: lead.decisionByUserId } as const;
+
 export const agencyLeadColumns = {
-  ...clientLeadColumns,
+  ...sharedLeadColumns,
   sourceOrgId: lead.sourceOrgId,
   aliasIdentityId: lead.aliasIdentityId,
   overShare: lead.overShare,
@@ -118,6 +125,8 @@ export const clientMeetingColumns = {
   outcome: meeting.outcome,
   notes: meeting.notes,
   heldAt: meeting.heldAt,
+  recordedAt: meeting.recordedAt,
+  recordedByRole: meeting.recordedByRole,
   createdAt: meeting.createdAt,
   updatedAt: meeting.updatedAt,
 } as const;

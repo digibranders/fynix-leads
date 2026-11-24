@@ -62,7 +62,7 @@ async function Overview() {
         }
         aside={
           <>
-            <p className="text-label font-semibold text-peach">Delivered, active campaigns</p>
+            <p className="text-label font-semibold text-peach">Accepted so far, active campaigns</p>
             <p className="text-display font-semibold tracking-figure">{metrics.deliveredCount}</p>
             <p className="text-body text-on-navy-text">{metrics.agencyShareTarget > 0 ? `Your monthly share, active campaigns: ${metrics.agencyShareTarget} a month` : "No active campaign has a share for you."}</p>
           </>
@@ -72,7 +72,7 @@ async function Overview() {
       <div className="grid gap-4 sm:grid-cols-3">
         <MiniStat label="Awaiting response" value={metrics.awaitingClientCount} foot="Prospects pending client review" tone="amber" />
         <MiniStat label="Over share" value={metrics.overShareCount} foot={metrics.overShareCount > 0 ? "Submitted beyond your share" : "None beyond your share"} />
-        <MiniStat label="Disputes" value={metrics.disputedCount} foot={metrics.disputedCount > 0 ? "Under review by Fynix" : "None open"} tone="red" />
+        <MiniStat label="Awaiting decision" value={counts.decision} foot={counts.decision > 0 ? "Meeting held, the client has not answered" : "None waiting"} />
       </div>
 
       {leads.length > 0 ? (
@@ -110,7 +110,7 @@ async function Overview() {
             {latest.map((lead) => (
               <ListRow
                 key={lead.id}
-                title={<Person name={lead.prospectName} sub={`${lead.prospectCompany}, ${lead.publicRef}`} />}
+                title={<Person name={lead.prospectName} href={`/agency/leads/${lead.publicRef}`} sub={`${lead.prospectCompany}, ${lead.publicRef}`} />}
                 trailing={
                   <span className="flex items-center gap-3">
                     <span className="text-caption max-sm:hidden">

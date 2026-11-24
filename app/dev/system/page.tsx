@@ -284,11 +284,11 @@ export default function DesignSystemPage() {
               }
               aside={
                 <>
-                  <p className="text-label font-semibold text-peach">Delivered this month</p>
+                  <p className="text-label font-semibold text-peach">Accepted this month</p>
                   <p className="text-display font-semibold tracking-figure">
                     31<span className="text-[20px] font-medium tracking-normal text-on-navy-muted"> / 50</span>
                   </p>
-                  <Meter onNavy value={31} max={50} label="Delivered against target" />
+                  <Meter onNavy value={31} max={50} label="Accepted against target" />
                   <p className="text-body text-on-navy-text">19 to go</p>
                 </>
               }

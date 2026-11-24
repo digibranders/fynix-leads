@@ -55,11 +55,15 @@ Both run from the checkout with the production environment loaded. Use a systemd
 |---|---|---|---|
 | Send queued email | `pnpm outbox:run` | every minute | Sends invites and reset links, retries failures, purges links older than a day |
 | Purge rate limits | `pnpm ratelimit:purge` | daily | Removes windows for keys that never return |
+| Lead sweep | `pnpm leads:sweep` | every 5 minutes | Accepts every lead the client left unanswered for 48 hours after the meeting (decision source `auto`, note "Accepted automatically after 48 hours with no answer"), so it counts as one. It needs only `DATABASE_URL_AUTH`, sends no email and is safe to run twice |
 
 ```cron
 * * * * *  cd /srv/fynix-leads && pnpm outbox:run >> /var/log/fynix-leads/outbox.log 2>&1
 17 3 * * * cd /srv/fynix-leads && pnpm ratelimit:purge >> /var/log/fynix-leads/purge.log 2>&1
+*/5 * * * * cd /srv/fynix-leads && pnpm leads:sweep >> /var/log/fynix-leads/leads-sweep.log 2>&1
 ```
+
+The lead sweep also has systemd unit templates in `docs/ops/` (`leads-sweep.service` and `leads-sweep.timer`, every five minutes). They are templates: the live units belong in the `vps-setup` repository under `fynix/leads/`, next to the outbox timer, and must be added there before the merge to `main` that ships the new lead flow. Until then no lead is accepted automatically. The sweep also lists the reminders to the client that are due (12, 24 and 36 hours after the outcome); nothing sends them until phase 5 (notice in the app) and phase 6 (email).
 
 ## First deploy order
 

@@ -118,9 +118,9 @@ export function SourceLeadsView(props: SourceLeadsViewProps) {
                 {page.rows.map((lead) => {
                   const campaign = props.campaigns[lead.campaignId];
                   return (
-                    <TableRow key={lead.id}>
+                    <TableRow key={lead.id} className="relative">
                       <TableCell>
-                        <Person name={lead.prospectName} sub={<span className="font-mono">{lead.publicRef}</span>} />
+                        <Person name={lead.prospectName} href={`${basePath}/${lead.publicRef}`} sub={<span className="font-mono">{lead.publicRef}</span>} />
                       </TableCell>
                       <TableCell className="max-md:hidden">
                         <span className="block leading-tight">

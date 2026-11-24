@@ -21,7 +21,7 @@ export interface NavItem {
   readonly label: string;
   readonly icon: NavIcon;
   readonly href: string;
-  /** Looks up a live count (waiting leads, open disputes) in the counts the layout passes. */
+  /** Looks up a live count (waiting leads, rejections) in the counts the layout passes. */
   readonly countKey?: string;
 }
 
@@ -127,7 +127,7 @@ export const PORTALS: Record<PortalKind, PortalConfig> = {
     kind: "fynix",
     label: "Fynix team",
     homeHref: "/fynix",
-    mobileTabs: ["/fynix", "/fynix/leads", "/fynix/inbox", "/fynix/disputes"],
+    mobileTabs: ["/fynix", "/fynix/leads", "/fynix/inbox", "/fynix/rejections"],
     groups: [
       {
         label: "Work",
@@ -136,7 +136,7 @@ export const PORTALS: Record<PortalKind, PortalConfig> = {
           { label: "Leads", icon: "table", href: "/fynix/leads" },
           { label: "Meetings", icon: "calendar", href: "/fynix/meetings" },
           { label: "Inbox", icon: "chats", href: "/fynix/inbox" },
-          { label: "Disputes", icon: "scales", href: "/fynix/disputes", countKey: "disputes" },
+          { label: "Rejections", icon: "scales", href: "/fynix/rejections", countKey: "rejections" },
         ],
       },
       {

@@ -4,6 +4,7 @@ import {
   notInArray,
   sql,
 } from "drizzle-orm";
+import { lateRejectionCounts } from "@/lib/domain/counting-month";
 import { extractDomainFromEmail, normaliseDomain, normaliseLinkedinUrl } from "@/lib/leads/normalize";
 import { type LeadStage } from "@/lib/leads/stage";
 import { agencyLeadColumns, clientLeadColumns } from "@/server/db/columns";
@@ -22,10 +23,12 @@ import { withTenantScope } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
-import { fynixWrite, type FynixActor } from "@/server/domain/fynix-write";
+import { fynixWorkWrite, fynixWrite, type FynixActor } from "@/server/domain/fynix-write";
 import {
   clientReviewLeadSchema,
+  decideLeadSchema,
   disputeLeadSchema,
+  overturnRejectionSchema,
   resolveDisputeSchema,
   submitLeadSchema,
 } from "@/server/domain/inputs";
@@ -282,6 +285,7 @@ export async function clientReviewLead(
         campaignId: lead.campaignId,
         hostMemberId: lead.hostMemberId,
         publicRef: lead.publicRef,
+        scheduledMeetingTime: lead.scheduledMeetingTime,
       })
       .from(lead)
       .innerJoin(campaign, eq(lead.campaignId, campaign.id))
@@ -292,8 +296,11 @@ export async function clientReviewLead(
       throw new DomainError("not-found", "There is no such lead.");
     }
 
-    if (leadRow.stage !== "awaiting_client") {
-      throw new DomainError("invalid-lead-stage", "Lead is not awaiting client response.");
+    // The client may reject at any time before the meeting: while it picks a time and once a time is booked. Picking a time and
+    // proposing others are for a lead that still waits for it.
+    const canReject = leadRow.stage === "awaiting_client" || leadRow.stage === "scheduled";
+    if (parsed.action === "decline" ? !canReject : leadRow.stage !== "awaiting_client") {
+      throw new DomainError("invalid-lead-stage", parsed.action === "decline" ? "A lead can be rejected before its meeting only." : "Lead is not awaiting client response.");
     }
 
     const now = deps.now();
@@ -375,28 +382,154 @@ export async function clientReviewLead(
       return updated;
     }
 
-    // decline
+    // Reject before the meeting, with a required note. It counts zero, whenever it is made (see `lateRejectionCounts`).
+    const note = parsed.declineReason!;
     const [updated] = await tx
       .update(lead)
       .set({
         stage: "declined",
-        declineReason: parsed.declineReason!,
+        declineReason: note,
+        decisionNote: note,
+        decisionAt: now,
+        decisionByUserId: actor.userId,
+        decisionSource: "client",
         closedAt: now,
         updatedAt: now,
       })
       .where(eq(lead.id, parsed.leadId))
       .returning(clientLeadColumns);
 
+    // A booked meeting will not happen.
+    if (leadRow.stage === "scheduled") {
+      await tx.update(meeting).set({ outcome: "cancelled", updatedAt: now }).where(and(eq(meeting.leadId, leadRow.id), eq(meeting.outcome, "scheduled")));
+    }
+
     await tx.insert(leadHistory).values({
       leadId: leadRow.id,
       actorUserId: actor.userId,
       actorRole: "client",
       action: "lead.decline",
-      fromStage: "awaiting_client",
+      fromStage: leadRow.stage,
       toStage: "declined",
-      note: parsed.declineReason!,
-      snapshot: { declineReason: parsed.declineReason },
+      note,
+      snapshot: {
+        declineReason: note,
+        ...(leadRow.scheduledMeetingTime === null ? {} : { countsAsOne: lateRejectionCounts(leadRow.scheduledMeetingTime, now) }),
+      },
       createdAt: now,
+    });
+
+    return updated;
+  });
+}
+
+/**
+ * The client's answer after the meeting: accept or reject, with a required note both ways. Accepted counts one (`delivered_at` is the
+ * counted-at moment), rejected counts zero and closes the lead. Only a lead in `awaiting_decision` can be answered; the 48 hour sweep and a
+ * person pressing at once cannot both win, because the update names the stage it expects.
+ */
+export async function decideLead(
+  db: Database,
+  deps: Pick<DomainDeps, "now">,
+  actor: TenantActor,
+  input: unknown,
+) {
+  if (actor.orgKind !== "client") {
+    throw new DomainError("not-authorised", "Only client members can accept or reject a lead.");
+  }
+  const parsed = parseInput(decideLeadSchema, input);
+
+  return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
+    const [leadRow] = await tx
+      .select({ id: lead.id, stage: lead.stage })
+      .from(lead)
+      .innerJoin(campaign, eq(lead.campaignId, campaign.id))
+      .where(and(eq(lead.id, parsed.leadId), eq(campaign.clientOrgId, actor.orgId)))
+      .limit(1);
+    if (leadRow === undefined) throw new DomainError("not-found", "There is no such lead.");
+    if (leadRow.stage !== "awaiting_decision") throw new DomainError("invalid-lead-stage", "Only a lead whose meeting has been held can be accepted or rejected.");
+
+    const now = deps.now();
+    const accepted = parsed.decision === "accept";
+    const nextStage: LeadStage = accepted ? "accepted" : "rejected";
+    const [updated] = await tx
+      .update(lead)
+      .set({
+        stage: nextStage,
+        decisionNote: parsed.note,
+        decisionAt: now,
+        decisionByUserId: actor.userId,
+        decisionSource: "client",
+        deliveredAt: accepted ? now : null,
+        closedAt: accepted ? null : now,
+        updatedAt: now,
+      })
+      .where(and(eq(lead.id, leadRow.id), eq(lead.stage, "awaiting_decision")))
+      .returning(clientLeadColumns);
+    if (updated === undefined) throw new DomainError("invalid-lead-stage", "This lead has been answered already.");
+
+    await tx.insert(leadHistory).values({
+      leadId: leadRow.id,
+      actorUserId: actor.userId,
+      actorRole: "client",
+      action: accepted ? "lead.decide_accept" : "lead.decide_reject",
+      fromStage: "awaiting_decision",
+      toStage: nextStage,
+      note: parsed.note,
+      snapshot: { decision: parsed.decision },
+      createdAt: now,
+    });
+
+    return updated;
+  });
+}
+
+/**
+ * Fynix changes a rejection to accepted, with its own note, within any time. The lead counts one, in the month of its meeting. The client's
+ * note stays in the lead's history; the lead now carries Fynix's. Open to admin and staff, with an audit row.
+ */
+export async function fynixOverturnRejection(db: Database, deps: Pick<DomainDeps, "now">, actor: FynixActor, input: unknown) {
+  const parsed = parseInput(overturnRejectionSchema, input);
+
+  return fynixWorkWrite(db, actor, async ({ tx, audit }) => {
+    const [leadRow] = await tx.select({ id: lead.id, publicRef: lead.publicRef, stage: lead.stage }).from(lead).where(eq(lead.id, parsed.leadId)).limit(1);
+    if (leadRow === undefined) throw new DomainError("not-found", "There is no such lead.");
+    if (leadRow.stage !== "rejected") throw new DomainError("invalid-lead-stage", "Only a lead the client rejected after the meeting can be changed to accepted.");
+
+    const now = deps.now();
+    const [updated] = await tx
+      .update(lead)
+      .set({
+        stage: "accepted",
+        decisionNote: parsed.note,
+        decisionAt: now,
+        decisionByUserId: actor.userId,
+        decisionSource: "fynix",
+        deliveredAt: now,
+        closedAt: null,
+        updatedAt: now,
+      })
+      .where(and(eq(lead.id, leadRow.id), eq(lead.stage, "rejected")))
+      .returning({ id: lead.id, publicRef: lead.publicRef, stage: lead.stage, decisionNote: lead.decisionNote, decisionSource: lead.decisionSource, updatedAt: lead.updatedAt });
+    if (updated === undefined) throw new DomainError("invalid-lead-stage", "This lead was changed by someone else. Refresh the page.");
+
+    await tx.insert(leadHistory).values({
+      leadId: leadRow.id,
+      actorUserId: actor.userId,
+      actorRole: "fynix",
+      action: "lead.overturn_rejection",
+      fromStage: "rejected",
+      toStage: "accepted",
+      note: parsed.note,
+      snapshot: { decision: "overturned" },
+      createdAt: now,
+    });
+
+    await audit({
+      action: "lead.overturn_rejection",
+      subject: { table: "lead", id: leadRow.id, ref: leadRow.publicRef },
+      before: { stage: "rejected" },
+      after: { stage: "accepted", decisionSource: "fynix" },
     });
 
     return updated;

@@ -1,0 +1,13 @@
+# Template, like leads-sweep.service: runs it every five minutes. Persistent catches up after downtime, and a repeated run changes nothing.
+[Unit]
+Description=Fynix leads: run the 48 hour sweep every five minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=30s
+Persistent=true
+Unit=leads-sweep.service
+
+[Install]
+WantedBy=timers.target

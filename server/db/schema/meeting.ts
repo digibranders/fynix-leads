@@ -33,6 +33,8 @@ export const meeting = pgTable(
     heldAt: timestamp("held_at", { withTimezone: true }),
     recordedAt: timestamp("recorded_at", { withTimezone: true }),
     recordedByUserId: uuid("recorded_by_user_id"),
+    // Which side recorded the outcome first: the client, an agency, the coordinator (the agency with no parent) or Fynix. Never a person's name.
+    recordedByRole: text("recorded_by_role"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -58,6 +60,7 @@ export const meeting = pgTable(
       columns: [table.recordedByUserId],
       foreignColumns: [user.id],
     }).onDelete("cascade"),
+    check("meeting_recorded_by_role_check", sql`${table.recordedByRole} IS NULL OR ${table.recordedByRole} IN ('client', 'agency', 'coordinator', 'fynix')`),
     check("meeting_public_ref_format", sql`${table.publicRef} ~ '^MTG-[0-9A-HJKMNP-TV-Z]{4}$'`),
     check(
       "meeting_outcome_check",

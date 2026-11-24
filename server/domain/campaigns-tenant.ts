@@ -2,6 +2,7 @@ import { asc, eq, sql } from "drizzle-orm";
 import type { Database } from "@/server/db/pool";
 import { agencyCampaignBriefColumns, clientCampaignBriefColumns } from "@/server/db/columns";
 import { campaign, campaignShare, lead } from "@/server/db/schema";
+import { isCountedStage } from "@/lib/domain/counting-month";
 import { campaignBucket, notLiveReason, type CampaignBucket } from "@/lib/campaign-status";
 import { withTenantScope } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
@@ -54,7 +55,7 @@ export interface TenantCampaign {
 
 const NO_BRIEF: CampaignBrief = { geography: "", industries: [], companySize: "", icp: "", jobTitles: [], seniority: "", technologies: [], bantBudget: "", bantAuthority: "", bantNeed: "", bantTimeline: "", instructions: "" };
 
-const IN_PROGRESS = new Set(["awaiting_client", "scheduled", "outcome_due", "reschedule_needed", "held"]);
+const IN_PROGRESS = new Set(["awaiting_client", "scheduled", "outcome_due", "reschedule_needed", "held", "awaiting_decision"]);
 
 /**
  * The campaigns the organisation can see, with how each is going. What is visible is the database's call (row-level security): a
@@ -104,7 +105,7 @@ export async function listTenantCampaigns(db: Database, actor: TenantActor, view
       const mine = shares.filter((share) => share.campaignId === row.id);
       return {
         ...row,
-        delivered: own.filter((entry) => entry.stage === "delivered").length,
+        delivered: own.filter((entry) => isCountedStage(entry.stage)).length,
         inProgress: own.filter((entry) => IN_PROGRESS.has(entry.stage)).length,
         share: view === "client" ? null : (mine.find((share) => share.agencyOrgId === actor.orgId)?.monthlyShare ?? null),
         brief: briefs.get(row.id) ?? NO_BRIEF,
@@ -116,7 +117,7 @@ export async function listTenantCampaigns(db: Database, actor: TenantActor, view
                   agencyOrgId: share.agencyOrgId,
                   name: names.get(share.agencyOrgId) ?? "Partner agency",
                   monthlyShare: share.monthlyShare,
-                  delivered: leads.filter((entry) => entry.campaignId === row.id && entry.sourceOrgId === share.agencyOrgId && entry.stage === "delivered").length,
+                  delivered: leads.filter((entry) => entry.campaignId === row.id && entry.sourceOrgId === share.agencyOrgId && isCountedStage(entry.stage)).length,
                 }))
             : [],
       };

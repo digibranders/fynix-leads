@@ -23,7 +23,7 @@ async function Leads({ searchParams }: { searchParams: PageProps<"/fynix/leads">
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title="Leads" description="Qualified leads across all campaigns, from submission to delivery." />
+      <PageHeader title="Leads" description="Qualified leads across all campaigns, from submission to acceptance." />
       <FynixLeadsView
         leads={all}
         basePath="/fynix/leads"

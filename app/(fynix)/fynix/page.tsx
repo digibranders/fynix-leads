@@ -20,6 +20,7 @@ import { checklistItems } from "@/lib/fynix/setup-checklist";
 import { readSetupFindings } from "@/server/domain/setup-overview";
 import { getFynixOverviewMetrics } from "@/server/domain/analytics";
 import { listCampaignRows } from "@/server/domain/campaign-overview";
+import { listRejections } from "@/server/domain/rejection-overview";
 import { listFynixLeads } from "@/server/domain/leads";
 import { requireFynix } from "@/server/fynix/session";
 
@@ -28,33 +29,34 @@ export const metadata: Metadata = { title: "Overview" };
 async function Overview() {
   const view = await requireFynix();
   const deps = getDomain();
-  const [metrics, campaigns, allLeads, findings] = await Promise.all([
+  const [metrics, campaigns, allLeads, findings, rejectionRows] = await Promise.all([
     getFynixOverviewMetrics(deps.fynixDb, view.actor),
     listCampaignRows(deps, view.actor),
     listFynixLeads(getDatabase("leads_fynix").db, view.actor),
     readSetupFindings(deps, view.actor),
+    listRejections(deps, view.actor),
   ]);
   const active = campaigns.filter((row) => row.status === "active");
   // An overview is about active campaigns: the stage bar and the latest leads leave out the rest.
   const activeIds = new Set(active.map((row) => row.id));
   const leads = allLeads.filter((lead) => activeIds.has(lead.campaignId));
   const counts = countByGroup(leads);
-  const disputed = metrics.disputedCount;
+  const rejected = rejectionRows.length;
   const waiting = metrics.awaitingClientCount;
 
-  const kicker = disputed > 0 ? "Needs a decision" : waiting > 0 ? "Waiting on clients" : "All clear";
+  const kicker = rejected > 0 ? "Needs a decision" : waiting > 0 ? "Waiting on clients" : "All clear";
   const title =
-    disputed > 0
-      ? `${disputed} ${disputed === 1 ? "dispute is" : "disputes are"} waiting for Fynix`
+    rejected > 0
+      ? `${rejected} ${rejected === 1 ? "rejection is" : "rejections are"} waiting for Fynix to read`
       : waiting > 0
         ? `${waiting} ${waiting === 1 ? "lead is" : "leads are"} waiting for a client`
         : "Nothing needs Fynix right now";
   const description =
-    disputed > 0
-      ? `A client disputed a delivered lead and the decision is open.${waiting > 0 ? ` ${waiting} more ${waiting === 1 ? "lead is" : "leads are"} waiting on a client.` : ""}`
+    rejected > 0
+      ? `A client rejected a lead after the meeting. Fynix can change it to accepted.${waiting > 0 ? ` ${waiting} more ${waiting === 1 ? "lead is" : "leads are"} waiting on a client.` : ""}`
       : waiting > 0
-        ? "These leads are not yet accepted or declined."
-        : "No disputes are open and no lead is waiting on a client.";
+        ? "These leads are not yet accepted or rejected."
+        : "No rejection is waiting and no lead is waiting on a client.";
 
   return (
     <div className="flex flex-col gap-4">
@@ -75,10 +77,10 @@ async function Overview() {
         title={title}
         description={description}
         actions={
-          disputed > 0 ? (
-            <Link href="/fynix/disputes" className={buttonVariants({ variant: "peach", size: "lg" })}>
+          rejected > 0 ? (
+            <Link href="/fynix/rejections" className={buttonVariants({ variant: "peach", size: "lg" })}>
               <Scales aria-hidden weight="bold" />
-              {view.canWrite ? "Decide disputes" : "View disputes"}
+              View rejections
             </Link>
           ) : waiting > 0 ? (
             <Link href="/fynix/leads?stage=awaiting" className={buttonVariants({ variant: "peach", size: "lg" })}>
@@ -88,7 +90,7 @@ async function Overview() {
         }
         aside={
           <>
-            <p className="text-label font-semibold text-peach">Delivered, active campaigns</p>
+            <p className="text-label font-semibold text-peach">Accepted so far, active campaigns</p>
             <p className="text-display font-semibold tracking-figure">{metrics.deliveredCount}</p>
             <p className="text-body text-on-navy-text">{metrics.totalTargetCount > 0 ? `Combined monthly target, active campaigns: ${metrics.totalTargetCount} a month` : "No active campaign has a monthly target."}</p>
           </>
@@ -100,7 +102,7 @@ async function Overview() {
           <MiniStat label="Active campaigns" value={metrics.activeCampaignsCount} foot={`of ${metrics.totalCampaignsCount} in all`} className="h-full" />
         </Link>
         <Link href="/fynix/leads?stage=awaiting" className="block rounded-lg">
-          <MiniStat label="Waiting on a client" value={waiting} foot="Not yet accepted or declined" className="h-full" />
+          <MiniStat label="Waiting on a client" value={waiting} foot="Not yet accepted or rejected" className="h-full" />
         </Link>
         <Link href="/fynix/meetings" className="block rounded-lg">
           <MiniStat label="Meetings booked" value={metrics.scheduledCount} foot="Scheduled, not yet held" className="h-full" />
