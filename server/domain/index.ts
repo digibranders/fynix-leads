@@ -6,8 +6,10 @@ import { getDatabase } from "@/server/db/client";
 import type { DomainDeps } from "@/server/domain/deps";
 import { getEnv } from "@/server/env";
 import { brevoTransport } from "@/server/mail/brevo";
+import { launchEmailsEnabled, senderFromEnv } from "@/server/mail/launch";
 import { drainOutbox, type DrainResult } from "@/server/mail/outbox";
 import type { MailTransport } from "@/server/mail/transport";
+import { meetProviderFromEnv } from "@/server/meet";
 
 /**
  * The domain services' dependencies for the running app: the three pools they use, the real clock and randomness, the origin
@@ -29,6 +31,8 @@ export function getDomain(): DomainDeps {
     origin: env.APP_ORIGIN,
     // Gate G2: on an https deployment nobody is invited while a party's terms are still placeholder text.
     allowPlaceholderTerms: new URL(env.APP_ORIGIN).protocol !== "https:",
+    // `none` unless MEET_PROVIDER says google: the app makes no room and calls no one by default.
+    meet: meetProviderFromEnv(),
     authFactory: (db) =>
       createAuth({
         db,
@@ -46,7 +50,7 @@ export function getDomain(): DomainDeps {
 /** The Brevo transport, or `null` when no key is set (development): then queued messages stay in the outbox. */
 export function getMailTransport(): MailTransport | null {
   const { BREVO_API_KEY } = getEnv();
-  return BREVO_API_KEY === undefined ? null : brevoTransport({ apiKey: BREVO_API_KEY });
+  return BREVO_API_KEY === undefined ? null : brevoTransport({ apiKey: BREVO_API_KEY, sender: senderFromEnv() });
 }
 
 /**
@@ -55,5 +59,5 @@ export function getMailTransport(): MailTransport | null {
  * a delivery problem: those are recorded on the message and retried.
  */
 export function sendQueuedMail(): Promise<DrainResult> {
-  return drainOutbox(getDomain().authDb, getMailTransport(), { origin: getEnv().APP_ORIGIN });
+  return drainOutbox(getDomain().authDb, getMailTransport(), { origin: getEnv().APP_ORIGIN, launchEmails: launchEmailsEnabled(), sender: senderFromEnv() });
 }

@@ -1,4 +1,7 @@
-import { escapeHtml, safeHref } from "./escape";
+import { buttonHtml, LINK_REMOVED_TEXT, paragraphHtml, shellHtml } from "./design";
+import { isLaunchTemplate, isProspectTemplate, LAUNCH_TEMPLATES, parseLaunchContent, renderLaunchEmail, type LaunchContent } from "./launch-templates";
+
+export { LINK_REMOVED_TEXT };
 
 /**
  * The messages the app sends. A template is a pure function from content to text and HTML: it escapes every value it
@@ -9,7 +12,7 @@ import { escapeHtml, safeHref } from "./escape";
  * own column that is cleared once the message is sent, so `renderEmail(content, null)` is the copy that stays in the
  * table: it says the link is not kept.
  */
-export const EMAIL_TEMPLATES = ["password_reset", "invite", "alias_code"] as const;
+export const EMAIL_TEMPLATES = ["password_reset", "invite", "alias_code", ...LAUNCH_TEMPLATES] as const;
 export type EmailTemplate = (typeof EMAIL_TEMPLATES)[number];
 
 export interface PasswordResetParams {
@@ -34,7 +37,16 @@ export interface AliasCodeParams {
 export type EmailContent =
   | { readonly template: "password_reset"; readonly params: PasswordResetParams }
   | { readonly template: "invite"; readonly params: InviteParams }
-  | { readonly template: "alias_code"; readonly params: AliasCodeParams };
+  | { readonly template: "alias_code"; readonly params: AliasCodeParams }
+  | LaunchContent;
+
+/**
+ * Whether a template carries a link. The account emails that act through a link (password reset, invite) and the emails to people of the portal need one (the
+ * outbox refuses to send them without a link on the application's origin). A prospect letter has none: it carries a Meet link in its body instead, checked when
+ * the content is read back. The alias code has none either: it is a code to type, queued without a link by `app_queue_alias_code_mail`.
+ */
+export type LinkRule = "required" | "none";
+export const linkRuleFor = (template: EmailTemplate): LinkRule => (isProspectTemplate(template) || template === "alias_code" ? "none" : "required");
 
 export interface RenderedEmail {
   readonly subject: string;
@@ -42,8 +54,6 @@ export interface RenderedEmail {
   readonly html: string;
 }
 
-/** What the stored copy says in place of the link. */
-export const LINK_REMOVED_TEXT = "The link is removed from this copy once the message has been sent.";
 
 interface Layout {
   readonly subject: string;
@@ -54,7 +64,7 @@ interface Layout {
   readonly closing: string;
 }
 
-function layoutFor(content: EmailContent): Layout {
+function layoutFor(content: Extract<EmailContent, { readonly template: "password_reset" | "invite" | "alias_code" }>): Layout {
   if (content.template === "password_reset") {
     return {
       subject: "Reset your Fynix Leads password",
@@ -82,21 +92,21 @@ function layoutFor(content: EmailContent): Layout {
   };
 }
 
-const HTML_FONT = "font-family:Helvetica,Arial,sans-serif;font-size:15px;line-height:1.55;color:#0c1e2e;";
-
 function renderHtml(layout: Layout, link: string | null): string {
-  const paragraph = (text: string): string => `<p style="margin:0 0 16px 0;">${escapeHtml(text)}</p>`;
   const action =
     layout.linkIntro === ""
       ? ""
       : link === null
-      ? `${paragraph(layout.linkIntro)}${paragraph(LINK_REMOVED_TEXT)}`
-      : `${paragraph(layout.linkIntro)}<p style="margin:0 0 16px 0;"><a href="${safeHref(link)}" style="display:inline-block;padding:10px 20px;border-radius:999px;background:#0c1e2e;color:#ffffff;text-decoration:none;">${escapeHtml(layout.linkLabel)}</a></p><p style="margin:0 0 16px 0;word-break:break-all;">${escapeHtml(link)}</p>`;
-  return `<!doctype html><html lang="en"><body style="margin:0;padding:24px;background:#f4f1ee;${HTML_FONT}"><div style="max-width:520px;margin:0 auto;padding:28px;border-radius:22px;background:#ffffff;">${layout.paragraphs.map(paragraph).join("")}${action}${paragraph(layout.closing)}<p style="margin:0;color:#5b6b78;">Fynix Digital</p></div></body></html>`;
+      ? `${paragraphHtml(layout.linkIntro)}${paragraphHtml(LINK_REMOVED_TEXT)}`
+      : `${paragraphHtml(layout.linkIntro)}${buttonHtml(layout.linkLabel, link)}`;
+  return shellHtml(`${layout.paragraphs.map(paragraphHtml).join("")}${action}${paragraphHtml(layout.closing)}`, "Fynix Digital");
 }
+
+const isLaunchContent = (content: EmailContent): content is LaunchContent => isLaunchTemplate(content.template);
 
 /** The subject, plain text and HTML of a message. With `link` null the text and HTML say the link is not kept. */
 export function renderEmail(content: EmailContent, link: string | null): RenderedEmail {
+  if (isLaunchContent(content)) return renderLaunchEmail(content, link);
   const layout = layoutFor(content);
   const text = (layout.linkIntro === "" ? [...layout.paragraphs, "", layout.closing] : [...layout.paragraphs, "", layout.linkIntro, link ?? LINK_REMOVED_TEXT, "", layout.closing]).join("\n");
   return { subject: layout.subject, text, html: renderHtml(layout, link) };
@@ -109,6 +119,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /** Reads the `template` and `params` columns back into typed content, or throws. Anything else in the table is not trusted to be well formed. */
 export function parseEmailContent(template: string, params: unknown): EmailContent {
   if (!isRecord(params)) throw new Error("An email's params must be an object.");
+  if (isLaunchTemplate(template)) return parseLaunchContent(template, params);
   if (template === "password_reset") {
     const minutes = params.expiresInMinutes;
     if (typeof minutes !== "number" || !Number.isInteger(minutes) || minutes < 1) throw new Error("password_reset needs a whole number of minutes.");

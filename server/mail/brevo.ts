@@ -1,13 +1,15 @@
 import type { MailTransport, OutgoingMail, SendResult } from "@/server/mail/transport";
 
-/** The sender every message goes out from: the address verified in Brevo (decision D4). */
-export const MAIL_SENDER = { email: "hello@fynix.digital", name: "Fynix" } as const;
+/** The sender every message goes out from until `MAIL_SENDER_ADDRESS` is set: the address verified in Brevo (decision D4). */
+export const MAIL_SENDER: { readonly email: string; readonly name: string } = { email: "hello@fynix.digital", name: "Fynix" };
 export const BREVO_SEND_URL = "https://api.brevo.com/v3/smtp/email";
 const DEFAULT_TIMEOUT_MS = 10_000;
 
 export interface BrevoOptions {
   /** The API key. It is only ever put in the `api-key` header: never in a log line, an error, a reason or a URL. */
   readonly apiKey: string;
+  /** The address and default display name every message is sent from. Unset means the default above. */
+  readonly sender?: { readonly email: string; readonly name: string };
   /** Injectable so tests never reach the network. */
   readonly fetch?: typeof fetch;
   readonly timeoutMs?: number;
@@ -39,6 +41,7 @@ async function errorCode(response: Response): Promise<string> {
  */
 export function brevoTransport(options: BrevoOptions): MailTransport {
   const send = options.fetch ?? fetch;
+  const sender = options.sender ?? MAIL_SENDER;
   return {
     async send(mail: OutgoingMail): Promise<SendResult> {
       let response: Response;
@@ -46,7 +49,15 @@ export function brevoTransport(options: BrevoOptions): MailTransport {
         response = await send(BREVO_SEND_URL, {
           method: "POST",
           headers: { "api-key": options.apiKey, "content-type": "application/json", accept: "application/json" },
-          body: JSON.stringify({ sender: MAIL_SENDER, to: [{ email: mail.to }], subject: mail.subject, textContent: mail.text, htmlContent: mail.html }),
+          body: JSON.stringify({
+            sender: mail.fromName === undefined ? sender : { email: sender.email, name: mail.fromName },
+            to: [{ email: mail.to }],
+            subject: mail.subject,
+            textContent: mail.text,
+            htmlContent: mail.html,
+            ...(mail.replyTo === undefined ? {} : { replyTo: { email: mail.replyTo } }),
+            ...(mail.attachments === undefined || mail.attachments.length === 0 ? {} : { attachment: mail.attachments.map((file) => ({ name: file.name, content: file.contentBase64 })) }),
+          }),
           signal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_TIMEOUT_MS),
         });
       } catch (error) {

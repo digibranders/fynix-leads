@@ -119,3 +119,28 @@ describe(".env.example", () => {
     expect(lines.every((line) => line.endsWith("="))).toBe(true);
   });
 });
+
+describe("the phase 6 switches", () => {
+  it("are all optional, and the app starts with none of them set", () => {
+    const environment = completeEnvironment();
+    for (const name of ["LAUNCH_EMAILS_ENABLED", "MAIL_SENDER_ADDRESS", "MAIL_SENDER_NAME", "MEET_PROVIDER", "GOOGLE_MEET_CLIENT_ID", "GOOGLE_MEET_CLIENT_SECRET", "GOOGLE_MEET_REFRESH_TOKEN"]) expect(environment[name]).toBeUndefined();
+    expect(describeEnvProblems(environment, runtimeEnvSchema)).toEqual([]);
+    expect(describeEnvProblems({ ...environment, LAUNCH_EMAILS_ENABLED: "false", MEET_PROVIDER: "none" }, runtimeEnvSchema)).toEqual([]);
+  });
+
+  it("refuse the launch emails without a neutral sender address, and one that names Fynix", () => {
+    const environment = { ...completeEnvironment(), LAUNCH_EMAILS_ENABLED: "true" };
+    expect(describeEnvProblems(environment, runtimeEnvSchema)).toEqual(["MAIL_SENDER_ADDRESS: missing"]);
+    expect(describeEnvProblems({ ...environment, MAIL_SENDER_ADDRESS: "hello@fynix.digital" }, runtimeEnvSchema)).toEqual([expect.stringMatching(/^MAIL_SENDER_ADDRESS: invalid, .*may name Fynix/)]);
+    expect(describeEnvProblems({ ...environment, MAIL_SENDER_ADDRESS: "meetings@neutral.example", MAIL_SENDER_NAME: "Fynix Meetings" }, runtimeEnvSchema)).toHaveLength(1);
+    expect(describeEnvProblems({ ...environment, MAIL_SENDER_ADDRESS: "meetings@neutral.example", MAIL_SENDER_NAME: "Meetings" }, runtimeEnvSchema)).toEqual([]);
+  });
+
+  it("refuse google rooms without the three Google variables, and values that are not one of the words", () => {
+    const environment = { ...completeEnvironment(), MEET_PROVIDER: "google" };
+    expect(describeEnvProblems(environment, runtimeEnvSchema)).toEqual([expect.stringMatching(/^MEET_PROVIDER: invalid, .*GOOGLE_MEET_CLIENT_ID/)]);
+    expect(describeEnvProblems({ ...environment, GOOGLE_MEET_CLIENT_ID: "client-id-0123", GOOGLE_MEET_CLIENT_SECRET: "client-secret-0123", GOOGLE_MEET_REFRESH_TOKEN: "refresh-0123456" }, runtimeEnvSchema)).toEqual([]);
+    expect(describeEnvProblems({ ...completeEnvironment(), MEET_PROVIDER: "zoom" }, runtimeEnvSchema)).toHaveLength(1);
+    expect(describeEnvProblems({ ...completeEnvironment(), LAUNCH_EMAILS_ENABLED: "yes" }, runtimeEnvSchema)).toHaveLength(1);
+  });
+});

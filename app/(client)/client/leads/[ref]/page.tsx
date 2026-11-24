@@ -4,6 +4,7 @@ import { PageSkeleton } from "@/components/kit/skeletons";
 import { LeadRecordView } from "@/components/leads/lead-record-view";
 import { orNotFound, requireClient } from "@/server/client/session";
 import { getDatabase } from "@/server/db/client";
+import { listMeetingJoins } from "@/server/domain/meeting-joins";
 import { getLeadRecordForClient } from "@/server/domain/lead-record";
 
 export const metadata: Metadata = { title: "Lead" };
@@ -12,7 +13,8 @@ async function Record({ params }: { params: PageProps<"/client/leads/[ref]">["pa
   const view = await requireClient();
   const { ref } = await params;
   const record = await orNotFound(getLeadRecordForClient(getDatabase("leads_client").db, view.actor, ref));
-  return <LeadRecordView record={record} viewer="client" backHref="/client/leads" availabilityHref={`/client/review?lead=${record.id}`} now={new Date()} />;
+  const joins = await listMeetingJoins(getDatabase("leads_client").db, view.actor, record.meeting === null ? [] : [record.meeting.id]);
+  return <LeadRecordView record={record} joins={joins} viewer="client" backHref="/client/leads" availabilityHref={`/client/review?lead=${record.id}`} now={new Date()} />;
 }
 
 export default function ClientLeadPage({ params }: PageProps<"/client/leads/[ref]">) {

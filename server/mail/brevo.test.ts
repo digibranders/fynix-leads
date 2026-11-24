@@ -71,4 +71,27 @@ describe("brevoTransport", () => {
     const slow = brevoTransport({ apiKey: KEY, timeoutMs: 20, fetch: (_url, init) => new Promise<Response>((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(init.signal?.reason))) });
     expect(await slow.send(MAIL)).toEqual({ ok: false, permanent: false, reason: "brevo timed out" });
   });
+
+  it("sends from the configured address, under a name per message, with a reply address and attachments, and the default is unchanged without them", async () => {
+    const { fetch: send, calls } = fakeFetch(() => json(201, { messageId: "m" }));
+    const neutral = { email: "meetings@neutral.example", name: "Meetings" };
+    await brevoTransport({ apiKey: KEY, fetch: send, sender: neutral }).send({
+      ...MAIL,
+      fromName: "Lena Hartmann",
+      replyTo: "lena@brand.example",
+      attachments: [{ name: "meeting.ics", contentType: "text/calendar; method=REQUEST", contentBase64: "QkVHSU4=" }],
+    });
+    expect(JSON.parse(String(calls[0]?.init.body))).toEqual({
+      sender: { email: "meetings@neutral.example", name: "Lena Hartmann" },
+      to: [{ email: "person@example.com" }],
+      subject: "Hello",
+      textContent: "plain",
+      htmlContent: "<p>html</p>",
+      replyTo: { email: "lena@brand.example" },
+      attachment: [{ name: "meeting.ics", content: "QkVHSU4=" }],
+    });
+    await brevoTransport({ apiKey: KEY, fetch: send, sender: neutral }).send(MAIL);
+    expect(JSON.parse(String(calls[1]?.init.body)).sender).toEqual(neutral);
+    expect(Object.keys(JSON.parse(String(calls[1]?.init.body))).sort()).toEqual(["htmlContent", "sender", "subject", "textContent", "to"]);
+  });
 });

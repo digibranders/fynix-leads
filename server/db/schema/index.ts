@@ -20,6 +20,8 @@ export * from "./lead-history";
 export * from "./lead-reminder";
 export * from "./meeting";
 export * from "./meeting-reschedule";
+export * from "./meeting-reminder";
+export * from "./meeting-join";
 export * from "./rejection-review";
 export * from "./messaging";
 export * from "./client-profile";

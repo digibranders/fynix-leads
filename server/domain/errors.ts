@@ -39,7 +39,8 @@ export type DomainErrorCode =
   | "outcome-already-recorded"
   | "contest-window-closed"
   | "review-window-closed"
-  | "already-requested";
+  | "already-requested"
+  | "privacy-link-missing";
 
 export class DomainError extends Error {
   constructor(

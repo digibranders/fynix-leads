@@ -5,7 +5,32 @@ export const organisationStatus = pgEnum("organisation_status", ["active", "arch
 export const campaignStatus = pgEnum("campaign_status", ["draft", "active", "paused", "completed", "archived"]);
 export const memberRole = pgEnum("member_role", ["member", "manager"]);
 export const memberStatus = pgEnum("member_status", ["active", "suspended"]);
-export const emailTemplate = pgEnum("email_template", ["password_reset", "invite", "alias_code"]);
+/** The first three are the account emails. The rest are the launch emails of phase 6 (lib/email/launch-templates.ts): prospect letters end in prospect_*, the others go to people of the portal. */
+export const emailTemplate = pgEnum("email_template", [
+  "password_reset",
+  "invite",
+  "alias_code",
+  "lead_waiting",
+  "lead_submitted_info",
+  "times_proposed_info",
+  "meeting_booked",
+  "meeting_moved",
+  "meeting_cancelled",
+  "outcome_nudge",
+  "outcome_held_client",
+  "outcome_held_info",
+  "decision_reminder",
+  "lead_accepted_info",
+  "lead_rejected_info",
+  "lead_auto_accepted_info",
+  "rejection_overturned_info",
+  "no_show_info",
+  "prospect_confirmed",
+  "prospect_moved",
+  "prospect_cancelled",
+  "prospect_reminder_24h",
+  "prospect_reminder_1h",
+]);
 export const outboxStatus = pgEnum("outbox_status", ["pending", "sent", "failed", "cancelled"]);
 export const termsStatus = pgEnum("terms_status", ["current", "superseded"]);
 /** Which side of a campaign an agreement is with: Fynix and the client, or Fynix and the supplier (spec 7.2). */

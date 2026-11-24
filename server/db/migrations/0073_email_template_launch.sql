@@ -1,0 +1,20 @@
+ALTER TYPE "public"."email_template" ADD VALUE 'lead_waiting';--> statement-breakpoint
+ALTER TYPE "public"."email_template" ADD VALUE 'lead_submitted_info';--> statement-breakpoint
+ALTER TYPE "public"."email_template" ADD VALUE 'times_proposed_info';--> statement-breakpoint
+ALTER TYPE "public"."email_template" ADD VALUE 'meeting_booked';--> statement-breakpoint
+ALTER TYPE "public"."email_template" ADD VALUE 'meeting_moved';--> statement-breakpoint
+ALTER TYPE "public"."email_template" ADD VALUE 'meeting_cancelled';--> statement-breakpoint
+ALTER TYPE "public"."email_template" ADD VALUE 'outcome_nudge';--> statement-breakpoint
+ALTER TYPE "public"."email_template" ADD VALUE 'outcome_held_client';--> statement-breakpoint
+ALTER TYPE "public"."email_template" ADD VALUE 'outcome_held_info';--> statement-breakpoint
+ALTER TYPE "public"."email_template" ADD VALUE 'decision_reminder';--> statement-breakpoint
+ALTER TYPE "public"."email_template" ADD VALUE 'lead_accepted_info';--> statement-breakpoint
+ALTER TYPE "public"."email_template" ADD VALUE 'lead_rejected_info';--> statement-breakpoint
+ALTER TYPE "public"."email_template" ADD VALUE 'lead_auto_accepted_info';--> statement-breakpoint
+ALTER TYPE "public"."email_template" ADD VALUE 'rejection_overturned_info';--> statement-breakpoint
+ALTER TYPE "public"."email_template" ADD VALUE 'no_show_info';--> statement-breakpoint
+ALTER TYPE "public"."email_template" ADD VALUE 'prospect_confirmed';--> statement-breakpoint
+ALTER TYPE "public"."email_template" ADD VALUE 'prospect_moved';--> statement-breakpoint
+ALTER TYPE "public"."email_template" ADD VALUE 'prospect_cancelled';--> statement-breakpoint
+ALTER TYPE "public"."email_template" ADD VALUE 'prospect_reminder_24h';--> statement-breakpoint
+ALTER TYPE "public"."email_template" ADD VALUE 'prospect_reminder_1h';

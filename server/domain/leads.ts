@@ -38,6 +38,7 @@ import { parseInput } from "@/server/domain/parse";
 import { notify } from "@/server/domain/notices";
 import { insertWithPublicRef } from "@/server/domain/refs";
 import { resolveReview } from "@/server/domain/rejection-reviews";
+import { createRoomSafely, type MeetRoom } from "@/server/meet/provider";
 
 /** The checks every submission passes, a new lead or a draft sent on: the member, the alias, the campaign and the organisation's place on it, the host, the exclusion list, duplicates and the over-share flag. */
 export async function checkSubmission(
@@ -282,8 +283,10 @@ export async function submitLead(
 }
 
 /**
- * Books the meeting of a lead for a chosen time: one row, with the lead's host and no link (a Meet room is only ever one Google issued, so it is null
- * until a host adds a real one). Used when the client picks a time and when Fynix picks it for the client.
+ * Books the meeting of a lead for a chosen time: one row, with the lead's host. The link is the room the Meet provider made for it (`room`, made before the
+ * transaction opened so no request to Google waits inside it), or null when there is none: a Meet link is only ever one Google issued, never one made up here,
+ * and the screens say "Link to follow". The room keeps its link through every postponement, because a postponement changes the start time and nothing else.
+ * Used when the client picks a time and when Fynix picks it for the client.
  */
 export async function bookMeeting(
   tx: ScopedTransaction,
@@ -291,13 +294,14 @@ export async function bookMeeting(
   leadRow: { readonly id: string; readonly campaignId: string; readonly hostMemberId: string | null },
   time: Date,
   now: Date,
+  room: MeetRoom | null = null,
 ): Promise<string> {
   if (leadRow.hostMemberId === null) throw new DomainError("invalid-lead-stage", "A lead with no host cannot be booked.");
   const hostMemberId = leadRow.hostMemberId;
   const booked = await insertWithPublicRef(tx, { prefix: "MTG", constraint: "meeting_public_ref_unique", randomBytes }, async (innerTx, publicRef: string) => {
     const [row] = await innerTx
       .insert(meeting)
-      .values({ publicRef, leadId: leadRow.id, campaignId: leadRow.campaignId, hostMemberId, scheduledStartTime: time, durationMinutes: 30, googleMeetUrl: null, outcome: "scheduled", createdAt: now, updatedAt: now })
+      .values({ publicRef, leadId: leadRow.id, campaignId: leadRow.campaignId, hostMemberId, scheduledStartTime: time, durationMinutes: 30, googleMeetUrl: room?.url ?? null, googleSpaceId: room?.spaceId ?? null, outcome: "scheduled", createdAt: now, updatedAt: now })
       .returning({ id: meeting.id });
     return row;
   });
@@ -311,7 +315,7 @@ export async function bookMeeting(
  */
 export async function clientReviewLead(
   db: Database,
-  deps: Pick<DomainDeps, "now" | "randomBytes">,
+  deps: Pick<DomainDeps, "now" | "randomBytes" | "meet">,
   actor: TenantActor,
   input: unknown,
 ) {
@@ -319,6 +323,8 @@ export async function clientReviewLead(
     throw new DomainError("not-authorised", "Only client members can review leads.");
   }
   const parsed = parseInput(clientReviewLeadSchema, input);
+  // The room is made before the transaction opens (no request to Google inside it). A failure leaves the meeting with no link; it never fails the booking.
+  const room = parsed.action === "accept" ? await createRoomSafely(deps.meet, { startsAt: new Date(parsed.selectedMeetingTime!), durationMinutes: 30 }) : null;
 
   return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
     // 1. Verify lead belongs to client campaign
@@ -373,7 +379,7 @@ export async function clientReviewLead(
         createdAt: now,
       });
 
-      const meetingId = await bookMeeting(tx, deps.randomBytes, { id: leadRow.id, campaignId: leadRow.campaignId, hostMemberId: leadRow.hostMemberId }, new Date(parsed.selectedMeetingTime!), now);
+      const meetingId = await bookMeeting(tx, deps.randomBytes, { id: leadRow.id, campaignId: leadRow.campaignId, hostMemberId: leadRow.hostMemberId }, new Date(parsed.selectedMeetingTime!), now, room);
       await notify(tx, { type: "meeting_scheduled", leadId: leadRow.id, meetingId });
 
       return updated;

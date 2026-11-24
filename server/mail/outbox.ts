@@ -1,9 +1,12 @@
-import { and, asc, eq, inArray, isNotNull, lt, lte, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, lt, lte, notInArray, sql } from "drizzle-orm";
 import { CLAIM_LEASE_SECONDS, LINK_RETENTION_SECONDS, retryDelaySeconds } from "@/lib/email/backoff";
-import { parseEmailContent, renderEmail, type EmailContent } from "@/lib/email/templates";
+import { buildIcs } from "@/lib/email/ics";
+import { isProspectTemplate, LAUNCH_TEMPLATES, launchCalendar, type LaunchContent } from "@/lib/email/launch-templates";
+import { linkRuleFor, parseEmailContent, renderEmail, type EmailContent } from "@/lib/email/templates";
 import type { Database } from "@/server/db/pool";
 import { emailOutbox } from "@/server/db/schema";
-import type { MailTransport } from "@/server/mail/transport";
+import { MAIL_SENDER } from "@/server/mail/brevo";
+import type { MailAttachment, MailTransport } from "@/server/mail/transport";
 
 /**
  * The outbox: every email is written here first and sent after, so a message survives a crash, a provider outage and a
@@ -21,7 +24,13 @@ export interface QueuedEmail {
   readonly link: string | null;
   /** The invite this message carries the link of, so revoking the invite can cancel it. */
   readonly inviteId?: string;
+  /** The display name and reply address of a message sent in someone's name (a prospect letter). The launch emails are queued by a database function, not here. */
+  readonly senderName?: string;
+  readonly replyTo?: string;
 }
+
+/** One address and nothing else: no list, no display name, no whitespace. A message has exactly one recipient. */
+const SINGLE_ADDRESS = /^[^@\s,;<>"]+@[^@\s,;<>"]+$/;
 
 /** Anything that can insert a row: a pooled database or a transaction. */
 export type OutboxWriter = Pick<Database, "insert">;
@@ -41,6 +50,8 @@ export function outboxOn(db: OutboxWriter): Outbox {
  * message, and a caller or Better Auth may log it.
  */
 export async function enqueueEmail(db: OutboxWriter, email: QueuedEmail): Promise<void> {
+  if (!SINGLE_ADDRESS.test(email.to)) throw new Error("An outbox message has exactly one recipient address.");
+  if (linkRuleFor(email.content.template) === "none" && email.link !== null) throw new Error(`The ${email.content.template} template carries no link.`);
   const stored = renderEmail(email.content, null);
   try {
     await db.insert(emailOutbox).values({
@@ -51,6 +62,8 @@ export async function enqueueEmail(db: OutboxWriter, email: QueuedEmail): Promis
       body: stored.text,
       link: email.link,
       inviteId: email.inviteId ?? null,
+      senderName: email.senderName ?? null,
+      replyTo: email.replyTo ?? null,
     });
   } catch (error) {
     const code = typeof (error as { code?: unknown } | null)?.code === "string" ? ` ${(error as { code: string }).code}` : "";
@@ -65,6 +78,15 @@ export interface DrainOptions {
   readonly now?: () => Date;
   /** How many messages one run sends at most. */
   readonly batchSize?: number;
+  /** Whether the launch emails (phase 6) are sent. Off by default: while it is off they stay pending and the three account emails go as before. */
+  readonly launchEmails?: boolean;
+  /** The address and name the transport sends from, for the calendar file's organiser and for the check that a prospect letter does not go out as Fynix. */
+  readonly sender?: { readonly email: string; readonly name: string };
+}
+
+/** True when nothing in the sender names Fynix: the only kind a prospect letter may go out from. */
+export function isNeutralSender(sender: { readonly email: string; readonly name: string }): boolean {
+  return !/fynix/i.test(sender.email) && !/fynix/i.test(sender.name);
 }
 
 export interface DrainResult {
@@ -110,11 +132,11 @@ export async function cancelInviteMail(db: Pick<Database, "update">, inviteId: s
  * by the lease and never loses it. Delivery is at least once: a message that was sent but whose result could not be
  * recorded is sent again after the lease.
  */
-async function claimDue(db: Database, now: Date, limit: number) {
+async function claimDue(db: Database, now: Date, limit: number, launchEmails: boolean) {
   const due = db
     .select({ id: emailOutbox.id })
     .from(emailOutbox)
-    .where(and(eq(emailOutbox.status, "pending"), lte(emailOutbox.nextAttemptAt, now)))
+    .where(and(eq(emailOutbox.status, "pending"), lte(emailOutbox.nextAttemptAt, now), launchEmails ? undefined : notInArray(emailOutbox.template, [...LAUNCH_TEMPLATES])))
     .orderBy(asc(emailOutbox.nextAttemptAt))
     .limit(limit)
     .for("update", { skipLocked: true });
@@ -122,8 +144,10 @@ async function claimDue(db: Database, now: Date, limit: number) {
     .update(emailOutbox)
     .set({ attempts: sql`${emailOutbox.attempts} + 1`, nextAttemptAt: seconds(now, CLAIM_LEASE_SECONDS) })
     .where(inArray(emailOutbox.id, due))
-    .returning({ id: emailOutbox.id, recipient: emailOutbox.recipient, template: emailOutbox.template, params: emailOutbox.params, link: emailOutbox.link, attempts: emailOutbox.attempts });
+    .returning({ id: emailOutbox.id, recipient: emailOutbox.recipient, template: emailOutbox.template, params: emailOutbox.params, link: emailOutbox.link, attempts: emailOutbox.attempts, senderName: emailOutbox.senderName, replyTo: emailOutbox.replyTo });
 }
+
+const isLaunchContent = (content: EmailContent): content is LaunchContent => (LAUNCH_TEMPLATES as readonly string[]).includes(content.template);
 
 type Claimed = Awaited<ReturnType<typeof claimDue>>[number];
 type Outcome = "sent" | "retrying" | "failed";
@@ -137,7 +161,8 @@ function isOnOrigin(link: string, origin: string): boolean {
   }
 }
 
-async function settle(db: Database, row: Claimed, transport: MailTransport, now: Date, origin: string): Promise<Outcome> {
+async function settle(db: Database, row: Claimed, transport: MailTransport, now: Date, options: DrainOptions): Promise<Outcome> {
+  const sender = options.sender ?? MAIL_SENDER;
   const fail = async (reason: string, permanent: boolean): Promise<Outcome> => {
     const delay = permanent ? null : retryDelaySeconds(row.attempts);
     if (delay === null) {
@@ -148,21 +173,45 @@ async function settle(db: Database, row: Claimed, transport: MailTransport, now:
     return "retrying";
   };
 
-  // Every template carries a link, so a pending row without one has nothing to send (it was cleared by a purge or a cancel
-  // that raced this claim). Never send the copy that says "the link is removed".
-  if (row.link === null) return fail("no link to send", true);
-  // A public pool queues these rows, so a link is data until it is checked: one that points elsewhere is a phishing link. The reason never carries it.
-  if (!isOnOrigin(row.link, origin)) return fail("the link is not on the application origin", true);
+  const prospect = isProspectTemplate(row.template);
+  if (linkRuleFor(row.template) === "required") {
+    // A pending row without a link has nothing to send (it was cleared by a purge or a cancel that raced this claim). Never send the copy that says "the link is removed".
+    if (row.link === null) return fail("no link to send", true);
+    // A public pool queues these rows, so a link is data until it is checked: one that points elsewhere is a phishing link. The reason never carries it.
+    if (!isOnOrigin(row.link, options.origin)) return fail("the link is not on the application origin", true);
+  } else if (row.link !== null) {
+    return fail("a message with no link carried one", true);
+  }
+  // A prospect letter names its signer and takes its replies at the alias mailbox, and never goes out from an address that names Fynix.
+  if (prospect && (row.senderName === null || row.replyTo === null)) return fail("a prospect letter has no signer", true);
+  if (prospect && !isNeutralSender(sender)) return fail("no neutral sender address is set", false);
+  let content: EmailContent;
   let rendered;
   try {
-    rendered = renderEmail(parseEmailContent(row.template, row.params), row.link);
+    // For a message with no link this is also where its Meet link is checked: the content is refused unless it is https on meet.google.com.
+    content = parseEmailContent(row.template, row.params);
+    rendered = renderEmail(content, row.link);
   } catch {
     return fail("the stored content could not be rendered", true);
+  }
+  const attachments: MailAttachment[] = [];
+  const calendar = isLaunchContent(content) ? launchCalendar(content) : null;
+  if (calendar !== null) {
+    const ics = buildIcs({ ...calendar, organiser: { address: sender.email, name: prospect ? (row.senderName ?? sender.name) : sender.name }, attendee: row.recipient, stamp: now });
+    attachments.push({ name: "meeting.ics", contentType: `text/calendar; method=${calendar.method}`, contentBase64: Buffer.from(ics, "utf8").toString("base64") });
   }
 
   let result;
   try {
-    result = await transport.send({ to: row.recipient, subject: rendered.subject, text: rendered.text, html: rendered.html });
+    result = await transport.send({
+      to: row.recipient,
+      subject: rendered.subject,
+      text: rendered.text,
+      html: rendered.html,
+      ...(prospect && row.senderName !== null ? { fromName: row.senderName } : {}),
+      ...(row.replyTo === null ? {} : { replyTo: row.replyTo }),
+      ...(attachments.length === 0 ? {} : { attachments }),
+    });
   } catch {
     // A transport is meant to return a value. One that throws is a bug; treat it as a transient failure and keep the error out of the row.
     return fail("the transport threw", false);
@@ -184,8 +233,8 @@ export async function drainOutbox(db: Database, transport: MailTransport | null,
   const now = options.now?.() ?? new Date();
   const purged = await purgeExpiredLinks(db, now);
   if (transport === null) return { purged, claimed: 0, sent: 0, retrying: 0, failed: 0 };
-  const batch = await claimDue(db, now, options.batchSize ?? DEFAULT_BATCH_SIZE);
+  const batch = await claimDue(db, now, options.batchSize ?? DEFAULT_BATCH_SIZE, options.launchEmails === true);
   const tally = { sent: 0, retrying: 0, failed: 0 };
-  for (const row of batch) tally[await settle(db, row, transport, now, options.origin)] += 1;
+  for (const row of batch) tally[await settle(db, row, transport, now, options)] += 1;
   return { purged, claimed: batch.length, ...tally };
 }

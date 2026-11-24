@@ -7,6 +7,7 @@ import { RecordOutcomeForm } from "@/components/leads/lead-forms";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Hint } from "@/components/ui/hint";
 import { generateIcsCalendar } from "@/lib/meetings/ics";
+import { meetingUid } from "@/lib/meetings/uid";
 
 export interface MeetingItemData {
   readonly id: string;
@@ -37,7 +38,7 @@ export function DownloadIcsButton({ meeting }: { readonly meeting: MeetingItemDa
   // The file is built on click, not on render: it carries a creation stamp, so building it while rendering makes the server's HTML and the browser's differ.
   function download(): void {
     const ics = generateIcsCalendar({
-      uid: `${meeting.publicRef}@fynix.digital`,
+      uid: meetingUid(meeting.publicRef),
       summary: `Meeting: ${meeting.campaignName} - ${meeting.prospectName}`,
       description: `Campaign meeting with ${meeting.prospectName} (${meeting.prospectCompany}).${meeting.googleMeetUrl === null ? "" : ` Join with Google Meet: ${meeting.googleMeetUrl}`}`,
       location: meeting.googleMeetUrl ?? undefined,

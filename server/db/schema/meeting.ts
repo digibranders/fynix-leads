@@ -28,6 +28,12 @@ export const meeting = pgTable(
     durationMinutes: integer("duration_minutes").notNull().default(30),
     // Null until a host adds a real link: Meet codes cannot be invented, only issued by Google.
     googleMeetUrl: text("google_meet_url"),
+    // The Google Meet space behind the link (phase 6). Never granted to a tenant: only the join import reads it, through a database function.
+    googleSpaceId: text("google_space_id"),
+    // The calendar file's SEQUENCE. A trigger raises it when the meeting moves or is cancelled, so every path that changes a meeting keeps it rising.
+    icsSequence: integer("ics_sequence").notNull().default(0),
+    // When the join record was read from the room; null until it has been, so it is read once.
+    joinImportedAt: timestamp("join_imported_at", { withTimezone: true }),
     outcome: text("outcome").notNull().default("scheduled"),
     notes: text("notes"),
     heldAt: timestamp("held_at", { withTimezone: true }),
@@ -67,6 +73,7 @@ export const meeting = pgTable(
     check("meeting_recorded_by_role_check", sql`${table.recordedByRole} IS NULL OR ${table.recordedByRole} IN ('client', 'agency', 'coordinator', 'fynix')`),
     check("meeting_contested_by_role_check", sql`${table.contestedByRole} IS NULL OR ${table.contestedByRole} IN ('client', 'agency', 'coordinator')`),
     check("meeting_contest_note_length", sql`${table.contestNote} IS NULL OR char_length(btrim(${table.contestNote})) BETWEEN 1 AND 1000`),
+    check("meeting_ics_sequence_not_negative", sql`${table.icsSequence} >= 0`),
     check("meeting_public_ref_format", sql`${table.publicRef} ~ '^MTG-[0-9A-HJKMNP-TV-Z]{4}$'`),
     check(
       "meeting_outcome_check",

@@ -182,6 +182,10 @@ const EXPECTED_ACCESS: Readonly<Record<string, readonly RuntimeRoleName[]>> = {
   // Phase 4: a proposal to move a meeting (both sides write it, Fynix reads) and the coordinator's request to review a rejection (Fynix resolves it).
   meeting_reschedule: ["leads_fynix", "leads_client", "leads_agency"],
   rejection_review: ["leads_fynix", "leads_agency"],
+  // Phase 6: when the emails that depend on a meeting's time are due (a trigger writes it, a SECURITY DEFINER function claims it, for the sweep alone), and who joined
+  // a meeting's room (written by a function for the sweep; the client, the agencies and Fynix read the rows of the meetings they can read).
+  meeting_reminder: [],
+  meeting_join: ["leads_fynix", "leads_client", "leads_agency"],
 };
 /** The tables nobody but leads_auth touches. `user` is not one of them any more: Fynix reads four columns of it. */
 const AUTH_TABLES = ["session", "account", "verification"] as const;
@@ -677,8 +681,10 @@ describe("phase 1D: what a tenant role holds on the six set-up tables", () => {
     const basics = ["id", "public_ref", "name", "client_org_id", "agency_org_id", "client_brand_name", "status", "start_date", "end_date", "monthly_target", "total_target"];
     // Migrations 0054 and 0064: both tenant roles read the brief. Nobody but Fynix reads the notes or the settings.
     const brief = ["geography", "industries", "company_size", "icp", "job_titles", "seniority", "technologies", "bant_budget", "bant_authority", "bant_need", "bant_timeline", "instructions"];
-    expect([...campaignColumns].sort()).toEqual([...basics, ...brief].sort());
-    for (const hidden of ["time_zone", "meeting_minutes", "internal_notes"]) expect(campaignColumns).not.toContain(hidden);
+    // Migration 0075: the client reads the privacy link of its campaigns and whether prospect email is on. An agency reads neither.
+    const privacy = role === "leads_client" ? ["client_privacy_url", "prospect_email_enabled"] : [];
+    expect([...campaignColumns].sort()).toEqual([...basics, ...brief, ...privacy].sort());
+    for (const hidden of ["time_zone", "meeting_minutes", "internal_notes", ...(role === "leads_client" ? [] : ["client_privacy_url", "prospect_email_enabled"])]) expect(campaignColumns).not.toContain(hidden);
   });
 
   it("the Fynix role may write the new columns of organisation and campaign, which it holds table level grants on", async () => {

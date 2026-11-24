@@ -5,6 +5,7 @@ import {
   conversationMessage,
   lead,
   meeting,
+  meetingJoin,
   meetingReschedule,
   notification,
   organisation,
@@ -43,7 +44,11 @@ const tenantCampaignColumns = {
 /** A client also reads its own time zone (migration 0059); an agency does not read a client's. */
 export const clientOrganisationColumns = { ...tenantOrganisationColumns, timeZone: organisation.timeZone } as const;
 export const agencyOrganisationColumns = { ...tenantOrganisationColumns, parentOrgId: organisation.parentOrgId } as const;
-export const clientCampaignColumns = { ...tenantCampaignColumns } as const;
+/**
+ * A client also reads the privacy link of its campaigns and whether prospect email is on for them (migration 0075): it is named in the prospect letter as the
+ * holder of the prospect's details. An agency reads neither; the letter takes the link from the database when it is queued.
+ */
+export const clientCampaignColumns = { ...tenantCampaignColumns, clientPrivacyUrl: campaign.clientPrivacyUrl, prospectEmailEnabled: campaign.prospectEmailEnabled } as const;
 export const agencyCampaignColumns = { ...tenantCampaignColumns } as const;
 
 /**
@@ -141,6 +146,18 @@ export const clientMeetingColumns = {
 } as const;
 
 export const agencyMeetingColumns = { ...clientMeetingColumns } as const;
+
+/**
+ * Who joined a meeting's room (migration 0075): the name as it appeared there, when they joined and left and for how long. No id, no email, no account: the
+ * importer never stores one. The client, the agencies and Fynix read the rows of the meetings they can read.
+ */
+export const meetingJoinColumns = {
+  meetingId: meetingJoin.meetingId,
+  displayName: meetingJoin.displayName,
+  joinedAt: meetingJoin.joinedAt,
+  leftAt: meetingJoin.leftAt,
+  durationSeconds: meetingJoin.durationSeconds,
+} as const;
 
 /** A proposal to move a meeting. `proposed_by_user_id` is never granted: the other side must not learn which person asked. */
 export const rescheduleColumns = {

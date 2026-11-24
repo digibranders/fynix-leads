@@ -37,6 +37,7 @@ import {
 } from "@/server/domain/inputs";
 import { issueInvite, resendInvite, revokeInvite } from "@/server/domain/invites";
 import { reactivateMember, suspendMember, updateMemberDetails } from "@/server/domain/members";
+import { setCampaignPrivacy, setProspectEmail } from "@/server/domain/campaign-privacy";
 import { closeCampaign, createCampaign, reopenCampaign, updateCampaign } from "@/server/domain/campaigns";
 import { removeCampaignShare, setCampaignShare } from "@/server/domain/shares";
 import { fynixOverturnRejection, fynixResolveDispute } from "@/server/domain/leads";
@@ -610,6 +611,59 @@ export async function removeBlockAction(_previous: FormState, formData: FormData
     labels: {},
     perform: async (deps, actor, input) => {
       await removeHostBlock(deps, actor, removeBlockInput.parse(input).blockId);
+    },
+  });
+}
+
+const privacyLinkInput = z.object({ campaignId: uuidSchema, url: z.string().trim().min(1, "Add the link to the client's privacy page.") }).strict();
+const PRIVACY_LINK_MESSAGE = "Use the full link to the client's privacy page, starting with https://.";
+
+/** Sets or replaces the client's privacy page link. The domain accepts only a full https address. */
+export async function setPrivacyLinkAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runAction({
+    formData,
+    fieldNames: ["url"],
+    build: () => ({ campaignId: field(formData, "campaignId"), url: field(formData, "url") }),
+    schema: privacyLinkInput,
+    labels: { url: "Privacy page link" },
+    messages: { "invalid-input": PRIVACY_LINK_MESSAGE },
+    errorFields: { "invalid-input": "url" },
+    perform: async (deps, actor, input) => {
+      const { campaignId, url } = privacyLinkInput.parse(input);
+      await setCampaignPrivacy(deps, actor, campaignId, url);
+    },
+  });
+}
+
+const campaignOnly = z.object({ campaignId: uuidSchema }).strict();
+
+/** Removes the privacy link. This also switches prospect email off for the campaign. */
+export async function removePrivacyLinkAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runAction({
+    formData,
+    fieldNames: [],
+    build: () => ({ campaignId: field(formData, "campaignId") }),
+    schema: campaignOnly,
+    labels: {},
+    perform: async (deps, actor, input) => {
+      await setCampaignPrivacy(deps, actor, campaignOnly.parse(input).campaignId, null);
+    },
+  });
+}
+
+const prospectEmailInput = z.object({ campaignId: uuidSchema, enabled: z.enum(["true", "false"]) }).strict();
+
+/** Switches letters to prospects on or off for one campaign. On is refused until the privacy link is set. */
+export async function setProspectEmailAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runAction({
+    formData,
+    fieldNames: [],
+    build: () => ({ campaignId: field(formData, "campaignId"), enabled: field(formData, "enabled") }),
+    schema: prospectEmailInput,
+    labels: {},
+    perform: async (deps, actor, input) => {
+      const { campaignId, enabled } = prospectEmailInput.parse(input);
+      await setProspectEmail(deps, actor, campaignId, enabled === "true");
     },
   });
 }

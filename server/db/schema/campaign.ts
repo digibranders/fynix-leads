@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, date, foreignKey, index, integer, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { boolean, check, date, foreignKey, index, integer, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
 import { campaignStatus, organisationKind } from "./enums";
 import { organisation } from "./organisation";
 
@@ -57,6 +57,12 @@ export const campaign = pgTable(
      */
     timeZone: text("time_zone").notNull().default("Europe/London"),
     meetingMinutes: integer("meeting_minutes").notNull().default(30),
+    /**
+     * The client's own privacy page, named under the signature of every prospect letter (phase 6). https only. Fynix writes it; the client reads it; no agency does.
+     * `prospect_email_enabled` is the switch that lets the portal email prospects of this campaign at all: it stays off until the link is set (the check below).
+     */
+    clientPrivacyUrl: text("client_privacy_url"),
+    prospectEmailEnabled: boolean("prospect_email_enabled").notNull().default(false),
     /** When the campaign last moved into a closed status (paused, completed or archived); null while it is not closed. */
     closedAt: timestamp("closed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -84,6 +90,8 @@ export const campaign = pgTable(
     check("campaign_dates_in_order", sql`${table.endDate} >= ${table.startDate}`),
     check("campaign_targets_not_negative", sql`${table.monthlyTarget} >= 0 AND ${table.totalTarget} >= 0`),
     check("campaign_meeting_minutes_range", sql`${table.meetingMinutes} BETWEEN 15 AND 240`),
+    check("campaign_privacy_url_https", sql`${table.clientPrivacyUrl} IS NULL OR (${table.clientPrivacyUrl} ~ '^https://[^[:space:]]+$' AND char_length(${table.clientPrivacyUrl}) <= 500)`),
+    check("campaign_prospect_email_needs_privacy_url", sql`NOT ${table.prospectEmailEnabled} OR ${table.clientPrivacyUrl} IS NOT NULL`),
     check("campaign_time_zone_length", sql`char_length(btrim(${table.timeZone})) BETWEEN 1 AND 64`),
   ],
 );

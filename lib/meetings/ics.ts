@@ -51,7 +51,7 @@ export function generateIcsCalendar(params: IcsEventParams): string {
   const lines: string[] = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Fynix Leads//Meetings//EN",
+    "PRODID:-//Meeting calendar//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:REQUEST",
     "BEGIN:VEVENT",
@@ -74,8 +74,6 @@ export function generateIcsCalendar(params: IcsEventParams): string {
     lines.push(`ORGANIZER;CN=${escapeIcsText(organizerName)}:mailto:${organizerEmail}`);
   } else if (organizerEmail) {
     lines.push(`ORGANIZER:mailto:${organizerEmail}`);
-  } else if (organizerName) {
-    lines.push(`ORGANIZER;CN=${escapeIcsText(organizerName)}:mailto:meetings@fynix.digital`);
   }
 
   lines.push("STATUS:CONFIRMED");

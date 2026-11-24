@@ -512,6 +512,27 @@
       "when": 1795544422742,
       "tag": "0072_notice_mark_read",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1795546488058,
+      "tag": "0073_email_template_launch",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1795546518347,
+      "tag": "0074_phase6_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1795546566992,
+      "tag": "0075_phase6_grants_functions",
+      "breakpoints": true
     }
   ]
 }
