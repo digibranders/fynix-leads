@@ -20,6 +20,9 @@ import { getDatabase } from "@/server/db/client";
 import { getAgencyOverviewMetrics } from "@/server/domain/analytics";
 import { listTenantCampaigns } from "@/server/domain/campaigns-tenant";
 import { listAgencyLeads } from "@/server/domain/leads";
+import { listAgencyMeetings } from "@/server/domain/meetings";
+import { UpcomingMeetings } from "@/components/meetings/upcoming-meetings";
+import { upcomingMeetings } from "@/lib/meetings/upcoming";
 import { requireAgency } from "@/server/agency/session";
 
 export const metadata: Metadata = { title: "Overview" };
@@ -27,12 +30,13 @@ export const metadata: Metadata = { title: "Overview" };
 async function Overview() {
   const view = await requireAgency();
   const db = getDatabase("leads_agency").db;
-  const [metrics, allLeads, campaigns] = await Promise.all([getAgencyOverviewMetrics(db, view.actor), listAgencyLeads(db, view.actor), listTenantCampaigns(db, view.actor, "agency")]);
+  const [metrics, allLeads, campaigns, allMeetings] = await Promise.all([getAgencyOverviewMetrics(db, view.actor), listAgencyLeads(db, view.actor), listTenantCampaigns(db, view.actor, "agency"), listAgencyMeetings(db, view.actor)]);
   // An overview is about active campaigns: the stage bar and the latest leads leave out the rest.
   const activeIds = new Set(campaigns.filter((row) => row.status === "active").map((row) => row.id));
   const leads = allLeads.filter((lead) => activeIds.has(lead.campaignId));
   const counts = countByGroup(leads);
   const latest = leads.slice(0, 5);
+  const upcoming = upcomingMeetings(allMeetings, activeIds, new Date());
 
   return (
     <div className="flex flex-col gap-4">
@@ -89,6 +93,8 @@ async function Overview() {
           }))}
         />
       ) : null}
+
+      <UpcomingMeetings meetings={upcoming} allHref="/agency/meetings" emptyText="When a client picks a time, the meeting shows up here." />
 
       <Panel aria-label="Latest leads">
         <PanelHeader

@@ -24,6 +24,8 @@ export interface NavItem {
   readonly href: string;
   /** Looks up a live count (waiting leads, rejections) in the counts the layout passes. */
   readonly countKey?: string;
+  /** What the count means to a screen reader: leads are "waiting", conversations are "unread". Waiting when left out. */
+  readonly countKind?: "waiting" | "unread";
 }
 
 export interface NavGroup {
@@ -58,7 +60,7 @@ export const PORTALS: Record<PortalKind, PortalConfig> = {
           { label: "Availability", icon: "tray", href: "/client/review", countKey: "respond" },
           { label: "Leads", icon: "table", href: "/client/leads" },
           { label: "Meetings", icon: "calendar", href: "/client/meetings" },
-          { label: "Messages", icon: "chats", href: "/client/messages" },
+          { label: "Messages", icon: "chats", href: "/client/messages", countKey: "messages", countKind: "unread" },
         ],
       },
       {
@@ -85,7 +87,7 @@ export const PORTALS: Record<PortalKind, PortalConfig> = {
           { label: "Overview", icon: "house", href: "/supplier" },
           { label: "Leads", icon: "table", href: "/supplier/leads" },
           { label: "Meetings", icon: "calendar", href: "/supplier/meetings" },
-          { label: "Messages", icon: "chats", href: "/supplier/messages" },
+          { label: "Messages", icon: "chats", href: "/supplier/messages", countKey: "messages", countKind: "unread" },
         ],
       },
       {
@@ -112,7 +114,7 @@ export const PORTALS: Record<PortalKind, PortalConfig> = {
           { label: "Overview", icon: "house", href: "/agency" },
           { label: "Leads", icon: "table", href: "/agency/leads" },
           { label: "Meetings", icon: "calendar", href: "/agency/meetings" },
-          { label: "Messages", icon: "chats", href: "/agency/messages" },
+          { label: "Messages", icon: "chats", href: "/agency/messages", countKey: "messages", countKind: "unread" },
         ],
       },
       {
@@ -137,7 +139,7 @@ export const PORTALS: Record<PortalKind, PortalConfig> = {
           { label: "Overview", icon: "house", href: "/fynix" },
           { label: "Leads", icon: "table", href: "/fynix/leads" },
           { label: "Meetings", icon: "calendar", href: "/fynix/meetings" },
-          { label: "Inbox", icon: "chats", href: "/fynix/inbox" },
+          { label: "Inbox", icon: "chats", href: "/fynix/inbox", countKey: "messages", countKind: "unread" },
           { label: "Rejections", icon: "scales", href: "/fynix/rejections", countKey: "rejections" },
         ],
       },
@@ -192,6 +194,7 @@ export function currentItem(portal: PortalConfig, pathname: string | null): NavI
 /** The trail for the top bar: the section, then the one segment below it when the page is a record ("Campaigns, CMP-4821"). */
 export function breadcrumb(portal: PortalConfig, pathname: string | null): readonly string[] {
   if (pathname === `${portal.homeHref}/profile`) return ["Profile"];
+  if (pathname === `${portal.homeHref}/notices`) return ["Notices"];
   const item = currentItem(portal, pathname);
   if (!item || !pathname) return [portal.label];
   const rest = pathname.slice(item.href.length).split("/").filter(Boolean);

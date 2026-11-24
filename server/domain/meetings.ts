@@ -10,6 +10,7 @@ import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
 import { recordMeetingOutcomeSchema, type RecordMeetingOutcomeInput } from "@/server/domain/inputs";
 import { parseInput } from "@/server/domain/parse";
+import { notify } from "@/server/domain/notices";
 import { insertWithPublicRef } from "@/server/domain/refs";
 
 export interface CreateMeetingInput {
@@ -135,6 +136,7 @@ async function applyOutcome(
     snapshot: { outcome: parsed.outcome, meetingId: meetingRow.id, recordedBy: who.side },
     createdAt: now,
   });
+  await notify(tx, { type: "outcome_recorded", outcome: parsed.outcome, by: who.side, leadId: leadRow.id, meetingId: meetingRow.id });
 
   return updatedMeeting;
 }

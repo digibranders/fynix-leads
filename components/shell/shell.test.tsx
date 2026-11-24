@@ -33,6 +33,14 @@ describe("SidebarContent", () => {
     expect(render("client")).not.toContain("waiting");
   });
 
+  it("counts unread messages as unread, and caps a long count at 99+", () => {
+    pathname.value = "/client/review";
+    expect(render("client", { messages: 3 })).toContain("3 unread");
+    expect(render("client", { messages: 250 })).toContain("99+ unread");
+    expect(render("fynix", { messages: 2 })).toContain("2 unread");
+    expect(render("client", { messages: 0 })).not.toContain("unread");
+  });
+
   it("builds the other portals from the same list", () => {
     pathname.value = "/fynix/campaigns/CMP-4821";
     const html = render("fynix", { rejections: 3 });

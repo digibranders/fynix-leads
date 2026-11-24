@@ -9,16 +9,16 @@ import { generatePublicRef, type RandomBytes } from "@/lib/domain/public-ref";
 import { relayText } from "@/lib/relay/relay-text";
 import type { Database } from "@/server/db/pool";
 import {
+  campaign,
   conversation,
   conversationMessage,
-  member,
-  notification,
+  lead,
   type SenderRole,
 } from "@/server/db/schema";
 import { type ScopedTransaction } from "@/server/db/scope";
 import { appendAudit } from "@/server/domain/audit";
 import { DomainError } from "@/server/domain/errors";
-import { forwardMessageSchema, getOrCreateConversationSchema, postMessageSchema } from "@/server/domain/inputs";
+import { forwardMessageSchema, getOrCreateConversationSchema, leadConversationSchema, openThreadSchema, postMessageSchema } from "@/server/domain/inputs";
 import { parseInput } from "@/server/domain/parse";
 
 export { assertConversationAccess, withActorScope, type MessagingActor } from "@/server/domain/messaging-core";
@@ -75,61 +75,109 @@ export async function getOrCreateConversation(
   const clientOrgId = parsed.side === "client_fynix" ? (parsed.clientOrgId ?? actor.orgId ?? null) : null;
   const supplierOrgId =
     parsed.side === "supplier_fynix" || parsed.side === "supplier_agency"
-      ? (parsed.supplierOrgId ?? (actor.orgKind === "agency" && parsed.side === "supplier_fynix" ? actor.orgId : null))
+      ? (parsed.supplierOrgId ?? (actor.orgKind === "agency" && parsed.side === "supplier_fynix" ? (actor.orgId ?? null) : null))
       : null;
   const agencyOrgId = parsed.side === "supplier_agency" ? (parsed.agencyOrgId ?? null) : null;
 
-  const cols = conversationColumnsFor(actor.orgKind);
-
   return withActorScope(db, actor, async (tx) => {
-    const conditions = [
-      eq(conversation.campaignId, parsed.campaignId),
-      eq(conversation.side, parsed.side),
-    ];
-    if (parsed.leadId !== undefined) {
-      conditions.push(eq(conversation.leadId, parsed.leadId));
-    } else {
-      conditions.push(isNull(conversation.leadId));
-    }
-    if (clientOrgId) conditions.push(eq(conversation.clientOrgId, clientOrgId));
-    if (supplierOrgId) conditions.push(eq(conversation.supplierOrgId, supplierOrgId));
-    if (agencyOrgId) conditions.push(eq(conversation.agencyOrgId, agencyOrgId));
+    if (actor.orgKind !== "fynix") await assertCampaignVisible(tx, parsed.campaignId, parsed.leadId);
+    return findOrCreateConversation(tx, actor, { campaignId: parsed.campaignId, leadId: parsed.leadId ?? null, side: parsed.side, clientOrgId, supplierOrgId, agencyOrgId, subject: parsed.subject ?? null }, randomBytes, now);
+  });
+}
 
-    const [existing] = await tx
-      .select(cols)
-      .from(conversation)
-      .where(and(...conditions))
+interface ConversationKey {
+  readonly campaignId: string;
+  readonly leadId: string | null;
+  readonly side: "client_fynix" | "supplier_fynix" | "supplier_agency";
+  readonly clientOrgId: string | null;
+  readonly supplierOrgId: string | null;
+  readonly agencyOrgId: string | null;
+  readonly subject: string | null;
+}
+
+/** A tenant may only open a thread about a campaign it can read, and a lead of that campaign it can read. Row-level security answers for both. */
+async function assertCampaignVisible(tx: ScopedTransaction, campaignId: string, leadId: string | undefined): Promise<void> {
+  const [seen] = await tx.select({ id: campaign.id }).from(campaign).where(eq(campaign.id, campaignId)).limit(1);
+  if (seen === undefined) throw new DomainError("not-found", "There is no such campaign.");
+  if (leadId !== undefined) {
+    const [row] = await tx.select({ id: lead.id }).from(lead).where(and(eq(lead.id, leadId), eq(lead.campaignId, campaignId))).limit(1);
+    if (row === undefined) throw new DomainError("not-found", "There is no such lead.");
+  }
+}
+
+/** The one thread for this key (campaign, lead, side and organisations), made when there is none yet. */
+async function findOrCreateConversation(tx: ScopedTransaction, actor: MessagingActor, key: ConversationKey, randomBytes: RandomBytes, now: Date) {
+  const cols = conversationColumnsFor(actor.orgKind);
+  const conditions = [eq(conversation.campaignId, key.campaignId), eq(conversation.side, key.side)];
+  conditions.push(key.leadId === null ? isNull(conversation.leadId) : eq(conversation.leadId, key.leadId));
+  if (key.clientOrgId) conditions.push(eq(conversation.clientOrgId, key.clientOrgId));
+  if (key.supplierOrgId) conditions.push(eq(conversation.supplierOrgId, key.supplierOrgId));
+  if (key.agencyOrgId) conditions.push(eq(conversation.agencyOrgId, key.agencyOrgId));
+
+  const [existing] = await tx.select(cols).from(conversation).where(and(...conditions)).limit(1);
+  if (existing !== undefined) return existing;
+
+  const publicRef = generatePublicRef("MSG", randomBytes);
+  const [created] = await tx
+    .insert(conversation)
+    .values({ publicRef, campaignId: key.campaignId, leadId: key.leadId, side: key.side, clientOrgId: key.clientOrgId, supplierOrgId: key.supplierOrgId, agencyOrgId: key.agencyOrgId, subject: key.subject, createdAt: now, updatedAt: now })
+    .returning(cols);
+  if (created === undefined) throw new Error("Insert of conversation returned no row");
+
+  if (actor.orgKind === "fynix") {
+    await appendAudit(tx, { action: "conversation.create", subject: { table: "conversation", id: created.id, ref: created.publicRef } });
+  }
+  return created;
+}
+
+/**
+ * A client starts a thread with Fynix, or a coordinator does (the thread is about one of its campaigns). One thread per campaign: asking again opens the
+ * one that exists. A partner agency has no thread with Fynix: its hop is its coordinator.
+ */
+export async function openThreadWithFynix(db: Database, actor: MessagingActor, input: unknown, deps?: { randomBytes?: RandomBytes; now?: () => Date }) {
+  const parsed = parseInput(openThreadSchema, input);
+  if (actor.orgKind === "client") return getOrCreateConversation(db, actor, { campaignId: parsed.campaignId, side: "client_fynix", subject: parsed.subject }, deps);
+  if (actor.orgKind === "agency") {
+    const coordinator = await withActorScope(db, actor, async (tx) => {
+      const [row] = await tx.select({ supplierOrgId: campaign.agencyOrgId }).from(campaign).where(eq(campaign.id, parsed.campaignId)).limit(1);
+      return row !== undefined && row.supplierOrgId === actor.orgId;
+    });
+    if (!coordinator) throw new DomainError("not-authorised", "Only the coordinator of a campaign has a thread with Fynix about it.");
+    return getOrCreateConversation(db, actor, { campaignId: parsed.campaignId, side: "supplier_fynix", subject: parsed.subject }, deps);
+  }
+  throw new DomainError("not-authorised", "Fynix answers a thread; the client or the coordinator starts it.");
+}
+
+/**
+ * The thread about one lead, made when there is none, with the lead's reference in its title. Two separate threads exist: the client with Fynix, and the
+ * coordinator with Fynix; neither side reads the other's. A client or a coordinator opens its own. Fynix names the side. A partner agency has none (its hop is
+ * its coordinator, so the answer is null). A draft has no thread.
+ */
+export async function getOrCreateLeadConversation(db: Database, actor: MessagingActor, input: unknown, deps?: { randomBytes?: RandomBytes; now?: () => Date }) {
+  const parsed = parseInput(leadConversationSchema, input);
+  const now = deps?.now ? deps.now() : new Date();
+  const randomBytes = deps?.randomBytes ?? ((n: number) => randomFillSync(new Uint8Array(n)));
+  return withActorScope(db, actor, async (tx) => {
+    const [row] = await tx
+      .select({ id: lead.id, publicRef: lead.publicRef, campaignId: lead.campaignId, released: lead.released, clientOrgId: campaign.clientOrgId, supplierOrgId: campaign.agencyOrgId })
+      .from(lead)
+      .innerJoin(campaign, eq(campaign.id, lead.campaignId))
+      .where(eq(lead.id, parsed.leadId))
       .limit(1);
-
-    if (existing !== undefined) {
-      return existing;
+    if (row === undefined) throw new DomainError("not-found", "There is no such lead.");
+    if (!row.released) throw new DomainError("invalid-lead-stage", "A draft has no thread.");
+    const subject = `Lead ${row.publicRef}`;
+    const base = { campaignId: row.campaignId, leadId: row.id, subject, agencyOrgId: null } as const;
+    if (actor.orgKind === "client") {
+      if (row.clientOrgId !== actor.orgId) throw new DomainError("not-found", "There is no such lead.");
+      return findOrCreateConversation(tx, actor, { ...base, side: "client_fynix", clientOrgId: actor.orgId, supplierOrgId: null }, randomBytes, now);
     }
-
-    const publicRef = generatePublicRef("MSG", randomBytes);
-    const [created] = await tx
-      .insert(conversation)
-      .values({
-        publicRef,
-        campaignId: parsed.campaignId,
-        leadId: parsed.leadId ?? null,
-        side: parsed.side,
-        clientOrgId,
-        supplierOrgId,
-        agencyOrgId,
-        subject: parsed.subject ?? null,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .returning(cols);
-
-    if (actor.orgKind === "fynix") {
-      await appendAudit(tx, {
-        action: "conversation.create",
-        subject: { table: "conversation", id: created.id, ref: created.publicRef },
-      });
+    if (actor.orgKind === "agency") {
+      if (row.supplierOrgId !== actor.orgId) return null;
+      return findOrCreateConversation(tx, actor, { ...base, side: "supplier_fynix", clientOrgId: null, supplierOrgId: actor.orgId }, randomBytes, now);
     }
-
-    return created;
+    if (parsed.side === "supplier_fynix") return findOrCreateConversation(tx, actor, { ...base, side: "supplier_fynix", clientOrgId: null, supplierOrgId: row.supplierOrgId }, randomBytes, now);
+    return findOrCreateConversation(tx, actor, { ...base, side: "client_fynix", clientOrgId: row.clientOrgId, supplierOrgId: null }, randomBytes, now);
   });
 }
 
@@ -229,7 +277,7 @@ export async function postMessage(
     if (isGroup) {
       await tx.execute(sql`select public.app_notify_group(${conv.id}::uuid, ${`New message from ${senderName}`}, ${storedBody.length > 80 ? `${storedBody.slice(0, 77)}...` : storedBody})`);
     } else {
-      await dispatchMessageNotifications(tx, conv, senderRole, senderName, parsed.body, now);
+      await notifyConversation(tx, conv.id, senderName, parsed.body);
     }
 
     return msg;
@@ -372,153 +420,19 @@ export async function forwardMessage(
       });
     }
 
-    await dispatchMessageNotifications(tx, targetConv, senderRole, senderName, finalBody, now);
+    await notifyConversation(tx, targetConv.id, senderName, finalBody);
 
     return forwarded;
   });
 }
 
-async function dispatchMessageNotifications(
-  tx: ScopedTransaction,
-  conv: {
-    id: string;
-    publicRef: string;
-    side: string;
-    clientOrgId: string | null;
-    supplierOrgId: string | null;
-    agencyOrgId: string | null;
-  },
-  senderRole: SenderRole,
-  senderName: string,
-  body: string,
-  now: Date,
-): Promise<void> {
+/**
+ * Tells the people on the other side of a one-to-one thread there is a new message. The database function works out who they are and links each to
+ * the thread in their own portal; a tenant role cannot write another person's notice, so the application never inserts one itself.
+ */
+async function notifyConversation(tx: ScopedTransaction, conversationId: string, senderName: string, body: string): Promise<void> {
   const snippet = body.length > 80 ? `${body.slice(0, 77)}...` : body;
-  const toList = <T>(val: unknown): T[] => (Array.isArray(val) ? (val as T[]) : []);
-
-  if (conv.side === "client_fynix") {
-    if (senderRole === "client") {
-      const fynixMembers = toList<{ userId: string }>(
-        await tx
-          .select({ userId: member.userId })
-          .from(member)
-          .where(and(eq(member.orgKind, "fynix"), eq(member.status, "active"))),
-      );
-      for (const m of fynixMembers) {
-        await tx.insert(notification).values({
-          userId: m.userId,
-          orgId: null,
-          kind: "message_received",
-          title: `New message from ${senderName}`,
-          body: snippet,
-          link: `/fynix/messages/${conv.publicRef}`,
-          createdAt: now,
-        });
-      }
-    } else {
-      if (conv.clientOrgId) {
-        const clientMembers = toList<{ userId: string; orgId: string }>(
-          await tx
-            .select({ userId: member.userId, orgId: member.orgId })
-            .from(member)
-            .where(and(eq(member.orgId, conv.clientOrgId), eq(member.status, "active"))),
-        );
-        for (const m of clientMembers) {
-          await tx.insert(notification).values({
-            userId: m.userId,
-            orgId: m.orgId,
-            kind: "message_received",
-            title: `New message from ${senderName}`,
-            body: snippet,
-            link: `/client/messages/${conv.publicRef}`,
-            createdAt: now,
-          });
-        }
-      }
-    }
-  } else if (conv.side === "supplier_fynix") {
-    if (senderRole === "supplier") {
-      const fynixMembers = toList<{ userId: string }>(
-        await tx
-          .select({ userId: member.userId })
-          .from(member)
-          .where(and(eq(member.orgKind, "fynix"), eq(member.status, "active"))),
-      );
-      for (const m of fynixMembers) {
-        await tx.insert(notification).values({
-          userId: m.userId,
-          orgId: null,
-          kind: "message_received",
-          title: `New message from ${senderName}`,
-          body: snippet,
-          link: `/fynix/messages/${conv.publicRef}`,
-          createdAt: now,
-        });
-      }
-    } else {
-      if (conv.supplierOrgId) {
-        const supplierMembers = toList<{ userId: string; orgId: string }>(
-          await tx
-            .select({ userId: member.userId, orgId: member.orgId })
-            .from(member)
-            .where(and(eq(member.orgId, conv.supplierOrgId), eq(member.status, "active"))),
-        );
-        for (const m of supplierMembers) {
-          await tx.insert(notification).values({
-            userId: m.userId,
-            orgId: m.orgId,
-            kind: "message_received",
-            title: `New message from ${senderName}`,
-            body: snippet,
-            link: `/supplier/messages/${conv.publicRef}`,
-            createdAt: now,
-          });
-        }
-      }
-    }
-  } else if (conv.side === "supplier_agency") {
-    if (senderRole === "supplier") {
-      if (conv.agencyOrgId) {
-        const agencyMembers = toList<{ userId: string; orgId: string }>(
-          await tx
-            .select({ userId: member.userId, orgId: member.orgId })
-            .from(member)
-            .where(and(eq(member.orgId, conv.agencyOrgId), eq(member.status, "active"))),
-        );
-        for (const m of agencyMembers) {
-          await tx.insert(notification).values({
-            userId: m.userId,
-            orgId: m.orgId,
-            kind: "message_received",
-            title: `New message from ${senderName}`,
-            body: snippet,
-            link: `/agency/messages/${conv.publicRef}`,
-            createdAt: now,
-          });
-        }
-      }
-    } else {
-      if (conv.supplierOrgId) {
-        const supplierMembers = toList<{ userId: string; orgId: string }>(
-          await tx
-            .select({ userId: member.userId, orgId: member.orgId })
-            .from(member)
-            .where(and(eq(member.orgId, conv.supplierOrgId), eq(member.status, "active"))),
-        );
-        for (const m of supplierMembers) {
-          await tx.insert(notification).values({
-            userId: m.userId,
-            orgId: m.orgId,
-            kind: "message_received",
-            title: `New message from ${senderName}`,
-            body: snippet,
-            link: `/supplier/messages/${conv.publicRef}`,
-            createdAt: now,
-          });
-        }
-      }
-    }
-  }
+  await tx.execute(sql`select public.app_notify_conversation(${conversationId}::uuid, ${`New message from ${senderName}`}, ${snippet})`);
 }
 
 export * from "@/server/domain/messaging-reads";

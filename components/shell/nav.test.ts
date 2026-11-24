@@ -96,3 +96,17 @@ describe("breadcrumb", () => {
     expect(breadcrumb(PORTALS.client, "/elsewhere")).toEqual(["Client portal"]);
   });
 });
+
+describe("messages badge and notices page", () => {
+  it("counts unread conversations on the Messages item of every portal, and the Fynix Inbox", () => {
+    for (const portal of Object.values(PORTALS)) {
+      const item = flatItems(portal).find((entry) => entry.label === "Messages" || entry.label === "Inbox");
+      expect(item?.countKey, portal.kind).toBe("messages");
+      expect(item?.countKind, portal.kind).toBe("unread");
+    }
+  });
+
+  it("titles the Notices page of each portal", () => {
+    for (const portal of Object.values(PORTALS)) expect(breadcrumb(portal, `${portal.homeHref}/notices`), portal.kind).toEqual(["Notices"]);
+  });
+});

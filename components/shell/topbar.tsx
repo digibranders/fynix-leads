@@ -7,11 +7,14 @@ import { useEffect, useState } from "react";
 import { Kbd } from "@/components/ui/kbd";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "./command-palette";
+import { NoticeBell } from "./notice-bell";
 import { breadcrumb, currentItem, type PortalConfig } from "./nav";
 import { GLYPHS } from "./sidebar";
 
 interface Props {
   portal: PortalConfig;
+  /** Unread notices for the bell. */
+  unreadNotices?: number;
 }
 
 /** The id of the marker at the top of the page. The strip reads it to know when the page has scrolled past its large title. */
@@ -22,7 +25,7 @@ export const TOP_SENTINEL_ID = "top-sentinel";
  * that stays at the top: the brand mark and search at the sides, and the section's name fading in between once the page has scrolled
  * past its own large title. The menu is the tab bar there, so there is no menu button.
  */
-export function Topbar({ portal }: Props) {
+export function Topbar({ portal, unreadNotices = 0 }: Props) {
   const pathname = usePathname();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -93,14 +96,16 @@ export function Topbar({ portal }: Props) {
         </ol>
       </nav>
 
+      <NoticeBell seeAllHref={`${portal.homeHref}/notices`} unread={unreadNotices} />
+
       <button
         type="button"
         onClick={() => setPaletteOpen(true)}
-        aria-label="Search pages"
+        aria-label="Search"
         className="flex h-(--h-control) items-center gap-2 rounded-sm bg-navy-05 px-2.5 text-body text-ink-muted transition-colors hover:bg-navy-08 hover:text-ink max-md:size-9 max-md:justify-center max-md:rounded-[12px] max-md:bg-surface max-md:px-0 max-md:shadow-raised md:w-[300px]"
       >
         <MagnifyingGlass aria-hidden size={15} />
-        <span className="flex-1 text-left max-md:hidden">Search pages</span>
+        <span className="flex-1 text-left max-md:hidden">Search</span>
         <Kbd className="max-md:hidden">⌘K</Kbd>
       </button>
 

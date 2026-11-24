@@ -8,6 +8,7 @@ import { StatusChip } from "@/components/kit/status-chip";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmAction } from "@/components/fynix/forms/confirm-action";
 import { When } from "@/components/kit/when";
+import { LeadMessagesButton } from "@/components/messaging/lead-messages-button";
 import { DownloadIcsButton, JoinMeetButton } from "@/components/meetings/meeting-actions";
 import { buttonVariants } from "@/components/ui/button";
 import { isClosed } from "@/lib/campaign-status";
@@ -127,10 +128,20 @@ export function LeadRecordView({
         title={prospect.name}
         description={`${prospect.title}, ${prospect.company}`}
         actions={
-          <Link href={backHref} className={buttonVariants({ variant: "secondary" })}>
-            <ArrowLeft aria-hidden weight="bold" />
-            All leads
-          </Link>
+          <>
+            {isDraft ? null : viewer === "fynix" ? (
+              <>
+                <LeadMessagesButton leadId={record.id} side="client_fynix" label="Client messages" />
+                <LeadMessagesButton leadId={record.id} side="supplier_fynix" label="Coordinator messages" />
+              </>
+            ) : viewer === "client" || isCoordinator ? (
+              <LeadMessagesButton leadId={record.id} />
+            ) : null}
+            <Link href={backHref} className={buttonVariants({ variant: "secondary" })}>
+              <ArrowLeft aria-hidden weight="bold" />
+              All leads
+            </Link>
+          </>
         }
       />
 

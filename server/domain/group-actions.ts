@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getSessionContext } from "@/server/auth";
 import { getDatabase } from "@/server/db/client";
+import { groupRefusalMessage } from "@/lib/messaging/group-rules";
 import { DomainError } from "@/server/domain/errors";
 import {
   addGroupMembers,
@@ -42,7 +43,7 @@ function field(formData: FormData, name: string): string {
 }
 
 function failure(error: unknown, fallback: string): GroupActionResult {
-  return { status: "error", message: error instanceof DomainError ? error.message : fallback };
+  return { status: "error", message: error instanceof DomainError ? error.message : (groupRefusalMessage(error) ?? fallback) };
 }
 
 function refresh(): void {
@@ -139,10 +140,19 @@ export async function deleteGroupAction(groupId: string): Promise<GroupActionRes
   }
 }
 
-/** The people the signed-in person may add, for the picker. */
-export async function loadGroupCandidatesAction(): Promise<readonly GroupCandidate[]> {
+/**
+ * The people the signed-in person may add, for the picker. `chosen` names who is already picked and `groupId` the group being added to; the list
+ * narrows to Fynix and the one side present. The domain checks both against the database.
+ */
+export async function loadGroupCandidatesAction(options: { readonly groupId?: string; readonly chosen?: readonly string[] } = {}): Promise<readonly GroupCandidate[]> {
   const session = await who();
-  return session === null ? [] : listGroupCandidates(session.db, session.actor);
+  if (session === null) return [];
+  try {
+    return await listGroupCandidates(session.db, session.actor, options);
+  } catch (error) {
+    if (error instanceof DomainError) return [];
+    throw error;
+  }
 }
 
 /** The people in a group, by first name and role, for the group panel. */

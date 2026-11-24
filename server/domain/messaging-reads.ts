@@ -7,11 +7,11 @@ import {
   type ConversationSide,
 } from "@/server/db/schema";
 import { DomainError } from "@/server/domain/errors";
-import { markConversationReadSchema, markNotificationReadSchema } from "@/server/domain/inputs";
+import { markConversationReadSchema, markNotificationReadSchema, uuidSchema } from "@/server/domain/inputs";
 import { parseInput } from "@/server/domain/parse";
 import { assertConversationAccess, conversationColumnsFor, messageColumnsFor, notificationColumnsFor, withActorScope, type MessagingActor } from "@/server/domain/messaging-core";
 /**
- * Lists conversations visible to the actor.
+ * Lists conversations visible to the actor. For Fynix each carries `counterpartyName`, the name of the client or coordinator it is with.
  */
 export async function listConversations(
   db: Database,
@@ -47,8 +47,14 @@ export async function listConversations(
     if (filters?.leadId) conditions.push(eq(conversation.leadId, filters.leadId));
     if (filters?.side) conditions.push(eq(conversation.side, filters.side));
 
+    // Fynix reads many companies at once, so each of its threads carries the company's own name (the client, or the coordinator). A tenant reads
+    // organisation rows of its own organisation only, so it gets no name here.
+    const counterpartyName =
+      actor.orgKind === "fynix"
+        ? sql<string | null>`(select o.name from organisation o where o.id = coalesce(${conversation.clientOrgId}, ${conversation.supplierOrgId}))`
+        : sql<string | null>`null::text`;
     const rows = await tx
-      .select(cols)
+      .select({ ...cols, counterpartyName })
       .from(conversation)
       .where(and(...conditions))
       .orderBy(desc(conversation.updatedAt));
@@ -64,6 +70,17 @@ export async function listConversations(
     }
     return rows.map((row) => ({ ...row, subject: titles.get(row.id) ?? row.subject, isDirect: titles.has(row.id) }));
   });
+}
+
+/**
+ * The threads about one lead that the actor may open, for the link on the lead's record page: the client's thread with Fynix for a client, the
+ * coordinator's for a coordinator, both for Fynix. Empty when no thread was started yet, and for a partner agency (it has none). The database's row
+ * policies decide what is visible; an organisation never finds another's.
+ */
+export async function conversationForLead(db: Database, actor: MessagingActor, leadId: string) {
+  parseInput(uuidSchema, leadId);
+  const rows = await listConversations(db, actor, { leadId });
+  return rows.map((row) => ({ id: row.id, publicRef: row.publicRef, side: row.side as ConversationSide }));
 }
 
 /**

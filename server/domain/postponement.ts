@@ -7,6 +7,7 @@ import type { TenantActor } from "@/server/domain/alias-identity";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
 import { pickPostponementSchema, proposePostponementSchema } from "@/server/domain/inputs";
+import { notify } from "@/server/domain/notices";
 import { parseInput } from "@/server/domain/parse";
 
 /**
@@ -75,6 +76,7 @@ export async function proposePostponement(db: Database, deps: Pick<DomainDeps, "
       snapshot: { proposedTimes: parsed.proposedTimes.map((time) => time.toISOString()) },
       createdAt: now,
     });
+    await notify(tx, { type: "postponement_proposed", by: side, leadId: booked.leadId, meetingId: booked.id });
     return created;
   });
 }
@@ -120,6 +122,7 @@ export async function pickPostponement(db: Database, deps: Pick<DomainDeps, "now
       snapshot: { pickedTime: parsed.pickedTime.toISOString() },
       createdAt: now,
     });
+    await notify(tx, { type: "meeting_postponed", leadId: booked.leadId, meetingId: booked.id });
     return moved;
   });
 }

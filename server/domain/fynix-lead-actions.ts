@@ -7,6 +7,7 @@ import { DomainError } from "@/server/domain/errors";
 import { fynixWorkWrite, type FynixActor } from "@/server/domain/fynix-write";
 import { answerForClientSchema, approveOverShareSchema, correctLeadSchema, markLostSchema } from "@/server/domain/inputs";
 import { bookMeeting } from "@/server/domain/leads";
+import { notify } from "@/server/domain/notices";
 import { parseInput } from "@/server/domain/parse";
 
 /**
@@ -71,6 +72,7 @@ export async function fynixAnswerForClient(deps: DomainDeps, actor: FynixActor, 
     const before = row.stage === "awaiting_client" || row.stage === "scheduled";
     const decided = { decisionNote: parsed.note, decisionAt: now, decisionByUserId: actor.userId, decisionSource: "fynix", updatedAt: now } as const;
     let nextStage: string;
+    let meetingId: string | undefined;
 
     if (parsed.answer === "pick_time") {
       if (!bookable) throw new DomainError("invalid-lead-stage", "Only a lead that waits for a time can have one picked.");
@@ -79,7 +81,7 @@ export async function fynixAnswerForClient(deps: DomainDeps, actor: FynixActor, 
       if (time === undefined || !offered.some((entry) => new Date(entry).getTime() === time.getTime())) throw new DomainError("invalid-input", "selectedMeetingTime is not one of the proposed times");
       nextStage = "scheduled";
       await tx.update(lead).set({ stage: "scheduled", scheduledMeetingTime: time, scheduledAt: now, updatedAt: now }).where(and(eq(lead.id, row.id), eq(lead.stage, "awaiting_client")));
-      await bookMeeting(tx, deps.randomBytes, row, time, now);
+      meetingId = await bookMeeting(tx, deps.randomBytes, row, time, now);
     } else if (parsed.answer === "reject_before") {
       if (!before) throw new DomainError("invalid-lead-stage", "A lead can be rejected before its meeting only.");
       nextStage = "declined";
@@ -93,6 +95,9 @@ export async function fynixAnswerForClient(deps: DomainDeps, actor: FynixActor, 
     }
 
     await tx.insert(leadHistory).values({ leadId: row.id, actorUserId: actor.userId, actorRole: "fynix", action: "lead.answer_for_client", fromStage: row.stage, toStage: nextStage, note: parsed.note, snapshot: { answer: parsed.answer }, createdAt: now });
+    if (parsed.answer === "pick_time") await notify(tx, { type: "meeting_scheduled", leadId: row.id, meetingId });
+    else if (parsed.answer === "reject_before") await notify(tx, { type: "rejected_before_meeting", by: "fynix", note: parsed.note, leadId: row.id });
+    else await notify(tx, { type: parsed.answer === "accept" ? "lead_accepted" : "lead_rejected", by: "fynix", note: parsed.note, leadId: row.id });
     await audit({ action: "lead.answer_for_client", subject: { table: "lead", id: row.id, ref: row.publicRef }, before: { stage: row.stage }, after: { stage: nextStage, answer: parsed.answer, decisionSource: "fynix" } });
     return { id: row.id, publicRef: row.publicRef, stage: nextStage };
   });
@@ -116,6 +121,7 @@ export async function fynixMarkLost(deps: DomainDeps, actor: FynixActor, input: 
     if (updated === undefined) throw new DomainError("invalid-lead-stage", "This lead was changed by someone else. Refresh the page.");
     await cancelBooking(tx, row.id, now);
     await tx.insert(leadHistory).values({ leadId: row.id, actorUserId: actor.userId, actorRole: "fynix", action: "lead.mark_lost", fromStage: row.stage, toStage: "lost", note: parsed.note, createdAt: now });
+    await notify(tx, { type: "lead_lost", note: parsed.note, leadId: row.id });
     await audit({ action: "lead.mark_lost", subject: { table: "lead", id: row.id, ref: row.publicRef }, before: { stage: row.stage }, after: { stage: "lost" } });
     return updated;
   });

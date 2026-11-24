@@ -1,0 +1,8 @@
+ALTER TABLE "notification" DROP CONSTRAINT "notification_kind_check";--> statement-breakpoint
+ALTER TABLE "notification" ADD COLUMN "lead_id" uuid;--> statement-breakpoint
+ALTER TABLE "notification" ADD COLUMN "meeting_id" uuid;--> statement-breakpoint
+ALTER TABLE "notification" ADD COLUMN "campaign_id" uuid;--> statement-breakpoint
+ALTER TABLE "notification" ADD CONSTRAINT "notification_lead_fk" FOREIGN KEY ("lead_id") REFERENCES "public"."lead"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "notification" ADD CONSTRAINT "notification_meeting_fk" FOREIGN KEY ("meeting_id") REFERENCES "public"."meeting"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "notification" ADD CONSTRAINT "notification_campaign_fk" FOREIGN KEY ("campaign_id") REFERENCES "public"."campaign"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "notification" ADD CONSTRAINT "notification_kind_check" CHECK ("notification"."kind" IN ('lead_submitted', 'lead_reviewed', 'meeting_scheduled', 'outcome_recorded', 'dispute_raised', 'message_received', 'general', 'times_proposed', 'meeting_postponed', 'lead_rejected', 'lead_withdrawn', 'lead_lost', 'decision_needed', 'decision_reminder', 'lead_accepted', 'lead_auto_accepted', 'outcome_contested', 'contest_decided', 'rejection_overturned', 'review_requested', 'agreement_published', 'campaign_active', 'campaign_closed'));

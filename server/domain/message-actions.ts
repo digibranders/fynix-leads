@@ -11,9 +11,12 @@ import { addMessageAttachment } from "@/server/domain/attachments";
 import { deleteUpload, saveUpload } from "@/server/files/storage";
 import { scanUpload } from "@/server/files/scan";
 import { DomainError } from "@/server/domain/errors";
+import { threadHref } from "@/lib/leads/thread-ref";
 import {
   forwardMessage,
   getOrCreateConversation,
+  getOrCreateLeadConversation,
+  openThreadWithFynix,
   markConversationRead,
   markNotificationRead,
   postMessage,
@@ -24,6 +27,8 @@ export interface MessageActionResult {
   readonly status: "idle" | "success" | "error";
   readonly message?: string;
   readonly data?: unknown;
+  /** The page that opens the thread, when the action found or made one. */
+  readonly href?: string;
 }
 
 function getField(formData: FormData, name: string): string {
@@ -273,5 +278,37 @@ export async function markConversationReadAction(conversationId: string): Promis
     await markConversationRead(db, actor, conversationId);
   } catch (error) {
     if (!(error instanceof DomainError)) throw error;
+    return;
+  }
+  // The Messages and Inbox badge lives in the shell, which a navigation does not render again.
+  for (const home of ["/client", "/supplier", "/agency", "/fynix"]) revalidatePath(home, "layout");
+}
+
+/** A client or a coordinator starts a thread with Fynix about one campaign (one thread per campaign: asking again opens it). */
+export async function openThreadWithFynixAction(campaignId: string): Promise<MessageActionResult> {
+  const context = await getSessionContext();
+  if (context === null) return { status: "error", message: "You must be signed in to send messages." };
+  const { actor, db } = resolveActorAndDb(context);
+  try {
+    const conv = await openThreadWithFynix(db, actor, { campaignId });
+    revalidateMessagePaths();
+    return { status: "success", href: threadHref(context.kind, conv.id) };
+  } catch (error) {
+    return { status: "error", message: error instanceof DomainError ? error.message : "The conversation could not be opened. Try again." };
+  }
+}
+
+/** Opens the thread about one lead, made on first use, from the lead's record page. Fynix names the side; everyone else opens their own. */
+export async function openLeadThreadAction(leadId: string, side?: "client_fynix" | "supplier_fynix"): Promise<MessageActionResult> {
+  const context = await getSessionContext();
+  if (context === null) return { status: "error", message: "You must be signed in to send messages." };
+  const { actor, db } = resolveActorAndDb(context);
+  try {
+    const conv = await getOrCreateLeadConversation(db, actor, { leadId, side });
+    if (conv === null) return { status: "error", message: "This lead has no conversation with Fynix for your team." };
+    revalidateMessagePaths();
+    return { status: "success", href: threadHref(context.kind, conv.id) };
+  } catch (error) {
+    return { status: "error", message: error instanceof DomainError ? error.message : "The conversation could not be opened. Try again." };
   }
 }

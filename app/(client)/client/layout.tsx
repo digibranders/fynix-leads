@@ -6,6 +6,7 @@ import { requireClient } from "@/server/client/session";
 import { getDatabase } from "@/server/db/client";
 import { clientQueueCount } from "@/lib/leads/decision-queue";
 import { listClientLeads } from "@/server/domain/leads";
+import { loadShellCounts } from "@/server/domain/notices";
 
 export const metadata: Metadata = {
   title: { default: "Client portal", template: "%s | Client portal" },
@@ -15,13 +16,16 @@ export const metadata: Metadata = {
 async function ClientShellLoader({ children }: { children: React.ReactNode }) {
   const view = await requireClient();
   // The count beside "Availability" adds both queues of that screen: leads waiting for a time and leads waiting for an answer.
-  const waiting = clientQueueCount(await listClientLeads(getDatabase("leads_client").db, view.actor));
+  const db = getDatabase("leads_client").db;
+  const [leads, shell] = await Promise.all([listClientLeads(db, view.actor), loadShellCounts(db, view.actor)]);
+  const waiting = clientQueueCount(leads);
   return (
     <AppShell
       portal="client"
       userName={view.name}
       roleLabel={view.canWrite ? "Client manager" : "Client member"}
-      counts={{ respond: waiting }}
+      counts={{ respond: waiting, messages: shell.messages }}
+      unreadNotices={shell.notices}
     >
       {children}
     </AppShell>

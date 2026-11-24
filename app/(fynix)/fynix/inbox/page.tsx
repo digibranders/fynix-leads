@@ -11,6 +11,7 @@ import {
   type ThreadMessageView,
 } from "@/components/messaging/messaging-view";
 import { getDatabase } from "@/server/db/client";
+import { leadRefFromSubject } from "@/lib/leads/thread-ref";
 import { requireFynix } from "@/server/fynix/session";
 import {
   listConversations,
@@ -57,7 +58,8 @@ async function Inbox({ searchParams: pending }: { searchParams: PageProps<"/fyni
       side: c.side as "client_fynix" | "supplier_fynix",
       subject: c.subject ?? null,
       isDirect: c.isDirect,
-      counterpartyName: isClientSide ? "Client Organization" : "Coordinator Organization",
+      counterpartyName: c.counterpartyName ?? (isClientSide ? "Client" : "Coordinator"),
+      leadRef: c.leadId === null || c.leadId === undefined ? null : leadRefFromSubject(c.subject ?? null),
       lastMessageAt: c.updatedAt.toISOString(),
     };
   });
@@ -70,7 +72,7 @@ async function Inbox({ searchParams: pending }: { searchParams: PageProps<"/fyni
     .map((c) => ({
       id: c.id,
       publicRef: c.publicRef,
-      label: c.side === "client_fynix" ? "Client Side" : "Coordinator Side",
+      label: `${c.counterpartyName ?? (c.side === "client_fynix" ? "Client" : "Coordinator")} (${c.side === "client_fynix" ? "client side" : "coordinator side"})`,
       side: c.side as "client_fynix" | "supplier_fynix",
     }));
 
@@ -100,6 +102,7 @@ async function Inbox({ searchParams: pending }: { searchParams: PageProps<"/fyni
         canCreateGroup={canCreate}
         groupInfo={groupInfo}
         availableForwardTargets={availableForwardTargets}
+        openedByLink={searchParams.conv !== undefined}
       />
     </div>
   );

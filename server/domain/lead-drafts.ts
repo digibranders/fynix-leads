@@ -8,6 +8,7 @@ import type { TenantActor } from "@/server/domain/alias-identity";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
 import { draftIdSchema, saveDraftSchema, submitLeadSchema, updateDraftSchema, withdrawLeadSchema } from "@/server/domain/inputs";
+import { notify } from "@/server/domain/notices";
 import { parseInput } from "@/server/domain/parse";
 import { insertWithPublicRef } from "@/server/domain/refs";
 import { checkSubmission } from "@/server/domain/leads";
@@ -233,6 +234,7 @@ export async function submitDraft(db: Database, deps: Pick<DomainDeps, "now">, a
       snapshot: { publicRef: updated.publicRef, campaignId: updated.campaignId, proposedTimes: updated.proposedTimes, overShare: checked.overShare },
       createdAt: now,
     });
+    await notify(tx, { type: "lead_submitted", leadId: draft.id });
     return updated;
   });
 }
@@ -255,6 +257,7 @@ export async function withdrawLead(db: Database, deps: Pick<DomainDeps, "now">, 
     if (row.stage !== "awaiting_client" && row.stage !== "scheduled") throw new DomainError("invalid-lead-stage", "A lead can be withdrawn before its meeting only.");
 
     const now = deps.now();
+    const note = parsed.note === undefined || parsed.note === "" ? "Withdrawn by the agency before the meeting" : parsed.note;
     const [updated] = await tx
       .update(lead)
       .set({ stage: "withdrawn", closedAt: now, updatedAt: now })
@@ -275,9 +278,10 @@ export async function withdrawLead(db: Database, deps: Pick<DomainDeps, "now">, 
       action: "lead.withdraw",
       fromStage: row.stage,
       toStage: "withdrawn",
-      note: parsed.note === undefined || parsed.note === "" ? "Withdrawn by the agency before the meeting" : parsed.note,
+      note,
       createdAt: now,
     });
+    await notify(tx, { type: "lead_withdrawn", note, leadId: row.id });
     return updated;
   });
 }

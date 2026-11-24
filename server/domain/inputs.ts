@@ -436,6 +436,15 @@ export const getOrCreateConversationSchema = z
   .strict();
 export type GetOrCreateConversationInput = z.infer<typeof getOrCreateConversationSchema>;
 
+export const searchQuerySchema = z.object({ query: z.string().trim().max(100, "must be at most 100 characters") }).strict();
+
+export const candidateScopeSchema = z.object({ groupId: z.uuid().optional(), chosen: z.array(z.uuid()).max(200) }).strict();
+
+export const openThreadSchema = z.object({ campaignId: z.uuid(), subject: optionalText(200).optional() }).strict();
+
+/** `side` is for Fynix, which opens either thread of a lead; a client or a coordinator opens its own. */
+export const leadConversationSchema = z.object({ leadId: z.uuid(), side: z.enum(["client_fynix", "supplier_fynix"]).optional() }).strict();
+
 export const postMessageSchema = z
   .object({
     conversationId: z.uuid(),

@@ -10,8 +10,11 @@ import { Panel, PanelHeader } from "@/components/kit/panel";
 import { PageSkeleton } from "@/components/kit/skeletons";
 import { When } from "@/components/kit/when";
 import { Badge } from "@/components/ui/badge";
+import { GroupsToReview } from "@/components/fynix/settings/groups-to-review";
 import { PublishTermsButton } from "@/components/fynix/settings/settings-actions";
+import { getDatabase } from "@/server/db/client";
 import { getDomain } from "@/server/domain";
+import { listMixedGroups } from "@/server/domain/groups";
 import { readSettings } from "@/server/domain/settings-overview";
 import { requireFynix } from "@/server/fynix/session";
 
@@ -22,6 +25,8 @@ const PARTY_LABEL = { client: "Clients", agency: "Coordinators and agencies", fy
 async function Settings() {
   const view = await requireFynix();
   const { fynixOrg, team, terms } = await readSettings(getDomain(), view.actor);
+  // Admin only, though the read itself is open to staff: repairing a group is set-up work.
+  const mixedGroups = view.canWrite ? await listMixedGroups(getDatabase("leads_fynix").db, view.actor) : null;
   return (
     <div className="flex flex-col gap-4">
       <PageHeader title="Settings" description="Who works at Fynix and which terms people accept." />
@@ -59,6 +64,7 @@ async function Settings() {
             </ul>
           )}
         </Panel>
+        {mixedGroups === null ? null : <GroupsToReview groups={mixedGroups} />}
       </div>
     </div>
   );

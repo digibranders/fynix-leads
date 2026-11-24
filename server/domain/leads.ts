@@ -35,6 +35,7 @@ import {
   type SubmitLeadParsed,
 } from "@/server/domain/inputs";
 import { parseInput } from "@/server/domain/parse";
+import { notify } from "@/server/domain/notices";
 import { insertWithPublicRef } from "@/server/domain/refs";
 import { resolveReview } from "@/server/domain/rejection-reviews";
 
@@ -274,6 +275,7 @@ export async function submitLead(
       },
       createdAt: now,
     });
+    await notify(tx, { type: "lead_submitted", leadId: created.id });
 
     return created;
   });
@@ -289,16 +291,18 @@ export async function bookMeeting(
   leadRow: { readonly id: string; readonly campaignId: string; readonly hostMemberId: string | null },
   time: Date,
   now: Date,
-): Promise<void> {
+): Promise<string> {
   if (leadRow.hostMemberId === null) throw new DomainError("invalid-lead-stage", "A lead with no host cannot be booked.");
   const hostMemberId = leadRow.hostMemberId;
-  await insertWithPublicRef(tx, { prefix: "MTG", constraint: "meeting_public_ref_unique", randomBytes }, async (innerTx, publicRef: string) => {
+  const booked = await insertWithPublicRef(tx, { prefix: "MTG", constraint: "meeting_public_ref_unique", randomBytes }, async (innerTx, publicRef: string) => {
     const [row] = await innerTx
       .insert(meeting)
       .values({ publicRef, leadId: leadRow.id, campaignId: leadRow.campaignId, hostMemberId, scheduledStartTime: time, durationMinutes: 30, googleMeetUrl: null, outcome: "scheduled", createdAt: now, updatedAt: now })
       .returning({ id: meeting.id });
     return row;
   });
+  if (booked === undefined) throw new Error("Insert of meeting returned no row");
+  return booked.id;
 }
 
 /**
@@ -369,7 +373,8 @@ export async function clientReviewLead(
         createdAt: now,
       });
 
-      await bookMeeting(tx, deps.randomBytes, { id: leadRow.id, campaignId: leadRow.campaignId, hostMemberId: leadRow.hostMemberId }, new Date(parsed.selectedMeetingTime!), now);
+      const meetingId = await bookMeeting(tx, deps.randomBytes, { id: leadRow.id, campaignId: leadRow.campaignId, hostMemberId: leadRow.hostMemberId }, new Date(parsed.selectedMeetingTime!), now);
+      await notify(tx, { type: "meeting_scheduled", leadId: leadRow.id, meetingId });
 
       return updated;
     }
@@ -395,6 +400,7 @@ export async function clientReviewLead(
         snapshot: { proposedTimes: parsed.proposedTimes },
         createdAt: now,
       });
+      await notify(tx, { type: "times_proposed", leadId: leadRow.id });
 
       return updated;
     }
@@ -435,6 +441,7 @@ export async function clientReviewLead(
       },
       createdAt: now,
     });
+    await notify(tx, { type: "rejected_before_meeting", by: "client", note, leadId: leadRow.id });
 
     return updated;
   });
@@ -496,6 +503,7 @@ export async function decideLead(
       snapshot: { decision: parsed.decision },
       createdAt: now,
     });
+    await notify(tx, { type: accepted ? "lead_accepted" : "lead_rejected", by: "client", note: parsed.note, leadId: leadRow.id });
 
     return updated;
   });
@@ -543,6 +551,7 @@ export async function fynixOverturnRejection(db: Database, deps: Pick<DomainDeps
       snapshot: { decision: "overturned" },
       createdAt: now,
     });
+    await notify(tx, { type: "rejection_overturned", note: parsed.note, leadId: leadRow.id });
 
     await audit({
       action: "lead.overturn_rejection",

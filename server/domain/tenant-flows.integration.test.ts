@@ -15,7 +15,7 @@ import { listTenantCampaigns } from "@/server/domain/campaigns-tenant";
 import { listPartnerAgencies } from "@/server/domain/partners-tenant";
 import { isPartnerAgency } from "@/server/domain/org-role";
 import { addMessageAttachment, getAttachmentLocation, listConversationAttachments } from "@/server/domain/attachments";
-import { addGroupMembers, canCreateGroup, createGroup, deleteGroup, getGroupInfo, leaveGroup, listGroupCandidates, openDirectChat, listGroupMembers, removeGroupMember, renameGroup } from "@/server/domain/groups";
+import { addGroupMembers, canCreateGroup, createGroup, deleteGroup, getGroupInfo, leaveGroup, listGroupCandidates, openDirectChat, listGroupMembers, renameGroup } from "@/server/domain/groups";
 import { openDomainRig } from "@/server/domain/testing";
 
 /**
@@ -468,15 +468,12 @@ describe("group chats", () => {
     await renameGroup(agencyDb, supplier, { groupId: info.groupId, name: "Renamed" });
     expect((await getGroupInfo(fynixDb, fynix, conversationId))?.name).toBe("Renamed");
 
-    // The Fynix admin may add a person only a Fynix admin may pick: a client.
-    await addGroupMembers(fynixDb, fynix, { groupId: info.groupId, memberIds: [cast.clientActor.userId] });
-    expect((await listGroupMembers(fynixDb, fynix, info.groupId)).some((row) => row.roleLabel === "Client")).toBe(true);
-
-    // The supplier cannot add that client person, though it manages the group.
-    await expect(addGroupMembers(agencyDb, supplier, { groupId: info.groupId, memberIds: [cast.clientActor.userId] })).rejects.toThrow(/cannot add/);
-
-    await removeGroupMember(fynixDb, fynix, { groupId: info.groupId, userId: cast.clientActor.userId });
+    // Even a Fynix admin may not put the other side in: a group holds Fynix and one side, here the coordinator's.
+    await expect(addGroupMembers(fynixDb, fynix, { groupId: info.groupId, memberIds: [cast.clientActor.userId] })).rejects.toThrow(/one side only/);
     expect((await listGroupMembers(fynixDb, fynix, info.groupId)).some((row) => row.roleLabel === "Client")).toBe(false);
+
+    // The supplier cannot add a client person either, though it manages the group.
+    await expect(addGroupMembers(agencyDb, supplier, { groupId: info.groupId, memberIds: [cast.clientActor.userId] })).rejects.toThrow(/cannot add/);
 
     await leaveGroup(fynixDb, fynix, { groupId: info.groupId });
     expect(await getGroupInfo(fynixDb, fynix, conversationId)).toBeNull();
@@ -488,7 +485,7 @@ describe("group chats", () => {
   it("lets a Fynix admin create a group, rename it and open a chat, each leaving an audit row", async () => {
     const { fynix, supplier, fynixDb, adminId } = actors();
     const owner = rig.dbs.owner.db;
-    const conversationId = await createGroup(fynixDb, fynix, { name: "Fynix started", memberIds: [supplier.userId, cast.clientActor.userId] });
+    const conversationId = await createGroup(fynixDb, fynix, { name: "Fynix started", memberIds: [supplier.userId] });
     const info = await getGroupInfo(fynixDb, fynix, conversationId);
     if (info === null) throw new Error("No group");
     await renameGroup(fynixDb, fynix, { groupId: info.groupId, name: "Fynix renamed" });

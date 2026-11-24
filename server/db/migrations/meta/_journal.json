@@ -491,6 +491,27 @@
       "when": 1795540125211,
       "tag": "0069_phase4_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1795543586017,
+      "tag": "0070_notice_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1795543597181,
+      "tag": "0071_phase5_notices_chat_groups",
+      "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1795544422742,
+      "tag": "0072_notice_mark_read",
+      "breakpoints": true
     }
   ]
 }
