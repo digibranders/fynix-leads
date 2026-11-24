@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
+import { twoFactor } from "better-auth/plugins";
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, passwordProblem } from "@/lib/auth/password-policy";
 import { PASSWORD_RESET_LIFETIME_SECONDS, SESSION_LIFETIME_SECONDS, sessionLifetimeSeconds } from "@/lib/auth/session-lifetime";
 import { hasAccountCreationGrant } from "@/server/auth/account-creation-grant";
@@ -9,7 +10,7 @@ import { BreachCheckUnavailableError, type BreachChecker } from "@/server/auth/b
 import type { AuthDatabase } from "@/server/auth/auth-database";
 import type { ResetMailer } from "@/server/auth/mail";
 import { readMembership } from "@/server/auth/membership";
-import { account, session, user, verification } from "@/server/db/schema";
+import { account, session, twoFactor as twoFactorTable, user, verification } from "@/server/db/schema";
 
 export const MIN_SECRET_LENGTH = 32;
 /** The secret Better Auth uses when it is given none. It is in the package source, so it is not a secret. */
@@ -93,7 +94,7 @@ export function createAuth(config: AuthConfig) {
     baseURL: config.baseURL,
     secret: config.secret,
     trustedOrigins: [config.baseURL],
-    database: drizzleAdapter(config.db, { provider: "pg", schema: { user, session, account, verification } }),
+    database: drizzleAdapter(config.db, { provider: "pg", schema: { user, session, account, verification, twoFactor: twoFactorTable } }),
     emailAndPassword: {
       enabled: true,
       minPasswordLength: PASSWORD_MIN_LENGTH,
@@ -150,7 +151,18 @@ export function createAuth(config: AuthConfig) {
       },
     },
     hooks: { before: passwordPolicy(config.breachChecker) },
-    plugins: config.nextCookies ? [nextCookies()] : [],
+    // twoFactor before nextCookies, which must stay last. Authenticator app and backup codes only: no emailed code, and no "trust this device"
+    // (the verify action never passes it), so every sign-in of an enrolled person asks for a code. The plugin's own HTTP rate limit does not run
+    // here (the handler is never mounted); server/auth/second-factor.ts holds the limits.
+    plugins: [
+      twoFactor({
+        issuer: "Fynix Leads",
+        totpOptions: { digits: 6, period: 30 },
+        backupCodeOptions: { amount: 10, length: 10, storeBackupCodes: "encrypted" },
+        twoFactorCookieMaxAge: 600,
+      }),
+      ...(config.nextCookies ? [nextCookies()] : []),
+    ],
   });
 }
 

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SessionContext } from "@/server/auth/session-context";
 import { DomainError } from "@/server/domain/errors";
 
@@ -46,9 +46,43 @@ describe("requireFynix", () => {
 
   it("lets a Fynix admin write and Fynix staff read", async () => {
     state.context = fynix("manager");
-    expect(await requireFynix()).toEqual({ actor: { userId: base.userId }, name: "Meera Sethi", canWrite: true });
+    expect(await requireFynix()).toEqual({ actor: { userId: base.userId }, name: "Meera Sethi", canWrite: true, twoFactorEnabled: false });
     state.context = fynix("member");
     expect((await requireFynix()).canWrite).toBe(false);
+  });
+});
+
+describe("REQUIRE_FYNIX_2FA", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("is off by default: a Fynix person without the second step reaches every page", async () => {
+    state.context = fynix("manager");
+    expect((await requireFynix()).twoFactorEnabled).toBe(false);
+  });
+
+  it("when on, sends a Fynix person without the step to the profile page, and lets the profile page and layout in", async () => {
+    vi.stubEnv("REQUIRE_FYNIX_2FA", "true");
+    state.context = fynix("manager");
+    await expect(requireFynix()).rejects.toMatchObject({ to: "/fynix/profile" });
+    expect((await requireFynix({ allowWithoutSecondFactor: true })).canWrite).toBe(true);
+  });
+
+  it("when on, lets a Fynix person who has the step through, and leaves client and agency users alone", async () => {
+    vi.stubEnv("REQUIRE_FYNIX_2FA", "true");
+    state.context = { ...fynix("member"), twoFactorEnabled: true };
+    expect((await requireFynix()).twoFactorEnabled).toBe(true);
+    state.context = { ...base, kind: "client", role: "leads_client", memberRole: "manager" };
+    await expect(requireFynix()).rejects.toBeInstanceOf(NotFound);
+  });
+
+  it("counts only the exact word true", async () => {
+    for (const value of ["TRUE", "1", "yes", "false", ""]) {
+      vi.stubEnv("REQUIRE_FYNIX_2FA", value);
+      state.context = fynix("manager");
+      await expect(requireFynix(), value).resolves.toBeDefined();
+    }
   });
 });
 

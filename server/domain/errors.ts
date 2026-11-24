@@ -30,7 +30,6 @@ export type DomainErrorCode =
   | "prospect-duplicate"
   | "alias-not-verified"
   | "invalid-lead-stage"
-  | "dispute-window-expired"
   | "duplicate-name"
   | "agreement-not-accepted"
   | "no-host"

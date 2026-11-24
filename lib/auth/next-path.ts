@@ -1,6 +1,6 @@
 const MAX_LENGTH = 200;
 /** The pages that sign a person in or out of a loop: sending someone back to one of them after signing in would go round again. */
-const AUTH_PATHS: ReadonlySet<string> = new Set(["/sign-in", "/forgot-password", "/reset-password"]);
+const AUTH_PATHS: ReadonlySet<string> = new Set(["/sign-in", "/sign-in/verify", "/forgot-password", "/reset-password"]);
 /** An origin that cannot be real, used only to ask the URL parser where a path really points. */
 const PLACEHOLDER_ORIGIN = "http://placeholder.invalid";
 

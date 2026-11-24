@@ -114,7 +114,7 @@ describe(".env.example", () => {
     const lines = readFileSync(join(process.cwd(), ".env.example"), "utf8")
       .split(/\r?\n/)
       .map((line) => line.trim())
-      .filter((line) => /^[A-Z_]+=/.test(line));
+      .filter((line) => /^[A-Z0-9_]+=/.test(line));
     expect(lines.map((line) => line.slice(0, line.indexOf("="))).sort()).toEqual([...declaredVariables().runtime, ...declaredVariables().tooling].sort());
     expect(lines.every((line) => line.endsWith("="))).toBe(true);
   });

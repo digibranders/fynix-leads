@@ -397,23 +397,6 @@ export type DecideLeadInput = z.infer<typeof decideLeadSchema>;
 export const overturnRejectionSchema = z.object({ leadId: z.uuid(), note: decisionNote }).strict();
 export type OverturnRejectionInput = z.infer<typeof overturnRejectionSchema>;
 
-export const disputeLeadSchema = z
-  .object({
-    leadId: z.uuid(),
-    disputeReason: z.string().trim().min(5, "must be at least 5 characters").max(1000),
-  })
-  .strict();
-export type DisputeLeadInput = z.infer<typeof disputeLeadSchema>;
-
-export const resolveDisputeSchema = z
-  .object({
-    leadId: z.uuid(),
-    resolution: z.enum(["upheld", "rejected"]),
-    note: optionalText(500).optional(),
-  })
-  .strict();
-export type ResolveDisputeInput = z.infer<typeof resolveDisputeSchema>;
-
 export const recordMeetingOutcomeSchema = z
   .object({
     meetingId: z.uuid(),

@@ -9,11 +9,7 @@ import { getDomain } from "@/server/domain";
 import { DomainError } from "@/server/domain/errors";
 import { draftInput } from "@/server/domain/lead-form-fields";
 import { submitDraft, updateDraft } from "@/server/domain/lead-drafts";
-import {
-  clientReviewLead,
-  disputeLead,
-  submitLead,
-} from "@/server/domain/leads";
+import { submitLead } from "@/server/domain/leads";
 
 export interface TenantActionResult {
   readonly status: "idle" | "success" | "error";
@@ -94,93 +90,5 @@ export async function submitLeadAction(
       return { status: "error", message: error.message };
     }
     return { status: "error", message: "An unexpected error occurred while submitting the lead." };
-  }
-}
-
-/**
- * Server action for client reviewing a lead: accept, propose times, or decline.
- */
-export async function clientReviewLeadAction(
-  _previous: TenantActionResult,
-  formData: FormData,
-): Promise<TenantActionResult> {
-  const context = await getSessionContext();
-  if (context === null || context.kind !== "client") {
-    return { status: "error", message: "Only client members can review leads." };
-  }
-
-  const action = getField(formData, "action") as "accept" | "propose_times" | "decline";
-  const selectedTime = getField(formData, "selectedMeetingTime");
-  const declineReason = getField(formData, "declineReason");
-  const timesRaw = formData.getAll("proposedTimes");
-  const proposedTimes = timesRaw.filter((t): t is string => typeof t === "string" && t.length > 0);
-
-  const input = {
-    leadId: getField(formData, "leadId"),
-    action,
-    selectedMeetingTime: selectedTime || undefined,
-    proposedTimes: proposedTimes.length > 0 ? proposedTimes : undefined,
-    declineReason: declineReason || undefined,
-  };
-
-  try {
-    const deps = getDomain();
-    const db = getDatabase("leads_client").db;
-    const actor = {
-      userId: context.userId,
-      orgId: context.orgId,
-      orgKind: "client" as const,
-      role: context.memberRole,
-    };
-
-    await clientReviewLead(db, deps, actor, input);
-    revalidatePath("/client/review");
-    revalidatePath("/client/leads");
-    // The sidebar count beside "Availability" lives in the layout.
-    revalidatePath("/client", "layout");
-    return { status: "success", message: `Lead review completed (${action}).` };
-  } catch (error) {
-    if (error instanceof DomainError) {
-      return { status: "error", message: error.message };
-    }
-    return { status: "error", message: "An unexpected error occurred while reviewing the lead." };
-  }
-}
-
-/**
- * Server action for client raising a dispute on a delivered lead within 48h.
- */
-export async function disputeLeadAction(
-  _previous: TenantActionResult,
-  formData: FormData,
-): Promise<TenantActionResult> {
-  const context = await getSessionContext();
-  if (context === null || context.kind !== "client") {
-    return { status: "error", message: "Only client members can dispute leads." };
-  }
-
-  const input = {
-    leadId: getField(formData, "leadId"),
-    disputeReason: getField(formData, "disputeReason"),
-  };
-
-  try {
-    const deps = getDomain();
-    const db = getDatabase("leads_client").db;
-    const actor = {
-      userId: context.userId,
-      orgId: context.orgId,
-      orgKind: "client" as const,
-      role: context.memberRole,
-    };
-
-    await disputeLead(db, deps, actor, input);
-    revalidatePath("/client/leads");
-    return { status: "success", message: "Dispute submitted successfully." };
-  } catch (error) {
-    if (error instanceof DomainError) {
-      return { status: "error", message: error.message };
-    }
-    return { status: "error", message: "An unexpected error occurred while submitting the dispute." };
   }
 }

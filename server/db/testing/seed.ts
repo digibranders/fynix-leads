@@ -273,6 +273,7 @@ async function seedSetup(
       .returning({ id: agreement.id }),
     "client agreement",
   );
+  // Legacy fixture: the separate coordinator agreement is no longer made (phase 2) but old rows stay in live data, and the leak matrix must keep proving no tenant reads one.
   await db.insert(agreement).values({ campaignId: target.id, party: "supplier", version: 1, monthlyTarget: 18, totalTarget: 108, rules: SETUP_MARKERS.supplierRules, notes: SETUP_MARKERS.supplierNotes, createdBy: memberOf(admin) });
   await db.insert(agreementAcceptance).values({ agreementId: clientAgreement.id, userId: kestrelUser.id, networkAddress: SETUP_MARKERS.acceptanceAddress });
   await db.insert(campaignShare).values({ campaignId: target.id, agencyOrgId: partner.id, monthlyShare: 7 });

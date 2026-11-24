@@ -16,6 +16,11 @@ export type SignInResult =
   /** `headers` carries the `Set-Cookie` for the new session. Inside Next.js the nextCookies plugin has also set it. */
   | { readonly status: "signed-in"; readonly userId: string; readonly headers: Headers }
   /**
+   * The password was right and the account has the second step on. No session exists yet: `headers` carries the challenge cookie, and the person
+   * enters a code on /sign-in/verify (server/auth/second-factor.ts).
+   */
+  | { readonly status: "second-factor"; readonly headers: Headers }
+  /**
    * One answer for an unknown address, a wrong password, a malformed request and a right password for a user with no
    * active membership, so nothing says which accounts exist or which passwords are right.
    */
@@ -40,6 +45,7 @@ export async function signInWithPassword(
 
   try {
     const { headers, response } = await services.auth.api.signInEmail({ body: { email, password: input.password }, headers: input.headers, returnHeaders: true });
+    if ("twoFactorRedirect" in response && response.twoFactorRedirect === true) return { status: "second-factor", headers };
     return { status: "signed-in", userId: response.user.id, headers };
   } catch (error) {
     const code = authErrorCode(error);

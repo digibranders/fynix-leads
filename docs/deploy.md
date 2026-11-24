@@ -7,6 +7,7 @@ What the app expects from the server around it. The app is live at `leads.fynix.
 - Node 24, pnpm 11. `pnpm env:check` names any missing or malformed variable.
 - `APP_ORIGIN` must be an `https://` origin in production. The app refuses to start otherwise (session cookies must be Secure).
 - `BREVO_API_KEY` is required on https, so invites and reset links are really sent.
+- `REQUIRE_FYNIX_2FA=true` (gate G1) makes every Fynix person turn on the second sign-in step before any other Fynix page opens: a Fynix person without it is sent to their profile page to set it up, and Fynix forms refuse them until they do. Anything but the exact word `true` is off, and it is off by default so a deploy never locks anyone out. Turn it on only after every Fynix person has enrolled (see "Fynix second sign-in step" below). Client and agency people are never affected.
 - Phase 6 switches, all off while unset (the app then sends only the invite, the password reset and the alias code, from `hello@fynix.digital`, and makes no meeting room). The owner steps and the checks that must pass before any of them is turned on are in `docs/launch-checklist.md`.
   - `LAUNCH_EMAILS_ENABLED=true` queues and sends every launch email (lead, meeting, reminder and decision emails, and prospect letters). Anything but the exact word `true` is off. It needs `MAIL_SENDER_ADDRESS`; the app refuses to start with the switch on and a sender that names Fynix. A prospect letter is also only written for a campaign whose privacy link is set and whose prospect email switch is on (Fynix admin, per campaign).
   - `MAIL_SENDER_ADDRESS` and `MAIL_SENDER_NAME` set the address and display name everything goes out from. Unset means `hello@fynix.digital` as "Fynix". The neutral domain must first be authenticated in Brevo (gate G3).
@@ -82,8 +83,36 @@ The lead sweep also has systemd unit templates in `docs/ops/` (`leads-sweep.serv
 
 On the production server it is run as root, through a wrapper that runs it as the app user in the live release: `ssh -t firstfold-vps fynix-leads-set-password --email=<address>`. The app user has no sudo rule for it.
 
+## Fynix second sign-in step (gate G1)
+
+Built on Better Auth's two-factor plugin: a code from an authenticator app (TOTP, six digits, 30 seconds) after the password, plus ten backup codes that each work once. It is for Fynix people only; the enrol action refuses anyone else. Migrations 0076 and 0077 add `user.two_factor_enabled` and the `two_factor` table (encrypted secret and backup codes, `leads_auth` alone).
+
+Rolling it out, in this order:
+
+1. Merge and deploy (the deploy migrates first). Nothing changes for anyone: `REQUIRE_FYNIX_2FA` is unset.
+2. Each Fynix person opens Profile, then "Second sign-in step", enters their password, adds the key to an authenticator app (the key is shown as text with a copy button, and as a link that opens the app on a phone), enters the first code and saves the ten backup codes. The codes are shown once.
+3. Check that each person can sign out and sign in again with a code. Each person's enrol, turn-off and every backup-code sign-in is in the audit log (Fynix admins: Audit log in the System menu).
+4. Set `REQUIRE_FYNIX_2FA=true` and restart. A Fynix person who has not enrolled is then sent to their profile page.
+
+Limits and behaviour to know:
+
+- Wrong codes are limited three ways: five per challenge (the cookie issued after the password, ten minutes), ten per challenge and twenty per network address in 15 minutes (our limit, in Postgres), and a 15 minute lock on the account after ten failed codes in a row (the plugin's). A used backup code never works twice.
+- Turning the step on or off ends the current session and issues a new one, which restarts the 12 hour lifetime for that sign-in.
+- The "must enrol" rule covers every Fynix page and the Fynix admin forms (`runAction`). The other Fynix server actions (leads, messages, exports) check only the session, so someone without the step who calls them directly is not stopped by this switch alone. Pages are the gate.
+- Lost phone and lost backup codes: there is no self-service reset, on purpose. The owner removes the second step in the database as `leads_owner` (this is not audited, so say so in the audit trail by other means), then the person signs in with the password and enrols again:
+
+  ```sql
+  BEGIN;
+  DELETE FROM two_factor WHERE user_id = (SELECT id FROM "user" WHERE email = 'person@example.com');
+  UPDATE "user" SET two_factor_enabled = false WHERE email = 'person@example.com';
+  DELETE FROM session WHERE user_id = (SELECT id FROM "user" WHERE email = 'person@example.com');
+  COMMIT;
+  ```
+
+  If `REQUIRE_FYNIX_2FA` is on and every admin is locked out, unset it, restart, recover, set it again.
+- After the migration, the running dev server needs `pnpm db:migrate` before sign-in works again, because Better Auth now reads the new column.
+
 ## Not covered here
 
 - A script-level Content-Security-Policy. The app sends `frame-ancestors 'none'` and the other basic headers; a full policy needs per-request nonces for Next.js inline scripts.
-- Fynix second factor (gate G1): Fynix is password only until then.
 - Backups of Postgres and of `UPLOAD_DIR`.

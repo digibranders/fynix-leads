@@ -4,7 +4,6 @@ import {
   clientReviewLeadSchema,
   createCampaignSchema,
   createOrganisationSchema,
-  disputeLeadSchema,
   forwardMessageSchema,
   getOrCreateConversationSchema,
   addCollateralSchema,
@@ -14,7 +13,6 @@ import {
   memberDetailsSchema,
   postMessageSchema,
   recordMeetingOutcomeSchema,
-  resolveDisputeSchema,
   submitLeadSchema,
   updateCampaignSchema,
   updateOrganisationSchema,
@@ -198,14 +196,6 @@ describe("lead inputs", () => {
         proposedTimes: ["2026-12-05T11:00:00Z"],
       }).success,
     ).toBe(true);
-  });
-
-  it("validates dispute input and resolution input", () => {
-    expect(disputeLeadSchema.safeParse({ leadId: UUID, disputeReason: "Short reason" }).success).toBe(true);
-    expect(disputeLeadSchema.safeParse({ leadId: UUID, disputeReason: "No" }).success).toBe(false);
-    expect(resolveDisputeSchema.safeParse({ leadId: UUID, resolution: "upheld" }).success).toBe(true);
-    expect(resolveDisputeSchema.safeParse({ leadId: UUID, resolution: "rejected", note: "Valid lead" }).success).toBe(true);
-    expect(resolveDisputeSchema.safeParse({ leadId: UUID, resolution: "other" }).success).toBe(false);
   });
 
   it("validates recordMeetingOutcomeSchema", () => {

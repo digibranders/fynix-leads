@@ -33,7 +33,7 @@ export const emailTemplate = pgEnum("email_template", [
 ]);
 export const outboxStatus = pgEnum("outbox_status", ["pending", "sent", "failed", "cancelled"]);
 export const termsStatus = pgEnum("terms_status", ["current", "superseded"]);
-/** Which side of a campaign an agreement is with: Fynix and the client, or Fynix and the supplier (spec 7.2). */
+/** Which side of a campaign an agreement is with: Fynix and the client, or Fynix and the supplier (spec 7.2). Since phase 2 only `client` rows are made; `supplier` stays in the enum for the old rows, which are kept and never read. */
 export const agreementParty = pgEnum("agreement_party", ["client", "supplier"]);
 export const agreementStatus = pgEnum("agreement_status", ["current", "superseded"]);
 

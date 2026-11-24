@@ -9,3 +9,10 @@ export const SESSION_COOKIE_NAMES: readonly string[] = ["fynix-leads.session_tok
 export function hasSessionCookie(cookies: { has(name: string): boolean }): boolean {
   return SESSION_COOKIE_NAMES.some((name) => cookies.has(name));
 }
+
+/** The challenge cookie Better Auth sets after the password for a person who has the second step on (10 minutes). Its presence is what /sign-in/verify needs. */
+export const CHALLENGE_COOKIE_NAMES: readonly string[] = ["fynix-leads.two_factor", "__Secure-fynix-leads.two_factor"];
+
+export function hasChallengeCookie(cookies: { has(name: string): boolean }): boolean {
+  return CHALLENGE_COOKIE_NAMES.some((name) => cookies.has(name));
+}

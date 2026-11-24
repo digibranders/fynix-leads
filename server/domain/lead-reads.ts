@@ -48,11 +48,6 @@ export const leadHistoryColumns = {
   createdAt: leadHistory.createdAt,
 };
 
-export function isDisputeWindowOpen(deliveredAt: Date | null, now: Date = new Date()): boolean {
-  if (deliveredAt === null) return false;
-  return now.getTime() - deliveredAt.getTime() <= 48 * 60 * 60 * 1000;
-}
-
 /**
  * Lists leads for a client organisation.
  */
@@ -71,19 +66,13 @@ export async function listClientLeads(
     }
 
     // The host's name is the client's own person: the member row is readable to the client.
-    const rows = await tx
+    return tx
       .select({ ...clientLeadColumns, hostName: member.displayName })
       .from(lead)
       .innerJoin(campaign, eq(lead.campaignId, campaign.id))
       .leftJoin(member, eq(member.id, lead.hostMemberId))
       .where(and(...conditions))
       .orderBy(desc(lead.submittedAt));
-
-    const now = new Date();
-    return rows.map((r) => ({
-      ...r,
-      canDispute: r.stage === "delivered" && isDisputeWindowOpen(r.deliveredAt, now),
-    }));
   });
 }
 

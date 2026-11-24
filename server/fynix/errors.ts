@@ -28,7 +28,6 @@ const MESSAGES: Readonly<Record<DomainErrorCode, string>> = {
   "prospect-duplicate": "A lead for this prospect has already been submitted for this client.",
   "alias-not-verified": "The selected client-brand alias identity has not been verified yet.",
   "invalid-lead-stage": "This action cannot be performed on a lead in its current stage.",
-  "dispute-window-expired": "The 48-hour dispute window for this delivered meeting has expired.",
   "duplicate-name": "A company with that name already exists. Check the list, or confirm to add it anyway.",
   "agreement-not-accepted": "The client and the coordinator must both accept the agreement before the campaign can go live.",
   "no-host": "The campaign needs at least one active host before it can go live.",
@@ -46,6 +45,8 @@ export function domainMessage(code: DomainErrorCode, overrides: Partial<Record<D
 }
 
 /** Shown when a session ends or is not Fynix by the time a form is sent. */
+/** Shown when `REQUIRE_FYNIX_2FA` is on and the person has not yet turned the second sign-in step on. */
+export const SECOND_FACTOR_REQUIRED = "Turn on the second sign-in step on your profile page first.";
 export const SESSION_GONE = "Your session has ended. Sign in again to continue.";
 /** Shown for a fault, which is anything that is not an expected refusal. */
 export const SOMETHING_WENT_WRONG = "Something went wrong and nothing was saved. Try again.";

@@ -16,7 +16,9 @@ export type NavIcon =
   | "buildings"
   | "scales"
   | "prohibit"
-  | "gear";
+  | "gear"
+  | "history"
+  | "envelope";
 
 export interface NavItem {
   readonly label: string;
@@ -26,6 +28,8 @@ export interface NavItem {
   readonly countKey?: string;
   /** What the count means to a screen reader: leads are "waiting", conversations are "unread". Waiting when left out. */
   readonly countKind?: "waiting" | "unread";
+  /** Shown only to a Fynix admin (`forViewer`). The page refuses staff as well: hiding the link is not the lock. */
+  readonly adminOnly?: boolean;
 }
 
 export interface NavGroup {
@@ -153,11 +157,22 @@ export const PORTALS: Record<PortalKind, PortalConfig> = {
       },
       {
         label: "System",
-        items: [{ label: "Settings", icon: "gear", href: "/fynix/settings" }],
+        items: [
+          { label: "Settings", icon: "gear", href: "/fynix/settings" },
+          { label: "Audit log", icon: "history", href: "/fynix/audit", adminOnly: true },
+          { label: "Email templates", icon: "envelope", href: "/fynix/templates", adminOnly: true },
+        ],
       },
     ],
   },
 };
+
+/** The portal as one viewer sees it: items marked `adminOnly` are left out for anyone who is not an admin, and a group left empty goes with them. */
+export function forViewer(portal: PortalConfig, isAdmin: boolean): PortalConfig {
+  if (isAdmin) return portal;
+  const groups = portal.groups.map((group) => ({ ...group, items: group.items.filter((item) => item.adminOnly !== true) })).filter((group) => group.items.length > 0);
+  return { ...portal, groups };
+}
 
 /** Every nav item of a portal, flat, for the palette and the breadcrumb. */
 export function flatItems(portal: PortalConfig): readonly NavItem[] {
