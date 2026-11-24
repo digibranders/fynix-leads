@@ -6,12 +6,14 @@ import type { ScopedTransaction } from "@/server/db/scope";
 import { notificationColumnsFor, withActorScope, type MessagingActor } from "@/server/domain/messaging-core";
 import { markNotificationReadSchema } from "@/server/domain/inputs";
 import { parseInput } from "@/server/domain/parse";
+import { enqueueLeadEmails } from "@/server/mail/lead-emails";
 
 /**
  * Notices in the app (phase 5). `notify(tx, event)` is the one call every domain function that changes a lead, a meeting or a campaign makes inside its own
  * transaction, after the history row. What it says and to whom is the catalogue in `lib/leads/notices.ts`; who the people are, and whether the caller may
  * speak about this lead at all, is decided by the database functions `app_notify_lead` and `app_notify_campaign` (migration 0071), because a tenant role
  * can neither read the other side's people nor write a notice for them. The person who acted is never told: the function leaves out the caller.
+ * The emails of the same event are queued right after the notices by `enqueueLeadEmails` (server/mail/lead-emails.ts), and only when the launch switch is on.
  */
 export type NotifyEvent = (LeadNoticeEvent & { readonly leadId: string; readonly meetingId?: string }) | (CampaignNoticeEvent & { readonly campaignId: string });
 
@@ -25,6 +27,8 @@ export async function notify(tx: ScopedTransaction, event: NotifyEvent): Promise
     for (const delivery of leadNotices(rest)) {
       await tx.execute(sql`select public.app_notify_lead(${leadId}::uuid, ${textArray(delivery.audience)}::text[], ${delivery.kind}, ${delivery.title}, ${delivery.body}, ${meeting}::uuid)`);
     }
+    // The emails of the same event (phase 6), in the same transaction. Nothing happens while LAUNCH_EMAILS_ENABLED is not true.
+    await enqueueLeadEmails(tx, { ...rest, leadId });
     return;
   }
   const { campaignId, ...rest } = event;

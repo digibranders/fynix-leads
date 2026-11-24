@@ -18,6 +18,8 @@ export const leadReminder = pgTable(
     kind: text("kind").notNull(),
     dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
     sentAt: timestamp("sent_at", { withTimezone: true }),
+    // The email half of the reminder has its own stamp (phase 6), so the notice in the app is unaffected by whether email is on.
+    emailSentAt: timestamp("email_sent_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

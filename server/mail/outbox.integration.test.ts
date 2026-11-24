@@ -102,6 +102,14 @@ describe("sending", () => {
     expect(row.sentAt).toBeInstanceOf(Date);
   });
 
+  it("sends an alias code, which has no link, and does not fail it for the missing link", async () => {
+    await enqueueEmail(rig.dbs.owner.db, { to: "alias@example.com", content: { template: "alias_code", params: { displayName: "Alex Croft", code: "042917" } }, link: null });
+    const transport = new FakeTransport([{ ok: true, providerId: "brevo-alias" }]);
+    expect(await drain(transport)).toEqual({ purged: 0, claimed: 1, sent: 1, retrying: 0, failed: 0 });
+    expect(transport.sent[0]?.text).toContain("042917");
+    expect(await only()).toMatchObject({ status: "sent", lastError: null });
+  });
+
   it("sends nothing twice: a second run finds nothing due", async () => {
     await queue("a@example.com");
     const transport = new FakeTransport();

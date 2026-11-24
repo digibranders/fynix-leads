@@ -38,4 +38,26 @@ describe("enqueueEmail", () => {
     expect(String(written.body)).toContain("Hello A,");
     expect(written.subject).toBe("You are invited to Fynix Leads");
   });
+
+  it.each(["a@example.com, b@example.com", "a@example.com;b@example.com", "Alex <a@example.com>", "a@example.com b@example.com", "", "a@b@example.com"])("refuses %j: a message has exactly one recipient", async (to) => {
+    const db = { insert: () => ({ values: async () => undefined }) } as unknown as Pick<Database, "insert">;
+    await expect(enqueueEmail(db, { to, content: { template: "password_reset", params: { expiresInMinutes: 60 } }, link: "https://x.example/r" })).rejects.toThrow("exactly one recipient");
+  });
+
+  it("refuses a link on a template that carries none", async () => {
+    const db = { insert: () => ({ values: async () => undefined }) } as unknown as Pick<Database, "insert">;
+    const content = {
+      template: "prospect_reminder_1h",
+      params: { prospectName: "Marta", clientBrand: "Kestrel", privacyUrl: "https://k.example/privacy", signerName: "Lena", signerTitle: "BD", when: "Tuesday 8 December 2026, 14:30 Europe/London" },
+    } as const;
+    await expect(enqueueEmail(db, { to: "a@example.com", content, link: "https://x.example/r" })).rejects.toThrow("carries no link");
+    await expect(enqueueEmail(db, { to: "a@example.com", content, link: null })).resolves.toBeUndefined();
+  });
+
+  it("queues the alias code without a link, and refuses one: it is a code to type", async () => {
+    const db = { insert: () => ({ values: async () => undefined }) } as unknown as Pick<Database, "insert">;
+    const content = { template: "alias_code", params: { displayName: "Alex Croft", code: "042917" } } as const;
+    await expect(enqueueEmail(db, { to: "alias@example.com", content, link: null })).resolves.toBeUndefined();
+    await expect(enqueueEmail(db, { to: "alias@example.com", content, link: "https://x.example/r" })).rejects.toThrow("carries no link");
+  });
 });

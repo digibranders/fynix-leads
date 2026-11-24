@@ -19,8 +19,11 @@ import type { LeadStage } from "@/lib/leads/stage";
 import { formatInZone } from "@/lib/time/zones";
 import type { LeadRecord, RescheduleView } from "@/server/domain/lead-record";
 import { discardDraftAction } from "@/server/domain/draft-actions";
+import { showsJoinBlock } from "@/lib/leads/who-joined";
+import type { MeetingJoinRecord } from "@/server/domain/meeting-joins";
 import { LeadActionBar } from "./lead-action-bar";
 import { recordFacts } from "./record-facts";
+import { WhoJoined } from "./who-joined";
 
 const safeLink = (url: string): React.ReactNode =>
   /^https:\/\//i.test(url) ? (
@@ -103,6 +106,7 @@ export function LeadRecordView({
   now,
   isCoordinator = false,
   draftHref,
+  joins = [],
 }: {
   readonly record: LeadRecord;
   readonly viewer: LeadViewer;
@@ -114,6 +118,8 @@ export function LeadRecordView({
   readonly isCoordinator?: boolean;
   /** Where a draft is continued (the lead form with `?draft=`). Only the source organisation reads a draft. */
   readonly draftHref?: string;
+  /** Who joined the meeting's room, read after it ends. Empty until the import has run. */
+  readonly joins?: readonly MeetingJoinRecord[];
 }) {
   const { prospect, bant, meeting, decision } = record;
   const facts = recordFacts(record, viewer, now, { isCoordinator });
@@ -296,6 +302,8 @@ export function LeadRecordView({
               <RescheduleHistory proposals={record.reschedules.filter((entry) => entry.status !== "open")} viewer={viewer} />
             </div>
           </Panel>
+
+          {showsJoinBlock(meeting, now) ? <WhoJoined joins={joins} /> : null}
 
           {record.reviewRequest !== null && viewer !== "client" ? (
             <Panel aria-label="Review request">

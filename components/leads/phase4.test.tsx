@@ -182,6 +182,16 @@ describe("the lead record after phase 4", () => {
     expect(page).toContain("You proposed new times");
     expect(page).not.toContain("Pick a new time");
   });
+  it("shows Who joined after the meeting starts: 'Not available yet' before the import, the people after it, and nothing before the meeting", () => {
+    const started = record({ meeting: { ...record().meeting!, scheduledStartTime: past, outcome: "held" } });
+    const before = renderToStaticMarkup(<LeadRecordView record={started} viewer="client" backHref="/client/leads" now={now} />);
+    expect(before).toContain("Who joined");
+    expect(before).toContain("Not available yet");
+    const after = renderToStaticMarkup(<LeadRecordView record={started} joins={[{ meetingId: "m1", displayName: "Priya Nair", joinedAt: past, leftAt: null, durationSeconds: 600 }]} viewer="supply" backHref="/agency/leads" now={now} />);
+    expect(after).toContain("stayed 10 minutes");
+    expect(after).not.toContain("Not available yet");
+    expect(renderToStaticMarkup(<LeadRecordView record={record()} viewer="client" backHref="/client/leads" now={now} />)).not.toContain("Who joined");
+  });
   it("lists answered proposals as reschedule history", () => {
     const page = renderToStaticMarkup(<LeadRecordView record={record({ reschedules: [{ ...proposal, status: "accepted", pickedTime: new Date("2026-11-27T09:00:00Z") }] })} viewer="supply" backHref="/agency/leads" now={now} />);
     expect(page).toContain("Reschedule history");

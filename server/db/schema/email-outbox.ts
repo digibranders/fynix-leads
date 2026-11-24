@@ -34,6 +34,10 @@ export const emailOutbox = pgTable(
     /** A short reason, never the provider's response body, which can echo the recipient. */
     lastError: text("last_error"),
     providerId: text("provider_id"),
+    /** The display name this message is sent under, when it is not the default sender's: a prospect letter carries the alias identity's name. */
+    senderName: text("sender_name"),
+    /** Where a reply goes, when it should not go to the sender: the alias mailbox that signs a prospect letter. */
+    replyTo: text("reply_to"),
     sentAt: timestamp("sent_at", { withTimezone: true }),
     /** The invite whose link this message carries, so revoking the invite can cancel a message that has not gone out. */
     inviteId: uuid("invite_id").references(() => invite.id, { onDelete: "restrict" }),

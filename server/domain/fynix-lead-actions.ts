@@ -7,6 +7,7 @@ import { DomainError } from "@/server/domain/errors";
 import { fynixWorkWrite, type FynixActor } from "@/server/domain/fynix-write";
 import { answerForClientSchema, approveOverShareSchema, correctLeadSchema, markLostSchema } from "@/server/domain/inputs";
 import { bookMeeting } from "@/server/domain/leads";
+import { createRoomSafely } from "@/server/meet/provider";
 import { notify } from "@/server/domain/notices";
 import { parseInput } from "@/server/domain/parse";
 
@@ -65,6 +66,8 @@ export async function fynixCorrectLead(deps: DomainDeps, actor: FynixActor, inpu
  */
 export async function fynixAnswerForClient(deps: DomainDeps, actor: FynixActor, input: unknown) {
   const parsed = parseInput(answerForClientSchema, input);
+  // The room is made before the transaction opens, like the client's booking (see bookMeeting). Fynix's own pick of a time is the only answer that books.
+  const room = parsed.answer === "pick_time" && parsed.selectedMeetingTime !== undefined ? await createRoomSafely(deps.meet, { startsAt: new Date(parsed.selectedMeetingTime), durationMinutes: 30 }) : null;
   return fynixWorkWrite(deps.fynixDb, actor, async ({ tx, audit }) => {
     const row = await loadLead(tx, parsed.leadId);
     const now = deps.now();
@@ -81,7 +84,7 @@ export async function fynixAnswerForClient(deps: DomainDeps, actor: FynixActor, 
       if (time === undefined || !offered.some((entry) => new Date(entry).getTime() === time.getTime())) throw new DomainError("invalid-input", "selectedMeetingTime is not one of the proposed times");
       nextStage = "scheduled";
       await tx.update(lead).set({ stage: "scheduled", scheduledMeetingTime: time, scheduledAt: now, updatedAt: now }).where(and(eq(lead.id, row.id), eq(lead.stage, "awaiting_client")));
-      meetingId = await bookMeeting(tx, deps.randomBytes, row, time, now);
+      meetingId = await bookMeeting(tx, deps.randomBytes, row, time, now, room);
     } else if (parsed.answer === "reject_before") {
       if (!before) throw new DomainError("invalid-lead-stage", "A lead can be rejected before its meeting only.");
       nextStage = "declined";

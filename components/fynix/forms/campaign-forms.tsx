@@ -1,6 +1,6 @@
 "use client";
 
-import { addHostAction, closeCampaignAction, createCampaignAction, publishAgreementAction, setShareAction, updateCampaignAction } from "@/server/fynix/actions";
+import { addHostAction, closeCampaignAction, createCampaignAction, publishAgreementAction, setPrivacyLinkAction, setShareAction, updateCampaignAction } from "@/server/fynix/actions";
 import type { CampaignChoices, CampaignHeader } from "@/server/domain/campaign-overview";
 import { ActionForm } from "./action-form";
 import { FormGroup, Hidden, NumberField, SelectField, TextAreaField, TextField } from "./form-parts";
@@ -147,6 +147,18 @@ export function CloseCampaignForm({ campaignId, name }: { campaignId: string; na
           {name} stops taking new leads and its shares and hosts become read only. Leads already submitted finish their course. You can reopen it later.
         </p>
         <TextAreaField name="note" label="Note (optional)" rows={3} helper="Why it is closing. It goes on the campaign's activity." />
+      </FormGroup>
+    </ActionForm>
+  );
+}
+
+/** Sets or replaces the client's privacy page link, the address named in every letter to a prospect. */
+export function PrivacyLinkForm({ campaignId, current }: { campaignId: string; current: string | null }) {
+  return (
+    <ActionForm action={setPrivacyLinkAction} submitLabel="Save link" pendingLabel="Saving">
+      <Hidden name="campaignId" value={campaignId} />
+      <FormGroup>
+        <TextField name="url" label="Privacy page link" type="text" inputMode="text" placeholder="https://" defaultValue={current ?? ""} helper="The client's own privacy page. It must start with https://." />
       </FormGroup>
     </ActionForm>
   );

@@ -7,6 +7,10 @@ What the app expects from the server around it. The app is live at `leads.fynix.
 - Node 24, pnpm 11. `pnpm env:check` names any missing or malformed variable.
 - `APP_ORIGIN` must be an `https://` origin in production. The app refuses to start otherwise (session cookies must be Secure).
 - `BREVO_API_KEY` is required on https, so invites and reset links are really sent.
+- Phase 6 switches, all off while unset (the app then sends only the invite, the password reset and the alias code, from `hello@fynix.digital`, and makes no meeting room). The owner steps and the checks that must pass before any of them is turned on are in `docs/launch-checklist.md`.
+  - `LAUNCH_EMAILS_ENABLED=true` queues and sends every launch email (lead, meeting, reminder and decision emails, and prospect letters). Anything but the exact word `true` is off. It needs `MAIL_SENDER_ADDRESS`; the app refuses to start with the switch on and a sender that names Fynix. A prospect letter is also only written for a campaign whose privacy link is set and whose prospect email switch is on (Fynix admin, per campaign).
+  - `MAIL_SENDER_ADDRESS` and `MAIL_SENDER_NAME` set the address and display name everything goes out from. Unset means `hello@fynix.digital` as "Fynix". The neutral domain must first be authenticated in Brevo (gate G3).
+  - `MEET_PROVIDER` is `none` (the default: no room is made, the screens say the link will follow) or `google`. `google` needs `GOOGLE_MEET_CLIENT_ID`, `GOOGLE_MEET_CLIENT_SECRET` and `GOOGLE_MEET_REFRESH_TOKEN` of the one neutral room account. The sweep then also reads who joined each room, once, 30 minutes after the meeting ended.
 - `CLAMAV_HOST` (and `CLAMAV_PORT`, default 3310) is required in production. Without it every upload is refused, by design.
 - `UPLOAD_DIR` points at a persistent, backed-up volume outside the checkout. The default (`.data/uploads`) is for development.
 
@@ -55,7 +59,7 @@ Both run from the checkout with the production environment loaded. Use a systemd
 |---|---|---|---|
 | Send queued email | `pnpm outbox:run` | every minute | Sends invites and reset links, retries failures, purges links older than a day |
 | Purge rate limits | `pnpm ratelimit:purge` | daily | Removes windows for keys that never return |
-| Lead sweep | `pnpm leads:sweep` | every 5 minutes | Accepts every lead the client left unanswered for 48 hours after the meeting (decision source `auto`, note "Accepted automatically after 48 hours with no answer"), so it counts as one, and tells everyone on the lead in the app. It also writes the reminders to the client (12, 24 and 36 hours after the outcome) as notices in the app. It needs only `DATABASE_URL_AUTH`, sends no email and is safe to run twice |
+| Lead sweep | `pnpm leads:sweep` | every 5 minutes | Accepts every lead the client left unanswered for 48 hours after the meeting (decision source `auto`, note "Accepted automatically after 48 hours with no answer"), so it counts as one, and tells everyone on the lead in the app. It also writes the reminders to the client (12, 24 and 36 hours after the outcome) as notices in the app. With `LAUNCH_EMAILS_ENABLED=true` it also queues the emails that depend on time: the email half of the client's reminders (its own stamp, so the notice is unaffected), the prospect's reminders a day and an hour before a meeting, the nudges to record an outcome, and the email of an automatic acceptance. With `MEET_PROVIDER=google` it reads the join record. It needs only `DATABASE_URL_AUTH` (and the environment above), and is safe to run twice: every row is claimed and stamped in the same transaction that writes its email |
 
 ```cron
 * * * * *  cd /srv/fynix-leads && pnpm outbox:run >> /var/log/fynix-leads/outbox.log 2>&1
@@ -63,7 +67,7 @@ Both run from the checkout with the production environment loaded. Use a systemd
 */5 * * * * cd /srv/fynix-leads && pnpm leads:sweep >> /var/log/fynix-leads/leads-sweep.log 2>&1
 ```
 
-The lead sweep also has systemd unit templates in `docs/ops/` (`leads-sweep.service` and `leads-sweep.timer`, every five minutes). They are templates: the live units belong in the `vps-setup` repository under `fynix/leads/`, next to the outbox timer, and must be added there before the merge to `main` that ships the new lead flow. Until then no lead is accepted automatically. The sweep also turns the reminders to the client that are due (12, 24 and 36 hours after the outcome) into notices in the app and stamps them sent; the email half follows in phase 6 and needs its own stamp.
+The lead sweep also has systemd unit templates in `docs/ops/` (`leads-sweep.service` and `leads-sweep.timer`, every five minutes). They are templates: the live units belong in the `vps-setup` repository under `fynix/leads/`, next to the outbox timer, and must be added there before the merge to `main` that ships the new lead flow. Until then no lead is accepted automatically. The sweep also turns the reminders to the client that are due (12, 24 and 36 hours after the outcome) into notices in the app and stamps them sent; the email half (phase 6) has its own stamp (`lead_reminder.email_sent_at`) and is queued by the same run while `LAUNCH_EMAILS_ENABLED` is true. The outbox runner sends launch emails only while that switch is true too; with it off they would stay pending, and the three account emails are sent as before.
 
 ## First deploy order
 

@@ -2,6 +2,7 @@ import type { RandomBytes } from "@/lib/domain/public-ref";
 import type { AuthDatabase } from "@/server/auth/auth-database";
 import type { Auth } from "@/server/auth/create-auth";
 import type { Database } from "@/server/db/pool";
+import type { MeetProvider } from "@/server/meet/provider";
 
 /**
  * What the domain services run on, passed in so a test can use the test database, a fixed clock and a fake breach service,
@@ -23,4 +24,6 @@ export interface DomainDeps {
   readonly allowPlaceholderTerms: boolean;
   /** A Better Auth instance on the given database or transaction. Redemption runs it on a transaction. */
   readonly authFactory: (db: AuthDatabase) => Auth;
+  /** Where a booked meeting's room comes from (phase 6). Absent means none: the meeting is booked with no link and the screens say it will follow. */
+  readonly meet?: MeetProvider;
 }

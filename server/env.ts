@@ -46,6 +46,21 @@ export const runtimeEnvSchema = z
      * writes the outbox. An https deployment refuses to start without one (the refinement below).
      */
     BREVO_API_KEY: z.preprocess(emptyAsMissing, z.string().min(20, "must be at least 20 characters").optional()),
+    /**
+     * The master switch of the launch emails (phase 6: every email of the Meet note's table, prospect letters included). Off unless it is `true`: then the app sends the
+     * invite, the password reset and the alias code exactly as before and queues nothing else. `true` needs a neutral sender address (below).
+     */
+    LAUNCH_EMAILS_ENABLED: z.preprocess(emptyAsMissing, z.enum(["true", "false"]).optional()),
+    /** The address every message goes out from. Unset means hello@fynix.digital, as today. The neutral domain's address goes here at the switch (gate G3). */
+    MAIL_SENDER_ADDRESS: z.preprocess(emptyAsMissing, z.string().max(254).regex(/^[^@\s]+@[^@\s]+\.[^@\s]+$/, "must be an email address").optional()),
+    /** The display name of that address. Unset means "Fynix" with the default address, or the address itself with another one. */
+    MAIL_SENDER_NAME: z.preprocess(emptyAsMissing, z.string().min(1).max(70).optional()),
+    /** Where meeting rooms come from. `none` (the default): no room is made and the screens say the link will follow. `google`: the Meet REST API with the three variables below. */
+    MEET_PROVIDER: z.preprocess(emptyAsMissing, z.enum(["none", "google"]).optional()),
+    /** The OAuth client and the refresh token of the one neutral room account (the Meet note, "What the owner arranges", step 5). */
+    GOOGLE_MEET_CLIENT_ID: z.preprocess(emptyAsMissing, z.string().min(10).optional()),
+    GOOGLE_MEET_CLIENT_SECRET: z.preprocess(emptyAsMissing, z.string().min(10).optional()),
+    GOOGLE_MEET_REFRESH_TOKEN: z.preprocess(emptyAsMissing, z.string().min(10).optional()),
   })
   .refine((env) => !(env.PASSWORD_BREACH_CHECK === "off" && env.APP_ORIGIN.startsWith("https://")), {
     path: ["PASSWORD_BREACH_CHECK"],
@@ -54,6 +69,15 @@ export const runtimeEnvSchema = z
   .refine((env) => !(env.APP_ORIGIN.startsWith("https://") && env.BREVO_API_KEY === undefined), {
     path: ["BREVO_API_KEY"],
     message: "is required on an https deployment, so invites and reset links are really sent",
+  })
+  // The launch emails never go out as hello@fynix.digital: a prospect letter must not name Fynix anywhere, headers included.
+  .refine((env) => env.LAUNCH_EMAILS_ENABLED !== "true" || (env.MAIL_SENDER_ADDRESS !== undefined && !/fynix/i.test(env.MAIL_SENDER_ADDRESS) && !/fynix/i.test(env.MAIL_SENDER_NAME ?? "")), {
+    path: ["MAIL_SENDER_ADDRESS"],
+    message: "is required, and neither it nor MAIL_SENDER_NAME may name Fynix, while LAUNCH_EMAILS_ENABLED is true",
+  })
+  .refine((env) => env.MEET_PROVIDER !== "google" || (env.GOOGLE_MEET_CLIENT_ID !== undefined && env.GOOGLE_MEET_CLIENT_SECRET !== undefined && env.GOOGLE_MEET_REFRESH_TOKEN !== undefined), {
+    path: ["MEET_PROVIDER"],
+    message: "google needs GOOGLE_MEET_CLIENT_ID, GOOGLE_MEET_CLIENT_SECRET and GOOGLE_MEET_REFRESH_TOKEN",
   })
   // Better Auth only marks cookies Secure when the origin is https. Read from process.env: Next.js always sets NODE_ENV.
   .refine((env) => !(process.env.NODE_ENV === "production" && env.APP_ORIGIN.startsWith("http://")), {
@@ -91,7 +115,7 @@ export function declaredVariables(): { readonly runtime: string[]; readonly tool
 
 /** The variable names roles.ts derives, for the same check. */
 export function derivedVariables(): { readonly runtime: string[]; readonly tooling: string[] } {
-  const runtime = [...RUNTIME_ROLES.map((role) => urlVariable(role, "dev")), "BETTER_AUTH_SECRET", "APP_ORIGIN", "PASSWORD_BREACH_CHECK", "BREVO_API_KEY"];
+  const runtime = [...RUNTIME_ROLES.map((role) => urlVariable(role, "dev")), "BETTER_AUTH_SECRET", "APP_ORIGIN", "PASSWORD_BREACH_CHECK", "BREVO_API_KEY", "LAUNCH_EMAILS_ENABLED", "MAIL_SENDER_ADDRESS", "MAIL_SENDER_NAME", "MEET_PROVIDER", "GOOGLE_MEET_CLIENT_ID", "GOOGLE_MEET_CLIENT_SECRET", "GOOGLE_MEET_REFRESH_TOKEN"];
   const tooling = [
     "DATABASE_URL_ADMIN",
     urlVariable("leads_owner", "dev"),

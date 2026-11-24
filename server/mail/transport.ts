@@ -4,6 +4,18 @@ export interface OutgoingMail {
   readonly subject: string;
   readonly text: string;
   readonly html: string;
+  /** The display name to send under, when it is not the sender's own: a prospect letter carries the alias identity's name. */
+  readonly fromName?: string;
+  /** Where a reply goes, when it should not go to the sender. */
+  readonly replyTo?: string;
+  readonly attachments?: readonly MailAttachment[];
+}
+
+/** A file sent with a message. The content is the file's bytes in base64. */
+export interface MailAttachment {
+  readonly name: string;
+  readonly contentType: string;
+  readonly contentBase64: string;
 }
 
 /**
