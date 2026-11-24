@@ -10,6 +10,7 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { BulletGraph } from "@/components/charts/bullet-graph";
 import { Field } from "@/components/ui/field";
 import { OverlayDemos } from "@/components/dev/overlay-demos";
@@ -264,6 +265,8 @@ function Tile({ title, icon, rows }: { title: string; icon: React.ReactNode; row
 }
 
 export default function DesignSystemPage() {
+  // A review page for the team: it is not a product screen, so a production build does not serve it.
+  if (process.env.NODE_ENV === "production") notFound();
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pb-24 md:px-6">
       <header className="flex flex-col gap-3 py-6 md:py-8">

@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { SECURITY_HEADERS } from "./lib/http/security-headers";
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -10,6 +11,8 @@ const nextConfig: NextConfig = {
   partialPrefetching: true,
   async headers() {
     return [
+      // First, so the page rules below override a header they also set.
+      { source: "/:path*", headers: [...SECURITY_HEADERS] },
       // The reset token is in the URL of this page: send no referrer from it and cache nothing.
       { source: "/reset-password", headers: [{ key: "Referrer-Policy", value: "no-referrer" }, { key: "Cache-Control", value: "no-store" }] },
       { source: "/sign-in", headers: [{ key: "Cache-Control", value: "no-store" }] },
