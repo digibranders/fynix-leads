@@ -1,6 +1,6 @@
 # Fynix Leads
 
-Lead generation tracking for Fynix campaigns. A client reviews leads, an agency submits them, and Fynix runs both. The screens are a phase 0 prototype on sample data (three screens, built in the approved hybrid design). Phase 1 is putting a real foundation under them: a PostgreSQL database that itself enforces the client and agency isolation, then sign-in, organisations and campaigns.
+Lead generation tracking for Fynix campaigns. A client reviews leads, an agency submits them, and Fynix runs both. A PostgreSQL database enforces the client and agency isolation itself. On top of it sit sign-in, organisations, campaigns, leads, meetings, messaging and analytics, in separate portals for clients, suppliers, agencies and Fynix. `docs/deploy.md` lists what the server needs.
 
 ## Run it
 
@@ -9,11 +9,11 @@ pnpm install
 pnpm dev        # http://localhost:3020
 ```
 
-Screens: `/` (index), `/client/review`, `/client/leads/LD-4K9P`, `/agency/leads`, `/dev/system` (design system).
+Sign in at `/sign-in`; `/welcome` sends each person to their portal (`/client`, `/supplier`, `/agency`, `/fynix`). `/dev/system` (design system) is development only.
 
 ## Set up the database on a new machine
 
-The prototype screens need no database. The database layer, its scripts and its tests do.
+The app, its scripts and its integration tests all need the database.
 
 1. Install PostgreSQL 16 and start it on `localhost:5432`. Your operating system user must be a Postgres superuser (`createuser -s "$USER"` if it is not). The scripts connect as that user, to the `postgres` database, only to create roles and databases.
 2. `pnpm install`

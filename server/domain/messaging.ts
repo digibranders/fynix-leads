@@ -1,169 +1,34 @@
 import { randomFillSync } from "node:crypto";
-import { and, asc, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import {
+  and,
+  eq,
+  isNull,
+  sql,
+} from "drizzle-orm";
 import { generatePublicRef, type RandomBytes } from "@/lib/domain/public-ref";
 import { relayText } from "@/lib/relay/relay-text";
-import {
-  agencyConversationColumns,
-  agencyConversationMessageColumns,
-  agencyNotificationColumns,
-  clientConversationColumns,
-  clientConversationMessageColumns,
-  clientNotificationColumns,
-} from "@/server/db/columns";
 import type { Database } from "@/server/db/pool";
 import {
   conversation,
   conversationMessage,
   member,
   notification,
-  type ConversationSide,
   type SenderRole,
 } from "@/server/db/schema";
-import { withTenantScope, type ScopedTransaction } from "@/server/db/scope";
+import { type ScopedTransaction } from "@/server/db/scope";
 import { appendAudit } from "@/server/domain/audit";
 import { DomainError } from "@/server/domain/errors";
-import { fynixRead } from "@/server/domain/fynix-write";
-import {
-  forwardMessageSchema,
-  getOrCreateConversationSchema,
-  markConversationReadSchema,
-  markNotificationReadSchema,
-  postMessageSchema,
-} from "@/server/domain/inputs";
+import { forwardMessageSchema, getOrCreateConversationSchema, postMessageSchema } from "@/server/domain/inputs";
 import { parseInput } from "@/server/domain/parse";
 
-export interface MessagingActor {
-  readonly userId: string;
-  readonly orgId?: string | null;
-  readonly orgKind: "client" | "agency" | "fynix";
-  readonly role?: "member" | "manager";
-  readonly displayName?: string;
-}
-
-const fynixConversationColumns = {
-  id: conversation.id,
-  publicRef: conversation.publicRef,
-  campaignId: conversation.campaignId,
-  leadId: conversation.leadId,
-  side: conversation.side,
-  clientOrgId: conversation.clientOrgId,
-  supplierOrgId: conversation.supplierOrgId,
-  agencyOrgId: conversation.agencyOrgId,
-  subject: conversation.subject,
-  createdAt: conversation.createdAt,
-  updatedAt: conversation.updatedAt,
-} as const;
-
-const fynixConversationMessageColumns = {
-  id: conversationMessage.id,
-  conversationId: conversationMessage.conversationId,
-  senderUserId: conversationMessage.senderUserId,
-  senderOrgId: conversationMessage.senderOrgId,
-  senderRole: conversationMessage.senderRole,
-  senderName: conversationMessage.senderName,
-  body: conversationMessage.body,
-  forwardOfMessageId: conversationMessage.forwardOfMessageId,
-  scrubbedCount: conversationMessage.scrubbedCount,
-  createdAt: conversationMessage.createdAt,
-} as const;
-
-const fynixNotificationColumns = {
-  id: notification.id,
-  userId: notification.userId,
-  orgId: notification.orgId,
-  kind: notification.kind,
-  title: notification.title,
-  body: notification.body,
-  link: notification.link,
-  readAt: notification.readAt,
-  createdAt: notification.createdAt,
-} as const;
-
-function conversationColumnsFor(orgKind: "client" | "agency" | "fynix") {
-  if (orgKind === "client") return clientConversationColumns;
-  if (orgKind === "agency") return agencyConversationColumns;
-  return fynixConversationColumns;
-}
-
-function messageColumnsFor(orgKind: "client" | "agency" | "fynix") {
-  if (orgKind === "client") return clientConversationMessageColumns;
-  if (orgKind === "agency") return agencyConversationMessageColumns;
-  return fynixConversationMessageColumns;
-}
-
-function notificationColumnsFor(orgKind: "client" | "agency" | "fynix") {
-  if (orgKind === "client") return clientNotificationColumns;
-  if (orgKind === "agency") return agencyNotificationColumns;
-  return fynixNotificationColumns;
-}
-
-/**
- * Asserts that the actor is authorized to read or write to this conversation.
- * Respects strict boundary isolation: Fynix cannot access supplier_agency conversations.
- */
-export function assertConversationAccess(
-  actor: MessagingActor,
-  conv: {
-    side: string;
-    clientOrgId: string | null;
-    supplierOrgId: string | null;
-    agencyOrgId: string | null;
-  },
-): void {
-  // A group conversation only reaches this point for a member: the row policy has already decided who may see it.
-  if (conv.side === "group") return;
-
-  if (actor.orgKind === "fynix") {
-    if (conv.side === "supplier_agency") {
-      throw new DomainError("not-authorised", "Fynix cannot access supplier-agency conversations.");
-    }
-    if (conv.side !== "client_fynix" && conv.side !== "supplier_fynix") {
-      throw new DomainError("not-authorised", "Not authorised to access this conversation.");
-    }
-    return;
-  }
-
-  if (actor.orgKind === "client") {
-    if (conv.side !== "client_fynix") {
-      throw new DomainError("not-authorised", "Client can only access client-fynix conversations.");
-    }
-    if (actor.orgId && conv.clientOrgId !== actor.orgId) {
-      throw new DomainError("not-authorised", "Not authorised to access conversations of another client organisation.");
-    }
-    return;
-  }
-
-  if (actor.orgKind === "agency") {
-    if (conv.side === "client_fynix") {
-      throw new DomainError("not-authorised", "Agencies cannot access client-fynix conversations.");
-    }
-    if (conv.side === "supplier_fynix") {
-      if (actor.orgId && conv.supplierOrgId !== actor.orgId) {
-        throw new DomainError("not-authorised", "Not authorised to access conversations of another supplier organisation.");
-      }
-      return;
-    }
-    if (conv.side === "supplier_agency") {
-      if (actor.orgId && conv.supplierOrgId !== actor.orgId && conv.agencyOrgId !== actor.orgId) {
-        throw new DomainError("not-authorised", "Not authorised to access conversations of another organisation.");
-      }
-      return;
-    }
-  }
-
-  throw new DomainError("not-authorised", "Unknown actor role or conversation side.");
-}
-
-export async function withActorScope<T>(
-  db: Database,
-  actor: MessagingActor,
-  work: (tx: ScopedTransaction) => Promise<T>,
-): Promise<T> {
-  if (actor.orgKind === "fynix") {
-    return fynixRead(db, { userId: actor.userId }, work);
-  }
-  return withTenantScope(db, { orgId: actor.orgId ?? "", userId: actor.userId }, work);
-}
+export { assertConversationAccess, withActorScope, type MessagingActor } from "@/server/domain/messaging-core";
+import {
+  assertConversationAccess,
+  conversationColumnsFor,
+  messageColumnsFor,
+  withActorScope,
+  type MessagingActor,
+} from "@/server/domain/messaging-core";
 
 /**
  * Gets an existing conversation matching the criteria or creates a new one.
@@ -656,171 +521,4 @@ async function dispatchMessageNotifications(
   }
 }
 
-/**
- * Lists conversations visible to the actor.
- */
-export async function listConversations(
-  db: Database,
-  actor: MessagingActor,
-  filters?: { campaignId?: string; leadId?: string; side?: ConversationSide },
-) {
-  const cols = conversationColumnsFor(actor.orgKind);
-
-  return withActorScope(db, actor, async (tx) => {
-    const conditions = [];
-
-    if (actor.orgKind === "fynix") {
-      conditions.push(inArray(conversation.side, ["client_fynix", "supplier_fynix", "group"]));
-    } else if (actor.orgKind === "client") {
-      conditions.push(or(and(eq(conversation.side, "client_fynix"), eq(conversation.clientOrgId, actor.orgId ?? "")), eq(conversation.side, "group")));
-    } else if (actor.orgKind === "agency") {
-      conditions.push(
-        or(
-          eq(conversation.side, "group"),
-          and(
-            eq(conversation.supplierOrgId, actor.orgId ?? ""),
-            inArray(conversation.side, ["supplier_fynix", "supplier_agency"]),
-          ),
-          and(
-            eq(conversation.agencyOrgId, actor.orgId ?? ""),
-            eq(conversation.side, "supplier_agency"),
-          ),
-        ),
-      );
-    }
-
-    if (filters?.campaignId) conditions.push(eq(conversation.campaignId, filters.campaignId));
-    if (filters?.leadId) conditions.push(eq(conversation.leadId, filters.leadId));
-    if (filters?.side) conditions.push(eq(conversation.side, filters.side));
-
-    const rows = await tx
-      .select(cols)
-      .from(conversation)
-      .where(and(...conditions))
-      .orderBy(desc(conversation.updatedAt));
-
-    // A chat between two people is titled with the other person's first name, which differs for each of them.
-    const groupIds = rows.filter((row) => row.side === "group").map((row) => row.id);
-    const titles = new Map<string, string>();
-    if (groupIds.length > 0) {
-      const result = await tx.execute<{ id: string; title: string | null }>(
-        sql`select id, public.app_direct_title(id) as title from unnest(${`{${groupIds.join(",")}}`}::uuid[]) as id`,
-      );
-      for (const row of result.rows) if (row.title !== null) titles.set(row.id, row.title);
-    }
-    return rows.map((row) => ({ ...row, subject: titles.get(row.id) ?? row.subject, isDirect: titles.has(row.id) }));
-  });
-}
-
-/**
- * Lists all messages in a conversation, verifying actor access first.
- */
-export async function listConversationMessages(
-  db: Database,
-  actor: MessagingActor,
-  conversationId: string,
-) {
-  const cols = messageColumnsFor(actor.orgKind);
-
-  return withActorScope(db, actor, async (tx) => {
-    const [conv] = await tx
-      .select({
-        id: conversation.id,
-        side: conversation.side,
-        clientOrgId: conversation.clientOrgId,
-        supplierOrgId: conversation.supplierOrgId,
-        agencyOrgId: conversation.agencyOrgId,
-      })
-      .from(conversation)
-      .where(eq(conversation.id, conversationId))
-      .limit(1);
-
-    if (conv === undefined) {
-      throw new DomainError("not-found", "There is no such conversation.");
-    }
-
-    assertConversationAccess(actor, conv);
-
-    return tx
-      .select(cols)
-      .from(conversationMessage)
-      .where(eq(conversationMessage.conversationId, conversationId))
-      .orderBy(asc(conversationMessage.createdAt));
-  });
-}
-
-/**
- * Lists notifications for the user.
- */
-export async function listUserNotifications(
-  db: Database,
-  actor: MessagingActor,
-  options?: { unreadOnly?: boolean },
-) {
-  const cols = notificationColumnsFor(actor.orgKind);
-
-  return withActorScope(db, actor, async (tx) => {
-    const conditions = [eq(notification.userId, actor.userId)];
-    if (options?.unreadOnly) {
-      conditions.push(isNull(notification.readAt));
-    }
-
-    return tx
-      .select(cols)
-      .from(notification)
-      .where(and(...conditions))
-      .orderBy(desc(notification.createdAt));
-  });
-}
-
-/**
- * Marks a notification as read.
- */
-export async function markNotificationRead(
-  db: Database,
-  actor: MessagingActor,
-  notificationId: string,
-  deps?: { now?: () => Date },
-) {
-  const parsed = parseInput(markNotificationReadSchema, { notificationId });
-  const now = deps?.now ? deps.now() : new Date();
-  const cols = notificationColumnsFor(actor.orgKind);
-
-  return withActorScope(db, actor, async (tx) => {
-    const [existing] = await tx
-      .select({ id: notification.id, userId: notification.userId })
-      .from(notification)
-      .where(and(eq(notification.id, parsed.notificationId), eq(notification.userId, actor.userId)))
-      .limit(1);
-
-    if (existing === undefined) {
-      throw new DomainError("not-found", "There is no such notification.");
-    }
-
-    const [updated] = await tx
-      .update(notification)
-      .set({ readAt: now })
-      .where(eq(notification.id, parsed.notificationId))
-      .returning(cols);
-
-    return updated;
-  });
-}
-
-/** Records that the person has opened a conversation they belong to. Anything else is ignored by the database (migration 0049). */
-export async function markConversationRead(db: Database, actor: MessagingActor, conversationId: string): Promise<void> {
-  parseInput(markConversationReadSchema, { conversationId });
-  await withActorScope(db, actor, async (tx) => {
-    await tx.execute(sql`select public.app_mark_conversation_read(${conversationId}::uuid)`);
-  });
-}
-
-/** The latest moment someone on the other side opened the conversation, or null. A message sent before this has been seen. */
-export async function getConversationSeenAt(db: Database, actor: MessagingActor, conversationId: string): Promise<Date | null> {
-  parseInput(markConversationReadSchema, { conversationId });
-  return withActorScope(db, actor, async (tx) => {
-    const result = await tx.execute<{ seen: string | Date | null }>(sql`select public.app_conversation_seen_at(${conversationId}::uuid) as seen`);
-    const seen = result.rows[0]?.seen ?? null;
-    return seen === null ? null : new Date(seen);
-  });
-}
+export * from "@/server/domain/messaging-reads";
