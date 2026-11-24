@@ -20,6 +20,7 @@
     "db:seed": "tsx scripts/db-seed.ts",
     "db:seed:demo": "tsx scripts/db-seed-demo.ts",
     "admin:create": "tsx scripts/admin-create.ts",
+    "password:set": "tsx scripts/set-password.ts",
     "mail:last": "tsx scripts/mail-last.ts",
     "outbox:run": "tsx scripts/outbox-run.ts",
     "ratelimit:purge": "tsx scripts/rate-limit-purge.ts",
