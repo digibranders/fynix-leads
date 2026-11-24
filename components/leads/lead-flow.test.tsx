@@ -4,13 +4,18 @@ import type { RejectionRow } from "@/server/domain/rejection-overview";
 import type { DecisionItem } from "@/server/domain/client-queue";
 
 // The forms call server actions, which need a running app. The screens only need their buttons to render.
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => undefined, refresh: () => undefined }) }));
 vi.mock("@/server/domain/lead-flow-actions", () => {
   const action = async () => ({ status: "idle" as const });
-  return { pickTimeAction: action, proposeTimesAction: action, rejectLeadAction: action, decideLeadAction: action, recordOutcomeAction: action };
+  return { pickTimeAction: action, proposeTimesAction: action, rejectLeadAction: action, decideLeadAction: action, recordOutcomeAction: action, withdrawLeadAction: action, proposePostponementAction: action, pickPostponementAction: action, contestOutcomeAction: action, requestRejectionReviewAction: action };
 });
 vi.mock("@/server/fynix/actions", () => {
   const action = async () => ({ status: "idle" as const });
   return { overturnRejectionAction: action, fynixRecordOutcomeAction: action };
+});
+vi.mock("@/server/fynix/lead-actions", () => {
+  const action = async () => ({ status: "idle" as const });
+  return { decideContestAction: action, markRejectionReviewedAction: action, correctLeadAction: action, answerForClientAction: action, markLostAction: action, clearOverShareAction: action };
 });
 
 const { LeadActionBar } = await import("@/components/leads/lead-action-bar");
@@ -107,6 +112,7 @@ const rejection: RejectionRow = {
   rejectedAt: new Date("2026-11-22T12:00:00Z"),
   rejectedByName: "Daniel Okafor",
   meetingTime: past,
+  reviewedAt: null,
 };
 
 describe("rejections page", () => {

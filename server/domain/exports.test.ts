@@ -3,6 +3,7 @@ import {
   generateAgencyLeadsCsv,
   generateClientLeadsCsv,
   generateFynixLeadsCsv,
+  generateMeetingsCsv,
   toCsv,
 } from "./exports";
 
@@ -178,6 +179,25 @@ describe("exports domain service", () => {
       expect(csv).toContain("Kestrel Cyber");
       expect(csv).toContain("Eli Vance");
       expect(csv).toContain("delivered");
+    });
+  });
+
+  describe("generateMeetingsCsv", () => {
+    const meeting = { publicRef: "MTG-2K4M", leadRef: "LD-3K7M", prospectName: "=cmd|' /C calc'!A0", prospectCompany: "Nordvik, Cold Chain", campaignName: "UK finance", clientName: "Kestrel Ledger", scheduledStartTime: new Date("2026-12-01T10:00:00Z"), durationMinutes: 30, outcome: "held", recordedByRole: "coordinator", contestedByRole: null } as const;
+
+    it("writes one row per meeting with the side that recorded it, and turns a formula into text", () => {
+      const csv = generateMeetingsCsv([meeting]);
+      expect(csv.split("\r\n")[0]).toBe("Meeting,Lead,Prospect,Company,Campaign,Start,Minutes,Outcome,Recorded by,Contested by");
+      expect(csv).toContain("'=cmd|");
+      expect(csv).toContain('"Nordvik, Cold Chain"');
+      expect(csv).toContain("2026-12-01T10:00:00.000Z,30,held,coordinator,");
+      expect(csv).not.toContain("Kestrel Ledger");
+    });
+
+    it("adds the client's name for Fynix only", () => {
+      const csv = generateMeetingsCsv([meeting], { withClient: true });
+      expect(csv.split("\r\n")[0]).toContain("Campaign,Client,Start");
+      expect(csv).toContain("Kestrel Ledger");
     });
   });
 });

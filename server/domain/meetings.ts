@@ -2,7 +2,7 @@ import { and, desc, eq, or, sql } from "drizzle-orm";
 import type { LeadStage } from "@/lib/leads/stage";
 import { agencyMeetingColumns, clientMeetingColumns } from "@/server/db/columns";
 import type { Database } from "@/server/db/pool";
-import { campaign, campaignShare, lead, leadHistory, meeting } from "@/server/db/schema";
+import { campaign, campaignShare, lead, leadHistory, meeting, member } from "@/server/db/schema";
 import { withTenantScope, type ScopedTransaction } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import { fynixWorkWrite, type FynixActor } from "@/server/domain/fynix-write";
@@ -67,6 +67,17 @@ export type OutcomeSide = "client" | "agency" | "coordinator" | "fynix";
 
 const NEXT_STAGE = { held: "awaiting_decision", client_no_show: "client_no_show", prospect_no_show: "prospect_no_show" } as const satisfies Record<RecordMeetingOutcomeInput["outcome"], LeadStage>;
 
+/** What an outcome does to its lead: the stage it moves to, when the outcome was set, and which of the two counted-or-closed stamps is written. One place, for a first recording and for Fynix's decision on a contest. */
+export function leadPatchForOutcome(outcome: RecordMeetingOutcomeInput["outcome"], now: Date) {
+  return {
+    stage: NEXT_STAGE[outcome] as LeadStage,
+    outcomeRecordedAt: now,
+    deliveredAt: outcome === "client_no_show" ? now : null,
+    closedAt: outcome === "prospect_no_show" ? now : null,
+    updatedAt: now,
+  };
+}
+
 /**
  * The one place an outcome is written, for every side. The first to record sets it (a second finds the meeting no longer `scheduled`):
  * - held: the lead waits for the client's accept or reject (`awaiting_decision`), and the 48 hour clock starts at `outcome_recorded_at`;
@@ -93,7 +104,8 @@ async function applyOutcome(
   if (meetingRow.outcome !== "scheduled") throw new DomainError("outcome-already-recorded", "The outcome of this meeting has been recorded already.");
   if (leadRow.stage !== "scheduled" && leadRow.stage !== "outcome_due") throw new DomainError("invalid-lead-stage", "An outcome can be recorded on a scheduled lead only.");
 
-  const nextStage: LeadStage = NEXT_STAGE[parsed.outcome];
+  const patch = leadPatchForOutcome(parsed.outcome, now);
+  const nextStage = patch.stage;
   const [updatedMeeting] = await tx
     .update(meeting)
     .set({
@@ -110,16 +122,7 @@ async function applyOutcome(
     .returning(agencyMeetingColumns);
   if (updatedMeeting === undefined) throw new DomainError("outcome-already-recorded", "The outcome of this meeting has been recorded already.");
 
-  await tx
-    .update(lead)
-    .set({
-      stage: nextStage,
-      outcomeRecordedAt: now,
-      deliveredAt: parsed.outcome === "client_no_show" ? now : null,
-      closedAt: parsed.outcome === "prospect_no_show" ? now : null,
-      updatedAt: now,
-    })
-    .where(eq(lead.id, leadRow.id));
+  await tx.update(lead).set(patch).where(eq(lead.id, leadRow.id));
 
   await tx.insert(leadHistory).values({
     leadId: leadRow.id,
@@ -186,6 +189,9 @@ export async function fynixRecordMeetingOutcome(db: Database, deps: Pick<DomainD
   });
 }
 
+/** The side of the open proposal to move a meeting ("client" or "supply"), or null when none is open. Read under the caller's own row-level security. */
+const openProposalSide = sql<string | null>`(select r.proposed_by_side from meeting_reschedule r where r.meeting_id = ${meeting.id} and r.status = 'open' order by r.created_at desc limit 1)`;
+
 /**
  * Lists all meetings accessible to a client organisation.
  */
@@ -205,10 +211,13 @@ export async function listClientMeetings(db: Database, actor: TenantActor) {
         leadStage: lead.stage,
         campaignName: campaign.name,
         campaignRef: campaign.publicRef,
+        hostName: member.displayName,
+        openProposalBy: openProposalSide,
       })
       .from(meeting)
       .innerJoin(lead, eq(meeting.leadId, lead.id))
       .innerJoin(campaign, eq(meeting.campaignId, campaign.id))
+      .leftJoin(member, eq(member.id, meeting.hostMemberId))
       .where(eq(campaign.clientOrgId, actor.orgId))
       .orderBy(desc(meeting.scheduledStartTime));
   });
@@ -233,6 +242,7 @@ export async function listAgencyMeetings(db: Database, actor: TenantActor) {
         campaignName: campaign.name,
         campaignRef: campaign.publicRef,
         clientBrandName: campaign.clientBrandName,
+        openProposalBy: openProposalSide,
       })
       .from(meeting)
       .innerJoin(lead, eq(meeting.leadId, lead.id))
@@ -260,10 +270,14 @@ export async function listFynixMeetings(db: Database, _actor: FynixActor) {
       campaignName: campaign.name,
       campaignRef: campaign.publicRef,
       clientBrandName: campaign.clientBrandName,
+      hostName: member.displayName,
+      openProposalBy: openProposalSide,
     })
     .from(meeting)
     .innerJoin(lead, eq(meeting.leadId, lead.id))
     .innerJoin(campaign, eq(meeting.campaignId, campaign.id))
+    .leftJoin(member, eq(member.id, meeting.hostMemberId))
+    .where(eq(lead.released, true))
     .orderBy(desc(meeting.scheduledStartTime));
 }
 

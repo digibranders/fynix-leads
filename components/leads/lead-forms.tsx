@@ -37,7 +37,7 @@ function earliestDay(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
-function TimesField() {
+export function TimesField() {
   const [times, setTimes] = useState<readonly string[]>([""]);
   const state = useFormState();
   const error = state.status === "error" ? state.fields.proposedTimes : undefined;

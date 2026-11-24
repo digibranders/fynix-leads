@@ -10,6 +10,7 @@ import {
   House,
   IdentificationBadge,
   Megaphone,
+  Prohibit,
   Scales,
   SidebarSimple,
   Table,
@@ -37,6 +38,7 @@ export const GLYPHS: Record<NavIcon, Icon> = {
   badge: IdentificationBadge,
   buildings: Buildings,
   scales: Scales,
+  prohibit: Prohibit,
   gear: Gear,
 };
 

@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { campaign, lead, member, organisation } from "@/server/db/schema";
 import type { DomainDeps } from "@/server/domain/deps";
@@ -19,13 +19,18 @@ export interface RejectionRow {
   readonly rejectedAt: Date | null;
   readonly rejectedByName: string | null;
   readonly meetingTime: Date | null;
+  /** When Fynix looked and left it, or changed it. Null while it waits. */
+  readonly reviewedAt: Date | null;
 }
+
+/** `open` is what waits for Fynix and what the navigation counts; `reviewed` is what Fynix has looked at; `all` is both. */
+export type RejectionState = "open" | "reviewed" | "all";
 
 /**
  * Every rejection waiting for Fynix, newest first: the main queue, in place of the disputes list (the old dispute tables and code stay but nothing
  * new uses them). Only a rejection after the meeting is here; a rejection before it never counted and has nothing to change. Open to staff.
  */
-export async function listRejections(deps: DomainDeps, actor: FynixActor): Promise<readonly RejectionRow[]> {
+export async function listRejections(deps: DomainDeps, actor: FynixActor, state: RejectionState = "open"): Promise<readonly RejectionRow[]> {
   return fynixRead(deps.fynixDb, actor, async (tx) => {
     const clientOrg = alias(organisation, "client_org");
     const agencyOrg = alias(organisation, "agency_org");
@@ -43,13 +48,14 @@ export async function listRejections(deps: DomainDeps, actor: FynixActor): Promi
         rejectedAt: lead.decisionAt,
         rejectedByName: member.displayName,
         meetingTime: lead.scheduledMeetingTime,
+        reviewedAt: lead.rejectionReviewedAt,
       })
       .from(lead)
       .innerJoin(campaign, eq(lead.campaignId, campaign.id))
       .innerJoin(clientOrg, eq(clientOrg.id, campaign.clientOrgId))
       .innerJoin(agencyOrg, eq(agencyOrg.id, lead.sourceOrgId))
       .leftJoin(member, eq(member.userId, lead.decisionByUserId))
-      .where(eq(lead.stage, "rejected"))
+      .where(and(eq(lead.stage, "rejected"), state === "open" ? isNull(lead.rejectionReviewedAt) : state === "reviewed" ? isNotNull(lead.rejectionReviewedAt) : undefined))
       .orderBy(desc(lead.decisionAt), desc(lead.updatedAt));
     return rows.map((row): RejectionRow => ({ ...row, note: row.note ?? "" }));
   });

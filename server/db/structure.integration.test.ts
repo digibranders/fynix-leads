@@ -59,7 +59,7 @@ class Rollback extends Error {}
 const DELETE_ONLY_TABLE_GRANTS: readonly string[] = ["leads_agency.campaign_share", "leads_client.exclusion_entry", "leads_client.host_block", "leads_client.host_hours"];
 
 /** Tenant-visible tables that Fynix writes but that are not set-up: they carry the audit trigger and no `fynix_admin_required` trigger, by design. */
-const NOT_SET_UP_TABLES: readonly string[] = ["lead", "lead_history", "meeting", "conversation", "conversation_message", "notification"];
+const NOT_SET_UP_TABLES: readonly string[] = ["lead", "lead_history", "meeting", "meeting_reschedule", "rejection_review", "conversation", "conversation_message", "notification"];
 
 /** Runs `setup` and then `check` in one transaction that is always rolled back, so nothing is left behind. */
 async function findInBrokenState(handle: DatabaseHandle, setup: readonly string[], check: (executor: Executor) => Promise<string[]>): Promise<string[]> {
@@ -179,6 +179,9 @@ const EXPECTED_ACCESS: Readonly<Record<string, readonly RuntimeRoleName[]>> = {
   chat_group_member: [],
   // Reminders to the client after "meeting finished": a trigger writes them and two SECURITY DEFINER functions (0066) read them, for the sweep (leads_auth) alone.
   lead_reminder: [],
+  // Phase 4: a proposal to move a meeting (both sides write it, Fynix reads) and the coordinator's request to review a rejection (Fynix resolves it).
+  meeting_reschedule: ["leads_fynix", "leads_client", "leads_agency"],
+  rejection_review: ["leads_fynix", "leads_agency"],
 };
 /** The tables nobody but leads_auth touches. `user` is not one of them any more: Fynix reads four columns of it. */
 const AUTH_TABLES = ["session", "account", "verification"] as const;

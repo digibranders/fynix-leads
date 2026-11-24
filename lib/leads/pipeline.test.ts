@@ -21,6 +21,12 @@ describe("pipeline groups", () => {
     expect(Object.values(counts).reduce((a, b) => a + b, 0)).toBe(5);
   });
 
+  it("gives a contested outcome its own group, apart from the ones that count or wait for the client", () => {
+    expect(groupOf("outcome_contested")).toBe("contested");
+    expect(countByGroup([{ stage: "outcome_contested" }]).contested).toBe(1);
+    expect(parseGroup("contested")).toBe("contested");
+  });
+
   it("filters to a group, or returns everything for null", () => {
     const leads = [{ stage: "scheduled" }, { stage: "reschedule_needed" }, { stage: "delivered" }];
     expect(inGroup(leads, "scheduled")).toHaveLength(2);

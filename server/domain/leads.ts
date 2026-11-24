@@ -1,6 +1,7 @@
 import {
   and,
   eq,
+  ne,
   notInArray,
   sql,
 } from "drizzle-orm";
@@ -19,7 +20,7 @@ import {
   meeting,
   member,
 } from "@/server/db/schema";
-import { withTenantScope } from "@/server/db/scope";
+import { withTenantScope, type ScopedTransaction } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
@@ -31,9 +32,166 @@ import {
   overturnRejectionSchema,
   resolveDisputeSchema,
   submitLeadSchema,
+  type SubmitLeadParsed,
 } from "@/server/domain/inputs";
 import { parseInput } from "@/server/domain/parse";
 import { insertWithPublicRef } from "@/server/domain/refs";
+import { resolveReview } from "@/server/domain/rejection-reviews";
+
+/** The checks every submission passes, a new lead or a draft sent on: the member, the alias, the campaign and the organisation's place on it, the host, the exclusion list, duplicates and the over-share flag. */
+export async function checkSubmission(
+  tx: ScopedTransaction,
+  deps: Pick<DomainDeps, "now">,
+  actor: TenantActor,
+  parsed: SubmitLeadParsed,
+  excludeLeadId?: string,
+) {
+  // 1. Verify submitting user is an active member
+  const [currentMember] = await tx
+    .select({ id: member.id, status: member.status })
+    .from(member)
+    .where(and(eq(member.userId, actor.userId), eq(member.orgId, actor.orgId)))
+    .limit(1);
+
+  if (currentMember === undefined || currentMember.status !== "active") {
+    throw new DomainError("not-authorised", "The signed-in user is not an active agency member.");
+  }
+
+  // 2. Validate alias identity exists and is verified
+  const [aliasRow] = await tx
+    .select({
+      id: aliasIdentity.id,
+      memberId: aliasIdentity.memberId,
+      verifiedAt: aliasIdentity.verifiedAt,
+      clientBrandName: aliasIdentity.clientBrandName,
+      clientOrgId: aliasIdentity.clientOrgId,
+      status: aliasIdentity.status,
+    })
+    .from(aliasIdentity)
+    .where(eq(aliasIdentity.id, parsed.aliasIdentityId))
+    .limit(1);
+
+  if (aliasRow === undefined) {
+    throw new DomainError("not-found", "There is no such alias identity.");
+  }
+
+  if (aliasRow.status !== "active") {
+    throw new DomainError("invalid-input", "That alias has been retired.");
+  }
+
+  if (aliasRow.verifiedAt === null) {
+    throw new DomainError("alias-not-verified", "The selected alias identity has not been verified.");
+  }
+
+  // 3. Validate campaign exists, is active, and actor org is assigned
+  const [campaignRow] = await tx
+    .select({
+      id: campaign.id,
+      clientOrgId: campaign.clientOrgId,
+      agencyOrgId: campaign.agencyOrgId,
+      status: campaign.status,
+      monthlyTarget: campaign.monthlyTarget,
+      clientBrandName: campaign.clientBrandName,
+    })
+    .from(campaign)
+    .where(eq(campaign.id, parsed.campaignId))
+    .limit(1);
+
+  if (campaignRow === undefined) {
+    throw new DomainError("not-found", "There is no such campaign.");
+  }
+
+  if (campaignRow.status !== "active") {
+    throw new DomainError("not-authorised", "Cannot submit leads to a campaign that is not active.");
+  }
+
+  // An alias is a name used towards one client's brand: it cannot front a lead for another client's campaign.
+  // An alias made since phase 2 names its client; an older one is matched by brand.
+  const sameClient = aliasRow.clientOrgId !== null ? aliasRow.clientOrgId === campaignRow.clientOrgId : aliasRow.clientBrandName.trim().toLowerCase() === campaignRow.clientBrandName.trim().toLowerCase();
+  if (!sameClient) {
+    throw new DomainError("invalid-input", "That alias is for a different client brand than this campaign.");
+  }
+
+  // Check assignment: actor org is supplier itself, or has a campaign_share record
+  const isSupplier = campaignRow.agencyOrgId === actor.orgId;
+  const [shareRow] = await tx
+    .select({ id: campaignShare.id, monthlyShare: campaignShare.monthlyShare })
+    .from(campaignShare)
+    .where(and(eq(campaignShare.campaignId, parsed.campaignId), eq(campaignShare.agencyOrgId, actor.orgId)))
+    .limit(1);
+
+  if (!isSupplier && shareRow === undefined) {
+    throw new DomainError("not-authorised", "Your organisation is not assigned to this campaign.");
+  }
+
+  // 4. Validate host member exists and is active on this campaign
+  const [hostRow] = await tx
+    .select({ memberId: campaignHost.memberId, active: campaignHost.active })
+    .from(campaignHost)
+    .where(
+      and(
+        eq(campaignHost.campaignId, parsed.campaignId),
+        eq(campaignHost.memberId, parsed.hostMemberId),
+        eq(campaignHost.active, true),
+      ),
+    )
+    .limit(1);
+
+  if (hostRow === undefined) {
+    throw new DomainError("not-found", "The specified host is not an active host for this campaign.");
+  }
+
+  // 5. Check client exclusion list
+  const normalizedEmail = parsed.prospectEmail.trim().toLowerCase();
+  const fallbackDomain = extractDomainFromEmail(normalizedEmail);
+  const normalizedDomain = normaliseDomain(parsed.prospectDomain || fallbackDomain);
+  const normalizedLinkedin = normaliseLinkedinUrl(parsed.prospectLinkedinUrl);
+
+  // Both checks read rows an agency may not see (the client's exclusion list, other agencies' leads), so they run as
+  // database functions that answer a boolean or a reference and nothing else (migration 0042).
+  const excludedResult = await tx.execute<{ excluded: boolean }>(
+    sql`select public.app_prospect_excluded(${campaignRow.clientOrgId}::uuid, ${normalizedEmail}, ${normalizedDomain}, ${parsed.prospectCompany.trim()}) as excluded`,
+  );
+  if (excludedResult.rows[0]?.excluded === true) {
+    throw new DomainError("prospect-excluded", "This prospect is on the client exclusion list.");
+  }
+
+  // 6. Check duplicates across client campaigns
+  const duplicateResult = await tx.execute<{ ref: string | null }>(
+    sql`select public.app_find_duplicate_lead(${campaignRow.clientOrgId}::uuid, ${normalizedEmail}, ${normalizedLinkedin}) as ref`,
+  );
+  const duplicateRef = duplicateResult.rows[0]?.ref ?? null;
+  if (duplicateRef !== null) {
+    throw new DomainError(
+      "prospect-duplicate",
+      duplicateRef === "OTHER"
+        ? "This prospect has already been submitted for this client."
+        : `This prospect has already been submitted for this client under reference ${duplicateRef}.`,
+    );
+  }
+
+  // 7. Check over-share status for the current calendar month
+  const now = deps.now();
+  const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const targetShare = shareRow?.monthlyShare ?? campaignRow.monthlyTarget;
+
+  const currentSubmissions = await tx
+    .select({ id: lead.id })
+    .from(lead)
+    .where(
+      and(
+        eq(lead.campaignId, parsed.campaignId),
+        eq(lead.sourceOrgId, actor.orgId),
+        sql`${lead.submittedAt} >= ${startOfMonth}`,
+        notInArray(lead.stage, ["draft", "withdrawn", "lost", "rejected"]),
+        ...(excludeLeadId === undefined ? [] : [ne(lead.id, excludeLeadId)]),
+      ),
+    );
+
+  const overShare = currentSubmissions.length >= targetShare;
+
+  return { normalizedEmail, normalizedDomain, normalizedLinkedin, overShare, now };
+}
 
 /**
  * Submits a qualified lead for an active campaign (spec v2 section 8.1).
@@ -51,148 +209,8 @@ export async function submitLead(
   const parsed = parseInput(submitLeadSchema, input);
 
   return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
-    // 1. Verify submitting user is an active member
-    const [currentMember] = await tx
-      .select({ id: member.id, status: member.status })
-      .from(member)
-      .where(and(eq(member.userId, actor.userId), eq(member.orgId, actor.orgId)))
-      .limit(1);
-
-    if (currentMember === undefined || currentMember.status !== "active") {
-      throw new DomainError("not-authorised", "The signed-in user is not an active agency member.");
-    }
-
-    // 2. Validate alias identity exists and is verified
-    const [aliasRow] = await tx
-      .select({
-        id: aliasIdentity.id,
-        memberId: aliasIdentity.memberId,
-        verifiedAt: aliasIdentity.verifiedAt,
-        clientBrandName: aliasIdentity.clientBrandName,
-        clientOrgId: aliasIdentity.clientOrgId,
-        status: aliasIdentity.status,
-      })
-      .from(aliasIdentity)
-      .where(eq(aliasIdentity.id, parsed.aliasIdentityId))
-      .limit(1);
-
-    if (aliasRow === undefined) {
-      throw new DomainError("not-found", "There is no such alias identity.");
-    }
-
-    if (aliasRow.status !== "active") {
-      throw new DomainError("invalid-input", "That alias has been retired.");
-    }
-
-    if (aliasRow.verifiedAt === null) {
-      throw new DomainError("alias-not-verified", "The selected alias identity has not been verified.");
-    }
-
-    // 3. Validate campaign exists, is active, and actor org is assigned
-    const [campaignRow] = await tx
-      .select({
-        id: campaign.id,
-        clientOrgId: campaign.clientOrgId,
-        agencyOrgId: campaign.agencyOrgId,
-        status: campaign.status,
-        monthlyTarget: campaign.monthlyTarget,
-        clientBrandName: campaign.clientBrandName,
-      })
-      .from(campaign)
-      .where(eq(campaign.id, parsed.campaignId))
-      .limit(1);
-
-    if (campaignRow === undefined) {
-      throw new DomainError("not-found", "There is no such campaign.");
-    }
-
-    if (campaignRow.status !== "active") {
-      throw new DomainError("not-authorised", "Cannot submit leads to a campaign that is not active.");
-    }
-
-    // An alias is a name used towards one client's brand: it cannot front a lead for another client's campaign.
-    // An alias made since phase 2 names its client; an older one is matched by brand.
-    const sameClient = aliasRow.clientOrgId !== null ? aliasRow.clientOrgId === campaignRow.clientOrgId : aliasRow.clientBrandName.trim().toLowerCase() === campaignRow.clientBrandName.trim().toLowerCase();
-    if (!sameClient) {
-      throw new DomainError("invalid-input", "That alias is for a different client brand than this campaign.");
-    }
-
-    // Check assignment: actor org is supplier itself, or has a campaign_share record
-    const isSupplier = campaignRow.agencyOrgId === actor.orgId;
-    const [shareRow] = await tx
-      .select({ id: campaignShare.id, monthlyShare: campaignShare.monthlyShare })
-      .from(campaignShare)
-      .where(and(eq(campaignShare.campaignId, parsed.campaignId), eq(campaignShare.agencyOrgId, actor.orgId)))
-      .limit(1);
-
-    if (!isSupplier && shareRow === undefined) {
-      throw new DomainError("not-authorised", "Your organisation is not assigned to this campaign.");
-    }
-
-    // 4. Validate host member exists and is active on this campaign
-    const [hostRow] = await tx
-      .select({ memberId: campaignHost.memberId, active: campaignHost.active })
-      .from(campaignHost)
-      .where(
-        and(
-          eq(campaignHost.campaignId, parsed.campaignId),
-          eq(campaignHost.memberId, parsed.hostMemberId),
-          eq(campaignHost.active, true),
-        ),
-      )
-      .limit(1);
-
-    if (hostRow === undefined) {
-      throw new DomainError("not-found", "The specified host is not an active host for this campaign.");
-    }
-
-    // 5. Check client exclusion list
-    const normalizedEmail = parsed.prospectEmail.trim().toLowerCase();
-    const fallbackDomain = extractDomainFromEmail(normalizedEmail);
-    const normalizedDomain = normaliseDomain(parsed.prospectDomain || fallbackDomain);
-    const normalizedLinkedin = normaliseLinkedinUrl(parsed.prospectLinkedinUrl);
-
-    // Both checks read rows an agency may not see (the client's exclusion list, other agencies' leads), so they run as
-    // database functions that answer a boolean or a reference and nothing else (migration 0042).
-    const excludedResult = await tx.execute<{ excluded: boolean }>(
-      sql`select public.app_prospect_excluded(${campaignRow.clientOrgId}::uuid, ${normalizedEmail}, ${normalizedDomain}, ${parsed.prospectCompany.trim()}) as excluded`,
-    );
-    if (excludedResult.rows[0]?.excluded === true) {
-      throw new DomainError("prospect-excluded", "This prospect is on the client exclusion list.");
-    }
-
-    // 6. Check duplicates across client campaigns
-    const duplicateResult = await tx.execute<{ ref: string | null }>(
-      sql`select public.app_find_duplicate_lead(${campaignRow.clientOrgId}::uuid, ${normalizedEmail}, ${normalizedLinkedin}) as ref`,
-    );
-    const duplicateRef = duplicateResult.rows[0]?.ref ?? null;
-    if (duplicateRef !== null) {
-      throw new DomainError(
-        "prospect-duplicate",
-        duplicateRef === "OTHER"
-          ? "This prospect has already been submitted for this client."
-          : `This prospect has already been submitted for this client under reference ${duplicateRef}.`,
-      );
-    }
-
-    // 7. Check over-share status for the current calendar month
-    const now = deps.now();
-    const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-    const targetShare = shareRow?.monthlyShare ?? campaignRow.monthlyTarget;
-
-    const currentSubmissions = await tx
-      .select({ id: lead.id })
-      .from(lead)
-      .where(
-        and(
-          eq(lead.campaignId, parsed.campaignId),
-          eq(lead.sourceOrgId, actor.orgId),
-          sql`${lead.submittedAt} >= ${startOfMonth}`,
-          notInArray(lead.stage, ["withdrawn", "lost", "rejected"]),
-        ),
-      );
-
-    const overShare = currentSubmissions.length >= targetShare;
+    const checked = await checkSubmission(tx, deps, actor, parsed);
+    const { normalizedEmail, normalizedDomain, normalizedLinkedin, overShare, now } = checked;
 
     // 8. Insert lead with LD- public ref
     const created = await insertWithPublicRef(
@@ -258,6 +276,28 @@ export async function submitLead(
     });
 
     return created;
+  });
+}
+
+/**
+ * Books the meeting of a lead for a chosen time: one row, with the lead's host and no link (a Meet room is only ever one Google issued, so it is null
+ * until a host adds a real one). Used when the client picks a time and when Fynix picks it for the client.
+ */
+export async function bookMeeting(
+  tx: ScopedTransaction,
+  randomBytes: DomainDeps["randomBytes"],
+  leadRow: { readonly id: string; readonly campaignId: string; readonly hostMemberId: string | null },
+  time: Date,
+  now: Date,
+): Promise<void> {
+  if (leadRow.hostMemberId === null) throw new DomainError("invalid-lead-stage", "A lead with no host cannot be booked.");
+  const hostMemberId = leadRow.hostMemberId;
+  await insertWithPublicRef(tx, { prefix: "MTG", constraint: "meeting_public_ref_unique", randomBytes }, async (innerTx, publicRef: string) => {
+    const [row] = await innerTx
+      .insert(meeting)
+      .values({ publicRef, leadId: leadRow.id, campaignId: leadRow.campaignId, hostMemberId, scheduledStartTime: time, durationMinutes: 30, googleMeetUrl: null, outcome: "scheduled", createdAt: now, updatedAt: now })
+      .returning({ id: meeting.id });
+    return row;
   });
 }
 
@@ -329,30 +369,7 @@ export async function clientReviewLead(
         createdAt: now,
       });
 
-      // Accepting a time books the meeting: one row, with the lead's host. The room link is generated here until the Meet API
-      // is connected (spec 9.1, gate G4), so it is a placeholder and not a real room.
-      await insertWithPublicRef(
-        tx,
-        { prefix: "MTG", constraint: "meeting_public_ref_unique", randomBytes: deps.randomBytes },
-        async (innerTx, publicRef: string) => {
-          const [row] = await innerTx
-            .insert(meeting)
-            .values({
-              publicRef,
-              leadId: leadRow.id,
-              campaignId: leadRow.campaignId,
-              hostMemberId: leadRow.hostMemberId,
-              scheduledStartTime: new Date(parsed.selectedMeetingTime!),
-              durationMinutes: 30,
-              googleMeetUrl: null,
-              outcome: "scheduled",
-              createdAt: now,
-              updatedAt: now,
-            })
-            .returning({ id: meeting.id });
-          return row;
-        },
-      );
+      await bookMeeting(tx, deps.randomBytes, { id: leadRow.id, campaignId: leadRow.campaignId, hostMemberId: leadRow.hostMemberId }, new Date(parsed.selectedMeetingTime!), now);
 
       return updated;
     }
@@ -507,12 +524,14 @@ export async function fynixOverturnRejection(db: Database, deps: Pick<DomainDeps
         decisionSource: "fynix",
         deliveredAt: now,
         closedAt: null,
+        rejectionReviewedAt: now,
         updatedAt: now,
       })
       .where(and(eq(lead.id, leadRow.id), eq(lead.stage, "rejected")))
       .returning({ id: lead.id, publicRef: lead.publicRef, stage: lead.stage, decisionNote: lead.decisionNote, decisionSource: lead.decisionSource, updatedAt: lead.updatedAt });
     if (updated === undefined) throw new DomainError("invalid-lead-stage", "This lead was changed by someone else. Refresh the page.");
 
+    await resolveReview(tx, leadRow.id, now);
     await tx.insert(leadHistory).values({
       leadId: leadRow.id,
       actorUserId: actor.userId,

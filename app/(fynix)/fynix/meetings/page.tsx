@@ -5,6 +5,7 @@ import { PageSkeleton } from "@/components/kit/skeletons";
 import { MEETING_SHOWS, PortalMeetings, meetingsSummary } from "@/components/meetings/portal-meetings";
 import { parseCampaignFilter } from "@/lib/campaign-status";
 import { parsePage } from "@/lib/leads/list";
+import { parseSort } from "@/lib/leads/sort";
 import { getDatabase } from "@/server/db/client";
 import { getDomain } from "@/server/domain";
 import { listCampaignRows } from "@/server/domain/campaign-overview";
@@ -36,6 +37,9 @@ async function Meetings({ searchParams }: { searchParams: PageProps<"/fynix/meet
         emptyText="Meetings appear here once a client accepts a time."
         campaigns={campaigns}
         campaign={parseCampaignFilter(params.campaign, campaigns)}
+        sort={parseSort(params.sort)}
+        viewer="fynix"
+        showHost
       />
     </div>
   );

@@ -1,10 +1,10 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type { CampaignStatus } from "@/lib/domain/campaign-status";
 import { countedMonth, isCountedStage } from "@/lib/domain/counting-month";
-import { agencyLeadColumns, agencyMeetingColumns, clientLeadColumns, clientMeetingColumns } from "@/server/db/columns";
+import { agencyLeadColumns, agencyMeetingColumns, agencyRejectionReviewColumns, agencyRescheduleColumns, clientLeadColumns, clientMeetingColumns, clientRescheduleColumns } from "@/server/db/columns";
 import type { Database } from "@/server/db/pool";
-import { aliasIdentity, campaign, campaignHost, hostHours, lead, leadHistory, meeting, member, organisation } from "@/server/db/schema";
+import { aliasIdentity, campaign, campaignHost, hostHours, lead, leadHistory, meeting, meetingReschedule, member, organisation, rejectionReview } from "@/server/db/schema";
 import { withTenantScope, type ScopedTransaction } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import type { DomainDeps } from "@/server/domain/deps";
@@ -43,6 +43,28 @@ export interface LeadRecordMeeting {
   readonly recordedAt: Date | null;
   /** Which side recorded the outcome first. */
   readonly recordedByRole: string | null;
+  /** The contest of the recorded outcome, when one was made. The side is a side, never a person. */
+  readonly contestedAt: Date | null;
+  readonly contestNote: string | null;
+  readonly contestedByRole: string | null;
+}
+
+/** A proposal to move the booked meeting. `proposedBySide` is "client" or "supply", never a person. */
+export interface RescheduleView {
+  readonly id: string;
+  readonly proposedBySide: "client" | "supply";
+  readonly proposedTimes: readonly string[];
+  readonly status: string;
+  readonly pickedTime: Date | null;
+  readonly createdAt: Date;
+  readonly resolvedAt: Date | null;
+}
+
+/** The coordinator's request for a review of a rejection. Never read on a client screen. */
+export interface ReviewRequestView {
+  readonly note: string;
+  readonly requestedAt: Date;
+  readonly status: string;
 }
 
 export interface LeadRecord {
@@ -79,6 +101,14 @@ export interface LeadRecord {
   readonly submittedAt: Date;
   readonly outcomeRecordedAt: Date | null;
   readonly closedAt: Date | null;
+  /** Whether the lead went beyond a share and Fynix has not cleared it. Always false on a client screen. */
+  readonly overShare: boolean;
+  /** Fynix has looked at the rejection and left it as it was (or changed it). */
+  readonly reviewed: boolean;
+  /** Proposals to move the meeting, newest first. */
+  readonly reschedules: readonly RescheduleView[];
+  /** The coordinator's request for a review of the rejection: the coordinator and Fynix read it, a client and an agency never. */
+  readonly reviewRequest: ReviewRequestView | null;
   readonly history: readonly LeadRecordHistory[];
 }
 
@@ -112,11 +142,11 @@ function decisionOf(row: { decisionNote: string | null; decisionAt: Date | null;
   return null;
 }
 
-type MeetingRow = { id: string; publicRef: string; scheduledStartTime: Date; durationMinutes: number; googleMeetUrl: string | null; outcome: string; recordedAt: Date | null; recordedByRole: string | null };
+type MeetingRow = { id: string; publicRef: string; scheduledStartTime: Date; durationMinutes: number; googleMeetUrl: string | null; outcome: string; recordedAt: Date | null; recordedByRole: string | null; contestedAt: Date | null; contestNote: string | null; contestedByRole: string | null };
 const meetingOf = (row: MeetingRow | undefined): LeadRecordMeeting | null =>
   row === undefined
     ? null
-    : { id: row.id, publicRef: row.publicRef, scheduledStartTime: row.scheduledStartTime, durationMinutes: row.durationMinutes, googleMeetUrl: row.googleMeetUrl, outcome: row.outcome, recordedAt: row.recordedAt, recordedByRole: row.recordedByRole };
+    : { id: row.id, publicRef: row.publicRef, scheduledStartTime: row.scheduledStartTime, durationMinutes: row.durationMinutes, googleMeetUrl: row.googleMeetUrl, outcome: row.outcome, recordedAt: row.recordedAt, recordedByRole: row.recordedByRole, contestedAt: row.contestedAt, contestNote: row.contestNote, contestedByRole: row.contestedByRole };
 
 /** A tenant's history read: no person id and no snapshot, for either role. */
 const tenantHistory = (tx: Parameters<Parameters<typeof withTenantScope>[2]>[0], leadId: string) =>
@@ -130,9 +160,27 @@ const mapHistory = (rows: readonly { id: string; role: string; action: string; f
   rows.map((row) => ({ id: row.id, by: sideOf(row.role), actorName: row.actorName ?? null, action: row.action, fromStage: row.fromStage, toStage: row.toStage, note: row.note, at: row.at }));
 
 /** The zone of a host's weekly hours. Both tenant roles may read it (migration 0032); a host with no hours has none. */
-async function hostZone(tx: ScopedTransaction, hostMemberId: string): Promise<string | null> {
+async function hostZone(tx: ScopedTransaction, hostMemberId: string | null): Promise<string | null> {
+  if (hostMemberId === null) return null;
   const [row] = await tx.select({ timeZone: hostHours.timeZone }).from(hostHours).where(eq(hostHours.memberId, hostMemberId)).limit(1);
   return row?.timeZone ?? null;
+}
+
+
+const sideOfProposal = (side: string): "client" | "supply" => (side === "client" ? "client" : "supply");
+
+const mapReschedules = (rows: readonly { id: string; proposedBySide: string; proposedTimes: unknown; status: string; pickedTime: Date | null; createdAt: Date; resolvedAt: Date | null }[]): RescheduleView[] =>
+  rows.map((row) => ({ id: row.id, proposedBySide: sideOfProposal(row.proposedBySide), proposedTimes: times(row.proposedTimes), status: row.status, pickedTime: row.pickedTime, createdAt: row.createdAt, resolvedAt: row.resolvedAt }));
+
+/** The proposals to move a meeting, through the viewer's own role and column list. */
+async function readReschedules(tx: ScopedTransaction, meetingId: string | undefined, role: "client" | "agency"): Promise<RescheduleView[]> {
+  if (meetingId === undefined) return [];
+  const rows = await tx
+    .select(role === "client" ? clientRescheduleColumns : agencyRescheduleColumns)
+    .from(meetingReschedule)
+    .where(eq(meetingReschedule.meetingId, meetingId))
+    .orderBy(desc(meetingReschedule.createdAt));
+  return mapReschedules(rows);
 }
 
 /** The record of one lead for a client: its prospect, qualification, times, host, the alias that wrote, the decision and the history. `not-found` for any other client's lead. */
@@ -148,12 +196,16 @@ export async function getLeadRecordForClient(db: Database, actor: TenantActor, l
     if (row === undefined) throw new DomainError("not-found", "There is no such lead.");
 
     const [meetingRow] = await tx.select(clientMeetingColumns).from(meeting).where(eq(meeting.leadId, row.id)).orderBy(asc(meeting.createdAt)).limit(1);
-    const [hostRow] = await tx
-      .select({ name: member.displayName, jobTitle: campaignHost.jobTitle })
-      .from(member)
-      .leftJoin(campaignHost, and(eq(campaignHost.memberId, member.id), eq(campaignHost.campaignId, row.campaignId)))
-      .where(eq(member.id, row.hostMemberId))
-      .limit(1);
+    // A client never reads a draft, so a lead it can read has a host; the guard keeps the type honest.
+    const [hostRow] =
+      row.hostMemberId === null
+        ? []
+        : await tx
+            .select({ name: member.displayName, jobTitle: campaignHost.jobTitle })
+            .from(member)
+            .leftJoin(campaignHost, and(eq(campaignHost.memberId, member.id), eq(campaignHost.campaignId, row.campaignId)))
+            .where(eq(member.id, row.hostMemberId))
+            .limit(1);
     const decider =
       row.decisionByUserId === null ? [] : await tx.select({ name: member.displayName }).from(member).where(eq(member.userId, row.decisionByUserId)).limit(1);
     const aliasRows = await tx.execute<{ display_name: string; job_title: string }>(sql`select display_name, job_title from public.app_lead_alias_name(${row.id}::uuid)`);
@@ -180,6 +232,10 @@ export async function getLeadRecordForClient(db: Database, actor: TenantActor, l
       submittedAt: row.submittedAt,
       outcomeRecordedAt: row.outcomeRecordedAt,
       closedAt: row.closedAt,
+      overShare: false,
+      reviewed: false,
+      reschedules: await readReschedules(tx, meetingRow?.id, "client"),
+      reviewRequest: null,
       history: mapHistory(history),
     };
   });
@@ -203,8 +259,9 @@ export async function getLeadRecordForSupply(db: Database, actor: TenantActor, l
     if (row === undefined) throw new DomainError("not-found", "There is no such lead.");
 
     const [meetingRow] = await tx.select(agencyMeetingColumns).from(meeting).where(eq(meeting.leadId, row.id)).orderBy(asc(meeting.createdAt)).limit(1);
-    const [hostRow] = await tx.select({ jobTitle: campaignHost.jobTitle }).from(campaignHost).where(and(eq(campaignHost.campaignId, row.campaignId), eq(campaignHost.memberId, row.hostMemberId))).limit(1);
-    const [aliasRow] = await tx.select({ displayName: aliasIdentity.displayName, jobTitle: aliasIdentity.jobTitle }).from(aliasIdentity).where(eq(aliasIdentity.id, row.aliasIdentityId)).limit(1);
+    // An agency's own draft may have no host or alias yet.
+    const [hostRow] = row.hostMemberId === null ? [] : await tx.select({ jobTitle: campaignHost.jobTitle }).from(campaignHost).where(and(eq(campaignHost.campaignId, row.campaignId), eq(campaignHost.memberId, row.hostMemberId))).limit(1);
+    const [aliasRow] = row.aliasIdentityId === null ? [] : await tx.select({ displayName: aliasIdentity.displayName, jobTitle: aliasIdentity.jobTitle }).from(aliasIdentity).where(eq(aliasIdentity.id, row.aliasIdentityId)).limit(1);
     const own = row.sourceOrgId === actor.orgId;
     let sourceName: string | null = null;
     if (!own) {
@@ -213,6 +270,8 @@ export async function getLeadRecordForSupply(db: Database, actor: TenantActor, l
       sourceName = partners.rows.find((partner) => partner.id === row.sourceOrgId)?.name ?? null;
     }
     const history = await tenantHistory(tx, row.id);
+    // Only the coordinator of the campaign holds a policy on review requests, so a partner agency reads none.
+    const [review] = await tx.select(agencyRejectionReviewColumns).from(rejectionReview).where(eq(rejectionReview.leadId, row.id)).limit(1);
 
     return {
       id: row.id,
@@ -234,6 +293,10 @@ export async function getLeadRecordForSupply(db: Database, actor: TenantActor, l
       submittedAt: row.submittedAt,
       outcomeRecordedAt: row.outcomeRecordedAt,
       closedAt: row.closedAt,
+      overShare: row.overShare,
+      reviewed: row.rejectionReviewedAt !== null,
+      reschedules: await readReschedules(tx, meetingRow?.id, "agency"),
+      reviewRequest: review === undefined ? null : { note: review.note, requestedAt: review.requestedAt, status: review.status },
       history: mapHistory(history),
       source: { own, name: sourceName },
     };
@@ -266,7 +329,7 @@ export async function getLeadRecordForFynix(deps: DomainDeps, actor: FynixActor,
       .innerJoin(campaign, eq(lead.campaignId, campaign.id))
       .innerJoin(clientOrg, eq(clientOrg.id, campaign.clientOrgId))
       .innerJoin(sourceOrg, eq(sourceOrg.id, lead.sourceOrgId))
-      .innerJoin(host, eq(host.id, lead.hostMemberId))
+      .leftJoin(host, eq(host.id, lead.hostMemberId))
       .leftJoin(campaignHost, and(eq(campaignHost.campaignId, lead.campaignId), eq(campaignHost.memberId, lead.hostMemberId)))
       .leftJoin(aliasIdentity, eq(aliasIdentity.id, lead.aliasIdentityId))
       .leftJoin(decider, eq(decider.userId, lead.decisionByUserId))
@@ -283,6 +346,12 @@ export async function getLeadRecordForFynix(deps: DomainDeps, actor: FynixActor,
       .where(eq(leadHistory.leadId, l.id))
       .orderBy(asc(leadHistory.createdAt), asc(leadHistory.id));
     const counted = isCountedStage(l.stage);
+    const [review] = await tx
+      .select({ note: rejectionReview.note, requestedAt: rejectionReview.requestedAt, status: rejectionReview.status })
+      .from(rejectionReview)
+      .where(eq(rejectionReview.leadId, l.id))
+      .limit(1);
+    const proposals = meetingRow === undefined ? [] : await tx.select({ id: meetingReschedule.id, proposedBySide: meetingReschedule.proposedBySide, proposedTimes: meetingReschedule.proposedTimes, status: meetingReschedule.status, pickedTime: meetingReschedule.pickedTime, createdAt: meetingReschedule.createdAt, resolvedAt: meetingReschedule.resolvedAt }).from(meetingReschedule).where(eq(meetingReschedule.meetingId, meetingRow.id)).orderBy(desc(meetingReschedule.createdAt));
 
     return {
       id: l.id,
@@ -295,7 +364,7 @@ export async function getLeadRecordForFynix(deps: DomainDeps, actor: FynixActor,
       bant: { budget: l.bantBudget, authority: l.bantAuthority, need: l.bantNeed, timeline: l.bantTimeline },
       proposedTimes: times(l.proposedTimes),
       scheduledMeetingTime: l.scheduledMeetingTime,
-      host: { name: row.hostName, jobTitle: row.hostJobTitle },
+      host: { name: row.hostName ?? null, jobTitle: row.hostJobTitle },
       hostTimeZone: (await hostZone(tx, l.hostMemberId)) ?? row.timeZone,
       alias: row.aliasName === null || row.aliasJobTitle === null ? null : { displayName: row.aliasName, jobTitle: row.aliasJobTitle },
       meeting: meetingOf(meetingRow),
@@ -304,6 +373,10 @@ export async function getLeadRecordForFynix(deps: DomainDeps, actor: FynixActor,
       submittedAt: l.submittedAt,
       outcomeRecordedAt: l.outcomeRecordedAt,
       closedAt: l.closedAt,
+      overShare: l.overShare,
+      reviewed: l.rejectionReviewedAt !== null,
+      reschedules: mapReschedules(proposals),
+      reviewRequest: review === undefined ? null : { note: review.note, requestedAt: review.requestedAt, status: review.status },
       history: mapHistory(history),
       clientName: row.clientName,
       source: { name: row.sourceName },

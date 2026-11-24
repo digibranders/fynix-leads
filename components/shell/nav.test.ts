@@ -34,6 +34,11 @@ describe("phone tab bar", () => {
     }
   });
 
+  it("keeps the client's exclusion list in the More sheet, never on the bar", () => {
+    expect(moreGroups(PORTALS.client).flatMap((group) => group.items.map((item) => item.href))).toContain("/client/exclusions");
+    expect(PORTALS.client.mobileTabs).not.toContain("/client/exclusions");
+  });
+
   it("keeps leads in the client's More sheet", () => {
     expect(moreGroups(PORTALS.client).flatMap((group) => group.items.map((item) => item.label))).toContain("Leads");
   });

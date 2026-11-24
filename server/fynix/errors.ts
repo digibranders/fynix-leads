@@ -35,6 +35,9 @@ const MESSAGES: Readonly<Record<DomainErrorCode, string>> = {
   "campaign-closed": "That campaign is closed. Reopen it first.",
   "agreement-unused": "Agreements are made for the campaign, not for the coordinator separately.",
   "outcome-already-recorded": "The outcome of this meeting was recorded already. Refresh the page.",
+  "contest-window-closed": "The 48 hours to contest this outcome are over.",
+  "review-window-closed": "The 48 hours to ask for a review of this rejection are over.",
+  "already-requested": "A review of this rejection has been asked for already.",
 };
 
 export function domainMessage(code: DomainErrorCode, overrides: Partial<Record<DomainErrorCode, string>> = {}): string {

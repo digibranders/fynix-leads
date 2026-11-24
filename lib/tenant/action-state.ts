@@ -9,3 +9,10 @@ export interface TenantActionResult {
 }
 
 export const IDLE_TENANT_ACTION: TenantActionResult = { status: "idle" };
+
+/** What saving a draft answers: the draft's id too, so the next save edits the same draft instead of making another. */
+export interface DraftActionResult extends TenantActionResult {
+  readonly leadId?: string;
+}
+
+export const IDLE_DRAFT_ACTION: DraftActionResult = { status: "idle" };

@@ -32,6 +32,12 @@ const SENTENCES: Readonly<Record<string, string>> = {
   "lead.decide_reject": "Rejected by the client",
   "lead.auto_accept": "Accepted automatically",
   "lead.overturn_rejection": "Rejection changed to accepted",
+  "lead.decide_contest": "Contested outcome decided",
+  "lead.mark_rejection_reviewed": "Rejection reviewed and left as it was",
+  "lead.correct": "Lead corrected",
+  "lead.answer_for_client": "Answered for the client",
+  "lead.mark_lost": "Lead marked lost",
+  "lead.approve_over_share": "Lead beyond a share approved",
 };
 
 export function auditSentence(action: string): string {

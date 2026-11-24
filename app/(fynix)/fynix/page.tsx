@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Megaphone, Scales } from "@phosphor-icons/react/dist/ssr";
+import { PipelineHealthCards } from "@/components/fynix/pipeline-health";
 import { SetupChecklist } from "@/components/fynix/setup-checklist";
 import { EmptyState } from "@/components/kit/empty-state";
 import { Hero } from "@/components/kit/hero";
@@ -22,6 +23,7 @@ import { getFynixOverviewMetrics } from "@/server/domain/analytics";
 import { listCampaignRows } from "@/server/domain/campaign-overview";
 import { listRejections } from "@/server/domain/rejection-overview";
 import { listFynixLeads } from "@/server/domain/leads";
+import { readFynixPipelineHealth } from "@/server/domain/pipeline-health";
 import { requireFynix } from "@/server/fynix/session";
 
 export const metadata: Metadata = { title: "Overview" };
@@ -29,12 +31,13 @@ export const metadata: Metadata = { title: "Overview" };
 async function Overview() {
   const view = await requireFynix();
   const deps = getDomain();
-  const [metrics, campaigns, allLeads, findings, rejectionRows] = await Promise.all([
+  const [metrics, campaigns, allLeads, findings, rejectionRows, health] = await Promise.all([
     getFynixOverviewMetrics(deps.fynixDb, view.actor),
     listCampaignRows(deps, view.actor),
     listFynixLeads(getDatabase("leads_fynix").db, view.actor),
     readSetupFindings(deps, view.actor),
     listRejections(deps, view.actor),
+    readFynixPipelineHealth(deps, view.actor),
   ]);
   const active = campaigns.filter((row) => row.status === "active");
   // An overview is about active campaigns: the stage bar and the latest leads leave out the rest.
@@ -111,6 +114,8 @@ async function Overview() {
           <MiniStat label="Over share" value={metrics.overShareCount} foot="Above an agency's monthly share" className="h-full" />
         </Link>
       </div>
+
+      <PipelineHealthCards health={health} />
 
       {leads.length > 0 ? (
         <StageBar

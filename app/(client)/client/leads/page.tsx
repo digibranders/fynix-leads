@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Table as TableIcon } from "@phosphor-icons/react/dist/ssr";
 import { Suspense } from "react";
 import { CampaignFilter } from "@/components/kit/campaign-filter";
+import { ExportButton, exportHref } from "@/components/kit/export-button";
+import { SortHead } from "@/components/kit/sort-head";
 import { ClosedTag } from "@/components/kit/closed-tag";
 import { EmptyState } from "@/components/kit/empty-state";
 import { PageHeader } from "@/components/kit/page-header";
@@ -16,7 +18,9 @@ import { PipelineBar } from "@/components/leads/pipeline-bar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { campaignFilterHrefs, closedCampaignIds, parseCampaignFilter } from "@/lib/campaign-status";
 import { leadsHref } from "@/lib/leads/href";
+import { LEAD_SORT_CELLS } from "@/lib/leads/lead-sort";
 import { filterLeads, paginate, parsePage } from "@/lib/leads/list";
+import { parseSort, sortRows, sortValue } from "@/lib/leads/sort";
 import { parseGroup } from "@/lib/leads/pipeline";
 import type { LeadStage } from "@/lib/leads/stage";
 import { getDatabase } from "@/server/db/client";
@@ -40,9 +44,12 @@ async function Leads({ searchParams }: { searchParams: PageProps<"/client/leads"
   const campaign = parseCampaignFilter(params.campaign, campaigns);
   const names = new Map(campaigns.map((row) => [row.id, row.name]));
   const closed = closedCampaignIds(campaigns);
-  const filtered = filterLeads(all, { group, q, campaign });
+  const sort = parseSort(params.sort);
+  const sortParam = sortValue(sort) ?? null;
+  const filtered = sortRows(filterLeads(all, { group, q, campaign }), sort, LEAD_SORT_CELLS);
   const page = paginate(filtered, parsePage(params.page));
-  const href = (nextPage: number) => leadsHref(BASE, { stage: group, q, campaign, page: nextPage });
+  const href = (nextPage: number) => leadsHref(BASE, { stage: group, q, campaign, sort: sortParam, page: nextPage });
+  const sortHref = (value: string) => leadsHref(BASE, { stage: group, q, campaign, sort: value });
 
   return (
     <div className="flex flex-col gap-4">
@@ -56,11 +63,18 @@ async function Leads({ searchParams }: { searchParams: PageProps<"/client/leads"
         </Panel>
       ) : (
         <>
-          <PipelineBar leads={all} basePath={BASE} group={group} q={q} campaign={campaign} />
+          <PipelineBar leads={all} basePath={BASE} group={group} q={q} campaign={campaign} sort={sortParam} />
           <Panel aria-label="Leads">
-            <Toolbar trailing={`${filtered.length} ${filtered.length === 1 ? "lead" : "leads"}`}>
-              <SearchForm defaultValue={q} placeholder="Search by name, company or reference" hidden={{ stage: group ?? undefined, campaign: campaign ?? undefined }} />
-              <CampaignFilter campaigns={campaigns} selected={campaign} {...campaignFilterHrefs(campaigns, (id) => leadsHref(BASE, { stage: group, q, campaign: id }))} />
+            <Toolbar
+              trailing={
+                <span className="flex items-center gap-3">
+                  {`${filtered.length} ${filtered.length === 1 ? "lead" : "leads"}`}
+                  <ExportButton href={exportHref("leads", campaign)} />
+                </span>
+              }
+            >
+              <SearchForm defaultValue={q} placeholder="Search by name, company or reference" hidden={{ stage: group ?? undefined, campaign: campaign ?? undefined, sort: sortParam ?? undefined }} />
+              <CampaignFilter campaigns={campaigns} selected={campaign} {...campaignFilterHrefs(campaigns, (id) => leadsHref(BASE, { stage: group, q, campaign: id, sort: sortParam }))} />
             </Toolbar>
             {page.rows.length === 0 ? (
               <EmptyState icon={TableIcon} title="No leads match">
@@ -71,12 +85,13 @@ async function Leads({ searchParams }: { searchParams: PageProps<"/client/leads"
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:[&>th]:bg-navy-04">
-                      <TableHead>Prospect</TableHead>
-                      <TableHead className="max-md:hidden">Company</TableHead>
+                      <SortHead label="Prospect" sortKey="prospect" sort={sort} hrefFor={sortHref} />
+                      <SortHead label="Company" sortKey="company" sort={sort} hrefFor={sortHref} className="max-md:hidden" />
                       <TableHead className="max-xl:hidden">Campaign</TableHead>
-                      <TableHead>Stage</TableHead>
-                      <TableHead className="max-lg:hidden">Meeting</TableHead>
-                      <TableHead className="max-lg:hidden">Submitted</TableHead>
+                      <TableHead className="max-xl:hidden">Host</TableHead>
+                      <SortHead label="Stage" sortKey="stage" sort={sort} hrefFor={sortHref} />
+                      <SortHead label="Meeting" sortKey="meeting" sort={sort} hrefFor={sortHref} className="max-lg:hidden" />
+                      <SortHead label="Submitted" sortKey="submitted" sort={sort} hrefFor={sortHref} className="max-lg:hidden" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -97,6 +112,7 @@ async function Leads({ searchParams }: { searchParams: PageProps<"/client/leads"
                             {closed.has(lead.campaignId) ? <ClosedTag /> : null}
                           </span>
                         </TableCell>
+                        <TableCell className="max-xl:hidden">{lead.hostName ?? <span className="text-ink-muted">Not set</span>}</TableCell>
                         <TableCell>
                           <StatusChip kind="lead" status={lead.stage as LeadStage} size="sm" />
                         </TableCell>

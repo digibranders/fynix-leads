@@ -241,6 +241,20 @@ export const PROBES: readonly Probe[] = [
   { name: "the sweep, as a tenant", statement: "select * from app_sweep_leads(now())", expectedError: /permission denied for function app_sweep_leads/ },
   { name: "the due reminders, as a tenant", statement: "select * from app_due_lead_reminders(now())", expectedError: /permission denied for function app_due_lead_reminders/ },
   { name: "the alias of a lead, as an agency", statement: "select * from app_lead_alias_name(gen_random_uuid())", expectedError: /permission denied for function app_lead_alias_name/, roles: ["leads_agency"] },
+  // Phase 4: drafts, postponing, contesting and review requests. A draft is hidden by policy; the person behind a proposal or a request is never granted.
+  { name: "meeting proposals, every column", statement: "select * from meeting_reschedule", expectedError: DENIED_TABLE },
+  { name: "meeting proposals: the person who proposed", statement: "select proposed_by_user_id from meeting_reschedule", expectedError: DENIED_TABLE },
+  { name: "write: rewrite a proposal's times", statement: "update meeting_reschedule set proposed_times = '[]'::jsonb", expectedError: DENIED_TABLE },
+  { name: "review requests, every column", statement: "select * from rejection_review", expectedError: DENIED_TABLE },
+  { name: "review requests: the person who asked", statement: "select requested_by_user_id from rejection_review", expectedError: DENIED_TABLE },
+  { name: "review requests, as a client", statement: "select id from rejection_review", expectedError: DENIED_TABLE, roles: ["leads_client"] },
+  { name: "write: resolve a review request", statement: "update rejection_review set status = 'resolved', resolved_at = now()", expectedError: DENIED_TABLE },
+  { name: "lead: whether Fynix reviewed a rejection, as a client", statement: "select rejection_reviewed_at from lead", expectedError: DENIED_TABLE, roles: ["leads_client"] },
+  { name: "write: release a draft, as a client", statement: "update lead set released = true", expectedError: DENIED_TABLE, roles: ["leads_client"] },
+  { name: "the host names of a campaign, as a client", statement: "select * from app_campaign_host_names(gen_random_uuid())", expectedError: /permission denied for function app_campaign_host_names/, roles: ["leads_client"] },
+  { name: "who serves a lead, as a client", statement: "select app_lead_served_by_me(gen_random_uuid())", expectedError: /permission denied for function app_lead_served_by_me/, roles: ["leads_client"] },
+  { name: "the visibility of a proposal to the supply side, as a client", statement: "select app_reschedule_visible_to_supply(gen_random_uuid())", expectedError: /permission denied for function app_reschedule_visible_to_supply/, roles: ["leads_client"] },
+  { name: "the visibility of a proposal to the client, as an agency", statement: "select app_reschedule_visible_to_client(gen_random_uuid())", expectedError: /permission denied for function app_reschedule_visible_to_client/, roles: ["leads_agency"] },
 ];
 
 /**

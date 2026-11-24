@@ -5,6 +5,9 @@ describe("history text", () => {
   it("words the known actions and falls back for an unknown one", () => {
     expect(historyActionText("lead.auto_accept")).toBe("Accepted automatically");
     expect(historyActionText("lead.something_new")).toBe("Updated");
+    for (const action of ["lead.withdraw", "meeting.postpone_propose", "meeting.postpone_pick", "meeting.contest", "meeting.contest_decided", "lead.correct", "lead.answer_for_client", "lead.mark_lost", "lead.approve_over_share", "lead.rejection_reviewed", "lead.discard_draft"]) {
+      expect(historyActionText(action), action).not.toBe("Updated");
+    }
   });
 
   it("never calls the supply side a coordinator or an agency to the client", () => {

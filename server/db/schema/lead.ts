@@ -23,6 +23,7 @@ export const LEAD_STAGES = [
   "withdrawn",
   "lost",
   "rejected",
+  "outcome_contested",
 ] as const;
 
 export type LeadStage = (typeof LEAD_STAGES)[number];
@@ -39,8 +40,9 @@ export const lead = pgTable(
     campaignId: uuid("campaign_id").notNull(),
     sourceOrgId: uuid("source_org_id").notNull(),
     submittedByUserId: uuid("submitted_by_user_id").notNull(),
-    aliasIdentityId: uuid("alias_identity_id").notNull(),
-    hostMemberId: uuid("host_member_id").notNull(),
+    // Null only while the lead is a draft (`lead_draft_complete` below).
+    aliasIdentityId: uuid("alias_identity_id"),
+    hostMemberId: uuid("host_member_id"),
 
     // Prospect details
     prospectName: text("prospect_name").notNull(),
@@ -74,6 +76,11 @@ export const lead = pgTable(
     // Proposed and agreed meeting times
     proposedTimes: jsonb("proposed_times").notNull().default(sql`'[]'::jsonb`),
     scheduledMeetingTime: timestamp("scheduled_meeting_time", { withTimezone: true }),
+
+    // False while the lead is a draft or a discarded draft: only the organisation that wrote it (and Fynix) can read it (phase 4, migration 0069).
+    released: boolean("released").notNull().default(true),
+    // When Fynix looked at a rejection and left it as it was, or changed it (phase 4). Null while the rejection waits for Fynix.
+    rejectionReviewedAt: timestamp("rejection_reviewed_at", { withTimezone: true }),
 
     // Flags
     overShare: boolean("over_share").notNull().default(false),
@@ -122,15 +129,18 @@ export const lead = pgTable(
     }),
     check("lead_decision_source_check", sql`${table.decisionSource} IS NULL OR ${table.decisionSource} IN ('client', 'auto', 'fynix')`),
     check("lead_decision_note_length", sql`${table.decisionNote} IS NULL OR char_length(btrim(${table.decisionNote})) BETWEEN 1 AND 1000`),
+    // A draft, and a discarded draft (never released), may lack an alias and a host; every lead the client has seen has both.
+    check("lead_draft_complete", sql`${table.stage} = 'draft' OR NOT ${table.released} OR (${table.aliasIdentityId} IS NOT NULL AND ${table.hostMemberId} IS NOT NULL)`),
+    check("lead_draft_not_released", sql`${table.stage} <> 'draft' OR NOT ${table.released}`),
     check("lead_public_ref_format", sql`${table.publicRef} ~ '^LD-[0-9A-HJKMNP-TV-Z]{4}$'`),
     check(
       "lead_stage_check",
-      sql`${table.stage} IN ('draft', 'awaiting_client', 'scheduled', 'outcome_due', 'reschedule_needed', 'held', 'client_no_show', 'prospect_no_show', 'awaiting_decision', 'accepted', 'delivered', 'disputed', 'declined', 'withdrawn', 'lost', 'rejected')`,
+      sql`${table.stage} IN ('draft', 'awaiting_client', 'scheduled', 'outcome_due', 'reschedule_needed', 'held', 'client_no_show', 'prospect_no_show', 'awaiting_decision', 'accepted', 'delivered', 'disputed', 'declined', 'withdrawn', 'lost', 'rejected', 'outcome_contested')`,
     ),
     check("lead_prospect_name_length", sql`char_length(btrim(${table.prospectName})) BETWEEN 1 AND 120 AND ${table.prospectName} = btrim(${table.prospectName})`),
-    check("lead_prospect_title_length", sql`char_length(btrim(${table.prospectTitle})) BETWEEN 1 AND 120 AND ${table.prospectTitle} = btrim(${table.prospectTitle})`),
-    check("lead_prospect_company_length", sql`char_length(btrim(${table.prospectCompany})) BETWEEN 1 AND 120 AND ${table.prospectCompany} = btrim(${table.prospectCompany})`),
-    check("lead_prospect_domain_length", sql`char_length(btrim(${table.prospectDomain})) BETWEEN 1 AND 255 AND ${table.prospectDomain} = lower(btrim(${table.prospectDomain}))`),
-    check("lead_prospect_email_check", sql`${table.prospectEmail} = lower(btrim(${table.prospectEmail})) AND ${table.prospectEmail} ~ '^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$'`),
+    check("lead_prospect_title_length", sql`(NOT ${table.released} AND ${table.prospectTitle} = '') OR (char_length(btrim(${table.prospectTitle})) BETWEEN 1 AND 120 AND ${table.prospectTitle} = btrim(${table.prospectTitle}))`),
+    check("lead_prospect_company_length", sql`(NOT ${table.released} AND ${table.prospectCompany} = '') OR (char_length(btrim(${table.prospectCompany})) BETWEEN 1 AND 120 AND ${table.prospectCompany} = btrim(${table.prospectCompany}))`),
+    check("lead_prospect_domain_length", sql`(NOT ${table.released} AND ${table.prospectDomain} = '') OR (char_length(btrim(${table.prospectDomain})) BETWEEN 1 AND 255 AND ${table.prospectDomain} = lower(btrim(${table.prospectDomain})))`),
+    check("lead_prospect_email_check", sql`(NOT ${table.released} AND ${table.prospectEmail} = '') OR (${table.prospectEmail} = lower(btrim(${table.prospectEmail})) AND ${table.prospectEmail} ~ '^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')`),
   ],
 );

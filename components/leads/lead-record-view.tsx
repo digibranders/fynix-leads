@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { ArrowLeft } from "@phosphor-icons/react/dist/ssr";
+import { ArrowLeft, PencilSimple } from "@phosphor-icons/react/dist/ssr";
 import { ClosedTag } from "@/components/kit/closed-tag";
 import { Facts, Quote } from "@/components/kit/facts";
 import { PageHeader } from "@/components/kit/page-header";
 import { Panel, PanelHeader } from "@/components/kit/panel";
 import { StatusChip } from "@/components/kit/status-chip";
+import { Badge } from "@/components/ui/badge";
+import { ConfirmAction } from "@/components/fynix/forms/confirm-action";
 import { When } from "@/components/kit/when";
 import { DownloadIcsButton, JoinMeetButton } from "@/components/meetings/meeting-actions";
 import { buttonVariants } from "@/components/ui/button";
@@ -14,8 +16,10 @@ import { decisionNoteLabel, historyActionText, historySideText, stageChangeText 
 import type { LeadViewer } from "@/lib/leads/lead-actions";
 import type { LeadStage } from "@/lib/leads/stage";
 import { formatInZone } from "@/lib/time/zones";
-import type { LeadRecord } from "@/server/domain/lead-record";
+import type { LeadRecord, RescheduleView } from "@/server/domain/lead-record";
+import { discardDraftAction } from "@/server/domain/draft-actions";
 import { LeadActionBar } from "./lead-action-bar";
+import { recordFacts } from "./record-facts";
 
 const safeLink = (url: string): React.ReactNode =>
   /^https:\/\//i.test(url) ? (
@@ -37,6 +41,54 @@ function Times({ at, hostZone }: { at: Date | string; hostZone: string | null })
   );
 }
 
+/** Who contested, as the viewer may read it: the client and Fynix are named, the supply side is one side. */
+function contesterText(role: string | null, viewer: LeadViewer): string {
+  if (role === "client") return viewer === "client" ? "your team" : "the client";
+  return viewer === "client" ? "the Fynix team" : viewer === "supply" ? "your side" : role === "coordinator" ? "the coordinator" : "the agency";
+}
+
+/** A proposal to move the meeting that waits for an answer: "New times proposed" for the side that must pick, a waiting line for the side that proposed. */
+function ProposalNotice({ proposal, viewer, hostZone }: { proposal: RescheduleView; viewer: LeadViewer; hostZone: string | null }) {
+  const mine = viewer === (proposal.proposedBySide === "client" ? "client" : "supply");
+  return (
+    <div className="flex flex-col gap-1.5 rounded-md bg-amber-soft px-3.5 py-3 text-amber-text">
+      <p className="text-row font-semibold">{mine ? "You proposed new times" : viewer === "fynix" ? `New times proposed by ${historySideText(proposal.proposedBySide, viewer).toLowerCase()}` : "New times proposed"}</p>
+      <p className="text-caption">{mine ? "Waiting for the other side to pick one." : viewer === "fynix" ? "Waiting for the other side to pick one." : "Pick one from the buttons above and the meeting moves."}</p>
+      <ul className="flex flex-col gap-1">
+        {proposal.proposedTimes.map((time) => (
+          <li key={time} className="text-row font-medium">
+            <Times at={time} hostZone={hostZone} />
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+const RESCHEDULE_STATUS: Readonly<Record<string, string>> = { accepted: "A time was picked", superseded: "Replaced or closed" };
+
+/** The proposals that were answered or replaced, newest first: who offered, what happened. */
+function RescheduleHistory({ proposals, viewer }: { proposals: readonly RescheduleView[]; viewer: LeadViewer }) {
+  if (proposals.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-1.5">
+      <p className="text-caption font-semibold text-ink-muted">Reschedule history</p>
+      <ul className="flex flex-col gap-1.5">
+        {proposals.map((entry) => (
+          <li key={entry.id} className="rounded-md bg-tonal px-3.5 py-2.5 text-body text-ink-2">
+            <span className="font-semibold text-ink">{historySideText(entry.proposedBySide, viewer)}</span> proposed {entry.proposedTimes.length === 1 ? "one time" : `${entry.proposedTimes.length} times`} on <When at={entry.createdAt} style="day" />
+            <span className="block text-caption text-ink-muted">
+              {RESCHEDULE_STATUS[entry.status] ?? entry.status}
+              {entry.pickedTime !== null ? ": " : ""}
+              {entry.pickedTime !== null ? <When at={entry.pickedTime} /> : null}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 /**
  * One lead, for any of the four portals. What the viewer may read was already decided by the read that built `record`; this only lays it out.
  * `extraFacts` carries what only one side has (Fynix: the client and the sender).
@@ -48,6 +100,8 @@ export function LeadRecordView({
   availabilityHref,
   extraFacts = [],
   now,
+  isCoordinator = false,
+  draftHref,
 }: {
   readonly record: LeadRecord;
   readonly viewer: LeadViewer;
@@ -55,8 +109,14 @@ export function LeadRecordView({
   readonly availabilityHref?: string;
   readonly extraFacts?: readonly (readonly [string, React.ReactNode])[];
   readonly now: Date;
+  /** The coordinator's portal: only it may ask Fynix to review a rejection. */
+  readonly isCoordinator?: boolean;
+  /** Where a draft is continued (the lead form with `?draft=`). Only the source organisation reads a draft. */
+  readonly draftHref?: string;
 }) {
   const { prospect, bant, meeting, decision } = record;
+  const facts = recordFacts(record, viewer, now, { isCoordinator });
+  const isDraft = record.stage === "draft";
   const closed = isClosed(record.campaignStatus);
   const countdown = record.stage === "awaiting_decision" && record.outcomeRecordedAt !== null ? autoAcceptCountdown(record.outcomeRecordedAt, now) : null;
   const hostLine = record.host.name ?? record.host.jobTitle;
@@ -82,10 +142,43 @@ export function LeadRecordView({
             {record.campaignName}
             {closed ? <ClosedTag /> : null}
           </span>
-          <span className="text-label text-ink-muted">
-            Submitted <When at={record.submittedAt} style="day" />
-          </span>
+          {record.overShare && viewer !== "client" ? (
+            <Badge variant="amber" size="sm">
+              Over share
+            </Badge>
+          ) : null}
+          {record.reviewRequest !== null && viewer !== "client" ? (
+            <Badge variant="peach" size="sm">
+              Review requested
+            </Badge>
+          ) : null}
+          {isDraft ? null : (
+            <span className="text-label text-ink-muted">
+              Submitted <When at={record.submittedAt} style="day" />
+            </span>
+          )}
         </div>
+        {isDraft && draftHref !== undefined ? (
+          <div className="flex flex-wrap items-center gap-2 bg-navy-03 px-6 py-4">
+            <p className="flex-1 text-body text-ink-2">This is a draft. Only your company can see it until you send it.</p>
+            <Link href={draftHref} className={buttonVariants({ variant: "default" })}>
+              <PencilSimple aria-hidden weight="bold" />
+              Continue
+            </Link>
+            <ConfirmAction
+              action={discardDraftAction}
+              fields={{ leadId: record.id }}
+              trigger="Discard draft"
+              triggerLabel={`Discard the draft for ${prospect.name}`}
+              title="Discard this draft?"
+              description="The draft is removed. It was never sent, so the client does not know about it."
+              confirmLabel="Discard draft"
+              savedMessage="Draft discarded"
+            />
+          </div>
+        ) : null}
+        {facts.contestLabel !== null ? <p className="px-6 pb-4 text-body font-medium text-amber-text">{`Contest outcome: ${facts.contestLabel}. The other side recorded how the meeting went.`}</p> : null}
+        {facts.reviewLabel !== null && isCoordinator ? <p className="px-6 pb-4 text-body font-medium text-ink-2">{`You can ask Fynix to review this rejection: ${facts.reviewLabel}.`}</p> : null}
         {countdown !== null ? (
           <p className={`px-6 pb-4 text-body font-medium ${countdown.urgent ? "text-amber-text" : "text-ink-2"}`}>{countdown.label}</p>
         ) : null}
@@ -98,6 +191,7 @@ export function LeadRecordView({
           meetingTime={record.scheduledMeetingTime}
           now={now}
           availabilityHref={availabilityHref}
+          context={facts.context}
         />
       </Panel>
 
@@ -166,6 +260,7 @@ export function LeadRecordView({
                   />
                 </div>
               ) : null}
+              {facts.openProposal !== null ? <ProposalNotice proposal={facts.openProposal} viewer={viewer} hostZone={record.hostTimeZone} /> : null}
               {record.scheduledMeetingTime === null && record.proposedTimes.length > 0 ? (
                 <div className="flex flex-col gap-1.5">
                   <p className="text-caption font-semibold text-ink-muted">Proposed times</p>
@@ -184,8 +279,25 @@ export function LeadRecordView({
                   {record.stage === "prospect_no_show" ? ". The lead is closed and counts as zero. Nothing more to do." : ""}
                 </p>
               ) : null}
+              {meeting !== null && meeting.contestedAt !== null ? (
+                <Quote label={`Outcome contested by ${contesterText(meeting.contestedByRole, viewer)}`}>{meeting.contestNote ?? ""}</Quote>
+              ) : null}
+              <RescheduleHistory proposals={record.reschedules.filter((entry) => entry.status !== "open")} viewer={viewer} />
             </div>
           </Panel>
+
+          {record.reviewRequest !== null && viewer !== "client" ? (
+            <Panel aria-label="Review request">
+              <PanelHeader title="Review requested" />
+              <div className="flex flex-col gap-3 px-5 pb-5">
+                <Quote label={viewer === "fynix" ? "The coordinator's note" : "Your note"}>{record.reviewRequest.note}</Quote>
+                <p className="text-label text-ink-muted">
+                  <When at={record.reviewRequest.requestedAt} />
+                  {record.reviewRequest.status === "resolved" ? ". Fynix has answered." : ". Waiting for Fynix."}
+                </p>
+              </div>
+            </Panel>
+          ) : null}
 
           {decision !== null ? (
             <Panel aria-label="Decision">

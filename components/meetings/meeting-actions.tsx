@@ -2,6 +2,7 @@
 
 import { CalendarPlus, VideoCamera } from "@phosphor-icons/react";
 import { FormSheet } from "@/components/fynix/forms/form-sheet";
+import { ContestOutcomeForm } from "@/components/leads/phase4-forms";
 import { RecordOutcomeForm } from "@/components/leads/lead-forms";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Hint } from "@/components/ui/hint";
@@ -21,6 +22,14 @@ export interface MeetingItemData {
   readonly notes?: string | null;
   /** The stage of the lead the meeting belongs to, when the list reads it. */
   readonly leadStage?: string;
+  /** The client's host. Read by the client and Fynix only. */
+  readonly hostName?: string | null;
+  /** The side ("client" or "supply") with an open proposal to move the meeting. */
+  readonly openProposalBy?: string | null;
+  /** The recorded outcome and its contest, for the 48 hour window. */
+  readonly recordedAt?: Date | string | null;
+  readonly recordedByRole?: string | null;
+  readonly contestedAt?: Date | string | null;
 }
 
 /** A calendar file for one meeting. The file carries the Meet link only when there is one: a link is never invented. */
@@ -76,6 +85,24 @@ export function RecordMeetingOutcomeModal({ meetingId, prospectName, side = "ten
       description={prospectName === undefined ? "Say how the meeting went." : `How did the meeting with ${prospectName} go?`}
     >
       <RecordOutcomeForm meetingId={meetingId} side={side} />
+    </FormSheet>
+  );
+}
+
+/** Contests the outcome the other side recorded, in a sheet, with the time left of the 48 hours. */
+export function ContestOutcomeModal({ meetingId, prospectName, timeLeft }: { readonly meetingId: string; readonly prospectName: string; readonly timeLeft: string }) {
+  return (
+    <FormSheet
+      trigger={
+        <Button type="button" variant="secondary" size="xs" aria-label={`Contest the outcome for ${prospectName}, ${timeLeft}`}>
+          Contest outcome
+          <span className="font-normal text-ink-muted">{timeLeft}</span>
+        </Button>
+      }
+      title="Contest the outcome"
+      description={`The other side recorded how the meeting with ${prospectName} went.`}
+    >
+      <ContestOutcomeForm meetingId={meetingId} timeLeft={timeLeft} />
     </FormSheet>
   );
 }

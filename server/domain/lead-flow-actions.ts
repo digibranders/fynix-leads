@@ -5,9 +5,13 @@ import { getDatabase } from "@/server/db/client";
 import { getDomain } from "@/server/domain";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import type { SessionContext } from "@/server/auth/session-context";
-import { clientReviewLeadSchema, decideLeadSchema, recordMeetingOutcomeSchema } from "@/server/domain/inputs";
+import { clientReviewLeadSchema, contestOutcomeSchema, decideLeadSchema, pickPostponementSchema, proposePostponementSchema, recordMeetingOutcomeSchema, requestRejectionReviewSchema, withdrawLeadSchema } from "@/server/domain/inputs";
 import { clientReviewLead, decideLead } from "@/server/domain/leads";
+import { contestOutcome } from "@/server/domain/contests";
+import { withdrawLead } from "@/server/domain/lead-drafts";
 import { recordMeetingOutcome } from "@/server/domain/meetings";
+import { pickPostponement, proposePostponement } from "@/server/domain/postponement";
+import { requestRejectionReview } from "@/server/domain/rejection-reviews";
 import { field, runTenantForm } from "@/server/tenant/run-form";
 
 /**
@@ -110,6 +114,95 @@ export async function recordOutcomeAction(_previous: FormState, formData: FormDa
     messages: { ...STALE, "outcome-already-recorded": "Someone recorded this outcome already. Refresh the page." },
     perform: async (context, input) => {
       await recordMeetingOutcome(dbFor(context), getDomain(), actorOf(context), input);
+    },
+    revalidate: PAGES,
+  });
+}
+
+/** The source organisation withdraws a lead before its meeting. The note is optional. */
+export async function withdrawLeadAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  const note = field(formData, "note").trim();
+  return runTenantForm({
+    formData,
+    fieldNames: ["note"],
+    kinds: ["agency"],
+    build: () => ({ leadId: field(formData, "leadId"), ...(note === "" ? {} : { note }) }),
+    schema: withdrawLeadSchema,
+    labels: { note: "Note" },
+    messages: { ...STALE, "invalid-lead-stage": "A lead can be withdrawn before its meeting only. Refresh the page." },
+    perform: async (context, input) => {
+      await withdrawLead(dbFor(context), getDomain(), actorOf(context), input);
+    },
+    revalidate: PAGES,
+  });
+}
+
+/** Either side offers one to three new times for a booked meeting. The other side picks one. */
+export async function proposePostponementAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  const proposedTimes = formData.getAll("proposedTimes").filter((value): value is string => typeof value === "string" && value !== "");
+  return runTenantForm({
+    formData,
+    fieldNames: [],
+    kinds: ["client", "agency"],
+    precheck: (): Readonly<Record<string, string>> => (proposedTimes.length === 0 ? { proposedTimes: "Choose at least one time." } : {}),
+    build: () => ({ meetingId: field(formData, "meetingId"), proposedTimes }),
+    schema: proposePostponementSchema,
+    labels: { proposedTimes: "Times" },
+    messages: { ...STALE, "invalid-lead-stage": "This meeting can no longer be moved. Refresh the page.", "invalid-input": "Choose times that are in the future and different from each other." },
+    perform: async (context, input) => {
+      await proposePostponement(dbFor(context), getDomain(), actorOf(context), input);
+    },
+    revalidate: PAGES,
+  });
+}
+
+/** The other side picks one of the proposed times. The meeting moves and keeps its link. */
+export async function pickPostponementAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runTenantForm({
+    formData,
+    fieldNames: [],
+    kinds: ["client", "agency"],
+    precheck: (): Readonly<Record<string, string>> => (field(formData, "pickedTime") === "" ? { pickedTime: "Choose one of the times." } : {}),
+    build: () => ({ rescheduleId: field(formData, "rescheduleId"), pickedTime: field(formData, "pickedTime") }),
+    schema: pickPostponementSchema,
+    labels: { pickedTime: "Time" },
+    messages: { ...STALE, "invalid-lead-stage": "These times were answered or replaced already. Refresh the page." },
+    perform: async (context, input) => {
+      await pickPostponement(dbFor(context), getDomain(), actorOf(context), input);
+    },
+    revalidate: PAGES,
+  });
+}
+
+/** The side that did not record an outcome contests it within 48 hours, with a note. Fynix decides. */
+export async function contestOutcomeAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runTenantForm({
+    formData,
+    fieldNames: ["note"],
+    kinds: ["client", "agency"],
+    build: () => ({ meetingId: field(formData, "meetingId"), note: field(formData, "note") }),
+    schema: contestOutcomeSchema,
+    labels: { note: "Note" },
+    messages: { ...STALE, "invalid-lead-stage": "This outcome can no longer be contested. Refresh the page." },
+    perform: async (context, input) => {
+      await contestOutcome(dbFor(context), getDomain(), actorOf(context), input);
+    },
+    revalidate: PAGES,
+  });
+}
+
+/** The coordinator asks Fynix to review a rejection within 48 hours, with a note. */
+export async function requestRejectionReviewAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runTenantForm({
+    formData,
+    fieldNames: ["note"],
+    kinds: ["agency"],
+    build: () => ({ leadId: field(formData, "leadId"), note: field(formData, "note") }),
+    schema: requestRejectionReviewSchema,
+    labels: { note: "Note" },
+    messages: { ...STALE, "invalid-lead-stage": "A review can be asked for a rejection the client made after the meeting. Refresh the page." },
+    perform: async (context, input) => {
+      await requestRejectionReview(dbFor(context), getDomain(), actorOf(context), input);
     },
     revalidate: PAGES,
   });

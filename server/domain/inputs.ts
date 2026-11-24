@@ -287,6 +287,82 @@ export const submitLeadSchema = z
   })
   .strict();
 export type SubmitLeadInput = z.input<typeof submitLeadSchema>;
+export type SubmitLeadParsed = z.output<typeof submitLeadSchema>;
+
+/**
+ * A draft needs a campaign and a prospect name; everything else may be empty and is checked in full when the draft is submitted. The
+ * optional text fields are trimmed so a field that was cleared becomes an empty string, which is how a draft stores "not filled in yet".
+ */
+const draftText = (max: number) => z.string().trim().max(max, `must be at most ${max} characters`);
+const draftFields = {
+  aliasIdentityId: z.uuid().nullable().optional(),
+  hostMemberId: z.uuid().nullable().optional(),
+  prospectName: name(120),
+  prospectTitle: draftText(120).optional(),
+  prospectCompany: draftText(120).optional(),
+  prospectDomain: draftText(255).optional(),
+  prospectLinkedinUrl: draftText(255).optional(),
+  prospectEmail: z.union([z.literal(""), z.string().trim().email("must be a valid email address").toLowerCase()]).optional(),
+  prospectPhone: optionalText(40).optional(),
+  prospectNotes: optionalText(2000).optional(),
+  bantBudget: draftText(500).optional(),
+  bantAuthority: draftText(500).optional(),
+  bantNeed: draftText(500).optional(),
+  bantTimeline: draftText(500).optional(),
+  proposedTimes: z.array(instant).max(3, "at most 3 proposed meeting times").optional(),
+};
+export const saveDraftSchema = z.object({ campaignId: z.uuid(), ...draftFields }).strict();
+export type SaveDraftInput = z.input<typeof saveDraftSchema>;
+export const updateDraftSchema = z.object({ leadId: z.uuid(), ...draftFields }).strict();
+export type UpdateDraftInput = z.input<typeof updateDraftSchema>;
+export const draftIdSchema = z.object({ leadId: z.uuid() }).strict();
+
+/** Withdrawing a submitted lead carries an optional note for the history. */
+export const withdrawLeadSchema = z.object({ leadId: z.uuid(), note: optionalText(1000).optional() }).strict();
+
+const proposedTimesList = z.array(instant).min(1, "at least one new time is required").max(3, "at most 3 new times");
+export const proposePostponementSchema = z.object({ meetingId: z.uuid(), proposedTimes: proposedTimesList }).strict();
+export const pickPostponementSchema = z.object({ rescheduleId: z.uuid(), pickedTime: instant }).strict();
+
+const contestNote = z.string().trim().min(5, "must be at least 5 characters").max(1000, "must be at most 1000 characters");
+export const contestOutcomeSchema = z.object({ meetingId: z.uuid(), note: contestNote }).strict();
+export const requestRejectionReviewSchema = z.object({ leadId: z.uuid(), note: contestNote }).strict();
+export const markRejectionReviewedSchema = z.object({ leadId: z.uuid(), note: contestNote.optional() }).strict();
+export const decideContestSchema = z.object({ leadId: z.uuid(), outcome: z.enum(["held", "client_no_show", "prospect_no_show"]), note: contestNote }).strict();
+
+/** Fynix corrects what a lead says about the prospect, with a note. Only the fields named are changed. */
+export const correctLeadSchema = z
+  .object({
+    leadId: z.uuid(),
+    note: contestNote,
+    prospectName: name(120).optional(),
+    prospectTitle: name(120).optional(),
+    prospectCompany: name(120).optional(),
+    prospectDomain: name(255).optional(),
+    prospectLinkedinUrl: name(255).optional(),
+    prospectEmail: z.string().trim().email("must be a valid email address").toLowerCase().optional(),
+    prospectPhone: optionalText(40).nullable().optional(),
+    prospectNotes: optionalText(2000).nullable().optional(),
+    bantBudget: name(500).optional(),
+    bantAuthority: name(500).optional(),
+    bantNeed: name(500).optional(),
+    bantTimeline: name(500).optional(),
+  })
+  .strict()
+  .refine((input) => Object.keys(input).some((key) => key !== "leadId" && key !== "note"), { message: "must change something" });
+
+/** Fynix answers for the client: pick a time, reject before the meeting, or accept or reject after it. Each carries the note. */
+export const answerForClientSchema = z
+  .object({
+    leadId: z.uuid(),
+    answer: z.enum(["pick_time", "reject_before", "accept", "reject"]),
+    selectedMeetingTime: instant.optional(),
+    note: contestNote,
+  })
+  .strict()
+  .refine((input) => input.answer !== "pick_time" || input.selectedMeetingTime !== undefined, { path: ["selectedMeetingTime"], message: "is required to pick a time" });
+export const markLostSchema = z.object({ leadId: z.uuid(), note: contestNote }).strict();
+export const approveOverShareSchema = z.object({ leadId: z.uuid(), note: contestNote }).strict();
 
 /** The note that goes with every accept and every reject of a lead: required both ways (lead flow decision, 2026-11-24). */
 export const DECISION_NOTE_MIN = 5;
@@ -398,3 +474,6 @@ export const groupMembersSchema = z.object({ groupId: z.uuid(), memberIds: z.arr
 export const groupMemberSchema = z.object({ groupId: z.uuid(), userId: z.uuid() }).strict();
 export const renameGroupSchema = z.object({ groupId: z.uuid(), name: z.string().trim().min(1, "a group needs a name").max(80, "must be at most 80 characters") }).strict();
 export const groupIdSchema = z.object({ groupId: z.uuid() }).strict();
+
+export const hostAvailabilitySchema = z.object({ hostMemberId: z.uuid(), campaignId: z.uuid() }).strict();
+export const checkProposedTimesSchema = z.object({ hostMemberId: z.uuid(), campaignId: z.uuid(), proposedTimes: z.array(instant).max(3) }).strict();

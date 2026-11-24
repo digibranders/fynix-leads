@@ -228,3 +228,42 @@ export function generateFynixLeadsCsv(leads: readonly FynixLeadRow[]): string {
 
   return toCsv(headers, rows);
 }
+
+export interface MeetingExportRow {
+  readonly publicRef: string;
+  readonly leadRef: string;
+  readonly prospectName: string;
+  readonly prospectCompany: string;
+  readonly campaignName: string;
+  /** Only Fynix's export carries the client. */
+  readonly clientName?: string;
+  readonly scheduledStartTime: Date | string;
+  readonly durationMinutes: number;
+  readonly outcome: string;
+  /** A side (client, agency, coordinator, fynix), never a person. */
+  readonly recordedByRole?: string | null;
+  readonly contestedByRole?: string | null;
+}
+
+/**
+ * An RFC 4180 CSV of meetings. It carries a prospect's name and company and a side for who recorded and who contested, and never a person from the other
+ * side, an email or a phone: the three portals share this shape and differ in the rows their reads return. Fynix's export adds the client's name.
+ */
+export function generateMeetingsCsv(meetings: readonly MeetingExportRow[], options: { readonly withClient?: boolean } = {}): string {
+  const withClient = options.withClient === true;
+  const headers = ["Meeting", "Lead", "Prospect", "Company", "Campaign", ...(withClient ? ["Client"] : []), "Start", "Minutes", "Outcome", "Recorded by", "Contested by"];
+  const rows = meetings.map((m) => [
+    m.publicRef,
+    m.leadRef,
+    m.prospectName,
+    m.prospectCompany,
+    m.campaignName,
+    ...(withClient ? [m.clientName ?? ""] : []),
+    formatDate(m.scheduledStartTime),
+    m.durationMinutes,
+    m.outcome,
+    m.recordedByRole ?? "",
+    m.contestedByRole ?? "",
+  ]);
+  return toCsv(headers, rows);
+}

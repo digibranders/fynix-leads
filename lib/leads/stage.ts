@@ -17,6 +17,7 @@ export const LEAD_STAGES = [
   "withdrawn",
   "lost",
   "rejected",
+  "outcome_contested",
 ] as const;
 
 export type LeadStage = (typeof LEAD_STAGES)[number];
@@ -39,6 +40,7 @@ const STAGE_CONFIG: Record<LeadStage, { label: string; tone: StatusTone }> = {
   withdrawn: { label: "Withdrawn", tone: "neutral" },
   lost: { label: "Lost", tone: "rejected" },
   rejected: { label: "Rejected", tone: "rejected" },
+  outcome_contested: { label: "Outcome contested", tone: "clarify" },
 };
 
 export function leadStageLabel(stage: LeadStage): string {
@@ -52,15 +54,18 @@ export function leadStageTone(stage: LeadStage): StatusTone {
 /** Allowed stage transitions for lead lifecycle. */
 const ALLOWED_TRANSITIONS: Record<LeadStage, readonly LeadStage[]> = {
   draft: ["awaiting_client", "withdrawn"],
-  awaiting_client: ["scheduled", "declined", "withdrawn"],
-  scheduled: ["outcome_due", "awaiting_decision", "declined", "held", "reschedule_needed", "client_no_show", "prospect_no_show"],
+  awaiting_client: ["scheduled", "declined", "withdrawn", "lost"],
+  // A booked meeting is moved by postponing and stays `scheduled`; the source organisation can withdraw the lead before it is held.
+  scheduled: ["outcome_due", "awaiting_decision", "declined", "held", "reschedule_needed", "client_no_show", "prospect_no_show", "withdrawn", "lost"],
   outcome_due: ["awaiting_decision", "held", "client_no_show", "prospect_no_show", "reschedule_needed"],
-  awaiting_decision: ["accepted", "rejected"],
+  // The other side contests a recorded outcome; Fynix decides it, and the lead carries on from the outcome it names.
+  awaiting_decision: ["accepted", "rejected", "outcome_contested", "lost"],
+  outcome_contested: ["awaiting_decision", "client_no_show", "prospect_no_show", "lost"],
   accepted: [],
   reschedule_needed: ["scheduled", "lost", "withdrawn"],
   held: ["delivered", "lost"],
-  client_no_show: ["reschedule_needed", "lost", "delivered"],
-  prospect_no_show: ["reschedule_needed", "lost"],
+  client_no_show: ["reschedule_needed", "lost", "delivered", "outcome_contested"],
+  prospect_no_show: ["reschedule_needed", "lost", "outcome_contested"],
   delivered: ["disputed"],
   disputed: ["rejected", "delivered"],
   declined: [],

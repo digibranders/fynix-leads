@@ -5,6 +5,7 @@ import { PageSkeleton } from "@/components/kit/skeletons";
 import { PortalMeetings, MEETING_SHOWS, meetingsSummary } from "@/components/meetings/portal-meetings";
 import { parseCampaignFilter } from "@/lib/campaign-status";
 import { parsePage } from "@/lib/leads/list";
+import { parseSort } from "@/lib/leads/sort";
 import { getDatabase } from "@/server/db/client";
 import { listTenantCampaigns } from "@/server/domain/campaigns-tenant";
 import { listAgencyMeetings } from "@/server/domain/meetings";
@@ -35,6 +36,8 @@ async function Meetings({ searchParams }: { searchParams: PageProps<"/supplier/m
         emptyText={EMPTY}
         campaigns={campaigns}
         campaign={parseCampaignFilter(params.campaign, campaigns)}
+        sort={parseSort(params.sort)}
+        viewer="supply"
       />
     </div>
   );
