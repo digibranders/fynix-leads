@@ -22,6 +22,8 @@ type Props = {
   pendingLabel: string;
   /** What the person reads when the change is saved. */
   savedMessage?: string;
+  /** On a page, not in a sheet: no Cancel button, and the button sits under the fields instead of in a sticky foot. */
+  inline?: boolean;
   children: React.ReactNode;
 };
 
@@ -30,7 +32,7 @@ type Props = {
  * with the whole form shows at the top as a notice; a problem with a field shows under the field. When the change is saved the
  * sheet closes and, if the action named a page, the router moves there.
  */
-export function ActionForm({ action, submitLabel, pendingLabel, savedMessage = "Saved", children }: Props) {
+export function ActionForm({ action, submitLabel, pendingLabel, savedMessage = "Saved", inline = false, children }: Props) {
   const [state, formAction, pending] = useActionState(action, IDLE_FORM);
   const close = useSheetClose();
   const router = useRouter();
@@ -44,19 +46,25 @@ export function ActionForm({ action, submitLabel, pendingLabel, savedMessage = "
 
   return (
     <FormStateContext.Provider value={state}>
-      <form action={formAction} noValidate className="flex min-h-0 flex-1 flex-col">
-        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-5 pt-1 pb-5">
+      <form action={formAction} noValidate className={inline ? "flex flex-col gap-3" : "flex min-h-0 flex-1 flex-col"}>
+        <div className={inline ? "flex flex-col gap-3" : "flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-5 pt-1 pb-5"}>
           {state.status === "error" && state.message !== null && <Notice tone="red">{state.message}</Notice>}
           {children}
         </div>
-        <div className="flex shrink-0 gap-2 bg-surface px-5 py-4 shadow-tray">
-          <Button type="button" variant="secondary" onClick={close}>
-            Cancel
-          </Button>
-          <div className="flex-1">
+        {inline ? (
+          <div className="sm:max-w-[220px]">
             <SubmitButton pending={pending} label={submitLabel} pendingLabel={pendingLabel} />
           </div>
-        </div>
+        ) : (
+          <div className="flex shrink-0 gap-2 bg-surface px-5 py-4 shadow-tray">
+            <Button type="button" variant="secondary" onClick={close}>
+              Cancel
+            </Button>
+            <div className="flex-1">
+              <SubmitButton pending={pending} label={submitLabel} pendingLabel={pendingLabel} />
+            </div>
+          </div>
+        )}
       </form>
     </FormStateContext.Provider>
   );

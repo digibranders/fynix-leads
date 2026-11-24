@@ -24,7 +24,7 @@ interface Props {
  */
 export async function AppShell({ portal, userName, roleLabel, counts = {}, children }: Props) {
   const config = PORTALS[portal];
-  const footer = <UserMenu name={userName} roleLabel={roleLabel} />;
+  const footer = <UserMenu name={userName} roleLabel={roleLabel} profileHref={`${config.homeHref}/profile`} />;
   const initial = preferenceFrom((await cookies()).get(SIDEBAR_COOKIE)?.value);
 
   return (

@@ -112,3 +112,22 @@ export function FormGroup({ title, children }: { title?: string; children: React
     </Tonal>
   );
 }
+
+/** A tick box that appears only after the action refused with a sentence for it (a duplicate name), so a person confirms on purpose. It posts "on" under `name`. */
+export function ConfirmField({ name, label }: { name: string; label: string }) {
+  const id = `${useId()}-${name}`;
+  const state = useFormState();
+  const message = state.status === "error" ? state.fields[name] : undefined;
+  if (message === undefined) return null;
+  return (
+    <div role="alert" className="flex flex-col gap-2 rounded-md bg-amber-soft px-3.5 py-3 text-amber-text">
+      <p className="text-body font-medium">{message}</p>
+      <div className="flex items-center gap-2.5">
+        <input id={id} type="checkbox" name={name} className="size-5 shrink-0 accent-navy" />
+        <label htmlFor={id} className="text-body font-medium">
+          {label}
+        </label>
+      </div>
+    </div>
+  );
+}

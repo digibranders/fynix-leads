@@ -71,7 +71,7 @@ export async function redeemInvite(deps: DomainDeps, input: RedeemInput): Promis
   try {
     return await withInviteHash(deps.authDb, tokenHash, async (tx) => {
       const [row] = await tx
-        .select({ id: invite.id, orgId: invite.orgId, orgKind: invite.orgKind, email: invite.email, name: invite.name, role: invite.role, alias: invite.alias, expiresAt: invite.expiresAt, redeemedAt: invite.redeemedAt, revokedAt: invite.revokedAt })
+        .select({ id: invite.id, orgId: invite.orgId, orgKind: invite.orgKind, email: invite.email, name: invite.name, role: invite.role, jobTitle: invite.jobTitle, phone: invite.phone, alias: invite.alias, expiresAt: invite.expiresAt, redeemedAt: invite.redeemedAt, revokedAt: invite.revokedAt })
         .from(invite)
         .limit(1);
       if (row === undefined) return { status: "invite-unavailable", reason: "invalid" } as const;
@@ -98,7 +98,7 @@ export async function redeemInvite(deps: DomainDeps, input: RedeemInput): Promis
       }
 
       const memberId = randomUUID();
-      await tx.insert(member).values({ id: memberId, userId, orgId: row.orgId, orgKind: row.orgKind, role: row.role, displayName: row.name });
+      await tx.insert(member).values({ id: memberId, userId, orgId: row.orgId, orgKind: row.orgKind, role: row.role, displayName: row.name, jobTitle: row.jobTitle, phone: row.phone });
       if (row.alias !== null) {
         try {
           await tx.insert(agencyAlias).values({ memberId, alias: row.alias });

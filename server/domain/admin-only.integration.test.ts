@@ -36,7 +36,7 @@ describe("Fynix staff cannot change set-up", () => {
         createCampaign(rig.deps(), rig.staffActor, { clientOrgId: rig.world().kestrel.id, agencyOrgId: rig.world().northgate.id, name: "Benelux cold chain", startDate: "2027-01-04", endDate: "2027-06-30", monthlyTarget: 12, totalTarget: 72 }),
     ],
     ["updateCampaign", async () => updateCampaign(rig.deps(), rig.staffActor, firstCampaign(rig).id, { name: "Renamed" })],
-    ["issueInvite", async () => issueInvite(rig.deps(), rig.staffActor, { organisationId: rig.world().kestrel.id, email: "new.person@example.com", name: "New Person" })],
+    ["issueInvite", async () => issueInvite(rig.deps(), rig.staffActor, { organisationId: rig.world().kestrel.id, email: "new.person@example.com", name: "New Person", jobTitle: "Operations lead" })],
     ["resendInvite", async () => resendInvite(rig.deps(), rig.staffActor, UNKNOWN)],
     ["revokeInvite", async () => revokeInvite(rig.deps(), rig.staffActor, UNKNOWN)],
     ["publishTerms", async () => publishTerms(rig.deps(), rig.staffActor, { party: "client", title: "Terms for client users", body: "The terms, version one." })],

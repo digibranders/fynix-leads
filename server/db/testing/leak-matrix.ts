@@ -1,6 +1,6 @@
-import { and, asc, eq, isNotNull } from "drizzle-orm";
+import { and, asc, eq, isNotNull, sql } from "drizzle-orm";
 import type { TenantRoleName } from "@/server/db/roles";
-import { campaign, member } from "@/server/db/schema";
+import { campaign, clientCollateral, clientProfile, member } from "@/server/db/schema";
 import type { ScopedTransaction } from "@/server/db/scope";
 import { selectCampaigns, selectOrganisations } from "@/server/db/tenant-reads";
 import type { SeedWorld, SeededOrganisation } from "@/server/db/testing/seed";
@@ -42,6 +42,12 @@ export function ownCampaigns(viewer: Viewer, world: SeedWorld): SeedWorld["campa
   return world.campaigns.filter((row) => (viewer.role === "leads_client" ? row.client : row.agency).id === viewer.organisation.id);
 }
 
+/** The client profiles this viewer may read: its own (a client), or those of the clients of the campaigns it serves (an agency). */
+export function visibleProfiles(viewer: Viewer, world: SeedWorld): SeedWorld["profiles"][number][] {
+  const clientIds = new Set(viewer.role === "leads_client" ? [viewer.organisation.id] : ownCampaigns(viewer, world).map((row) => row.client.id));
+  return world.profiles.filter((profile) => clientIds.has(profile.client.id));
+}
+
 export const READ_PATHS: readonly ReadPath[] = [
   {
     name: "organisations, typed column list",
@@ -53,6 +59,28 @@ export const READ_PATHS: readonly ReadPath[] = [
     name: "member rows, every column a tenant role may read except the organisation",
     run: (tx) => tx.select({ id: member.id, userId: member.userId, role: member.role, displayName: member.displayName, status: member.status }).from(member),
     mustContain: (viewer, world) => world.users.filter((person) => person.organisation.id === viewer.organisation.id).map((person) => person.id),
+  },
+  {
+    // Phase 1 chunk A: the two person fields a tenant may read, for its own organisation only.
+    name: "member job titles and phones",
+    run: (tx) => tx.select({ jobTitle: member.jobTitle, phone: member.phone }).from(member),
+    mustContain: (viewer, world) => world.users.filter((person) => person.organisation.id === viewer.organisation.id).flatMap((person) => [person.jobTitle, person.phone]),
+  },
+  {
+    // Phase 1 chunk C: the Team page reads its own side's people, email included, through a definer function and nothing else.
+    name: "my team (app_my_team)",
+    run: (tx) => tx.execute(sql`select * from public.app_my_team()`),
+    mustContain: (viewer, world) => world.users.filter((person) => person.organisation.id === viewer.organisation.id).flatMap((person) => [person.email, person.name, person.jobTitle, person.phone]),
+  },
+  {
+    // A client reads its own profile; a coordinator or agency reads the profiles of the clients of the campaigns it sees (and no others).
+    name: "client profiles and live collateral",
+    run: async (tx) => ({
+      profiles: await tx.select({ introduction: clientProfile.introduction, services: clientProfile.services, differentiator: clientProfile.differentiator, caseStudies: clientProfile.caseStudies }).from(clientProfile),
+      collateral: await tx.select({ kind: clientCollateral.kind, title: clientCollateral.title, url: clientCollateral.url }).from(clientCollateral),
+    }),
+    mustContain: (viewer, world) =>
+      visibleProfiles(viewer, world).flatMap((profile) => [profile.introduction, profile.services, profile.differentiator, profile.caseStudies, profile.collateralTitle, profile.collateralUrl]),
   },
   {
     name: "campaigns, typed column list",
@@ -126,7 +154,8 @@ export const PROBES: readonly Probe[] = [
   { name: "write: reset a rate limit", statement: "delete from rate_limit", expectedError: DENIED_TABLE },
   // Phase 1C: the domain tables, and the campaign requirement columns that stay hidden until phase 1E grants them.
   { name: "invites: every invite", statement: "select * from invite", expectedError: DENIED_TABLE },
-  { name: "invites: the invited address and name", statement: "select email, name from invite", expectedError: DENIED_TABLE },
+  // Since migrations 0032 and 0059 a tenant reads the address, name, job title and phone of the invites of its own side (row-level security), so the probe is the author.
+  { name: "invites: who issued an invite", statement: "select created_by from invite", expectedError: DENIED_TABLE },
   { name: "invites: the token hash", statement: "select token_hash from invite", expectedError: DENIED_TABLE },
   { name: "invites: probe by the hash in WHERE", statement: "select id from invite where token_hash like 'a%'", expectedError: DENIED_TABLE },
   { name: "write: redeem an invite", statement: "update invite set redeemed_at = now()", expectedError: DENIED_TABLE },
@@ -177,6 +206,22 @@ export const PROBES: readonly Probe[] = [
   { name: "hours: every window", statement: "select * from host_hours", expectedError: DENIED_TABLE },
   { name: "blocks: every blocked time", statement: "select * from host_block", expectedError: DENIED_TABLE },
   { name: "aliases: every alias identity", statement: "select * from alias_identity", expectedError: DENIED_TABLE },
+  // Phase 1 chunk A: the profile is Fynix-written, the file reference and the time zone are not for tenants, and no tenant reads another side's people.
+  { name: "client profile: every column", statement: "select * from client_profile", expectedError: DENIED_TABLE },
+  { name: "client profile: write", statement: "update client_profile set services = 'x'", expectedError: DENIED_TABLE },
+  { name: "client profile: insert", statement: "insert into client_profile (client_org_id, introduction) values (gen_random_uuid(), 'x')", expectedError: DENIED_TABLE },
+  { name: "collateral: every column", statement: "select * from client_collateral", expectedError: DENIED_TABLE },
+  { name: "collateral: the file reference", statement: "select file_ref from client_collateral", expectedError: DENIED_TABLE },
+  { name: "collateral: when it was removed", statement: "select removed_at from client_collateral", expectedError: DENIED_TABLE },
+  { name: "collateral: write", statement: "insert into client_collateral (client_org_id, kind, title, url) values (gen_random_uuid(), 'link', 'x', 'https://x.example')", expectedError: DENIED_TABLE },
+  { name: "collateral: remove", statement: "update client_collateral set removed_at = now()", expectedError: DENIED_TABLE },
+  { name: "organisation: the time zone", statement: "select time_zone from organisation", expectedError: DENIED_TABLE, roles: ["leads_agency"] },
+  { name: "write: change a person's phone or job title", statement: "update member set phone = 'x', job_title = 'x'", expectedError: DENIED_TABLE, roles: ["leads_agency"] },
+  // Phase 1 chunk C: the meeting emails switch is read through app_my_team only, and only a client manager writes it.
+  { name: "member: the meeting emails switch", statement: "select meeting_emails from member", expectedError: DENIED_TABLE },
+  { name: "write: change a person's meeting emails", statement: "update member set meeting_emails = false", expectedError: DENIED_TABLE, roles: ["leads_agency"] },
+  { name: "write: add a partner agency without the function", statement: "insert into organisation (public_ref, kind, name) values ('ORG-ZZZZ', 'client', 'x')", expectedError: DENIED_TABLE, roles: ["leads_client"] },
+  { name: "write: change a person's role", statement: "update member set role = 'manager'", expectedError: DENIED_TABLE },
   { name: "aliases: verification code hash", statement: "select verification_code_hash from alias_identity", expectedError: DENIED_TABLE },
 ];
 
@@ -211,6 +256,17 @@ export function forbiddenTokens(viewer: Viewer, world: SeedWorld): string[] {
     } else {
       tokens.push(person.id, person.email, person.name, person.passwordHash, person.sessionToken, person.resetToken);
     }
+  }
+  // Phase 1 chunk A: a person's job title and phone are read inside their own organisation only; a client's profile only by the client and the sides
+  // that serve it; removed collateral by nobody.
+  for (const person of world.users) {
+    if (person.organisation.id !== viewer.organisation.id) tokens.push(person.jobTitle, person.phone);
+  }
+  const visible = new Set(visibleProfiles(viewer, world));
+  for (const profile of world.profiles) {
+    tokens.push(profile.removedTitle);
+    if (!visible.has(profile)) tokens.push(profile.introduction, profile.services, profile.differentiator, profile.caseStudies, profile.collateralTitle, profile.collateralUrl);
+    if (viewer.role === "leads_agency" || viewer.organisation.id !== profile.client.id) tokens.push(profile.timeZone);
   }
   // Phase 1C: no tenant role reads an invite, an alias, an acceptance, the audit log or the outbox. Phase 1E gives each
   // tenant its own acceptances and its own alias, and narrows this to the other side's.

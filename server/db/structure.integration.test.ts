@@ -147,8 +147,11 @@ const EXPECTED_ACCESS: Readonly<Record<string, readonly RuntimeRoleName[]>> = {
   audit_log: ["leads_fynix"],
   terms_document: ["leads_auth", "leads_fynix"],
   terms_acceptance: ["leads_auth", "leads_fynix"],
-  invite: ["leads_auth", "leads_fynix", "leads_agency"],
+  invite: ["leads_auth", "leads_fynix", "leads_client", "leads_agency"],
   agency_alias: ["leads_auth", "leads_fynix"],
+  // Phase 1 chunk A: the client profile and its collateral (Fynix writes, the client and the agencies that serve it read):
+  client_profile: ["leads_fynix", "leads_client", "leads_agency"],
+  client_collateral: ["leads_fynix", "leads_client", "leads_agency"],
   // Phase 1E tenant access:
   agreement: ["leads_fynix", "leads_client", "leads_agency"],
   agreement_acceptance: ["leads_fynix", "leads_client", "leads_agency"],
@@ -191,20 +194,22 @@ describe("access matrix", () => {
     expect(await rolesWithAnyPrivilege(dbs.owner.db, table)).toEqual(["leads_auth"]);
   });
 
-  it("member: leads_auth may add a row (an invite was redeemed) and never change one, Fynix may change only status and display_name, and tenant roles only read", async () => {
+  it("member: leads_auth may add a row (an invite was redeemed) and never change one, Fynix may change only status, display_name, job_title and phone, and tenant roles only read (a client manager also edits name, job title, phone and meeting emails, and reads the last through app_my_team)", async () => {
     expect(await rolesWithAnyPrivilege(dbs.owner.db, "member")).toEqual(["leads_agency", "leads_auth", "leads_client", "leads_fynix"]);
     for (const role of TENANT_ROLES) {
-      expect(await grantedColumns(dbs.owner.db, role, "member"), role).toEqual(["id", "user_id", "org_id", "org_kind", "role", "display_name", "status", "created_at"]);
-      const writes = await dbs.owner.db.execute<{ allowed: boolean }>(sql.raw(`select has_any_column_privilege('${role}', 'public.member', 'INSERT') or has_any_column_privilege('${role}', 'public.member', 'UPDATE') or has_table_privilege('${role}', 'public.member', 'DELETE') as allowed`));
-      expect(writes.rows, `${role} writes member`).toEqual([{ allowed: false }]);
+      expect(await grantedColumns(dbs.owner.db, role, "member"), role).toEqual(["id", "user_id", "org_id", "org_kind", "role", "display_name", "status", "created_at", "job_title", "phone"]);
+      const writes = await dbs.owner.db.execute<{ allowed: boolean }>(sql.raw(`select has_any_column_privilege('${role}', 'public.member', 'INSERT') or has_table_privilege('${role}', 'public.member', 'DELETE') as allowed`));
+      expect(writes.rows, `${role} inserts or deletes member`).toEqual([{ allowed: false }]);
+      const updatable = (await dbs.owner.db.execute<{ attname: string }>(sql.raw(`select attname from pg_attribute where attrelid = 'public.member'::regclass and attnum > 0 and not attisdropped and has_column_privilege('${role}', 'public.member', attname, 'UPDATE') order by attnum`))).rows.map((row) => row.attname);
+      expect(updatable, `${role} updates member`).toEqual(role === "leads_client" ? ["display_name", "job_title", "phone", "meeting_emails"] : []);
     }
     const column = async (role: string, privilege: string, name: string): Promise<boolean> =>
       (await dbs.owner.db.execute<{ allowed: boolean }>(sql.raw(`select has_column_privilege('${role}', 'public.member', '${name}', '${privilege}') as allowed`))).rows[0]?.allowed ?? false;
     expect(await column("leads_auth", "UPDATE", "org_id")).toBe(false);
     expect(await column("leads_auth", "UPDATE", "status")).toBe(false);
     expect(await column("leads_auth", "INSERT", "org_id")).toBe(true);
-    expect(await grantedColumns(dbs.owner.db, "leads_fynix", "member")).toEqual(["id", "user_id", "org_id", "org_kind", "role", "display_name", "status", "created_at"]);
-    for (const name of ["status", "display_name"]) expect(await column("leads_fynix", "UPDATE", name), name).toBe(true);
+    expect(await grantedColumns(dbs.owner.db, "leads_fynix", "member")).toEqual(["id", "user_id", "org_id", "org_kind", "role", "display_name", "status", "created_at", "job_title", "phone", "meeting_emails"]);
+    for (const name of ["status", "display_name", "job_title", "phone"]) expect(await column("leads_fynix", "UPDATE", name), name).toBe(true);
     for (const name of ["user_id", "org_id", "org_kind", "role"]) expect(await column("leads_fynix", "UPDATE", name), name).toBe(false);
     expect(await column("leads_fynix", "INSERT", "org_id")).toBe(false);
   });
@@ -543,9 +548,6 @@ describe("tenant roles", () => {
 
 describe("every role", () => {
   const unscoped = (role: RuntimeRoleName) => dbs.roles[role].db;
-  /** Reads the database refuses with permission denied before any row is looked at, as "role.table". Listed so a new one is a review decision. */
-  const POLICY_BLOCKED_READS: readonly string[] = ["leads_agency.invite"];
-
   it.each(TENANT_ROLES)("%s: no scope set returns zero rows from every table it can read, although they hold rows", async (role) => {
     let seededRows = 0;
     for (const table of await publicTables(dbs.owner.db)) {
@@ -555,11 +557,6 @@ describe("every role", () => {
       const seeded = await dbs.owner.db.execute<{ n: number }>(sql.raw(`select count(*)::int as n from ${name}`));
       seededRows += seeded.rows[0]?.n ?? 0;
       const read = `select ${columns.map(quoteIdentifier).join(", ")} from ${name}`;
-      if (POLICY_BLOCKED_READS.includes(`${role}.${table}`)) {
-        // The invite policy of leads_agency subqueries organisation.id, which that role cannot read, so the statement is refused outright: still no rows.
-        expect(await captureErrorText(queryAs(unscoped(role), null, read)), `${role}.${table}`).toContain("permission denied for table organisation");
-        continue;
-      }
       expect(await queryAs(unscoped(role), null, read), table).toEqual([]);
     }
     expect(seededRows).toBeGreaterThan(0);
@@ -669,7 +666,7 @@ describe("phase 1D: what a tenant role holds on the six set-up tables", () => {
   });
 
   it.each(TENANT_ROLES)("%s reads the organisation and campaign columns listed here: the settings and the internal columns stay hidden", async (role) => {
-    expect(await grantedColumns(dbs.owner.db, role, "organisation")).toEqual(role === "leads_agency" ? ["public_ref", "kind", "name", "brand_name", "parent_org_id"] : ["public_ref", "kind", "name", "brand_name"]);
+    expect(await grantedColumns(dbs.owner.db, role, "organisation")).toEqual(role === "leads_agency" ? ["public_ref", "kind", "name", "brand_name", "parent_org_id"] : ["public_ref", "kind", "name", "brand_name", "time_zone"]);
     // client_org_id and agency_org_id are readable since migrations 0037 and 0039: the lead, meeting and message policies compare them.
     const campaignColumns = await grantedColumns(dbs.owner.db, role, "campaign");
     const basics = ["id", "public_ref", "name", "client_org_id", "agency_org_id", "client_brand_name", "status", "start_date", "end_date", "monthly_target", "total_target"];

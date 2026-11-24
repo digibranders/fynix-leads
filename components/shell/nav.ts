@@ -10,6 +10,7 @@ export type NavIcon =
   | "chats"
   | "megaphone"
   | "users"
+  | "team"
   | "handshake"
   | "badge"
   | "buildings"
@@ -65,6 +66,7 @@ export const PORTALS: Record<PortalKind, PortalConfig> = {
           { label: "Campaigns", icon: "megaphone", href: "/client/campaigns" },
           { label: "Hosts & hours", icon: "users", href: "/client/hosts" },
           { label: "Agreement", icon: "handshake", href: "/client/agreement" },
+          { label: "Team", icon: "team", href: "/client/team" },
         ],
       },
     ],
@@ -89,6 +91,7 @@ export const PORTALS: Record<PortalKind, PortalConfig> = {
         items: [
           { label: "Campaigns", icon: "megaphone", href: "/supplier/campaigns" },
           { label: "Partner agencies", icon: "users", href: "/supplier/agencies" },
+          { label: "Team", icon: "team", href: "/supplier/team" },
           { label: "Aliases", icon: "badge", href: "/supplier/aliases" },
           { label: "Agreement", icon: "handshake", href: "/supplier/agreement" },
         ],
@@ -115,6 +118,7 @@ export const PORTALS: Record<PortalKind, PortalConfig> = {
         items: [
           { label: "Campaigns", icon: "megaphone", href: "/agency/campaigns" },
           { label: "My aliases", icon: "badge", href: "/agency/aliases" },
+          { label: "Team", icon: "team", href: "/agency/team" },
         ],
       },
     ],
@@ -185,6 +189,7 @@ export function currentItem(portal: PortalConfig, pathname: string | null): NavI
 
 /** The trail for the top bar: the section, then the one segment below it when the page is a record ("Campaigns, CMP-4821"). */
 export function breadcrumb(portal: PortalConfig, pathname: string | null): readonly string[] {
+  if (pathname === `${portal.homeHref}/profile`) return ["Profile"];
   const item = currentItem(portal, pathname);
   if (!item || !pathname) return [portal.label];
   const rest = pathname.slice(item.href.length).split("/").filter(Boolean);

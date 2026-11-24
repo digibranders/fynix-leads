@@ -14,6 +14,7 @@ import {
   SidebarSimple,
   Table,
   Tray,
+  UsersFour,
   UsersThree,
   type Icon,
 } from "@phosphor-icons/react";
@@ -31,6 +32,7 @@ export const GLYPHS: Record<NavIcon, Icon> = {
   chats: ChatsCircle,
   megaphone: Megaphone,
   users: UsersThree,
+  team: UsersFour,
   handshake: Handshake,
   badge: IdentificationBadge,
   buildings: Buildings,

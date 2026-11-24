@@ -4,6 +4,7 @@ import { AddClientButton } from "@/components/fynix/clients/client-actions";
 import { ClientsTable } from "@/components/fynix/clients/clients-table";
 import { PageHeader } from "@/components/kit/page-header";
 import { PageSkeleton } from "@/components/kit/skeletons";
+import { parseSupplierFilter } from "@/lib/fynix/suppliers";
 import { getDomain } from "@/server/domain";
 import { listClientRows } from "@/server/domain/client-overview";
 import { requireFynix } from "@/server/fynix/session";
@@ -17,7 +18,7 @@ async function Clients({ searchParams }: { searchParams: PageProps<"/fynix/clien
   return (
     <div className="flex flex-col gap-4">
       <PageHeader title="Clients" description="The companies that buy meetings." actions={view.canWrite ? <AddClientButton /> : null} />
-      <ClientsTable rows={rows} query={typeof params.q === "string" ? params.q : ""} canWrite={view.canWrite} />
+      <ClientsTable rows={rows} query={typeof params.q === "string" ? params.q : ""} canWrite={view.canWrite} filter={parseSupplierFilter(typeof params.status === "string" ? params.status : undefined)} />
     </div>
   );
 }

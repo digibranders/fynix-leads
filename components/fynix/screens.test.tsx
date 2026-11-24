@@ -1,18 +1,26 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { AgreementsPage, CampaignHeader, CampaignRow, HostView } from "@/server/domain/campaign-overview";
-import type { ClientRow } from "@/server/domain/client-overview";
+import type { ClientDetail, ClientRow } from "@/server/domain/client-overview";
+import type { PersonRow } from "@/server/domain/people-overview";
 import type { DisputeRow } from "@/server/domain/dispute-overview";
 import type { SupplierDetail, SupplierRow } from "@/server/domain/supplier-overview";
 
 // The forms call server actions, which need a running app. The screens only need their buttons to render.
 vi.mock("@/server/fynix/actions", () => {
   const action = async () => ({ status: "idle" as const });
-  return { addSupplierAction: action, addAgencyAction: action, invitePersonAction: action, publishAgreementAction: action, setShareAction: action, removeShareAction: action, addHostAction: action, pauseHostAction: action, setHoursAction: action, addBlockAction: action, removeBlockAction: action };
+  return { addSupplierAction: action, addAgencyAction: action, invitePersonAction: action, publishAgreementAction: action, setShareAction: action, removeShareAction: action, addHostAction: action, pauseHostAction: action, setHoursAction: action, addBlockAction: action, removeBlockAction: action, setOrganisationStatusAction: action, updateOrganisationAction: action, removeCollateralAction: action, updateProfileAction: action, addCollateralAction: action, addClientAction: action, updatePersonAction: action, suspendPersonAction: action, reactivatePersonAction: action, resendInviteAction: action, revokeInviteAction: action };
 });
 
 const { SuppliersTable } = await import("@/components/fynix/suppliers/suppliers-table");
-const { SupplierPanel } = await import("@/components/fynix/suppliers/supplier-panel");
+const { SupplierOverview } = await import("@/components/fynix/suppliers/supplier-overview");
+const { SupplierTitle } = await import("@/components/fynix/suppliers/supplier-title");
+const { AgenciesPanel } = await import("@/components/fynix/suppliers/agencies-panel");
+const { PeopleTable } = await import("@/components/fynix/people/people-table");
+const { ClientOverview } = await import("@/components/fynix/clients/client-overview");
+const { ClientTitle } = await import("@/components/fynix/clients/client-title");
+const { SetupChecklist } = await import("@/components/fynix/setup-checklist");
+const { ActivityPanel, CampaignsPanel } = await import("@/components/fynix/records/record-panels");
 const { CampaignsTable } = await import("@/components/fynix/campaigns/campaigns-table");
 const { AgreementCard } = await import("@/components/fynix/campaigns/agreement-card");
 const { SharesCard } = await import("@/components/fynix/campaigns/shares-card");
@@ -26,7 +34,7 @@ const { CampaignTitle } = await import("@/components/fynix/campaigns/campaign-he
 vi.mock("next/navigation", () => ({ useSelectedLayoutSegment: () => "hosts", useRouter: () => ({ push: () => undefined }) }));
 
 const day = (text: string) => new Date(`${text}T12:00:00Z`);
-const supplierRow = (over: Partial<SupplierRow> = {}): SupplierRow => ({ id: "s1", publicRef: "ORG-N7GT", name: "Northgate Outreach", status: "active", createdAt: day("2026-10-02"), agencyCount: 2, agencyNames: ["Calder Bay Media"], peopleCount: 7, campaignCount: 2, inviteWaiting: false, ...over });
+const supplierRow = (over: Partial<SupplierRow> = {}): SupplierRow => ({ id: "s1", publicRef: "ORG-N7GT", name: "Northgate Outreach", status: "active", createdAt: day("2026-10-02"), agencyCount: 2, agencyNames: ["Calder Bay Media"], peopleCount: 7, campaignCount: 2, inviteWaiting: false, campaignCounts: { setup: 0, active: 1, closed: 1 }, ...over });
 const detail: SupplierDetail = {
   id: "s1",
   publicRef: "ORG-N7GT",
@@ -40,42 +48,138 @@ const detail: SupplierDetail = {
   ],
   peopleTotal: 7,
   campaigns: [{ id: "c1", publicRef: "CMP-7Q2X", name: "UK mid-market finance teams", status: "active", clientName: "Kestrel Ledger" }],
+  campaignCounts: { setup: 0, active: 1, closed: 0 },
+  timeZone: "Europe/London",
+  everyone: [
+    { kind: "member", id: "m1", userId: "u1", orgId: "s1", orgName: "Northgate Outreach", name: "Nikhil Oberoi", jobTitle: "Director", email: "nikhil@northgate.example", phone: "+44 20 7946 0000", role: "manager", state: "active" },
+    { kind: "member", id: "m2", userId: "u2", orgId: "a1", orgName: "Calder Bay Media", name: "Ines Caetano", jobTitle: "Caller", email: "ines@calder.example", phone: null, role: "member", state: "suspended" },
+    { kind: "invite", id: "i1", userId: null, orgId: "s1", orgName: "Northgate Outreach", name: "Aditi Rao", jobTitle: "Caller", email: "aditi@northgate.example", phone: null, role: "member", state: "invited" },
+  ],
+  activity: [],
 };
 
 describe("Coordinators", () => {
   it("renders the table with the filter, the selection and a row per coordinator", () => {
-    const html = renderToStaticMarkup(<SuppliersTable rows={[supplierRow(), supplierRow({ id: "s2", publicRef: "ORG-S2MD", name: "Saltmarsh Demand", agencyCount: 0, peopleCount: 0, campaignCount: 0, inviteWaiting: true }), supplierRow({ id: "s3", name: "Old One", status: "archived" })]} filter="active" query="" selectedRef="ORG-N7GT" canWrite />);
+    const html = renderToStaticMarkup(<SuppliersTable rows={[supplierRow(), supplierRow({ id: "s2", publicRef: "ORG-S2MD", name: "Saltmarsh Demand", agencyCount: 0, peopleCount: 0, campaignCount: 0, inviteWaiting: true }), supplierRow({ id: "s3", name: "Old One", status: "archived" })]} filter="active" query="" canWrite />);
     expect(html).toContain("All coordinators");
     expect(html).toContain("Northgate Outreach");
-    expect(html).toContain('data-state="selected"');
     expect(html).toContain("Invite sent, not accepted yet");
-    expect(html).toContain("/fynix/suppliers?supplier=ORG-N7GT");
+    expect(html).toContain("/fynix/suppliers/ORG-N7GT");
+    expect(html).toContain("1 active, 1 closed");
     expect(html).not.toContain("Old One");
   });
 
   it("says there are no coordinators, with the action for an admin and a plain line for staff", () => {
-    expect(renderToStaticMarkup(<SuppliersTable rows={[]} filter="active" query="" selectedRef={undefined} canWrite />)).toContain("Add coordinator");
-    const staff = renderToStaticMarkup(<SuppliersTable rows={[]} filter="active" query="" selectedRef={undefined} canWrite={false} />);
+    expect(renderToStaticMarkup(<SuppliersTable rows={[]} filter="active" query="" canWrite />)).toContain("Add coordinator");
+    const staff = renderToStaticMarkup(<SuppliersTable rows={[]} filter="active" query="" canWrite={false} />);
     expect(staff).toContain("No coordinators yet");
     expect(staff).not.toContain("Add coordinator");
   });
 
   it("says nothing matches a search", () => {
-    expect(renderToStaticMarkup(<SuppliersTable rows={[supplierRow()]} filter="active" query="zzz" selectedRef={undefined} canWrite />)).toContain("No coordinator matches");
+    expect(renderToStaticMarkup(<SuppliersTable rows={[supplierRow()]} filter="active" query="zzz" canWrite />)).toContain("No coordinator matches");
   });
 
-  it("renders the panel with its three sections, and the actions only for an admin", () => {
-    const admin = renderToStaticMarkup(<SupplierPanel detail={detail} filter="active" query="" canWrite />);
-    expect(admin).toContain("Partner agencies");
-    expect(admin).toContain("nikhil@northgate.example");
-    expect(admin).toContain("2 of 7 shown");
-    expect(admin).toContain("Invite a person");
-    expect(admin).toContain("Add agency");
-    const staff = renderToStaticMarkup(<SupplierPanel detail={detail} filter="active" query="" canWrite={false} />);
-    expect(staff).not.toContain("Invite a person");
-    expect(staff).not.toContain("Add agency");
-    const archived = renderToStaticMarkup(<SupplierPanel detail={{ ...detail, status: "archived" }} filter="archived" query="" canWrite />);
-    expect(archived).not.toContain("Invite a person");
+  it("shows the overview with the counts, and the title's Edit and Archive only for an admin", () => {
+    expect(renderToStaticMarkup(<SupplierOverview supplier={detail} />)).toContain("1 active");
+    const admin = renderToStaticMarkup(<SupplierTitle supplier={detail} canWrite />);
+    expect(admin).toContain("Edit");
+    expect(admin).toContain("Archive");
+    expect(admin).toContain("/fynix/suppliers/ORG-N7GT/people");
+    const staff = renderToStaticMarkup(<SupplierTitle supplier={detail} canWrite={false} />);
+    expect(staff).not.toContain("Archive");
+    expect(renderToStaticMarkup(<SupplierTitle supplier={{ ...detail, status: "archived" }} canWrite />)).toContain("Restore");
+  });
+
+  it("lists the partner agencies, and Add agency only for an admin of an active coordinator", () => {
+    expect(renderToStaticMarkup(<AgenciesPanel supplier={detail} canWrite />)).toContain("Add agency");
+    expect(renderToStaticMarkup(<AgenciesPanel supplier={detail} canWrite={false} />)).not.toContain("Add agency");
+    expect(renderToStaticMarkup(<AgenciesPanel supplier={{ ...detail, status: "archived" }} canWrite />)).not.toContain("Add agency");
+  });
+});
+
+const person = (over: Partial<PersonRow> = {}): PersonRow => ({ kind: "member", id: "m1", userId: "u1", orgId: "k1", orgName: "Kestrel Ledger", name: "Imogen Price", jobTitle: "Head of Sales", email: "imogen@kestrel.example", phone: null, role: "manager", state: "active", ...over });
+
+describe("People", () => {
+  it("shows name, job title, email, phone, role and status, with row actions for an admin", () => {
+    const html = renderToStaticMarkup(<PeopleTable people={[person(), person({ id: "m2", userId: "u2", name: "Tom Hale", state: "suspended", phone: "+44 7700 900123" }), person({ kind: "invite", id: "i1", userId: null, name: "Aditi Rao", state: "invited" })]} canWrite selfUserId="u1" />);
+    expect(html).toContain("Head of Sales");
+    expect(html).toContain("imogen@kestrel.example");
+    expect(html).toContain("+44 7700 900123");
+    expect(html).toContain("Reactivate Tom Hale");
+    expect(html).toContain("Resend the invite to Aditi Rao");
+    expect(html).toContain("Revoke the invite to Aditi Rao");
+    expect(html).not.toContain("Suspend Imogen Price");
+  });
+
+  it("offers suspend on another active person and nothing at all to staff", () => {
+    expect(renderToStaticMarkup(<PeopleTable people={[person({ userId: "u9" })]} canWrite selfUserId="u1" />)).toContain("Suspend Imogen Price");
+    const staff = renderToStaticMarkup(<PeopleTable people={[person()]} canWrite={false} selfUserId="u1" />);
+    expect(staff).not.toContain("Suspend");
+    expect(staff).not.toContain("Edit");
+  });
+
+  it("adds the Agency column for a coordinator and says when nobody is here", () => {
+    expect(renderToStaticMarkup(<PeopleTable people={[person()]} canWrite={false} selfUserId="u1" showOrganisation />)).toContain("Agency");
+    expect(renderToStaticMarkup(<PeopleTable people={[]} canWrite selfUserId="u1" />)).toContain("Nobody here yet");
+  });
+});
+
+const clientDetail: ClientDetail = {
+  id: "k1",
+  publicRef: "ORG-K1AA",
+  name: "Kestrel Ledger",
+  timeZone: "Europe/London",
+  status: "active",
+  createdAt: day("2026-10-02"),
+  profile: { clientOrgId: "k1", introduction: "Accounts software for finance teams.", services: "Ledger and close tooling.", differentiator: "Closes the books in a day.", caseStudies: null },
+  collateral: [{ id: "x1", clientOrgId: "k1", kind: "link", title: "Company brochure", url: "https://kestrel.example/brochure", createdAt: day("2026-10-03") }],
+  people: [person()],
+  campaigns: [],
+  campaignCounts: { setup: 0, active: 0, closed: 0 },
+  activity: [],
+};
+
+describe("Client record", () => {
+  it("shows the profile and collateral with add and remove for an admin", () => {
+    const html = renderToStaticMarkup(<ClientOverview client={clientDetail} canWrite />);
+    expect(html).toContain("Accounts software for finance teams.");
+    expect(html).toContain("Closes the books in a day.");
+    expect(html).toContain("https://kestrel.example/brochure");
+    expect(html).toContain("Remove Company brochure");
+    expect(html).toContain("Edit profile");
+    expect(html).toContain("Add link");
+    expect(html).toContain("Not set");
+  });
+
+  it("is read only for staff", () => {
+    const html = renderToStaticMarkup(<ClientOverview client={clientDetail} canWrite={false} />);
+    expect(html).toContain("Company brochure");
+    expect(html).not.toContain("Remove");
+    expect(html).not.toContain("Edit profile");
+    expect(html).not.toContain("Add link");
+  });
+
+  it("has four tabs, an Archived badge and Restore for an archived client", () => {
+    const html = renderToStaticMarkup(<ClientTitle client={{ ...clientDetail, status: "archived" }} canWrite />);
+    for (const label of ["Overview", "People", "Campaigns", "Activity"]) expect(html).toContain(label);
+    expect(html).toContain("Archived");
+    expect(html).toContain("Restore");
+    expect(renderToStaticMarkup(<ClientTitle client={clientDetail} canWrite={false} />)).not.toContain("Archive");
+  });
+
+  it("lists campaigns with their status and the recorded changes", () => {
+    expect(renderToStaticMarkup(<CampaignsPanel rows={[{ id: "c1", publicRef: "CMP-7Q2X", name: "UK finance", status: "draft", other: "Served by Northgate" }]} />)).toContain("/fynix/campaigns/CMP-7Q2X");
+    expect(renderToStaticMarkup(<ActivityPanel rows={[]} />)).toContain("Nothing recorded yet");
+    expect(renderToStaticMarkup(<ActivityPanel rows={[{ id: "a1", at: day("2026-11-20"), action: "organisation.archive", by: "Gaurav" }]} />)).toContain("Archived");
+  });
+});
+
+describe("Set-up checklist", () => {
+  it("lists each item as a link, and collapses to one line when empty", () => {
+    const html = renderToStaticMarkup(<SetupChecklist items={[{ key: "a", label: "Kestrel Ledger has no manager yet", href: "/fynix/clients/ORG-K1AA/people" }]} />);
+    expect(html).toContain('href="/fynix/clients/ORG-K1AA/people"');
+    expect(renderToStaticMarkup(<SetupChecklist items={[]} />)).toContain("Everything is set up");
   });
 });
 
@@ -204,14 +308,17 @@ describe("Hosts", () => {
   });
 });
 
-const clientRow = (over: Partial<ClientRow> = {}): ClientRow => ({ id: "k1", publicRef: "ORG-K1AA", name: "Kestrel Ledger", brandName: "Kestrel", status: "active", peopleCount: 3, campaignCount: 1, ...over }) as ClientRow;
+const clientRow = (over: Partial<ClientRow> = {}): ClientRow => ({ id: "k1", publicRef: "ORG-K1AA", name: "Kestrel Ledger", brandName: "Kestrel", status: "active", peopleCount: 3, campaignCount: 3, campaignCounts: { setup: 1, active: 2, closed: 0 }, timeZone: null, ...over }) as ClientRow;
 
 describe("Clients", () => {
-  it("lists clients with their brand, counts and archived marker, and filters by search", () => {
-    const html = renderToStaticMarkup(<ClientsTable rows={[clientRow(), clientRow({ id: "k2", name: "Old Client", brandName: "Old", status: "archived" })]} query="" canWrite />);
+  it("lists active clients with a link to each record and split campaign counts, and the Archived tab holds the rest", () => {
+    const rows = [clientRow(), clientRow({ id: "k2", publicRef: "ORG-K2BB", name: "Old Client", status: "archived" })];
+    const html = renderToStaticMarkup(<ClientsTable rows={rows} query="" canWrite />);
     expect(html).toContain("All clients");
-    expect(html).toContain("Kestrel Ledger");
-    expect(html).toContain("Archived");
+    expect(html).toContain("/fynix/clients/ORG-K1AA");
+    expect(html).toContain("2 active, 1 setting up");
+    expect(html).not.toContain("Old Client");
+    expect(renderToStaticMarkup(<ClientsTable rows={rows} query="" canWrite filter="archived" />)).toContain("Old Client");
     expect(renderToStaticMarkup(<ClientsTable rows={[clientRow()]} query="zzz" canWrite />)).toContain("No client matches");
   });
 
@@ -258,8 +365,11 @@ describe("Campaign header", () => {
 describe("copy", () => {
   it("has no em or en dashes in anything rendered", () => {
     const html = [
-      renderToStaticMarkup(<SuppliersTable rows={[supplierRow()]} filter="active" query="" selectedRef="ORG-N7GT" canWrite />),
-      renderToStaticMarkup(<SupplierPanel detail={detail} filter="active" query="" canWrite />),
+      renderToStaticMarkup(<SuppliersTable rows={[supplierRow()]} filter="active" query="" canWrite />),
+      renderToStaticMarkup(<SupplierTitle supplier={detail} canWrite />),
+      renderToStaticMarkup(<SupplierOverview supplier={detail} />),
+      renderToStaticMarkup(<PeopleTable people={[person()]} canWrite selfUserId="u9" />),
+      renderToStaticMarkup(<ClientOverview client={clientDetail} canWrite />),
       renderToStaticMarkup(<CampaignsTable rows={[campaignRow]} />),
       renderToStaticMarkup(<BriefView campaign={header} />),
       renderToStaticMarkup(<DisputesTable rows={[dispute]} canWrite />),

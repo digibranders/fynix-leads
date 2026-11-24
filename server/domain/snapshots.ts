@@ -10,13 +10,35 @@ export interface OrganisationRow {
   readonly kind: string;
   readonly name: string;
   readonly brandName: string | null;
+  readonly timeZone: string | null;
   /** The supplier a partner agency works under, `null` for everyone else. */
   readonly parentOrgId: string | null;
   readonly status: string;
 }
 
 export function snapshotOrganisation(row: OrganisationRow): JsonObject {
-  return { ref: row.publicRef, kind: row.kind, name: row.name, brandName: row.brandName, parentOrgId: row.parentOrgId, status: row.status };
+  return { ref: row.publicRef, kind: row.kind, name: row.name, brandName: row.brandName, timeZone: row.timeZone, parentOrgId: row.parentOrgId, status: row.status };
+}
+
+export interface ProfileRow {
+  readonly introduction: string;
+  readonly services: string;
+  readonly differentiator: string;
+  readonly caseStudies: string | null;
+}
+
+export function snapshotProfile(row: ProfileRow): JsonObject {
+  return { introduction: row.introduction, services: row.services, differentiator: row.differentiator, caseStudies: row.caseStudies };
+}
+
+export interface CollateralRow {
+  readonly kind: string;
+  readonly title: string;
+  readonly url: string | null;
+}
+
+export function snapshotCollateral(row: CollateralRow): JsonObject {
+  return { kind: row.kind, title: row.title, url: row.url };
 }
 
 export interface CampaignRow {
@@ -81,23 +103,27 @@ export interface InviteRow {
   readonly name: string;
   readonly role: string;
   readonly alias: string | null;
+  readonly jobTitle?: string | null;
+  readonly phone?: string | null;
   readonly expiresAt: Date;
 }
 
 /** An invite, without its token or hash. */
 export function snapshotInvite(row: InviteRow): JsonObject {
-  return { orgId: row.orgId, email: row.email, name: row.name, role: row.role, alias: row.alias, expiresAt: row.expiresAt.toISOString() };
+  return { orgId: row.orgId, email: row.email, name: row.name, role: row.role, alias: row.alias, jobTitle: row.jobTitle ?? null, phone: row.phone ?? null, expiresAt: row.expiresAt.toISOString() };
 }
 
 export interface MemberRow {
   readonly orgId: string;
   readonly role: string;
   readonly displayName: string;
+  readonly jobTitle?: string | null;
+  readonly phone?: string | null;
   readonly status: string;
 }
 
 export function snapshotMember(row: MemberRow): JsonObject {
-  return { orgId: row.orgId, role: row.role, displayName: row.displayName, status: row.status };
+  return { orgId: row.orgId, role: row.role, displayName: row.displayName, jobTitle: row.jobTitle ?? null, phone: row.phone ?? null, status: row.status };
 }
 
 export interface AgreementRow {

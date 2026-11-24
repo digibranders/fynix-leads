@@ -4,15 +4,47 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => undefined }) }));
 vi.mock("@/server/fynix/actions", () => {
   const action = async () => ({ status: "idle" as const });
-  return { addSupplierAction: action, addAgencyAction: action, invitePersonAction: action, publishAgreementAction: action, publishTermsAction: action, setShareAction: action, removeShareAction: action, addHostAction: action, pauseHostAction: action, setHoursAction: action, addBlockAction: action, removeBlockAction: action, createCampaignAction: action, updateCampaignAction: action };
+  return { addSupplierAction: action, addAgencyAction: action, invitePersonAction: action, publishAgreementAction: action, publishTermsAction: action, setShareAction: action, removeShareAction: action, addHostAction: action, pauseHostAction: action, setHoursAction: action, addBlockAction: action, removeBlockAction: action, createCampaignAction: action, updateCampaignAction: action, addClientAction: action, updateProfileAction: action, addCollateralAction: action, updateOrganisationAction: action, updatePersonAction: action };
 });
 
-const { AddAgencyForm, AddSupplierForm, InvitePersonForm } = await import("@/components/fynix/forms/supplier-forms");
+const { AddAgencyForm, AddSupplierForm, EditOrganisationForm, FYNIX_ROLES, InvitePersonForm } = await import("@/components/fynix/forms/supplier-forms");
+const { AddClientForm, EditProfileForm } = await import("@/components/fynix/forms/client-forms");
+const { EditPersonForm } = await import("@/components/fynix/forms/people-forms");
 const { AddHostForm, CreateCampaignForm, EditCampaignForm, NewAgreementForm, ShareForm } = await import("@/components/fynix/forms/campaign-forms");
 const { BlockForm, HoursForm } = await import("@/components/fynix/forms/availability-forms");
 const { PublishTermsForm } = await import("@/components/fynix/forms/settings-forms");
 
 describe("the forms render", () => {
+  it("Add client asks for the name, time zone, the four profile fields and an optional link, and has no brand field", () => {
+    const html = renderToStaticMarkup(<AddClientForm />);
+    for (const name of ["name", "timeZone", "introduction", "services", "differentiator", "caseStudies", "collateralTitle", "collateralUrl"]) expect(html).toContain(`name="${name}"`);
+    expect(html).not.toContain('name="brandName"');
+    // The duplicate-name tick box appears only after the server has refused a duplicate.
+    expect(html).not.toContain('name="confirmDuplicate"');
+  });
+
+  it("Edit profile starts from the saved profile", () => {
+    const html = renderToStaticMarkup(<EditProfileForm clientOrgId="k1" profile={{ clientOrgId: "k1", introduction: "Intro text", services: "S", differentiator: "D", caseStudies: null }} />);
+    expect(html).toContain('name="clientOrgId" value="k1"');
+    expect(html).toContain("Intro text");
+  });
+
+  it("Edit organisation and Edit person start from what is saved", () => {
+    expect(renderToStaticMarkup(<EditOrganisationForm organisationId="s1" name="Northgate" timeZone="Europe/London" label="Coordinator" />)).toContain('value="Europe/London"');
+    const person = renderToStaticMarkup(<EditPersonForm memberId="m1" name="Imogen Price" jobTitle="Head of Sales" phone="+44 20 7946 0000" />);
+    expect(person).toContain('value="Head of Sales"');
+    expect(person).toContain('value="+44 20 7946 0000"');
+  });
+
+  it("Invite a person for Fynix has no alias and offers admin and staff; the alias is optional where it shows", () => {
+    const fynix = renderToStaticMarkup(<InvitePersonForm organisations={[{ id: "f1", name: "Fynix" }]} roles={FYNIX_ROLES} showAlias={false} />);
+    expect(fynix).not.toContain('name="alias"');
+    expect(fynix).toContain('name="jobTitle"');
+    const agency = renderToStaticMarkup(<InvitePersonForm organisations={[{ id: "s1", name: "Northgate" }]} />);
+    expect(agency).toContain("optional");
+    expect(agency).not.toContain("Fynix name");
+  });
+
   it("Publish terms asks who the terms are for, a title and the text", () => {
     const markup = renderToStaticMarkup(<PublishTermsForm />);
     expect(markup).toContain('name="party"');

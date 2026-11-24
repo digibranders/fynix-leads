@@ -22,7 +22,7 @@ import {
   INVITE_SUBMIT_LABEL,
   INVITE_SUBMIT_PENDING_LABEL,
   INVITE_UNAVAILABLE_TITLE,
-  PARTY_LABEL,
+  partyLabel,
   welcomeHeading,
 } from "@/lib/domain/invite-page-copy";
 import { redeemInviteAction } from "@/server/domain/actions";
@@ -32,12 +32,14 @@ type Props = {
   name: string;
   email: string;
   party: OrganisationKind;
+  /** An invite into a partner agency, so the account is labelled "Agency" and not "Coordinator". */
+  partner: boolean;
   /** The current terms. Their id travels in a hidden field so the server knows which text was on the page. */
   terms: TermsView & { readonly id: string };
 };
 
 /** The token arrives as a prop from the server page and travels in a hidden field. It is never printed. */
-export function AcceptInviteForm({ token, name, email, party, terms }: Props) {
+export function AcceptInviteForm({ token, name, email, party, partner, terms }: Props) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(redeemInviteAction, INVITE_IDLE);
   const passwordRef = useRef<HTMLInputElement>(null);
@@ -74,7 +76,7 @@ export function AcceptInviteForm({ token, name, email, party, terms }: Props) {
           <dd>
             <span className="inline-flex h-[30px] items-center gap-1.5 rounded-xs bg-navy-07 pr-[11px] pl-2.5 text-table font-semibold">
               <PartyIcon aria-hidden size={17} />
-              {PARTY_LABEL[party]}
+              {partyLabel(party, partner)}
             </span>
           </dd>
         </div>

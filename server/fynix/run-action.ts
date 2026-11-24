@@ -37,6 +37,8 @@ export interface ActionSpec {
   readonly perform: (deps: DomainDeps, actor: FynixActor, input: unknown) => Promise<{ readonly redirectTo?: string } | void>;
   /** A better sentence for a reason, when this form can say something more exact. */
   readonly messages?: Partial<Record<DomainErrorCode, string>>;
+  /** A refusal that belongs to one field of the form (a duplicate name asks for a tick box), so its sentence lands there and not at the top. */
+  readonly errorFields?: Partial<Record<DomainErrorCode, string>>;
 }
 
 const failed = (message: string | null, fields: FormValues, values: FormValues): FormState => ({ status: "error", message, fields, values });
@@ -63,7 +65,11 @@ export async function runAction(spec: ActionSpec): Promise<FormState> {
     revalidatePath("/fynix", "layout");
     return { status: "done", redirectTo: result?.redirectTo ?? null };
   } catch (error) {
-    if (error instanceof DomainError) return failed(domainMessage(error.code, spec.messages), {}, values);
+    if (error instanceof DomainError) {
+      const message = domainMessage(error.code, spec.messages);
+      const fieldName = spec.errorFields?.[error.code];
+      return fieldName === undefined ? failed(message, {}, values) : failed(null, { [fieldName]: message }, values);
+    }
     console.error("A Fynix action failed", error instanceof Error ? error.name : "unknown error");
     return failed(SOMETHING_WENT_WRONG, {}, values);
   }

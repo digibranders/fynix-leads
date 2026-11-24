@@ -12,13 +12,13 @@ export interface PartnerView {
   readonly shares: readonly { readonly campaignName: string; readonly monthlyShare: number }[];
 }
 
-/** The partner agencies working under the supplier, and the monthly share of each campaign that each one holds. Fynix adds agencies; this list is read only. */
-export function PartnersView({ partners }: { readonly partners: readonly PartnerView[] }) {
+/** The partner agencies working under the supplier, and the monthly share of each campaign that each one holds. A coordinator manager adds agencies; this list is read only. */
+export function PartnersView({ partners, canAdd = false }: { readonly partners: readonly PartnerView[]; readonly canAdd?: boolean }) {
   if (partners.length === 0) {
     return (
       <Panel>
         <EmptyState icon={UsersThree} title="No partner agencies yet">
-          Ask Fynix to add a partner agency under your coordinator account. It will appear here with the share of each campaign it holds.
+          {canAdd ? "Add a partner agency under your coordinator account. It will appear here with the share of each campaign it holds." : "A manager adds partner agencies under your coordinator account. They will appear here with the share of each campaign they hold."}
         </EmptyState>
       </Panel>
     );

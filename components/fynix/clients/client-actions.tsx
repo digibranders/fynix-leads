@@ -1,7 +1,7 @@
 import { Plus } from "@phosphor-icons/react/dist/ssr";
 import { Button } from "@/components/ui/button";
 import { FormSheet } from "../forms/form-sheet";
-import { AddClientForm } from "../forms/supplier-forms";
+import { AddClientForm } from "../forms/client-forms";
 
 /** The header button. Shown only to an admin. */
 export function AddClientButton() {

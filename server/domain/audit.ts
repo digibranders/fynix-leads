@@ -10,6 +10,9 @@ export const AUDIT_ACTIONS = [
   "organisation.update",
   "organisation.archive",
   "organisation.restore",
+  "client_profile.update",
+  "client_collateral.add",
+  "client_collateral.remove",
   "campaign.create",
   "campaign.update",
   "campaign.archive",
@@ -19,6 +22,7 @@ export const AUDIT_ACTIONS = [
   "member.suspend",
   "member.reactivate",
   "member.rename",
+  "member.update_details",
   "agency_alias.set",
   "terms.publish",
   "agreement.publish",
@@ -41,6 +45,8 @@ export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
 export type AuditSubjectTable =
   | "organisation"
+  | "client_profile"
+  | "client_collateral"
   | "campaign"
   | "invite"
   | "member"

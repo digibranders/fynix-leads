@@ -37,6 +37,7 @@ async function InviteContent({ searchParams }: { searchParams: PageProps<"/accep
           name={preview.name}
           email={preview.email}
           party={preview.party}
+          partner={preview.partner}
           terms={{ id: preview.terms.id, title: preview.terms.title, version: preview.terms.version, body: preview.terms.body, placeholder: preview.terms.placeholder }}
         />
       );

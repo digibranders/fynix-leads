@@ -1,6 +1,7 @@
 "use client";
 
-import { addAgencyAction, addClientAction, addSupplierAction, invitePersonAction } from "@/server/fynix/actions";
+import type { FormState } from "@/lib/fynix/form-state";
+import { addAgencyAction, addSupplierAction, invitePersonAction, updateOrganisationAction } from "@/server/fynix/actions";
 import { ActionForm } from "./action-form";
 import { FormGroup, Hidden, SelectField, TextField } from "./form-parts";
 
@@ -30,11 +31,35 @@ const ROLES = [
   { value: "manager", label: "Manager" },
 ] as const;
 
-/** Invites a person into the supplier or one of its partner agencies. An agency person gets the Fynix name the client sees instead of their own. */
-export function InvitePersonForm({ organisations }: { organisations: readonly { readonly id: string; readonly name: string }[] }) {
+/** The two roles of a Fynix person: an admin changes set-up, staff read it and work leads. */
+export const FYNIX_ROLES = [
+  { value: "staff", label: "Staff" },
+  { value: "admin", label: "Admin" },
+] as const;
+
+type RoleOption = { readonly value: string; readonly label: string };
+
+/**
+ * Invites a person into a client, a coordinator or one of its partner agencies, or into Fynix. A client or Fynix person needs no alias; an
+ * agency person's alias is optional and shown only where it can apply (`showAlias`).
+ */
+export function InvitePersonForm({
+  organisations,
+  roles = ROLES,
+  showAlias = true,
+  roleHelper = "A manager can accept agreements and invite colleagues.",
+  action = invitePersonAction,
+}: {
+  organisations: readonly { readonly id: string; readonly name: string }[];
+  roles?: readonly RoleOption[];
+  showAlias?: boolean;
+  roleHelper?: string;
+  /** The Fynix action unless a portal passes its own. */
+  action?: (previous: FormState, formData: FormData) => Promise<FormState>;
+}) {
   const [only] = organisations;
   return (
-    <ActionForm action={invitePersonAction} submitLabel="Send invite" pendingLabel="Sending">
+    <ActionForm action={action} submitLabel="Send invite" pendingLabel="Sending">
       {organisations.length === 1 && only !== undefined ? (
         <Hidden name="organisationId" value={only.id} />
       ) : (
@@ -44,22 +69,28 @@ export function InvitePersonForm({ organisations }: { organisations: readonly { 
       )}
       <FormGroup title="The person">
         <TextField name="name" label="Full name" autoComplete="off" />
+        <TextField name="jobTitle" label="Job title" autoComplete="off" />
         <TextField name="email" label="Email" type="email" inputMode="email" helper="The invite link goes here. It works for 7 days." />
-        <SelectField name="role" label="Role" options={ROLES} defaultValue="member" helper="A manager can accept agreements for the coordinator." />
+        <TextField name="phone" label="Phone (optional)" />
+        <SelectField name="role" label="Role" options={roles} defaultValue={roles[0]?.value} helper={roleHelper} />
       </FormGroup>
-      <FormGroup title="What the client sees">
-        <TextField name="alias" label="Fynix name" helper="What the client sees instead of their real name, for example Asha, Fynix." />
-      </FormGroup>
+      {showAlias && (
+        <FormGroup title="What the client sees">
+          <TextField name="alias" label="Name the client sees (optional)" helper="Only for people at an agency. It defaults to their own name." />
+        </FormGroup>
+      )}
     </ActionForm>
   );
 }
 
-export function AddClientForm() {
+/** Renames a client or a coordinator and sets its time zone. */
+export function EditOrganisationForm({ organisationId, name, timeZone, label }: { organisationId: string; name: string; timeZone: string | null; label: string }) {
   return (
-    <ActionForm action={addClientAction} submitLabel="Add client" pendingLabel="Adding">
+    <ActionForm action={updateOrganisationAction} submitLabel="Save changes" pendingLabel="Saving">
+      <Hidden name="organisationId" value={organisationId} />
       <FormGroup>
-        <TextField name="name" label="Client name" helper="The company name. Only Fynix and the client see it." />
-        <TextField name="brandName" label="Brand name" helper="What agencies see in place of the client's name." />
+        <TextField name="name" label={`${label} name`} defaultValue={name} />
+        <TextField name="timeZone" label="Time zone" defaultValue={timeZone ?? ""} helper="For example Europe/London. Leave it empty if not known." />
       </FormGroup>
     </ActionForm>
   );

@@ -1,8 +1,11 @@
 import { and, asc, count, eq, gt, isNull } from "drizzle-orm";
+import type { CampaignStatus } from "@/lib/domain/campaign-status";
+import { tallyCampaigns, type CampaignCounts } from "@/lib/fynix/campaign-counts";
 import { campaign, campaignShare, invite, member, organisation, user } from "@/server/db/schema";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
 import { fynixRead, type FynixActor } from "@/server/domain/fynix-write";
+import { readActivity, readPeople, type ActivityRow, type PersonRow } from "@/server/domain/people-overview";
 
 /**
  * What the Fynix Suppliers screen reads: a row per supplier with counts, and one supplier in full for the side panel. Both are
@@ -25,6 +28,8 @@ export interface SupplierRow {
   readonly peopleCount: number;
   /** Campaigns the supplier serves. */
   readonly campaignCount: number;
+  /** The same campaigns by what people say: active, closed, setting up. */
+  readonly campaignCounts: CampaignCounts;
   /** True when nobody has joined yet and an invite is still live, so the row can say the invite is waiting. */
   readonly inviteWaiting: boolean;
 }
@@ -43,7 +48,9 @@ export async function listSupplierRows(deps: DomainDeps, actor: FynixActor): Pro
       .where(eq(organisation.kind, "agency"))
       .orderBy(asc(organisation.name));
     const people = tally((await tx.select({ key: member.orgId, n: count() }).from(member).where(eq(member.orgKind, "agency")).groupBy(member.orgId)));
-    const campaigns = tally((await tx.select({ key: campaign.agencyOrgId, n: count() }).from(campaign).groupBy(campaign.agencyOrgId)));
+    const campaignStatuses = await tx.select({ key: campaign.agencyOrgId, status: campaign.status }).from(campaign);
+    const campaigns = new Map<string, number>();
+    for (const row of campaignStatuses) campaigns.set(row.key, (campaigns.get(row.key) ?? 0) + 1);
     const waiting = tally(
       await tx
         .select({ key: invite.orgId, n: count() })
@@ -66,6 +73,7 @@ export async function listSupplierRows(deps: DomainDeps, actor: FynixActor): Pro
           agencyNames: partners.map((partner) => partner.name),
           peopleCount: own + partners.reduce((sum, partner) => sum + (people.get(partner.id) ?? 0), 0),
           campaignCount: campaigns.get(supplier.id) ?? 0,
+          campaignCounts: tallyCampaigns(campaignStatuses.filter((row) => row.key === supplier.id).map((row) => row.status)),
           inviteWaiting: own === 0 && (waiting.get(supplier.id) ?? 0) > 0,
         };
       });
@@ -94,7 +102,7 @@ export interface SupplierCampaignRow {
   readonly id: string;
   readonly publicRef: string;
   readonly name: string;
-  readonly status: "draft" | "active" | "paused" | "completed" | "archived";
+  readonly status: CampaignStatus;
   readonly clientName: string;
 }
 
@@ -110,6 +118,11 @@ export interface SupplierDetail {
   /** Members of the supplier and of its partner agencies, for "2 of 7 shown". */
   readonly peopleTotal: number;
   readonly campaigns: readonly SupplierCampaignRow[];
+  readonly campaignCounts: CampaignCounts;
+  readonly timeZone: string | null;
+  /** Every person of the coordinator and of its partner agencies, each with the organisation they belong to, plus open invites. */
+  readonly everyone: readonly PersonRow[];
+  readonly activity: readonly ActivityRow[];
 }
 
 /** One supplier with its partner agencies, people and campaigns, found by its public reference. An unknown reference, or one that is not a supplier, is `not-found`. */
@@ -118,7 +131,7 @@ export async function readSupplierDetail(deps: DomainDeps, actor: FynixActor, pu
   const now = deps.now();
   return fynixRead(deps.fynixDb, actor, async (tx) => {
     const [found] = await tx
-      .select({ id: organisation.id, publicRef: organisation.publicRef, name: organisation.name, status: organisation.status, createdAt: organisation.createdAt, kind: organisation.kind, parentOrgId: organisation.parentOrgId })
+      .select({ id: organisation.id, publicRef: organisation.publicRef, name: organisation.name, status: organisation.status, createdAt: organisation.createdAt, kind: organisation.kind, parentOrgId: organisation.parentOrgId, timeZone: organisation.timeZone })
       .from(organisation)
       .where(eq(organisation.publicRef, publicRef))
       .limit(1);
@@ -155,6 +168,8 @@ export async function readSupplierDetail(deps: DomainDeps, actor: FynixActor, pu
       .where(eq(campaign.agencyOrgId, found.id))
       .orderBy(asc(campaign.name));
 
+    const everyone = await readPeople(tx, [{ id: found.id, name: found.name }, ...partners.map((row) => ({ id: row.id, name: row.name }))], now);
+    const activity = await readActivity(tx, [found.id, ...everyone.filter((person) => person.kind === "member").map((person) => person.id)], found.publicRef);
     const agencies = partners.map((row): PartnerAgencyRow => ({ ...row, peopleCount: memberCounts.get(row.id) ?? 0, campaignCount: shareCounts.get(row.id) ?? 0 }));
     return {
       id: found.id,
@@ -166,6 +181,10 @@ export async function readSupplierDetail(deps: DomainDeps, actor: FynixActor, pu
       people,
       peopleTotal: (memberCounts.get(found.id) ?? 0) + agencies.reduce((sum, row) => sum + row.peopleCount, 0),
       campaigns,
+      campaignCounts: tallyCampaigns(campaigns.map((row) => row.status)),
+      timeZone: found.timeZone,
+      everyone,
+      activity,
     };
   });
 }

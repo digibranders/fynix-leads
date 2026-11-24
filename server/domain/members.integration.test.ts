@@ -42,7 +42,7 @@ const ADDRESS = "203.0.113.70";
 
 /** A real person: invited, redeemed, and signed in, so a session exists to be refused. */
 async function realClient() {
-  await issueInvite(rig.deps(), rig.actor, { organisationId: rig.world().kestrel.id, email: "priya@kestrel.example", name: "Priya Nair" });
+  await issueInvite(rig.deps(), rig.actor, { organisationId: rig.world().kestrel.id, email: "priya@kestrel.example", name: "Priya Nair", jobTitle: "Operations lead" });
   const redeemed = await redeemInvite(rig.deps(), { token: (await latestInviteLink(rig, "priya@kestrel.example")).token, password: GOOD_PASSWORD, acceptedTermsId: (await readCurrentTerms(rig.dbs.roles.leads_auth.db, "client"))?.id ?? "", address: ADDRESS });
   if (redeemed.status !== "redeemed") throw new Error("not redeemed");
   const auth = rig.deps().authFactory(rig.dbs.roles.leads_auth.db);
@@ -143,7 +143,7 @@ describe("setAgencyAlias", () => {
   });
 
   it("refuses an alias that a live invite carries", async () => {
-    await issueInvite(rig.deps(), rig.actor, { organisationId: rig.world().northgate.id, email: "new@northgate.example", name: "New Person", alias: "Promised, Fynix" });
+    await issueInvite(rig.deps(), rig.actor, { organisationId: rig.world().northgate.id, email: "new@northgate.example", name: "New Person", jobTitle: "Operations lead", alias: "Promised, Fynix" });
     expect(await refusal(setAgencyAlias(rig.deps(), rig.actor, await agencyMember(), "promised, FYNIX"))).toBe("alias-taken");
   });
 

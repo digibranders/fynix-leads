@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PageHeader } from "@/components/kit/page-header";
 import { PageSkeleton } from "@/components/kit/skeletons";
+import { AddAgencyButton } from "@/components/team/add-agency-button";
 import { PartnersView } from "@/components/partners/partners-view";
 import { getDatabase } from "@/server/db/client";
 import { listPartnerAgencies } from "@/server/domain/partners-tenant";
@@ -16,9 +17,10 @@ async function Agencies() {
     <div className="flex flex-col gap-4">
       <PageHeader
         title="Partner agencies"
-        description="The agencies working under your coordinator account, and the monthly share of each campaign they hold. Fynix adds agencies; you give them campaigns on the Campaigns page."
+        description="The agencies working under your coordinator account, and the monthly share of each campaign they hold. Add an agency, then give it campaigns on the Campaigns page and invite its people from the Team page."
+        actions={view.canWrite ? <AddAgencyButton /> : null}
       />
-      <PartnersView partners={partners.map((partner) => ({ id: partner.id, publicRef: partner.publicRef, name: partner.name, active: partner.status === "active", shares: partner.shares }))} />
+      <PartnersView canAdd={view.canWrite} partners={partners.map((partner) => ({ id: partner.id, publicRef: partner.publicRef, name: partner.name, active: partner.status === "active", shares: partner.shares }))} />
     </div>
   );
 }

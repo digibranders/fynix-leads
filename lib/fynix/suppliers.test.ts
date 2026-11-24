@@ -42,11 +42,11 @@ describe("supplierSubtitle", () => {
 describe("suppliersHref", () => {
   it("leaves out whatever is the default", () => {
     expect(suppliersHref({})).toBe("/fynix/suppliers");
-    expect(suppliersHref({ status: "active", q: "  ", supplier: "" })).toBe("/fynix/suppliers");
+    expect(suppliersHref({ status: "active", q: "  " })).toBe("/fynix/suppliers");
   });
 
-  it("keeps the filter, the search and the selection, and encodes them", () => {
-    expect(suppliersHref({ status: "archived", supplier: "ORG-N7GT" })).toBe("/fynix/suppliers?status=archived&supplier=ORG-N7GT");
-    expect(suppliersHref({ q: " north & gate ", supplier: "ORG-N7GT" })).toBe("/fynix/suppliers?q=north+%26+gate&supplier=ORG-N7GT");
+  it("keeps the filter and the search, and encodes them", () => {
+    expect(suppliersHref({ status: "archived" })).toBe("/fynix/suppliers?status=archived");
+    expect(suppliersHref({ q: " north & gate " })).toBe("/fynix/suppliers?q=north+%26+gate");
   });
 });

@@ -17,6 +17,11 @@ export function welcomeHeading(name: string): string {
 /** The one word for the party on the page. */
 export const PARTY_LABEL: Readonly<Record<OrganisationKind, string>> = { client: "Client", agency: "Agency", fynix: "Fynix" };
 
+/** The label of an account: an agency with no coordinator above it is a coordinator (owner decision, 2026-11-24), one with a coordinator is a partner agency. */
+export function partyLabel(party: OrganisationKind, partner: boolean): string {
+  return party === "agency" && !partner ? "Coordinator" : PARTY_LABEL[party];
+}
+
 /** The text of a terms document as paragraphs: every line break, blank or not, ends a paragraph. Never HTML. */
 export function termsParagraphs(body: string): string[] {
   return body.split(/\r?\n/).filter((line) => line.trim().length > 0);

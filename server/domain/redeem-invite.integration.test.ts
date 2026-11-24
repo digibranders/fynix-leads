@@ -35,8 +35,8 @@ beforeEach(async () => {
 const ADDRESS = "203.0.113.60";
 const CLIENT_EMAIL = "priya.nair@kestrel.example";
 const AGENCY_EMAIL = "rahul@northgate.example";
-const issueClient = () => issueInvite(rig.deps(), rig.actor, { organisationId: rig.world().kestrel.id, email: CLIENT_EMAIL, name: "Priya Nair" });
-const issueAgency = () => issueInvite(rig.deps(), rig.actor, { organisationId: rig.world().northgate.id, email: AGENCY_EMAIL, name: "Rahul Verma", alias: "Rahul, Fynix" });
+const issueClient = () => issueInvite(rig.deps(), rig.actor, { organisationId: rig.world().kestrel.id, email: CLIENT_EMAIL, name: "Priya Nair", jobTitle: "Operations lead" });
+const issueAgency = () => issueInvite(rig.deps(), rig.actor, { organisationId: rig.world().northgate.id, email: AGENCY_EMAIL, name: "Rahul Verma", jobTitle: "Operations lead", alias: "Rahul, Fynix" });
 const termsId = async (party: "client" | "agency" | "fynix"): Promise<string> => (await readCurrentTerms(rig.dbs.roles.leads_auth.db, party))?.id ?? "";
 const redeem = async (email: string, party: "client" | "agency", overrides: Partial<RedeemInput> = {}): Promise<RedeemResult> =>
   redeemInvite(rig.deps(), { token: (await latestInviteLink(rig, email)).token, password: GOOD_PASSWORD, acceptedTermsId: await termsId(party), address: ADDRESS, ...overrides });

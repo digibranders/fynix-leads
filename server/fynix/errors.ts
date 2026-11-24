@@ -29,6 +29,7 @@ const MESSAGES: Readonly<Record<DomainErrorCode, string>> = {
   "alias-not-verified": "The selected client-brand alias identity has not been verified yet.",
   "invalid-lead-stage": "This action cannot be performed on a lead in its current stage.",
   "dispute-window-expired": "The 48-hour dispute window for this delivered meeting has expired.",
+  "duplicate-name": "A company with that name already exists. Check the list, or confirm to add it anyway.",
 };
 
 export function domainMessage(code: DomainErrorCode, overrides: Partial<Record<DomainErrorCode, string>> = {}): string {
