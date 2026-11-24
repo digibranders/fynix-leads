@@ -68,6 +68,12 @@ Both run from the checkout with the production environment loaded. Use a systemd
 3. Replace the placeholder terms (gate G2). On https no invite is issued while a party's current terms are placeholder text.
 4. `pnpm build`, then `pnpm start`.
 
+## Changing a password
+
+`pnpm password:set --email=<address>` sets the password of any existing account (Fynix, client or agency). It asks for the new password twice without echo, applies the same rules as the reset page (length, breached-password check), ends every session of that account and sends no email. It connects as `leads_auth` and needs only the runtime environment, no owner or superuser address. The person signs in again with the new password.
+
+On the production server it is run as root, through a wrapper that runs it as the app user in the live release: `ssh -t firstfold-vps fynix-leads-set-password --email=<address>`. The app user has no sudo rule for it.
+
 ## Not covered here
 
 - A script-level Content-Security-Policy. The app sends `frame-ancestors 'none'` and the other basic headers; a full policy needs per-request nonces for Next.js inline scripts.
