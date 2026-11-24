@@ -3,7 +3,7 @@ import { z } from "zod";
 import { fieldErrors, issueSentence } from "@/lib/fynix/form-state";
 import { createPartnerAgencySchema, issueInviteSchema, publishAgreementSchema, setCampaignShareSchema, createSupplierSchema } from "@/server/domain/inputs";
 
-const labels = { agencyOrgId: "Agency", name: "Name", email: "Email", monthlyTarget: "Per month", totalTarget: "In total", monthlyShare: "Monthly share", supplierId: "Supplier" };
+const labels = { agencyOrgId: "Agency", name: "Name", email: "Email", monthlyTarget: "Per month", totalTarget: "In total", monthlyShare: "Monthly share", supplierId: "Coordinator" };
 const errorsOf = (schema: z.ZodType, input: unknown) => {
   const result = schema.safeParse(input);
   if (result.success) throw new Error("Expected the input to fail");
@@ -33,7 +33,7 @@ describe("fieldErrors with the real domain schemas", () => {
 
   it("asks for a choice when an id is not one", () => {
     expect(errorsOf(setCampaignShareSchema, { campaignId: "5b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b", agencyOrgId: "nope", monthlyShare: 1 })).toEqual({ agencyOrgId: "Choose an option for agency." });
-    expect(errorsOf(createPartnerAgencySchema, { supplierId: "", name: "X" })).toEqual({ supplierId: "Choose an option for supplier." });
+    expect(errorsOf(createPartnerAgencySchema, { supplierId: "", name: "X" })).toEqual({ supplierId: "Choose an option for coordinator." });
   });
 
   it("keeps the first sentence for a field", () => {

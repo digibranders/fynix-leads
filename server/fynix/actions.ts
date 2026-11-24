@@ -46,7 +46,7 @@ const CAMPAIGN_FIELDS = [
 ] as const;
 
 const CAMPAIGN_LABELS = {
-  name: "Name", clientOrgId: "Client", agencyOrgId: "Supplier", startDate: "Start date", endDate: "End date", monthlyTarget: "Per month", totalTarget: "In total",
+  name: "Name", clientOrgId: "Client", agencyOrgId: "Coordinator", startDate: "Start date", endDate: "End date", monthlyTarget: "Per month", totalTarget: "In total",
   geography: "Geography", industries: "Industries", companySize: "Company size", icp: "Ideal customer", jobTitles: "Job titles", seniority: "Seniority",
   technologies: "Technologies", bantBudget: "Budget", bantAuthority: "Authority", bantNeed: "Need", bantTimeline: "Timeline", instructions: "Instructions",
   internalNotes: "Internal notes", timeZone: "Time zone", meetingMinutes: "Meeting length", status: "Status",
@@ -164,7 +164,7 @@ export async function addAgencyAction(_previous: FormState, formData: FormData):
     fieldNames: ["name"],
     build: () => ({ supplierId: field(formData, "supplierId"), name: field(formData, "name") }),
     schema: createPartnerAgencySchema,
-    labels: { name: "Name", supplierId: "Supplier" },
+    labels: { name: "Name", supplierId: "Coordinator" },
     perform: async (deps, actor, input) => {
       await createPartnerAgency(deps, actor, input);
     },

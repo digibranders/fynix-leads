@@ -32,7 +32,7 @@ export async function AppShell({ portal, userName, roleLabel, counts = {}, child
       {/* The surface is what sinks back behind the More sheet on a phone; the bar and the sheet stay outside it. */}
       <div className="app-surface min-h-dvh bg-canvas md:pl-(--sidebar-w) md:transition-[padding-left] md:duration-300 md:ease-(--ease-out)">
         <Topbar portal={config} />
-        <main id="main" tabIndex={-1} className="relative px-4 pt-1 pb-(--tabbar-clear) outline-none md:px-7 md:pb-12">
+        <main id="main" tabIndex={-1} className="relative px-4 pt-1 pb-(--tabbar-clear) outline-none md:px-7 md:pt-6 md:pb-12">
           <span id={TOP_SENTINEL_ID} aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-28" />
           <div className="mx-auto w-full max-w-(--content-max)">{children}</div>
         </main>

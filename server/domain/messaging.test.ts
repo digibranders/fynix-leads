@@ -44,7 +44,7 @@ describe("messaging domain service", () => {
     orgId: "77777777-7777-4777-8777-777777777777",
     orgKind: "agency",
     role: "manager",
-    displayName: "Supplier User",
+    displayName: "Coordinator User",
   };
 
   const partnerAgencyActor: MessagingActor = {
@@ -97,7 +97,7 @@ describe("messaging domain service", () => {
 
     it("strictly blocks Fynix from accessing supplier_agency conversations (spec D5)", () => {
       expect(() => assertConversationAccess(fynixActor, supplierAgencyConv)).toThrow(DomainError);
-      expect(() => assertConversationAccess(fynixActor, supplierAgencyConv)).toThrow("Fynix cannot access supplier-agency conversations.");
+      expect(() => assertConversationAccess(fynixActor, supplierAgencyConv)).toThrow("Fynix cannot access coordinator-agency conversations.");
     });
 
     it("allows Client to access its own client_fynix conversations", () => {
@@ -113,12 +113,12 @@ describe("messaging domain service", () => {
       expect(() => assertConversationAccess(clientActor, supplierAgencyConv)).toThrow(DomainError);
     });
 
-    it("allows Supplier to access its own supplier_fynix and supplier_agency conversations", () => {
+    it("allows Coordinator to access its own supplier_fynix and supplier_agency conversations", () => {
       expect(() => assertConversationAccess(supplierActor, supplierFynixConv)).not.toThrow();
       expect(() => assertConversationAccess(supplierActor, supplierAgencyConv)).not.toThrow();
     });
 
-    it("refuses Supplier from accessing client_fynix conversations", () => {
+    it("refuses Coordinator from accessing client_fynix conversations", () => {
       expect(() => assertConversationAccess(supplierActor, clientFynixConv)).toThrow(DomainError);
     });
 
@@ -141,10 +141,10 @@ describe("messaging domain service", () => {
           supplierOrgId: supplierActor.orgId,
           agencyOrgId: partnerAgencyActor.orgId,
         }),
-      ).rejects.toThrow("Fynix cannot access supplier-agency conversations.");
+      ).rejects.toThrow("Fynix cannot access coordinator-agency conversations.");
     });
 
-    it("refuses Client from creating conversations on the supplier or agency side", async () => {
+    it("refuses Client from creating conversations on the coordinator or agency side", async () => {
       await expect(
         getOrCreateConversation(dummyDb, clientActor, {
           campaignId,
@@ -354,8 +354,8 @@ describe("messaging domain service", () => {
         conversationId: supplierFynixConv.id,
         senderUserId: supplierActor.userId,
         senderRole: "supplier",
-        senderName: "Supplier User",
-        body: "Internal note: contact is internal@supplier.com",
+        senderName: "Coordinator User",
+        body: "Internal note: contact is internal@coordinator.com",
         createdAt: new Date("2026-12-15T09:00:00Z"),
       };
 
@@ -556,7 +556,7 @@ describe("messaging domain service", () => {
 
       await expect(
         listConversationMessages(mockDb, fynixActor, supplierAgencyConv.id),
-      ).rejects.toThrow("Fynix cannot access supplier-agency conversations.");
+      ).rejects.toThrow("Fynix cannot access coordinator-agency conversations.");
     });
 
     it("listUserNotifications returns user notifications", async () => {

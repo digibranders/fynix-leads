@@ -4,9 +4,12 @@
 
 Lead generation tracking portal. A client reviews leads that the Fynix team submits and approves, rejects or asks for clarification. An agency does the work behind Fynix. Fynix runs both. The foundations (database, sign-in, domain, Fynix set-up) and the client, supplier and agency portals are built on a real database: leads and their lifecycle, meetings, messaging and chat groups, and analytics. What is left before production is in `docs/deploy.md` (server set-up, scheduled jobs, gates G1 and G2).
 
+**Wording (owner decision, 2026-11-24):** the supplier role is called **Coordinator** in everything a person reads: menus, titles, forms, messages and errors. Code names, routes (`/supplier`, `/fynix/suppliers`), database values (`supplier_fynix`, the `Supplier` role label from `app_group_candidates()`) and the spec keep "supplier". Two places translate a database value for display: `RoleChip` in `components/messaging/group-chat.tsx` and the sender chip in `message-flow.tsx`. Write "coordinator" in any new visible text.
+
 ## Where things are
 
 - Spec and decisions: `docs/superpowers/specs/2026-11-11-leadgen-portal-design.md` (open questions in section 16).
+- Lead flow decision (2026-11-24): `docs/superpowers/specs/2026-11-24-lead-flow-decision.md`. The client decides after the meeting, with a note. It overrides the lifecycle in the v2 spec and is not built yet.
 - Plans: `docs/superpowers/plans/` (phase 0, the restyle to the hybrid design, the phase 1 master plan and the detailed plan for each sub-phase, `2026-11-11-phase-1a-foundation.md` first, then 1E tenant apps and phase 2 leads).
 - Approved look: `docs/superpowers/specs/design-directions-v3/` (`b-ledger-soft` is the chosen design, 2026-11-24, replacing the earlier hybrid in `design-directions-v2/d-hybrid`). The redesign plan and route checklist: `docs/superpowers/plans/2026-11-24-ledger-soft-redesign.md`.
 - Design system: `DESIGN.md` is authoritative (tokens, shapes, shadows, components, banned patterns, approved exceptions).

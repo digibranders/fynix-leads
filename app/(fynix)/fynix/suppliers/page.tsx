@@ -11,7 +11,7 @@ import { DomainError } from "@/server/domain/errors";
 import { listSupplierRows, readSupplierDetail } from "@/server/domain/supplier-overview";
 import { requireFynix } from "@/server/fynix/session";
 
-export const metadata: Metadata = { title: "Suppliers" };
+export const metadata: Metadata = { title: "Coordinators" };
 
 const one = (value: string | string[] | undefined): string | undefined => (typeof value === "string" ? value : undefined);
 
@@ -36,7 +36,7 @@ async function Suppliers({ searchParams }: { searchParams: PageProps<"/fynix/sup
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title="Suppliers" description="Suppliers and the partner agencies they bring in." actions={view.canWrite ? <AddSupplierButton /> : null} />
+      <PageHeader title="Coordinators" description="Coordinators and the partner agencies they bring in." actions={view.canWrite ? <AddSupplierButton /> : null} />
       <div className={detail === null ? undefined : "xl:grid xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start xl:gap-4"}>
         <SuppliersTable rows={rows} filter={filter} query={query} selectedRef={selectedRef} canWrite={view.canWrite} />
         {detail === "missing" && <PanelNotFound closeHref={suppliersHref({ status: filter, q: query })} />}

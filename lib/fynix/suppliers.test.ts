@@ -4,7 +4,7 @@ import { filterCounts, filterSuppliers, parseSupplierFilter, supplierSubtitle, s
 const rows = [
   { name: "Brightwater Leads", status: "active", agencyNames: ["Calder Bay Media"] },
   { name: "Northgate Outreach", status: "active", agencyNames: ["Ridgeline Partners"] },
-  { name: "Old Supplier", status: "archived", agencyNames: [] },
+  { name: "Old Coordinator", status: "archived", agencyNames: [] },
 ] as const;
 
 describe("parseSupplierFilter", () => {
@@ -17,10 +17,10 @@ describe("parseSupplierFilter", () => {
 describe("filterSuppliers and filterCounts", () => {
   it("keeps the rows of one status", () => {
     expect(filterSuppliers(rows, "active", "").map((row) => row.name)).toEqual(["Brightwater Leads", "Northgate Outreach"]);
-    expect(filterSuppliers(rows, "archived", "").map((row) => row.name)).toEqual(["Old Supplier"]);
+    expect(filterSuppliers(rows, "archived", "").map((row) => row.name)).toEqual(["Old Coordinator"]);
   });
 
-  it("searches the supplier name and its agencies' names without regard to case", () => {
+  it("searches the coordinator name and its agencies' names without regard to case", () => {
     expect(filterSuppliers(rows, "active", "  NORTH ").map((row) => row.name)).toEqual(["Northgate Outreach"]);
     expect(filterSuppliers(rows, "active", "calder").map((row) => row.name)).toEqual(["Brightwater Leads"]);
     expect(filterSuppliers(rows, "active", "zzz")).toEqual([]);

@@ -55,7 +55,7 @@ export async function createAliasIdentity(
   input: unknown,
 ): Promise<CreatedAliasIdentity> {
   if (actor.orgKind !== "agency") {
-    throw new DomainError("not-authorised", "Only agency and supplier members can create alias identities.");
+    throw new DomainError("not-authorised", "Only agency and coordinator members can create alias identities.");
   }
   const parsed = parseInput(createAliasIdentitySchema, input);
 
@@ -130,7 +130,7 @@ export async function verifyAliasCode(
   input: unknown,
 ): Promise<AliasIdentityRecord> {
   if (actor.orgKind !== "agency") {
-    throw new DomainError("not-authorised", "Only agency and supplier members can verify alias identities.");
+    throw new DomainError("not-authorised", "Only agency and coordinator members can verify alias identities.");
   }
   const parsed = parseInput(verifyAliasCodeSchema, input);
 

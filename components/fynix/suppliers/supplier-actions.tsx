@@ -10,11 +10,11 @@ export function AddSupplierButton({ primary = true }: { primary?: boolean }) {
       trigger={
         <Button variant={primary ? "default" : "secondary"} size={primary ? "default" : "sm"}>
           <Plus aria-hidden />
-          Add supplier
+          Add coordinator
         </Button>
       }
-      title="Add supplier"
-      description="A supplier is an agency that works with Fynix directly."
+      title="Add coordinator"
+      description="A coordinator is an agency that works with Fynix directly."
     >
       <AddSupplierForm />
     </FormSheet>

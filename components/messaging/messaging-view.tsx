@@ -178,9 +178,9 @@ function getPrivacyNote(role: MessagingViewProps["role"], side: string): string 
     return role === "client" ? "Client side. Only your team and Fynix see this thread." : "Client side. Only the client and Fynix see this thread. Supply side does not.";
   }
   if (side === "supplier_fynix") {
-    return role === "supplier" ? "Only your team and Fynix see this thread. Your agencies do not." : "Supplier side. Only the supplier and Fynix see this thread. Client does not.";
+    return role === "supplier" ? "Only your team and Fynix see this thread. Your agencies do not." : "Coordinator side. Only the coordinator and Fynix see this thread. Client does not.";
   }
-  return "Partner side. Only the supplier and agency see this thread. Fynix does not.";
+  return "Partner side. Only the coordinator and agency see this thread. Fynix does not.";
 }
 
 /**

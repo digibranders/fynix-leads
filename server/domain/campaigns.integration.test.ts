@@ -163,7 +163,7 @@ describe("campaign time zone and meeting length", () => {
   });
 });
 
-describe("a campaign's agency is its supplier", () => {
+describe("a campaign's agency is its coordinator", () => {
   it("refuses a partner agency as the agency of a new campaign, with not-a-supplier, and writes nothing", async () => {
     const partner = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: rig.world().northgate.id, name: "Ridgeway Partner Ltd" });
     expect((await refusal(createCampaign(rig.deps(), rig.actor, { ...input(), agencyOrgId: partner.id }))).code).toBe("not-a-supplier");

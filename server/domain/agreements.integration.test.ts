@@ -71,7 +71,7 @@ describe("publishAgreement", () => {
 
   it.each([
     ["an unknown campaign", { campaignId: UNKNOWN }, "not-found"],
-    ["a party that is neither client nor supplier", { party: "agency" }, "invalid-input"],
+    ["a party that is neither client nor coordinator", { party: "agency" }, "invalid-input"],
     ["a negative target", { monthlyTarget: -1 }, "invalid-input"],
     ["a fractional target", { totalTarget: 1.5 }, "invalid-input"],
     ["a dispute window of 0 hours", { disputeWindowHours: 0 }, "invalid-input"],
@@ -147,7 +147,7 @@ describe("recordAgreementAcceptance", () => {
     expect(audit?.subjectRef).toBe(`${firstCampaign(rig).publicRef} client v1`);
   });
 
-  it("records a supplier manager's acceptance of the supplier agreement, and keeps a network address it is given", async () => {
+  it("records a coordinator manager's acceptance of the coordinator agreement, and keeps a network address it is given", async () => {
     await setMemberRole(rig, supplierUser().id, "manager");
     const published = await publishAgreement(rig.deps(), rig.actor, base({ party: "supplier" }));
     const accepted = await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: published.id, userId: supplierUser().id, networkAddress: "203.0.113.7" });

@@ -37,7 +37,7 @@ async function addClientPerson(name: string): Promise<string> {
 }
 
 describe("listCampaignRows", () => {
-  it("lists every campaign with its client and supplier names, and is open to Fynix staff", async () => {
+  it("lists every campaign with its client and coordinator names, and is open to Fynix staff", async () => {
     const rows = await listCampaignRows(rig.deps(), rig.staffActor);
     expect(rows).toHaveLength(4);
     const first = rows.find((row) => row.id === campaignId());
@@ -133,7 +133,7 @@ describe("readAgreementsPage", () => {
     expect(page.options).toEqual([]);
   });
 
-  it("offers the supplier and its partner agencies that have no share yet, and not an archived one or another supplier's", async () => {
+  it("offers the coordinator and its partner agencies that have no share yet, and not an archived one or another coordinator's", async () => {
     const { brightpath, northgate } = rig.world();
     const partner = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: brightpath.id, name: "Ridgeway Partner Ltd" });
     const retired = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: brightpath.id, name: "Retired Partner Ltd" });

@@ -34,11 +34,11 @@ export function OverlayDemos() {
           <SheetTrigger render={<Button variant="secondary" />}>Open drawer</SheetTrigger>
           <SheetContent>
             <SheetHeader>
-              <SheetTitle>Add a supplier</SheetTitle>
+              <SheetTitle>Add a coordinator</SheetTitle>
               <SheetDescription>Forms open in a drawer so the list stays in view.</SheetDescription>
             </SheetHeader>
             <SheetFooter>
-              <SheetClose render={<Button />}>Add supplier</SheetClose>
+              <SheetClose render={<Button />}>Add coordinator</SheetClose>
             </SheetFooter>
           </SheetContent>
         </Sheet>

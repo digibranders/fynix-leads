@@ -30,7 +30,7 @@ export function BriefView({ campaign }: { campaign: CampaignHeader }) {
     <div className="flex flex-col gap-4">
       <p className="flex items-start gap-2 text-caption text-ink-muted">
         <Info aria-hidden size={14} className="mt-px shrink-0" />
-        Use Edit campaign above to change the brief. The supplier and its agencies see it, except the internal notes.
+        Use Edit campaign above to change the brief. The coordinator and its agencies see it, except the internal notes.
       </p>
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <div className="flex flex-col gap-4">

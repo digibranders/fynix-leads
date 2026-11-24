@@ -15,7 +15,7 @@ import { requireFynix } from "@/server/fynix/session";
 
 export const metadata: Metadata = { title: "Settings" };
 
-const PARTY_LABEL = { client: "Clients", agency: "Suppliers and agencies" } as const;
+const PARTY_LABEL = { client: "Clients", agency: "Coordinators and agencies" } as const;
 
 async function Settings() {
   const view = await requireFynix();

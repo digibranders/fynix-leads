@@ -32,7 +32,7 @@ export async function submitLeadAction(
 ): Promise<TenantActionResult> {
   const context = await getSessionContext();
   if (context === null || context.kind !== "agency") {
-    return { status: "error", message: "Only agency or supplier members can submit leads." };
+    return { status: "error", message: "Only agency or coordinator members can submit leads." };
   }
 
   const limits = getDomain();

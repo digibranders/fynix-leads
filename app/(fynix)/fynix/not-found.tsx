@@ -17,7 +17,7 @@ export default function FynixNotFound() {
           </Link>
         }
       >
-        That address does not match a supplier or a campaign. Check the reference, or pick one from the list.
+        That address does not match a coordinator or a campaign. Check the reference, or pick one from the list.
       </EmptyState>
     </Panel>
   );

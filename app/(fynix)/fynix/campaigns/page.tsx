@@ -19,7 +19,7 @@ async function Campaigns({ searchParams }: { searchParams: PageProps<"/fynix/cam
   const [rows, choices] = await Promise.all([listCampaignRows(deps, view.actor), view.canWrite ? listCampaignChoices(deps, view.actor) : Promise.resolve(null)]);
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title="Campaigns" description="Every campaign, with its client and the supplier that serves it." actions={choices === null ? null : <NewCampaignButton choices={choices} />} />
+      <PageHeader title="Campaigns" description="Every campaign, with its client and the coordinator that serves it." actions={choices === null ? null : <NewCampaignButton choices={choices} />} />
       <CampaignsTable rows={rows} query={one(params.q) ?? ""} />
     </div>
   );

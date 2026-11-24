@@ -119,7 +119,7 @@ export async function getSupplierOverviewMetrics(
   actor: TenantActor,
 ): Promise<SupplierOverviewMetrics> {
   if (actor.orgKind !== "agency") {
-    throw new DomainError("not-authorised", "Only supplier or agency actors can retrieve supplier overview metrics.");
+    throw new DomainError("not-authorised", "Only coordinator or agency actors can retrieve coordinator overview metrics.");
   }
 
   return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
@@ -226,7 +226,7 @@ export async function getSupplierOverviewMetrics(
     const agencyBreakdown: AgencyBreakdownItem[] = Array.from(agencyMap.entries()).map(([orgId, data]) => ({
       agencyId: orgId,
       agencyOrgId: orgId,
-      agencyName: orgId === actor.orgId ? "Direct Supplier" : (partnerNames.get(orgId) ?? "Partner agency"),
+      agencyName: orgId === actor.orgId ? "Direct Coordinator" : (partnerNames.get(orgId) ?? "Partner agency"),
       shareTarget: data.shareTarget,
       deliveredCount: data.deliveredCount,
       awaitingClientCount: data.awaitingClientCount,

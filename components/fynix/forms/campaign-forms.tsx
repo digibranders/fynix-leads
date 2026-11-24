@@ -64,7 +64,7 @@ export function AddHostForm({ campaignId, candidates, clientName }: { campaignId
       <Hidden name="campaignId" value={campaignId} />
       <FormGroup>
         <SelectField name="memberId" label={`Person at ${clientName}`} options={candidates.map((row) => ({ value: row.memberId, label: row.displayName }))} placeholder="Choose a person" />
-        <TextField name="jobTitle" label="Job title" helper="What the supplier is told this person does, for example Head of FP&A." />
+        <TextField name="jobTitle" label="Job title" helper="What the coordinator is told this person does, for example Head of FP&A." />
       </FormGroup>
     </ActionForm>
   );
@@ -104,8 +104,8 @@ function CampaignFields({ brief, name, timeZone, meetingMinutes }: { brief: Brie
         <TextAreaField name="bantNeed" label="Need" rows={2} defaultValue={brief?.bantNeed ?? ""} />
         <TextAreaField name="bantTimeline" label="Timeline" rows={2} defaultValue={brief?.bantTimeline ?? ""} />
       </FormGroup>
-      <FormGroup title="For the supplier">
-        <TextAreaField name="instructions" label="Instructions" rows={4} defaultValue={brief?.instructions ?? ""} helper="Shown to the supplier and its agencies." />
+      <FormGroup title="For the coordinator">
+        <TextAreaField name="instructions" label="Instructions" rows={4} defaultValue={brief?.instructions ?? ""} helper="Shown to the coordinator and its agencies." />
         <TextAreaField name="internalNotes" label="Internal notes" rows={3} defaultValue={brief?.internalNotes ?? ""} helper="For Fynix only. Nobody outside Fynix sees this." />
       </FormGroup>
       <FormGroup title="Settings">
@@ -124,7 +124,7 @@ export function CreateCampaignForm({ choices }: { choices: CampaignChoices }) {
     <ActionForm action={createCampaignAction} submitLabel="Create campaign" pendingLabel="Creating">
       <FormGroup title="Who it is for">
         <SelectField name="clientOrgId" label="Client" options={choices.clients.map((row) => ({ value: row.id, label: row.name }))} placeholder="Choose the client" />
-        <SelectField name="agencyOrgId" label="Supplier" options={choices.suppliers.map((row) => ({ value: row.id, label: row.name }))} placeholder="Choose the supplier" helper="The supplier then gives the campaign to its own agencies." />
+        <SelectField name="agencyOrgId" label="Coordinator" options={choices.suppliers.map((row) => ({ value: row.id, label: row.name }))} placeholder="Choose the coordinator" helper="The coordinator then gives the campaign to its own agencies." />
       </FormGroup>
       <CampaignFields brief={null} name="" timeZone="Europe/London" meetingMinutes={30} />
     </ActionForm>

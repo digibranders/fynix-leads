@@ -28,7 +28,7 @@ export function CampaignsTable({ rows, query = "" }: { rows: readonly CampaignRo
     <Panel aria-label="Campaigns">
       <PanelHeader title="All campaigns" count={rows.length} />
       <Toolbar trailing={`${shown.length} ${shown.length === 1 ? "campaign" : "campaigns"}`}>
-        <SearchForm defaultValue={query} placeholder="Campaign, client or supplier" />
+        <SearchForm defaultValue={query} placeholder="Campaign, client or coordinator" />
       </Toolbar>
       {shown.length === 0 ? (
         <EmptyState icon={Megaphone} title="No campaign matches">
@@ -42,7 +42,7 @@ export function CampaignsTable({ rows, query = "" }: { rows: readonly CampaignRo
                 <TableHead className="max-md:hidden">Ref</TableHead>
                 <TableHead>Campaign</TableHead>
                 <TableHead className="max-md:hidden">Client</TableHead>
-                <TableHead className="max-lg:hidden">Supplier</TableHead>
+                <TableHead className="max-lg:hidden">Coordinator</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>

@@ -150,8 +150,8 @@ describe("messaging, as each role", () => {
     expect(await listConversationMessages(rig.dbs.roles.leads_client.db, actor, conv.id)).toHaveLength(1);
   });
 
-  it("lets a supplier open a thread with Fynix, post to it, and read it back", async () => {
-    const actor: MessagingActor = { userId: cast.agencyActor.userId, orgId: cast.supplierOrgId, orgKind: "agency", role: "manager", displayName: "Supplier" };
+  it("lets a coordinator open a thread with Fynix, post to it, and read it back", async () => {
+    const actor: MessagingActor = { userId: cast.agencyActor.userId, orgId: cast.supplierOrgId, orgKind: "agency", role: "manager", displayName: "Coordinator" };
     const conv = await getOrCreateConversation(rig.dbs.roles.leads_agency.db, actor, { campaignId: cast.campaignId, side: "supplier_fynix", supplierOrgId: cast.supplierOrgId, subject: "Target" });
     await postMessage(rig.dbs.roles.leads_agency.db, actor, { conversationId: conv.id, body: "Is the share confirmed?" });
     expect(await listConversations(rig.dbs.roles.leads_agency.db, actor)).toHaveLength(1);
@@ -170,7 +170,7 @@ describe("agreements, as each role", () => {
     expect((await listCurrentAgreements(db, cast.clientActor, "client"))[0]?.acceptedAt).not.toBeNull();
   });
 
-  it("shows a supplier its supplier agreement and never the client's", async () => {
+  it("shows a coordinator its coordinator agreement and never the client's", async () => {
     const db = rig.dbs.roles.leads_agency.db;
     const rows = await listCurrentAgreements(db, cast.agencyActor, "supplier");
     expect(rows).toHaveLength(1);
@@ -188,8 +188,8 @@ describe("hosts, as a client", () => {
   });
 });
 
-describe("partner agencies, as a supplier", () => {
-  it("lists the supplier's partner agencies by name, with the shares they hold", async () => {
+describe("partner agencies, as a coordinator", () => {
+  it("lists the coordinator's partner agencies by name, with the shares they hold", async () => {
     const owner = rig.dbs.owner.db;
     const [partner] = await owner.insert(organisation).values({ publicRef: "ORG-6P3S", kind: "agency", name: "Ridgeway Partner Media Ltd", parentOrgId: cast.supplierOrgId }).returning({ id: organisation.id });
     if (partner === undefined) throw new Error("No partner");
@@ -203,7 +203,7 @@ describe("partner agencies, as a supplier", () => {
 });
 
 describe("which portal an agency organisation belongs to", () => {
-  it("tells a supplier from a partner agency", async () => {
+  it("tells a coordinator from a partner agency", async () => {
     const owner = rig.dbs.owner.db;
     expect(await isPartnerAgency(rig.dbs.roles.leads_agency.db, cast.agencyActor)).toBe(false);
     const [partner] = await owner.insert(organisation).values({ publicRef: "ORG-6P3S", kind: "agency", name: "Ridgeway Partner Media Ltd", parentOrgId: cast.supplierOrgId }).returning({ id: organisation.id });
@@ -235,7 +235,7 @@ describe("read receipts", () => {
 
   it("does nothing for a person who is not in the conversation", async () => {
     const client: MessagingActor = { userId: cast.clientActor.userId, orgId: cast.clientActor.orgId, orgKind: "client", role: "manager", displayName: "Client" };
-    const outsider: MessagingActor = { userId: cast.agencyActor.userId, orgId: cast.supplierOrgId, orgKind: "agency", role: "manager", displayName: "Supplier" };
+    const outsider: MessagingActor = { userId: cast.agencyActor.userId, orgId: cast.supplierOrgId, orgKind: "agency", role: "manager", displayName: "Coordinator" };
     const conv = await getOrCreateConversation(rig.dbs.roles.leads_client.db, client, { campaignId: cast.campaignId, side: "client_fynix", clientOrgId: cast.clientOrgId, subject: "Private" });
     await markConversationRead(rig.dbs.roles.leads_agency.db, outsider, conv.id);
     expect(await getConversationSeenAt(rig.dbs.roles.leads_client.db, client, conv.id)).toBeNull();
@@ -245,7 +245,7 @@ describe("read receipts", () => {
 describe("message attachments", () => {
   it("stores a file on your own message, lists it for the thread, and locates it for no one outside the thread", async () => {
     const client: MessagingActor = { userId: cast.clientActor.userId, orgId: cast.clientActor.orgId, orgKind: "client", role: "manager", displayName: "Client" };
-    const outsider: MessagingActor = { userId: cast.agencyActor.userId, orgId: cast.supplierOrgId, orgKind: "agency", role: "manager", displayName: "Supplier" };
+    const outsider: MessagingActor = { userId: cast.agencyActor.userId, orgId: cast.supplierOrgId, orgKind: "agency", role: "manager", displayName: "Coordinator" };
     const clientDb = rig.dbs.roles.leads_client.db;
     const conv = await getOrCreateConversation(clientDb, client, { campaignId: cast.campaignId, side: "client_fynix", clientOrgId: cast.clientOrgId, subject: "Files" });
     const message = await postMessage(clientDb, client, { conversationId: conv.id, body: "Attached brief.pdf" });
@@ -275,7 +275,7 @@ describe("message attachments", () => {
 });
 
 describe("campaigns for each portal", () => {
-  it("shows a client its own campaigns and a supplier the ones it serves, with counts that follow what each may see", async () => {
+  it("shows a client its own campaigns and a coordinator the ones it serves, with counts that follow what each may see", async () => {
     const db = rig.dbs.roles;
     await submitLead(db.leads_agency.db, rig.deps(), cast.agencyActor, leadInput([new Date(Date.now() + 3 * 86_400_000).toISOString()]));
 
@@ -319,7 +319,7 @@ describe("the campaign rules around a lead", () => {
   });
 });
 
-describe("a supplier assigns a campaign to its agencies", () => {
+describe("a coordinator assigns a campaign to its agencies", () => {
   async function partner(): Promise<string> {
     const owner = rig.dbs.owner.db;
     const [row] = await owner.insert(organisation).values({ publicRef: "ORG-7Q2M", kind: "agency", name: "Ridgeway Partner Media Ltd", parentOrgId: cast.supplierOrgId }).returning({ id: organisation.id });
@@ -327,7 +327,7 @@ describe("a supplier assigns a campaign to its agencies", () => {
     return row.id;
   }
 
-  it("lets a supplier manager assign, change and take back a share, and shows the partner its own", async () => {
+  it("lets a coordinator manager assign, change and take back a share, and shows the partner its own", async () => {
     const db = rig.dbs.roles.leads_agency.db;
     const partnerId = await partner();
     expect((await listAssignableAgencies(db, cast.agencyActor)).map((row) => row.id)).toContain(partnerId);
@@ -342,7 +342,7 @@ describe("a supplier assigns a campaign to its agencies", () => {
     await expect(unassignCampaignShare(db, cast.agencyActor, { campaignId: cast.campaignId, agencyOrgId: partnerId })).rejects.toThrow(/does not hold/);
   });
 
-  it("refuses an agency that is not the supplier's, and a supplier member who is not a manager", async () => {
+  it("refuses an agency that is not the coordinator's, and a coordinator member who is not a manager", async () => {
     const db = rig.dbs.roles.leads_agency.db;
     const owner = rig.dbs.owner.db;
     const [stranger] = await owner.insert(organisation).values({ publicRef: "ORG-9X4K", kind: "agency", name: "Unrelated Agency" }).returning({ id: organisation.id });
@@ -361,12 +361,12 @@ describe("group chats", () => {
     const admin = world.users[0];
     if (admin === undefined) throw new Error("No Fynix user");
     const fynix: MessagingActor = { userId: admin.id, orgId: null, orgKind: "fynix", role: "manager", displayName: "Fynix Admin" };
-    const supplier: MessagingActor = { userId: cast.agencyActor.userId, orgId: cast.supplierOrgId, orgKind: "agency", role: "manager", displayName: "Sam Supplier" };
+    const supplier: MessagingActor = { userId: cast.agencyActor.userId, orgId: cast.supplierOrgId, orgKind: "agency", role: "manager", displayName: "Sam Coordinator" };
     const client: MessagingActor = { userId: cast.clientActor.userId, orgId: cast.clientActor.orgId, orgKind: "client", role: "manager", displayName: "Cleo Client" };
     return { fynix, supplier, client, fynixDb: rig.dbs.roles.leads_fynix.db, agencyDb: rig.dbs.roles.leads_agency.db, clientDb: rig.dbs.roles.leads_client.db, adminId: admin.id };
   }
 
-  it("lets a Fynix admin add anyone, and a supplier add only its own people, its agencies and Fynix", async () => {
+  it("lets a Fynix admin add anyone, and a coordinator add only its own people, its agencies and Fynix", async () => {
     const { fynix, supplier, fynixDb, agencyDb, adminId } = actors();
     const owner = rig.dbs.owner.db;
     const [partner] = await owner.insert(organisation).values({ publicRef: "ORG-6P3S", kind: "agency", name: "Ridgeway Partner Media Ltd", parentOrgId: cast.supplierOrgId }).returning({ id: organisation.id });
@@ -388,7 +388,7 @@ describe("group chats", () => {
     expect(mine.some((row) => row.userId === adminId && row.roleLabel === "Fynix")).toBe(true);
   });
 
-  it("refuses a supplier adding a client person, and refuses a client creating a group", async () => {
+  it("refuses a coordinator adding a client person, and refuses a client creating a group", async () => {
     const { supplier, client, agencyDb, clientDb } = actors();
     await expect(createGroup(agencyDb, supplier, { name: "Mixed", memberIds: [cast.clientActor.userId] })).rejects.toThrow(/cannot add/);
     await expect(createGroup(clientDb, client, { name: "Nope", memberIds: [] })).rejects.toThrow(/cannot create/);
@@ -402,7 +402,7 @@ describe("group chats", () => {
     expect(info).toMatchObject({ name: "Share planning", canManage: true, memberCount: 2 });
     if (info === null) throw new Error("No group");
 
-    const sent = await postMessage(agencyDb, supplier, { conversationId, body: "Call me on 020 7946 0958 or sam@supplier.example" });
+    const sent = await postMessage(agencyDb, supplier, { conversationId, body: "Call me on 020 7946 0958 or sam@coordinator.example" });
     expect(sent.body).not.toContain("0958");
     expect(sent.body).not.toContain("sam@supplier.example");
     expect(sent.senderName).toBe("Sam");

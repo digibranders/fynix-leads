@@ -5,14 +5,14 @@ import { ShellSkeleton } from "@/components/shell/shell-skeleton";
 import { requireSupplier } from "@/server/supplier/session";
 
 export const metadata: Metadata = {
-  title: { default: "Supplier portal", template: "%s | Supplier portal" },
+  title: { default: "Coordinator portal", template: "%s | Coordinator portal" },
   robots: { index: false, follow: false },
 };
 
 async function SupplierShellLoader({ children }: { children: React.ReactNode }) {
   const view = await requireSupplier();
   return (
-    <AppShell portal="supplier" userName={view.name} roleLabel={view.canWrite ? "Supplier manager" : "Supplier member"}>
+    <AppShell portal="supplier" userName={view.name} roleLabel={view.canWrite ? "Coordinator manager" : "Coordinator member"}>
       {children}
     </AppShell>
   );

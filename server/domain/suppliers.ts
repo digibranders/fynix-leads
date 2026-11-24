@@ -40,9 +40,9 @@ export async function createPartnerAgency(deps: DomainDeps, actor: FynixActor, i
   const parsed = parseInput(createPartnerAgencySchema, input);
   return fynixWrite(deps.fynixDb, actor, async ({ tx, audit }) => {
     const [supplier] = await tx.select(organisationColumns).from(organisation).where(eq(organisation.id, parsed.supplierId)).limit(1).for("share");
-    if (supplier === undefined) throw new DomainError("not-found", "There is no such supplier.");
-    if (supplier.kind !== "agency" || supplier.parentOrgId !== null) throw new DomainError("not-a-supplier", "A partner agency works under a supplier: an agency with no parent.");
-    if (supplier.status !== "active") throw new DomainError("organisation-archived", "The supplier is archived.");
+    if (supplier === undefined) throw new DomainError("not-found", "There is no such coordinator.");
+    if (supplier.kind !== "agency" || supplier.parentOrgId !== null) throw new DomainError("not-a-supplier", "A partner agency works under a coordinator: an agency with no parent.");
+    if (supplier.status !== "active") throw new DomainError("organisation-archived", "The coordinator is archived.");
     const created = await insertOrganisation(tx, deps.randomBytes, { kind: "agency", name: parsed.name, brandName: null, parentOrgId: supplier.id });
     await audit({ action: "organisation.create", subject: { table: "organisation", id: created.id, ref: created.publicRef }, before: null, after: snapshotOrganisation(created) });
     return created;
@@ -70,7 +70,7 @@ export async function createPartnerAgencyBySupplier(
   input: unknown,
 ): Promise<OrganisationRecord> {
   if (actor.role !== "manager") {
-    throw new DomainError("not-authorised", "Only a supplier manager can create partner agencies.");
+    throw new DomainError("not-authorised", "Only a coordinator manager can create partner agencies.");
   }
   const parsed = parseInput(createSupplierPartnerAgencySchema, input);
   return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {

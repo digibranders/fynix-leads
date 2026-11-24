@@ -31,7 +31,7 @@ function refresh(): void {
 /** Adds an alias identity. The 6-digit code goes to the alias mailbox and is never shown here. */
 export async function createAliasAction(_previous: AliasActionResult, formData: FormData): Promise<AliasActionResult> {
   const actor = await agencyActor();
-  if (actor === null) return { status: "error", message: "Only agency or supplier members can add an alias." };
+  if (actor === null) return { status: "error", message: "Only agency or coordinator members can add an alias." };
   try {
     const created = await createAliasIdentity(getDatabase("leads_agency").db, getDomain(), actor, {
       clientBrandName: field(formData, "clientBrandName"),
@@ -50,7 +50,7 @@ export async function createAliasAction(_previous: AliasActionResult, formData: 
 /** Checks the code the person read from the alias mailbox. */
 export async function verifyAliasAction(_previous: AliasActionResult, formData: FormData): Promise<AliasActionResult> {
   const actor = await agencyActor();
-  if (actor === null) return { status: "error", message: "Only agency or supplier members can verify an alias." };
+  if (actor === null) return { status: "error", message: "Only agency or coordinator members can verify an alias." };
   try {
     await verifyAliasCode(getDatabase("leads_agency").db, getDomain(), actor, { publicRef: field(formData, "publicRef"), code: field(formData, "code") });
     refresh();

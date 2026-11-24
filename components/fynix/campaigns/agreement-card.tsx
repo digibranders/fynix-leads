@@ -33,7 +33,7 @@ function monthsLine(monthly: number, total: number): string {
 
 /** One party's agreement: the version in force, who accepted it, the three numbers, the counting rules in words and the history line. */
 export function AgreementCard({ side, withName, campaignId, timeZone, canWrite }: Props) {
-  const title = side.party === "client" ? "Client agreement" : "Supplier agreement";
+  const title = side.party === "client" ? "Client agreement" : "Coordinator agreement";
   const { current, previous } = side;
 
   if (current === null) {

@@ -42,10 +42,10 @@ const detail: SupplierDetail = {
   campaigns: [{ id: "c1", publicRef: "CMP-7Q2X", name: "UK mid-market finance teams", status: "active", clientName: "Kestrel Ledger" }],
 };
 
-describe("Suppliers", () => {
-  it("renders the table with the filter, the selection and a row per supplier", () => {
+describe("Coordinators", () => {
+  it("renders the table with the filter, the selection and a row per coordinator", () => {
     const html = renderToStaticMarkup(<SuppliersTable rows={[supplierRow(), supplierRow({ id: "s2", publicRef: "ORG-S2MD", name: "Saltmarsh Demand", agencyCount: 0, peopleCount: 0, campaignCount: 0, inviteWaiting: true }), supplierRow({ id: "s3", name: "Old One", status: "archived" })]} filter="active" query="" selectedRef="ORG-N7GT" canWrite />);
-    expect(html).toContain("All suppliers");
+    expect(html).toContain("All coordinators");
     expect(html).toContain("Northgate Outreach");
     expect(html).toContain('data-state="selected"');
     expect(html).toContain("Invite sent, not accepted yet");
@@ -53,15 +53,15 @@ describe("Suppliers", () => {
     expect(html).not.toContain("Old One");
   });
 
-  it("says there are no suppliers, with the action for an admin and a plain line for staff", () => {
-    expect(renderToStaticMarkup(<SuppliersTable rows={[]} filter="active" query="" selectedRef={undefined} canWrite />)).toContain("Add supplier");
+  it("says there are no coordinators, with the action for an admin and a plain line for staff", () => {
+    expect(renderToStaticMarkup(<SuppliersTable rows={[]} filter="active" query="" selectedRef={undefined} canWrite />)).toContain("Add coordinator");
     const staff = renderToStaticMarkup(<SuppliersTable rows={[]} filter="active" query="" selectedRef={undefined} canWrite={false} />);
-    expect(staff).toContain("No suppliers yet");
-    expect(staff).not.toContain("Add supplier");
+    expect(staff).toContain("No coordinators yet");
+    expect(staff).not.toContain("Add coordinator");
   });
 
   it("says nothing matches a search", () => {
-    expect(renderToStaticMarkup(<SuppliersTable rows={[supplierRow()]} filter="active" query="zzz" selectedRef={undefined} canWrite />)).toContain("No supplier matches");
+    expect(renderToStaticMarkup(<SuppliersTable rows={[supplierRow()]} filter="active" query="zzz" selectedRef={undefined} canWrite />)).toContain("No coordinator matches");
   });
 
   it("renders the panel with its three sections, and the actions only for an admin", () => {
@@ -120,7 +120,7 @@ const agreements: AgreementsPage = {
 };
 
 describe("Agreements and shares", () => {
-  it("shows an accepted client agreement, a waiting supplier agreement and the history line", () => {
+  it("shows an accepted client agreement, a waiting coordinator agreement and the history line", () => {
     const client = renderToStaticMarkup(<AgreementCard side={agreements.client} withName="Kestrel Ledger" campaignId="c1" timeZone="Europe/London" canWrite />);
     expect(client).toContain("Accepted by Daniel Okafor on Wed 4 Nov");
     expect(client).toContain("over 6 months");
@@ -140,7 +140,7 @@ describe("Agreements and shares", () => {
   it("shows the shares, the total against the target and the over-allocation notice", () => {
     const html = renderToStaticMarkup(<SharesCard page={agreements} campaignId="c1" supplierName="Northgate Outreach" timeZone="Europe/London" now={day("2026-11-13")} canWrite />);
     expect(html).toContain("15 of 14");
-    expect(html).toContain("Shares add up to 15 a month, 1 more than the supplier&#x27;s target of 14.");
+    expect(html).toContain("Shares add up to 15 a month, 1 more than the coordinator&#x27;s target of 14.");
     expect(html).toContain("Delivered in November");
     expect(html).toContain("Meera Sethi, Fynix, 2 Nov");
     expect(html).toContain("Own bookings");

@@ -12,15 +12,15 @@ const { AddHostForm, CreateCampaignForm, EditCampaignForm, NewAgreementForm, Sha
 const { BlockForm, HoursForm } = await import("@/components/fynix/forms/availability-forms");
 
 describe("the forms render", () => {
-  it("Add supplier and Add agency have a name and the primary button", () => {
+  it("Add coordinator and Add agency have a name and the primary button", () => {
     const supplier = renderToStaticMarkup(<AddSupplierForm />);
     expect(supplier).toContain('name="name"');
-    expect(supplier).toContain("Add supplier");
+    expect(supplier).toContain("Add coordinator");
     const agency = renderToStaticMarkup(<AddAgencyForm supplierId="s1" />);
     expect(agency).toContain('name="supplierId" value="s1"');
   });
 
-  it("Invite a person hides the organisation for a supplier alone and offers a choice when it has agencies", () => {
+  it("Invite a person hides the organisation for a coordinator alone and offers a choice when it has agencies", () => {
     const alone = renderToStaticMarkup(<InvitePersonForm organisations={[{ id: "s1", name: "Northgate" }]} />);
     expect(alone).toContain('name="organisationId" value="s1"');
     expect(alone).toContain('name="alias"');
@@ -69,7 +69,7 @@ describe("the forms render", () => {
     expect(html).toContain("Pick a date");
   });
 
-  it("New campaign asks for a client and a supplier, the dates, the targets and the brief", () => {
+  it("New campaign asks for a client and a coordinator, the dates, the targets and the brief", () => {
     const html = renderToStaticMarkup(<CreateCampaignForm choices={{ clients: [{ id: "c1", name: "Halden Foods" }], suppliers: [{ id: "s1", name: "Brightpath" }] }} />);
     for (const name of ["clientOrgId", "agencyOrgId", "name", "startDate", "endDate", "monthlyTarget", "totalTarget", "geography", "industries", "bantBudget", "instructions", "internalNotes", "timeZone", "meetingMinutes"]) {
       expect(html, name).toContain(`name="${name}"`);

@@ -28,7 +28,7 @@ async function addPerson(orgId: string, kind: "agency" | "client", name: string,
 }
 
 describe("listSupplierRows", () => {
-  it("lists the seeded suppliers by name with their counts, and leaves out clients and partner agencies", async () => {
+  it("lists the seeded coordinators by name with their counts, and leaves out clients and partner agencies", async () => {
     const { brightpath, northgate } = rig.world();
     await createPartnerAgency(rig.deps(), rig.actor, { supplierId: brightpath.id, name: "Ridgeway Partner Ltd" });
     const rows = await listSupplierRows(rig.deps(), rig.actor);
@@ -37,7 +37,7 @@ describe("listSupplierRows", () => {
     expect(rows[1]).toMatchObject({ publicRef: northgate.publicRef, agencyCount: 0, peopleCount: 1, campaignCount: 2 });
   });
 
-  it("counts the people of the partner agencies in the supplier's people", async () => {
+  it("counts the people of the partner agencies in the coordinator's people", async () => {
     const { brightpath } = rig.world();
     const partner = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: brightpath.id, name: "Ridgeway Partner Ltd" });
     await addPerson(partner.id, "agency", "Partner Person", "partner.person@ridgeway.example");
@@ -45,7 +45,7 @@ describe("listSupplierRows", () => {
     expect(row).toMatchObject({ publicRef: brightpath.publicRef, peopleCount: 2 });
   });
 
-  it("says the invite is waiting for a supplier with nobody in it and a live invite, and stops saying so once it is revoked", async () => {
+  it("says the invite is waiting for a coordinator with nobody in it and a live invite, and stops saying so once it is revoked", async () => {
     await publishApprovedTerms(rig);
     const created = await createSupplier(rig.deps(), rig.actor, { name: "Saltmarsh Demand" });
     expect((await listSupplierRows(rig.deps(), rig.actor)).find((row) => row.id === created.id)).toMatchObject({ peopleCount: 0, inviteWaiting: false });
@@ -55,7 +55,7 @@ describe("listSupplierRows", () => {
     expect((await listSupplierRows(rig.deps(), rig.actor)).find((row) => row.id === created.id)?.inviteWaiting).toBe(false);
   });
 
-  it("includes archived suppliers with their status, and is open to Fynix staff", async () => {
+  it("includes archived coordinators with their status, and is open to Fynix staff", async () => {
     await setOrganisationStatus(rig.deps(), rig.actor, rig.world().northgate.id, "archived");
     const rows = await listSupplierRows(rig.deps(), rig.staffActor);
     expect(rows.map((row) => row.status)).toEqual(["active", "archived"]);
@@ -63,7 +63,7 @@ describe("listSupplierRows", () => {
 });
 
 describe("readSupplierDetail", () => {
-  it("reads a supplier with its partner agencies, its people with their emails, and its campaigns with their clients", async () => {
+  it("reads a coordinator with its partner agencies, its people with their emails, and its campaigns with their clients", async () => {
     await publishApprovedTerms(rig);
     const { brightpath, kestrel, halden } = rig.world();
     const partner = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: brightpath.id, name: "Ridgeway Partner Ltd" });

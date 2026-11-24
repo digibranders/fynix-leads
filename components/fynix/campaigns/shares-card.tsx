@@ -18,7 +18,7 @@ type Props = {
 
 /** The sentence for an over-allocation: allowed, and said plainly so the admin can check it. */
 function overSentence(total: number, target: number): string {
-  return `Shares add up to ${total} a month, ${total - target} more than the supplier's target of ${target}. This is allowed and shown here so you can check it.`;
+  return `Shares add up to ${total} a month, ${total - target} more than the coordinator's target of ${target}. This is allowed and shown here so you can check it.`;
 }
 
 /** The monthly shares: each agency's share of the supplier's target, the total against the target, and who changed each last. */
@@ -41,8 +41,8 @@ export function SharesCard({ page, campaignId, supplierName, timeZone, now, canW
       {shares.length === 0 ? (
         <EmptyState icon={UsersThree} title="No shares yet">
           {summary.supplierMonthlyTarget === null
-            ? "Shares split the supplier's monthly target between the supplier and its partner agencies. Add the supplier agreement first to compare them with its target."
-            : "Shares split the supplier's monthly target between the supplier and its partner agencies."}
+            ? "Shares split the coordinator's monthly target between the coordinator and its partner agencies. Add the coordinator agreement first to compare them with its target."
+            : "Shares split the coordinator's monthly target between the coordinator and its partner agencies."}
         </EmptyState>
       ) : (
         <div className="px-2.5">
@@ -94,7 +94,7 @@ export function SharesCard({ page, campaignId, supplierName, timeZone, now, canW
       {shares.length > 0 && summary.supplierMonthlyTarget === null && (
         <p className="flex items-start gap-2 px-5 pt-3 pb-4 text-caption text-ink-muted">
           <Info aria-hidden size={14} className="mt-px shrink-0" />
-          There is no supplier agreement yet, so there is no target to compare the total with.
+          There is no coordinator agreement yet, so there is no target to compare the total with.
         </p>
       )}
     </Panel>

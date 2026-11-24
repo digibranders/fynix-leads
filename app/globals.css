@@ -576,3 +576,19 @@
     content: attr(data-label);
   }
 }
+
+/* The bar above the page from tablet up: white glass on the canvas, a hairline of shadow under it, and a softer lift once the page scrolls beneath. */
+@media (min-width: 768px) {
+  .glass-top {
+    background: rgb(255 255 255 / 0.78);
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
+    backdrop-filter: blur(22px) saturate(160%);
+    box-shadow: 0 1px 0 rgb(12 30 46 / 0.06);
+    transition: box-shadow 260ms var(--ease-out);
+  }
+  .glass-top[data-scrolled="true"] {
+    box-shadow:
+      0 1px 0 rgb(12 30 46 / 0.07),
+      0 14px 30px -18px rgb(12 30 46 / 0.28);
+  }
+}

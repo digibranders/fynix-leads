@@ -28,7 +28,7 @@ describe.each(TENANT_ROLES)("%s column lists", (role: TenantRoleName) => {
     }
   });
 
-  it("client lead columns never expose supplier or agency identities", () => {
+  it("client lead columns never expose coordinator or agency identities", () => {
     const names = columnNames(TENANT_COLUMNS.leads_client.lead);
     expect(names.filter((name) => CLIENT_LEAD_FORBIDDEN.includes(name))).toEqual([]);
   });
@@ -38,7 +38,7 @@ describe.each(TENANT_ROLES)("%s column lists", (role: TenantRoleName) => {
     expect(names.filter((name) => TENANT_MEETING_FORBIDDEN.includes(name))).toEqual([]);
   });
 
-  it("client conversation columns never expose supplier or agency org ids", () => {
+  it("client conversation columns never expose coordinator or agency org ids", () => {
     const names = columnNames(TENANT_COLUMNS.leads_client.conversation);
     expect(names.filter((name) => CLIENT_CONVERSATION_FORBIDDEN.includes(name))).toEqual([]);
   });

@@ -45,7 +45,7 @@ export async function getOrCreateConversation(
 
   if (actor.orgKind === "fynix") {
     if (parsed.side === "supplier_agency") {
-      throw new DomainError("not-authorised", "Fynix cannot access supplier-agency conversations.");
+      throw new DomainError("not-authorised", "Fynix cannot access coordinator-agency conversations.");
     }
   } else if (actor.orgKind === "client") {
     if (parsed.side !== "client_fynix") {
@@ -59,7 +59,7 @@ export async function getOrCreateConversation(
       throw new DomainError("not-authorised", "Agencies cannot access client-fynix conversations.");
     }
     if (parsed.side === "supplier_fynix" && parsed.supplierOrgId && parsed.supplierOrgId !== actor.orgId) {
-      throw new DomainError("not-authorised", "Supplier cannot create conversations for another supplier.");
+      throw new DomainError("not-authorised", "Coordinator cannot create conversations for another coordinator.");
     }
     if (
       parsed.side === "supplier_agency" &&
@@ -194,7 +194,7 @@ export async function postMessage(
         : senderRole === "client"
           ? "Client"
           : senderRole === "supplier"
-            ? "Supplier"
+            ? "Coordinator"
             : "Agency");
 
     const messageCols = messageColumnsFor(actor.orgKind);
@@ -340,7 +340,7 @@ export async function forwardMessage(
         : senderRole === "client"
           ? "Client"
           : senderRole === "supplier"
-            ? "Supplier"
+            ? "Coordinator"
             : "Agency");
 
     const messageCols = messageColumnsFor(actor.orgKind);
