@@ -18,6 +18,8 @@ const state = vi.hoisted(() => ({
   requestReset: vi.fn(),
   completeReset: vi.fn(),
   signOut: vi.fn(),
+  changePassword: vi.fn(),
+  session: vi.fn(),
 }));
 
 vi.mock("next/headers", () => ({ headers: async () => state.requestHeaders }));
@@ -26,11 +28,12 @@ vi.mock("next/navigation", () => ({
     throw new Redirected(to);
   },
 }));
-vi.mock("@/server/auth", () => ({ getAuthServices: () => ({ services: true }), getAuth: () => ({ api: { signOut: state.signOut } }) }));
+vi.mock("@/server/auth", () => ({ getAuthServices: () => ({ services: true }), getAuth: () => ({ api: { signOut: state.signOut } }), getSessionContext: () => state.session() }));
+vi.mock("@/server/auth/change-password", () => ({ changeOwnPassword: state.changePassword }));
 vi.mock("@/server/auth/sign-in", () => ({ signInWithPassword: state.signIn }));
 vi.mock("@/server/auth/password-reset", () => ({ requestPasswordReset: state.requestReset, completePasswordReset: state.completeReset }));
 
-const { completePasswordResetAction, requestPasswordResetAction, signInAction, signOutAction } = await import("./actions");
+const { changePasswordAction, completePasswordResetAction, requestPasswordResetAction, signInAction, signOutAction } = await import("./actions");
 
 const form = (values: Record<string, string>): FormData => {
   const data = new FormData();
@@ -128,5 +131,49 @@ describe("signOutAction", () => {
     state.signOut.mockResolvedValue({ success: true });
     expect(await redirectTarget(signOutAction())).toBe("/sign-in?signed-out=1");
     expect(state.signOut).toHaveBeenCalledWith({ headers: state.requestHeaders });
+  });
+});
+
+describe("changePasswordAction", () => {
+  const signedIn = { userId: "user-1" };
+  const send = () => changePasswordAction({ status: "idle" }, form({ currentPassword: "old-secret-1!", newPassword: "new-secret-2!" }));
+
+  it("passes the account, both passwords and the request headers to the service, and says the change is done", async () => {
+    state.session.mockResolvedValue(signedIn);
+    state.changePassword.mockResolvedValue({ status: "changed" });
+    expect(await send()).toEqual({ status: "done", redirectTo: null });
+    expect(state.changePassword).toHaveBeenCalledWith({ services: true }, { userId: "user-1", currentPassword: "old-secret-1!", newPassword: "new-secret-2!", headers: state.requestHeaders });
+  });
+
+  it("needs a session, and never calls the service without one", async () => {
+    state.session.mockResolvedValue(null);
+    expect(await send()).toMatchObject({ status: "error", message: "Your session has ended. Sign in again." });
+    expect(state.changePassword).not.toHaveBeenCalled();
+  });
+
+  it("puts each refusal on its own field and never gives a password back", async () => {
+    state.session.mockResolvedValue(signedIn);
+    state.changePassword.mockResolvedValueOnce({ status: "wrong-password" });
+    const wrong = await send();
+    expect(wrong).toMatchObject({ status: "error", message: null, fields: { currentPassword: "That is not your current password." } });
+    state.changePassword.mockResolvedValueOnce({ status: "weak-password", message: "Use at least 8 characters." });
+    const weak = await send();
+    expect(weak).toMatchObject({ status: "error", fields: { newPassword: "Use at least 8 characters." } });
+    for (const result of [wrong, weak]) {
+      expect(JSON.stringify(result)).not.toContain("old-secret-1!");
+      expect(JSON.stringify(result)).not.toContain("new-secret-2!");
+    }
+  });
+
+  it("words a limit, a breach service outage and a fault", async () => {
+    state.session.mockResolvedValue(signedIn);
+    state.changePassword.mockResolvedValueOnce({ status: "rate-limited", retryAfterSeconds: 600 });
+    expect(await send()).toMatchObject({ status: "error", message: "Too many attempts. Try again in 10 minutes." });
+    state.changePassword.mockResolvedValueOnce({ status: "check-unavailable" });
+    expect(await send()).toMatchObject({ status: "error", message: "We could not check that password just now. Try again in a minute." });
+    state.changePassword.mockRejectedValueOnce(new Error("secret@example.com down"));
+    const fault = await send();
+    expect(fault).toMatchObject({ status: "error", message: "Something went wrong. Try again in a moment." });
+    expect(JSON.stringify(fault)).not.toContain("secret@example.com");
   });
 });

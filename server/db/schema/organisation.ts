@@ -25,6 +25,8 @@ export const organisation = pgTable(
     parentOrgId: uuid("parent_org_id"),
     /** `agency` while a parent is set, else null. The composite foreign key below uses it to insist the parent is an agency. */
     parentOrgKind: organisationKind("parent_org_kind").generatedAlwaysAs(sql`CASE WHEN parent_org_id IS NULL THEN NULL ELSE 'agency'::organisation_kind END`),
+    /** The IANA zone the company works in, shown to the people who book meetings with it. Null until Fynix sets it. */
+    timeZone: text("time_zone"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

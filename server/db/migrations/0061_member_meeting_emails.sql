@@ -1,0 +1,1 @@
+ALTER TABLE "member" ADD COLUMN "meeting_emails" boolean DEFAULT true NOT NULL;

@@ -54,3 +54,20 @@ export async function fynixWrite<T>(db: Database, actor: FynixActor, work: (writ
 export async function fynixRead<T>(db: Database, actor: FynixActor, work: (tx: ScopedTransaction) => Promise<T>): Promise<T> {
   return withScope(db, { orgId: null, userId: actor.userId }, work);
 }
+
+/**
+ * A Fynix change that any active Fynix member may make to their own record, staff as well as admins: the profile page. It is `fynixWrite` without the admin
+ * rule, and it is for nothing else. The change itself is made by a database function that finds the row by the account in the scope (migration 0062), so
+ * the callback never names a row; it still has to audit, because the database refuses the commit of an unaudited Fynix change.
+ */
+export async function fynixSelfWrite<T>(db: Database, actor: FynixActor, work: (write: FynixWrite) => Promise<T>): Promise<T> {
+  return withScope(db, { orgId: null, userId: actor.userId }, async (tx) => {
+    const [active] = await tx
+      .select({ id: member.id })
+      .from(member)
+      .where(and(eq(member.userId, actor.userId), eq(member.orgKind, "fynix"), eq(member.status, "active")))
+      .limit(1);
+    if (active === undefined) throw new DomainError("not-authorised", "The signed-in user is not an active member of Fynix.");
+    return work({ tx, actorMemberId: active.id, audit: (entry) => appendAudit(tx, entry) });
+  });
+}

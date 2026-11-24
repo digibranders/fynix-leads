@@ -47,6 +47,11 @@ export function resetCompleteChecks(address: string): readonly RateLimitCheck[] 
   return [{ key: `reset-complete:network:${address}`, rule: { limit: 20, windowSeconds: ONE_HOUR } }];
 }
 
+/** Changing your own password: the current password is a guess target for anyone holding an open session, so a person gets ten tries an hour. */
+export function passwordChangeChecks(userId: string): readonly RateLimitCheck[] {
+  return [{ key: `password-change:user:${userId}`, rule: { limit: 10, windowSeconds: ONE_HOUR } }];
+}
+
 /**
  * Looking an invite link up (the accept-invite page) is a way to guess tokens, so it is limited before the lookup, per
  * network. The token itself is 32 random bytes, so guessing is hopeless; the limit is for the load and for scanners.

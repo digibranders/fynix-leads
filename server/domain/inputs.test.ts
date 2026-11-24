@@ -7,8 +7,11 @@ import {
   disputeLeadSchema,
   forwardMessageSchema,
   getOrCreateConversationSchema,
+  addCollateralSchema,
+  clientProfileSchema,
   issueInviteSchema,
   markNotificationReadSchema,
+  memberDetailsSchema,
   postMessageSchema,
   recordMeetingOutcomeSchema,
   resolveDisputeSchema,
@@ -41,8 +44,8 @@ describe("parseInput", () => {
 });
 
 describe("organisation input", () => {
-  it("needs a brand name for a client and refuses one for an agency", () => {
-    expect(createOrganisationSchema.safeParse({ kind: "client", name: "A" }).success).toBe(false);
+  it("makes the brand name optional for a client and refuses one for an agency", () => {
+    expect(createOrganisationSchema.safeParse({ kind: "client", name: "A" }).success).toBe(true);
     expect(createOrganisationSchema.safeParse({ kind: "agency", name: "A", brandName: "B" }).success).toBe(false);
     expect(createOrganisationSchema.safeParse({ kind: "agency", name: "A" }).success).toBe(true);
   });
@@ -87,9 +90,9 @@ describe("campaign input", () => {
 
 describe("invite input", () => {
   it("lower-cases nothing itself, defaults the role and needs a real address", () => {
-    expect(issueInviteSchema.parse({ organisationId: UUID, email: "a@example.com", name: "A" }).role).toBe("member");
-    expect(issueInviteSchema.safeParse({ organisationId: UUID, email: "not an address", name: "A" }).success).toBe(false);
-    expect(issueInviteSchema.safeParse({ organisationId: UUID, email: "a@example.com", name: "A", role: "owner" }).success).toBe(false);
+    expect(issueInviteSchema.parse({ organisationId: UUID, email: "a@example.com", name: "A", jobTitle: "Buyer" }).role).toBe("member");
+    expect(issueInviteSchema.safeParse({ organisationId: UUID, email: "not an address", name: "A", jobTitle: "Buyer" }).success).toBe(false);
+    expect(issueInviteSchema.safeParse({ organisationId: UUID, email: "a@example.com", name: "A", jobTitle: "Buyer", role: "owner" }).success).toBe(false);
   });
 });
 
@@ -234,5 +237,49 @@ describe("lead inputs", () => {
   it("validates markNotificationReadSchema", () => {
     expect(markNotificationReadSchema.safeParse({ notificationId: UUID }).success).toBe(true);
     expect(markNotificationReadSchema.safeParse({ notificationId: "invalid" }).success).toBe(false);
+  });
+});
+
+describe("phase 1 people and profile schemas", () => {
+  const PERSON = { organisationId: UUID, email: "a@example.com", name: "A Person", jobTitle: "Buyer" };
+
+  it("requires a job title on an invite, keeps the phone optional and checks it", () => {
+    expect(issueInviteSchema.safeParse({ organisationId: UUID, email: "a@example.com", name: "A Person" }).success).toBe(false);
+    expect(issueInviteSchema.safeParse(PERSON).success).toBe(true);
+    expect(issueInviteSchema.parse({ ...PERSON, phone: " +44 (0)20 7946 0000 " }).phone).toBe("+44 (0)20 7946 0000");
+    expect(issueInviteSchema.safeParse({ ...PERSON, phone: "abc" }).success).toBe(false);
+  });
+
+  it("maps the Fynix roles admin and staff to manager and member", () => {
+    expect(issueInviteSchema.parse({ ...PERSON, role: "admin" }).role).toBe("manager");
+    expect(issueInviteSchema.parse({ ...PERSON, role: "staff" }).role).toBe("member");
+  });
+
+  it("makes a client's brand name optional, and keeps it and a profile for clients only", () => {
+    expect(createOrganisationSchema.safeParse({ kind: "client", name: "Orchard Foods" }).success).toBe(true);
+    expect(createOrganisationSchema.safeParse({ kind: "agency", name: "Ridgeway", profile: { introduction: "a", services: "b", differentiator: "c" } }).success).toBe(false);
+    expect(createOrganisationSchema.safeParse({ kind: "client", name: "Orchard Foods", timeZone: "Mars/Olympus" }).success).toBe(false);
+  });
+
+  it("takes a time zone on update, and null clears it", () => {
+    expect(updateOrganisationSchema.parse({ timeZone: null })).toEqual({ timeZone: null });
+    expect(updateOrganisationSchema.safeParse({ timeZone: "Nowhere/Land" }).success).toBe(false);
+  });
+
+  it("needs the three profile answers and treats case studies as optional", () => {
+    expect(clientProfileSchema.safeParse({ introduction: "a", services: "b", differentiator: "c" }).success).toBe(true);
+    expect(clientProfileSchema.safeParse({ introduction: "a", services: "b" }).success).toBe(false);
+  });
+
+  it("accepts a web link as collateral and nothing else", () => {
+    const base = { clientOrgId: UUID, kind: "link", title: "Brochure" };
+    expect(addCollateralSchema.safeParse({ ...base, url: "https://example.com/a.pdf" }).success).toBe(true);
+    expect(addCollateralSchema.safeParse({ ...base, url: "javascript:alert(1)" }).success).toBe(false);
+    expect(addCollateralSchema.safeParse({ ...base, kind: "file", url: "https://example.com/a.pdf" }).success).toBe(false);
+  });
+
+  it("needs a member detail change to change something", () => {
+    expect(memberDetailsSchema.safeParse({}).success).toBe(false);
+    expect(memberDetailsSchema.safeParse({ phone: null }).success).toBe(true);
   });
 });

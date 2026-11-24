@@ -30,7 +30,8 @@ export type DomainErrorCode =
   | "prospect-duplicate"
   | "alias-not-verified"
   | "invalid-lead-stage"
-  | "dispute-window-expired";
+  | "dispute-window-expired"
+  | "duplicate-name";
 
 export class DomainError extends Error {
   constructor(

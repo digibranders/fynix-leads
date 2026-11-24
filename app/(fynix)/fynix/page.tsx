@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { Megaphone, Scales } from "@phosphor-icons/react/dist/ssr";
+import { SetupChecklist } from "@/components/fynix/setup-checklist";
 import { EmptyState } from "@/components/kit/empty-state";
 import { Hero } from "@/components/kit/hero";
 import { ListRow } from "@/components/kit/list";
@@ -15,6 +16,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { countByGroup, PIPELINE_GROUPS } from "@/lib/leads/pipeline";
 import { getDatabase } from "@/server/db/client";
 import { getDomain } from "@/server/domain";
+import { checklistItems } from "@/lib/fynix/setup-checklist";
+import { readSetupFindings } from "@/server/domain/setup-overview";
 import { getFynixOverviewMetrics } from "@/server/domain/analytics";
 import { listCampaignRows } from "@/server/domain/campaign-overview";
 import { listFynixLeads } from "@/server/domain/leads";
@@ -25,10 +28,11 @@ export const metadata: Metadata = { title: "Overview" };
 async function Overview() {
   const view = await requireFynix();
   const deps = getDomain();
-  const [metrics, campaigns, leads] = await Promise.all([
+  const [metrics, campaigns, leads, findings] = await Promise.all([
     getFynixOverviewMetrics(deps.fynixDb, view.actor),
     listCampaignRows(deps, view.actor),
     listFynixLeads(getDatabase("leads_fynix").db, view.actor),
+    readSetupFindings(deps, view.actor),
   ]);
   const active = campaigns.filter((row) => row.status === "active");
   const counts = countByGroup(leads);
@@ -60,6 +64,8 @@ async function Overview() {
           </Link>
         }
       />
+
+      <SetupChecklist items={checklistItems(findings)} />
 
       <Hero
         kicker={kicker}

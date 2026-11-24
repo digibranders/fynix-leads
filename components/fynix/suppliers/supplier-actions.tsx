@@ -1,6 +1,6 @@
-import { Plus, UserPlus } from "@phosphor-icons/react/dist/ssr";
+import { Plus } from "@phosphor-icons/react/dist/ssr";
 import { Button } from "@/components/ui/button";
-import { AddAgencyForm, AddSupplierForm, InvitePersonForm } from "../forms/supplier-forms";
+import { AddAgencyForm, AddSupplierForm } from "../forms/supplier-forms";
 import { FormSheet } from "../forms/form-sheet";
 
 /** The header button. Shown only to an admin. */
@@ -34,23 +34,6 @@ export function AddAgencyButton({ supplierId, supplierName }: { supplierId: stri
       description={`A partner agency that works under ${supplierName}.`}
     >
       <AddAgencyForm supplierId={supplierId} />
-    </FormSheet>
-  );
-}
-
-export function InvitePersonButton({ organisations, supplierName }: { organisations: readonly { readonly id: string; readonly name: string }[]; supplierName: string }) {
-  return (
-    <FormSheet
-      trigger={
-        <Button>
-          <UserPlus aria-hidden />
-          Invite a person
-        </Button>
-      }
-      title="Invite a person"
-      description={`They get an email with a link to set a password. They join ${supplierName} or one of its agencies.`}
-    >
-      <InvitePersonForm organisations={organisations} />
     </FormSheet>
   );
 }

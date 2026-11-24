@@ -26,6 +26,14 @@ describe("phone tab bar", () => {
     }
   });
 
+  it("keeps Team in the More sheet of the client, coordinator and agency, never on the bar", () => {
+    for (const kind of ["client", "supplier", "agency"] as const) {
+      const portal = PORTALS[kind];
+      expect(moreGroups(portal).flatMap((group) => group.items.map((item) => item.href)), kind).toContain(`${portal.homeHref}/team`);
+      expect(portal.mobileTabs, kind).not.toContain(`${portal.homeHref}/team`);
+    }
+  });
+
   it("keeps leads in the client's More sheet", () => {
     expect(moreGroups(PORTALS.client).flatMap((group) => group.items.map((item) => item.label))).toContain("Leads");
   });
@@ -73,6 +81,10 @@ describe("breadcrumb", () => {
   it("adds the record below a section", () => {
     expect(breadcrumb(PORTALS.fynix, "/fynix/campaigns/CMP-4821")).toEqual(["Campaigns", "CMP-4821"]);
     expect(breadcrumb(PORTALS.agency, "/agency/leads/new")).toEqual(["Leads", "New"]);
+  });
+
+  it("names the profile page", () => {
+    expect(breadcrumb(PORTALS.supplier, "/supplier/profile")).toEqual(["Profile"]);
   });
 
   it("falls back to the portal name outside any section", () => {

@@ -42,13 +42,14 @@ export function issueSentence(label: string, issue: Issue): string {
 
 /**
  * The first sentence for each field of the form. A zod path starts with the schema key; `labels` names the fields the person
- * sees, and a key without a label falls back to the key itself.
+ * sees, `rename` maps a schema key to the name of the form field that carries it, and a key without a label falls back to the key itself.
  */
-export function fieldErrors(error: z.ZodError, labels: Readonly<Record<string, string>>): FormValues {
+export function fieldErrors(error: z.ZodError, labels: Readonly<Record<string, string>>, rename: Readonly<Record<string, string>> = {}): FormValues {
   const found: Record<string, string> = {};
   for (const issue of error.issues) {
-    const key = String(issue.path[0] ?? "");
-    if (key !== "" && found[key] === undefined) found[key] = issueSentence(labels[key] ?? capitalise(key), issue);
+    const schemaKey = String(issue.path[0] ?? "");
+    const key = rename[schemaKey] ?? schemaKey;
+    if (key !== "" && found[key] === undefined) found[key] = issueSentence(labels[schemaKey] ?? capitalise(schemaKey), issue);
   }
   return found;
 }

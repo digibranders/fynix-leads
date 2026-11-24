@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inviteLookupChecks, inviteRedeemChecks, leadSubmitChecks, messagePostChecks, resetCompleteChecks, resetRequestChecks, retryMessage, signInChecks } from "./rate-limit-rules";
+import { inviteLookupChecks, inviteRedeemChecks, leadSubmitChecks, messagePostChecks, passwordChangeChecks, resetCompleteChecks, resetRequestChecks, retryMessage, signInChecks } from "./rate-limit-rules";
 
 describe("signInChecks", () => {
   const checks = signInChecks("a@example.com", "203.0.113.9");
@@ -68,5 +68,12 @@ describe("messagePostChecks and leadSubmitChecks", () => {
   it("key each user separately, so one user cannot spend another's budget", () => {
     expect(messagePostChecks("u1", 1)[0]?.key).not.toBe(messagePostChecks("u2", 1)[0]?.key);
     expect(leadSubmitChecks("u1")).toEqual([{ key: "lead-submit:user:u1", rule: { limit: 60, windowSeconds: 3600 } }]);
+  });
+});
+
+describe("passwordChangeChecks", () => {
+  it("allows ten tries an hour per account, and shares nothing between accounts", () => {
+    expect(passwordChangeChecks("user-1")).toEqual([{ key: "password-change:user:user-1", rule: { limit: 10, windowSeconds: 3600 } }]);
+    expect(passwordChangeChecks("user-2")[0]?.key).not.toBe(passwordChangeChecks("user-1")[0]?.key);
   });
 });

@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { PLACEHOLDER_TERMS } from "@/lib/terms/placeholder";
 import type { DatabaseHandle } from "@/server/db/pool";
 import {
@@ -10,6 +11,8 @@ import {
   campaign,
   campaignHost,
   campaignShare,
+  clientCollateral,
+  clientProfile,
   emailOutbox,
   hostBlock,
   hostHours,
@@ -51,6 +54,22 @@ export interface SeededUser {
   readonly passwordHash: string;
   readonly sessionToken: string;
   readonly resetToken: string;
+  /** Stored on the member row; no tenant outside the person's own organisation may find either. */
+  readonly jobTitle: string;
+  readonly phone: string;
+}
+
+/** A client's profile and its collateral, each value distinctive. `removedTitle` is hidden collateral that no tenant may read. */
+export interface SeededProfile {
+  readonly client: SeededOrganisation;
+  readonly timeZone: string;
+  readonly introduction: string;
+  readonly services: string;
+  readonly differentiator: string;
+  readonly caseStudies: string;
+  readonly collateralTitle: string;
+  readonly collateralUrl: string;
+  readonly removedTitle: string;
 }
 
 /** A pending invite, with the token that was never stored and the hash that was. */
@@ -110,6 +129,8 @@ export interface SeedWorld {
    * the two clients, the two agencies. A sixth user is a second Fynix member with the `member` role: Fynix staff, who may not change set-up.
    */
   readonly users: readonly SeededUser[];
+  /** One profile per client, in the order of `clients`. */
+  readonly profiles: readonly SeededProfile[];
   /** The phase 1C rows. Empty (`null`) when the world was seeded without users. */
   readonly domain: SeededDomain | null;
   /** The phase 1D rows. `null` unless the world was seeded with `withSetup: true`. */
@@ -146,9 +167,11 @@ async function seedUsers(
     await db.insert(account).values({ accountId: row.id, providerId: "credential", userId: row.id, password: passwordHash });
     await db.insert(session).values({ token: sessionToken, userId: row.id, expiresAt: new Date(Date.now() + 3_600_000) });
     await db.insert(verification).values({ identifier: `reset-password:${resetToken}`, value: row.id, expiresAt: new Date(Date.now() + 3_600_000) });
-    const memberRow = firstRow(await db.insert(member).values({ userId: row.id, orgId: organisation.id, orgKind: organisation.kind, role, displayName: name }).returning({ id: member.id }), `member ${email}`);
+    const jobTitle = `JOBTITLE-${n} Head of Seed ${organisation.publicRef}`;
+    const phone = `+44 7700 9${String(n).padStart(2, "0")}${String(n).padStart(3, "0")}`;
+    const memberRow = firstRow(await db.insert(member).values({ userId: row.id, orgId: organisation.id, orgKind: organisation.kind, role, displayName: name, jobTitle, phone }).returning({ id: member.id }), `member ${email}`);
     memberIds.set(row.id, memberRow.id);
-    users.push({ id: row.id, email, name, organisation, role, passwordHash, sessionToken, resetToken });
+    users.push({ id: row.id, email, name, organisation, role, passwordHash, sessionToken, resetToken, jobTitle, phone });
   }
   return { users, memberIds };
 }
@@ -309,6 +332,30 @@ export async function seedWorld(owner: DatabaseHandle, options: { readonly withU
     return { id: row.id, publicRef, name, internalNotes, client, agency };
   };
 
+  const profiles: SeededProfile[] = [];
+  for (const [index, client] of [kestrel, halden].entries()) {
+    const label = client.brandName ?? "client";
+    const timeZone = index === 0 ? "Africa/Nairobi" : "Asia/Kolkata";
+    await db.update(organisation).set({ timeZone }).where(eq(organisation.id, client.id));
+    const profile = {
+      client,
+      timeZone,
+      introduction: `PROFILE-INTRO ${label} introduces itself like this`,
+      services: `PROFILE-SERVICES ${label} offers pallets and parcels`,
+      differentiator: `PROFILE-DIFF ${label} delivers in two hours`,
+      caseStudies: `PROFILE-CASES ${label} cut a rival's costs by a third`,
+      collateralTitle: `COLLATERAL-TITLE ${label} brochure`,
+      collateralUrl: `https://collateral.example/${label.toLowerCase()}/brochure`,
+      removedTitle: `COLLATERAL-REMOVED ${label} withdrawn deck`,
+    };
+    await db.insert(clientProfile).values({ clientOrgId: client.id, introduction: profile.introduction, services: profile.services, differentiator: profile.differentiator, caseStudies: profile.caseStudies });
+    await db.insert(clientCollateral).values([
+      { clientOrgId: client.id, kind: "link", title: profile.collateralTitle, url: profile.collateralUrl },
+      { clientOrgId: client.id, kind: "link", title: profile.removedTitle, url: `https://collateral.example/${label.toLowerCase()}/removed`, removedAt: new Date() },
+    ]);
+    profiles.push(profile);
+  }
+
   const campaigns = [
     await insertCampaign("CMP-7Q2X", "UK freight decision makers", "INTERNAL-NOTE margin on this one is thin", kestrel, brightpath),
     await insertCampaign("CMP-4M6R", "Retail grocery buyers", "INTERNAL-NOTE halden pays late", halden, brightpath),
@@ -330,5 +377,5 @@ export async function seedWorld(owner: DatabaseHandle, options: { readonly withU
   const domain = seeded === null || options.withDomain === false ? null : await seedDomain(owner, { fynix, kestrel, northgate }, seeded);
   if (options.withSetup === true && seeded === null) throw new Error("withSetup needs the users: the agreements, the acceptance and the host belong to people.");
   const setup = options.withSetup === true && seeded !== null ? await seedSetup(owner, { kestrel, brightpath, campaigns }, seeded) : null;
-  return { fynix, kestrel, halden, brightpath, northgate, campaigns, clients: [kestrel, halden], agencies: [brightpath, northgate], users: seeded?.users ?? [], domain, setup };
+  return { fynix, kestrel, halden, brightpath, northgate, campaigns, clients: [kestrel, halden], agencies: [brightpath, northgate], users: seeded?.users ?? [], profiles, domain, setup };
 }

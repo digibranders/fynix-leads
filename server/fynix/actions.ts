@@ -3,7 +3,7 @@
 import { after } from "next/server";
 import { z } from "zod";
 import { parseBlockForm } from "@/lib/fynix/block-form";
-import type { FormState } from "@/lib/fynix/form-state";
+import { fieldErrors, type FormState } from "@/lib/fynix/form-state";
 import { parseHoursGrid } from "@/lib/fynix/hours-form";
 import { sendQueuedMail } from "@/server/domain";
 import { publishAgreement } from "@/server/domain/agreements";
@@ -11,6 +11,11 @@ import { addHostBlock, removeHostBlock, setHostHours } from "@/server/domain/ava
 import { addCampaignHost, deactivateCampaignHost } from "@/server/domain/hosts";
 import {
   addCampaignHostSchema,
+  addCollateralSchema,
+  clientProfileSchema,
+  memberDetailsSchema,
+  updateClientProfileSchema,
+  updateOrganisationSchema,
   addHostBlockSchema,
   createCampaignSchema,
   createPartnerAgencySchema,
@@ -27,11 +32,12 @@ import {
   updateCampaignSchema,
   uuidSchema,
 } from "@/server/domain/inputs";
-import { issueInvite } from "@/server/domain/invites";
+import { issueInvite, resendInvite, revokeInvite } from "@/server/domain/invites";
+import { reactivateMember, suspendMember, updateMemberDetails } from "@/server/domain/members";
 import { createCampaign, updateCampaign } from "@/server/domain/campaigns";
 import { removeCampaignShare, setCampaignShare } from "@/server/domain/shares";
 import { fynixResolveDispute } from "@/server/domain/leads";
-import { createOrganisation } from "@/server/domain/organisations";
+import { addCollateral, createOrganisation, removeCollateral, setOrganisationStatus, updateClientProfile, updateOrganisation } from "@/server/domain/organisations";
 import { createPartnerAgency, createSupplier } from "@/server/domain/suppliers";
 import { publishTerms } from "@/server/domain/terms";
 import { field, numberField, runAction } from "@/server/fynix/run-action";
@@ -128,20 +134,198 @@ export async function addSupplierAction(_previous: FormState, formData: FormData
     labels: { name: "Name" },
     perform: async (deps, actor, input) => {
       const created = await createSupplier(deps, actor, input);
-      return { redirectTo: `/fynix/suppliers?supplier=${created.publicRef}` };
+      return { redirectTo: `/fynix/suppliers/${created.publicRef}` };
     },
   });
 }
 
+const PROFILE_FIELDS = ["introduction", "services", "differentiator", "caseStudies"] as const;
+const PROFILE_LABELS = { introduction: "Introduction", services: "Services", differentiator: "What sets them apart", caseStudies: "Case studies" } as const;
+
+function profileBody(formData: FormData) {
+  const caseStudies = field(formData, "caseStudies").trim();
+  return { introduction: field(formData, "introduction"), services: field(formData, "services"), differentiator: field(formData, "differentiator"), ...(caseStudies === "" ? {} : { caseStudies }) };
+}
+
+/** The link a client form may carry. Both boxes empty is fine; one without the other is a problem on the box that is missing. */
+function collateralBody(formData: FormData) {
+  return { kind: "link" as const, title: field(formData, "collateralTitle"), url: field(formData, "collateralUrl").trim() };
+}
+
+function collateralProblems(formData: FormData): Readonly<Record<string, string>> {
+  const { title, url } = collateralBody(formData);
+  if (title.trim() === "" && url === "") return {};
+  const checked = addCollateralSchema.omit({ clientOrgId: true }).safeParse({ ...collateralBody(formData), title: title.trim() });
+  return checked.success ? {} : fieldErrors(checked.error, { title: "Link title", url: "Link address" }, { title: "collateralTitle", url: "collateralUrl" });
+}
+
 export async function addClientAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  const timeZone = field(formData, "timeZone").trim();
+  const profileProblems = clientProfileSchema.safeParse(profileBody(formData));
   return runAction({
     formData,
-    fieldNames: ["name", "brandName"],
-    build: () => ({ kind: "client", name: field(formData, "name"), brandName: field(formData, "brandName") }),
+    fieldNames: ["name", "timeZone", ...PROFILE_FIELDS, "collateralTitle", "collateralUrl"],
+    precheck: () => ({ ...(profileProblems.success ? {} : fieldErrors(profileProblems.error, PROFILE_LABELS)), ...collateralProblems(formData) }),
+    build: () => ({ kind: "client", name: field(formData, "name"), ...(timeZone === "" ? {} : { timeZone }), profile: profileBody(formData), confirmDuplicate: field(formData, "confirmDuplicate") === "on" }),
     schema: createOrganisationSchema,
-    labels: { name: "Name", brandName: "Brand name" },
+    labels: { name: "Name", timeZone: "Time zone" },
+    errorFields: { "duplicate-name": "confirmDuplicate" },
+    messages: { "duplicate-name": "A client with that name already exists." },
     perform: async (deps, actor, input) => {
-      await createOrganisation(deps, actor, input);
+      const created = await createOrganisation(deps, actor, input);
+      const link = collateralBody(formData);
+      if (link.url !== "") await addCollateral(deps, actor, { clientOrgId: created.id, ...link, title: link.title.trim() });
+      return { redirectTo: `/fynix/clients/${created.publicRef}` };
+    },
+  });
+}
+
+/** Changes a client's or coordinator's name and time zone. A blank time zone clears it. */
+export async function updateOrganisationAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  const timeZone = field(formData, "timeZone").trim();
+  const organisationId = field(formData, "organisationId");
+  return runAction({
+    formData,
+    fieldNames: ["name", "timeZone"],
+    build: () => ({ name: field(formData, "name"), timeZone: timeZone === "" ? null : timeZone }),
+    schema: updateOrganisationSchema,
+    labels: { name: "Name", timeZone: "Time zone" },
+    perform: async (deps, actor, input) => {
+      await updateOrganisation(deps, actor, organisationId, input);
+    },
+  });
+}
+
+const statusInput = z.object({ organisationId: uuidSchema, status: z.enum(["active", "archived"]) }).strict();
+
+export async function setOrganisationStatusAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runAction({
+    formData,
+    fieldNames: [],
+    build: () => ({ organisationId: field(formData, "organisationId"), status: field(formData, "status") }),
+    schema: statusInput,
+    labels: {},
+    perform: async (deps, actor, input) => {
+      const parsed = statusInput.parse(input);
+      await setOrganisationStatus(deps, actor, parsed.organisationId, parsed.status);
+    },
+  });
+}
+
+export async function updateProfileAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  const caseStudies = field(formData, "caseStudies").trim();
+  return runAction({
+    formData,
+    fieldNames: PROFILE_FIELDS,
+    build: () => ({ clientOrgId: field(formData, "clientOrgId"), ...profileBody(formData), caseStudies: caseStudies === "" ? null : caseStudies }),
+    schema: updateClientProfileSchema,
+    labels: PROFILE_LABELS,
+    perform: async (deps, actor, input) => {
+      await updateClientProfile(deps, actor, input);
+    },
+  });
+}
+
+export async function addCollateralAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runAction({
+    formData,
+    fieldNames: ["title", "url"],
+    build: () => ({ clientOrgId: field(formData, "clientOrgId"), kind: "link", title: field(formData, "title"), url: field(formData, "url").trim() }),
+    schema: addCollateralSchema,
+    labels: { title: "Title", url: "Address" },
+    perform: async (deps, actor, input) => {
+      await addCollateral(deps, actor, input);
+    },
+  });
+}
+
+const collateralInput = z.object({ collateralId: uuidSchema }).strict();
+
+export async function removeCollateralAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runAction({
+    formData,
+    fieldNames: [],
+    build: () => ({ collateralId: field(formData, "collateralId") }),
+    schema: collateralInput,
+    labels: {},
+    messages: { "invalid-transition": "That link is removed already." },
+    perform: async (deps, actor, input) => {
+      await removeCollateral(deps, actor, collateralInput.parse(input).collateralId);
+    },
+  });
+}
+
+/** Changes a person's name, job title and phone. A blank phone clears it. */
+export async function updatePersonAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  const phone = field(formData, "phone").trim();
+  const memberId = field(formData, "memberId");
+  return runAction({
+    formData,
+    fieldNames: ["displayName", "jobTitle", "phone"],
+    build: () => ({ displayName: field(formData, "displayName"), jobTitle: field(formData, "jobTitle"), phone: phone === "" ? null : phone }),
+    schema: memberDetailsSchema,
+    labels: { displayName: "Name", jobTitle: "Job title", phone: "Phone" },
+    perform: async (deps, actor, input) => {
+      await updateMemberDetails(deps, actor, memberId, input);
+    },
+  });
+}
+
+const memberInput = z.object({ memberId: uuidSchema }).strict();
+
+export async function suspendPersonAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runAction({
+    formData,
+    fieldNames: [],
+    build: () => ({ memberId: field(formData, "memberId") }),
+    schema: memberInput,
+    labels: {},
+    messages: { "invalid-transition": "That person is suspended already." },
+    perform: async (deps, actor, input) => {
+      await suspendMember(deps, actor, memberInput.parse(input).memberId);
+    },
+  });
+}
+
+export async function reactivatePersonAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runAction({
+    formData,
+    fieldNames: [],
+    build: () => ({ memberId: field(formData, "memberId") }),
+    schema: memberInput,
+    labels: {},
+    messages: { "invalid-transition": "That person is active already." },
+    perform: async (deps, actor, input) => {
+      await reactivateMember(deps, actor, memberInput.parse(input).memberId);
+    },
+  });
+}
+
+const inviteInput = z.object({ inviteId: uuidSchema }).strict();
+
+export async function resendInviteAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runAction({
+    formData,
+    fieldNames: [],
+    build: () => ({ inviteId: field(formData, "inviteId") }),
+    schema: inviteInput,
+    labels: {},
+    perform: async (deps, actor, input) => {
+      await resendInvite(deps, actor, inviteInput.parse(input).inviteId);
+      sendMailAfterResponse();
+    },
+  });
+}
+
+export async function revokeInviteAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runAction({
+    formData,
+    fieldNames: [],
+    build: () => ({ inviteId: field(formData, "inviteId") }),
+    schema: inviteInput,
+    labels: {},
+    perform: async (deps, actor, input) => {
+      await revokeInvite(deps, actor, inviteInput.parse(input).inviteId);
     },
   });
 }
@@ -173,29 +357,41 @@ export async function addAgencyAction(_previous: FormState, formData: FormData):
   });
 }
 
+const INVITE_ROLES: ReadonlySet<string> = new Set(["member", "manager", "admin", "staff"]);
+
+/** The invite and its email are saved together; sending the email waits until the response has gone. */
+function sendMailAfterResponse(): void {
+  after(async () => {
+    try {
+      await sendQueuedMail();
+    } catch (error) {
+      console.error("Sending queued mail failed", error instanceof Error ? error.name : "unknown error");
+    }
+  });
+}
+
 export async function invitePersonAction(_previous: FormState, formData: FormData): Promise<FormState> {
   return runAction({
     formData,
-    fieldNames: ["organisationId", "name", "email", "role", "alias"],
-    build: () => ({
-      organisationId: field(formData, "organisationId"),
-      name: field(formData, "name"),
-      email: field(formData, "email"),
-      role: field(formData, "role") === "manager" ? "manager" : "member",
-      alias: field(formData, "alias"),
-    }),
+    fieldNames: ["organisationId", "name", "jobTitle", "email", "phone", "role", "alias"],
+    build: () => {
+      const phone = field(formData, "phone").trim();
+      const alias = field(formData, "alias").trim();
+      return {
+        organisationId: field(formData, "organisationId"),
+        name: field(formData, "name"),
+        jobTitle: field(formData, "jobTitle"),
+        email: field(formData, "email"),
+        role: INVITE_ROLES.has(field(formData, "role")) ? field(formData, "role") : "member",
+        ...(phone === "" ? {} : { phone }),
+        ...(alias === "" ? {} : { alias }),
+      };
+    },
     schema: issueInviteSchema,
-    labels: { organisationId: "Organisation", name: "Name", email: "Email", role: "Role", alias: "Fynix name" },
+    labels: { organisationId: "Organisation", name: "Name", jobTitle: "Job title", email: "Email", phone: "Phone", role: "Role", alias: "Name the client sees" },
     perform: async (deps, actor, input) => {
       await issueInvite(deps, actor, issueInviteSchema.parse(input));
-      // The invite and its email are saved together; sending the email waits until the response has gone.
-      after(async () => {
-        try {
-          await sendQueuedMail();
-        } catch (error) {
-          console.error("Sending queued mail failed", error instanceof Error ? error.name : "unknown error");
-        }
-      });
+      sendMailAfterResponse();
     },
   });
 }

@@ -1,4 +1,4 @@
-import { foreignKey, index, pgTable, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import { boolean, foreignKey, index, pgTable, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { user } from "./auth";
 import { memberRole, memberStatus, organisationKind } from "./enums";
 import { organisation } from "./organisation";
@@ -26,6 +26,11 @@ export const member = pgTable(
     orgKind: organisationKind("org_kind").notNull(),
     role: memberRole("role").notNull().default("member"),
     displayName: text("display_name").notNull(),
+    /** Required when a person is invited (the invite carries it); null for people who joined before phase 1. */
+    jobTitle: text("job_title"),
+    phone: text("phone"),
+    /** Whether this person gets the emails about meetings. A client manager sets it; the email phase reads it. */
+    meetingEmails: boolean("meeting_emails").notNull().default(true),
     status: memberStatus("status").notNull().default("active"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

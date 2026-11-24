@@ -5,7 +5,7 @@ import { withInviteHash } from "@/server/db/scope";
 import { captureErrorText, queryAs } from "@/server/db/testing";
 import { DomainError, type DomainErrorCode } from "@/server/domain/errors";
 import { hashInviteToken } from "@/server/domain/invite-token";
-import { issueInvite, previewInvite, resendInvite, revokeInvite } from "@/server/domain/invites";
+import { issueInvite, listInvites, previewInvite, resendInvite, revokeInvite } from "@/server/domain/invites";
 import { setOrganisationStatus } from "@/server/domain/organisations";
 import { seedPlaceholderTerms } from "@/server/domain/placeholder-terms";
 import { auditRowsFor, latestInviteLink, publishApprovedTerms } from "@/server/domain/test-helpers";
@@ -33,8 +33,8 @@ const refusal = async (work: Promise<unknown>): Promise<DomainErrorCode> => {
   }
   throw new Error("Expected a DomainError, but the call succeeded.");
 };
-const CLIENT_INVITE = () => ({ organisationId: rig.world().kestrel.id, email: "Priya.Nair@Kestrel.example", name: "Priya Nair" });
-const AGENCY_INVITE = () => ({ organisationId: rig.world().northgate.id, email: "rahul@northgate.example", name: "Rahul Verma", alias: "Rahul, Fynix" });
+const CLIENT_INVITE = () => ({ organisationId: rig.world().kestrel.id, email: "Priya.Nair@Kestrel.example", name: "Priya Nair", jobTitle: "Operations lead" });
+const AGENCY_INVITE = () => ({ organisationId: rig.world().northgate.id, email: "rahul@northgate.example", name: "Rahul Verma", jobTitle: "Operations lead", alias: "Rahul, Fynix" });
 const invites = () => rig.dbs.owner.db.select().from(invite).orderBy(invite.createdAt);
 const mails = () => rig.dbs.owner.db.select().from(emailOutbox).orderBy(emailOutbox.createdAt);
 const SOME_ADDRESS = "203.0.113.50";
@@ -127,9 +127,10 @@ describe("issueInvite", () => {
   });
 
   it.each([
-    ["an agency invite with no alias", (): Record<string, unknown> => ({ ...AGENCY_INVITE(), alias: undefined }), "invalid-input"],
+    ["an invite with no job title", (): Record<string, unknown> => ({ ...CLIENT_INVITE(), jobTitle: undefined }), "invalid-input"],
+    ["an invite with a phone that is not a number", (): Record<string, unknown> => ({ ...CLIENT_INVITE(), phone: "call me maybe" }), "invalid-input"],
     ["a client invite with an alias", (): Record<string, unknown> => ({ ...CLIENT_INVITE(), alias: "Priya, Fynix" }), "invalid-input"],
-    ["an invite into the Fynix organisation", (): Record<string, unknown> => ({ ...CLIENT_INVITE(), organisationId: rig.world().fynix.id }), "invalid-input"],
+    ["a Fynix invite with an alias", (): Record<string, unknown> => ({ ...CLIENT_INVITE(), organisationId: rig.world().fynix.id, alias: "Priya, Fynix" }), "invalid-input"],
     ["an organisation that does not exist", (): Record<string, unknown> => ({ ...CLIENT_INVITE(), organisationId: "99999999-9999-4999-8999-999999999999" }), "not-found"],
     ["an address that is not an address", (): Record<string, unknown> => ({ ...CLIENT_INVITE(), email: "not an address" }), "invalid-input"],
     ["a role that does not exist", (): Record<string, unknown> => ({ ...CLIENT_INVITE(), role: "owner" }), "invalid-input"],
@@ -334,3 +335,49 @@ describe("what the database itself allows on invite", () => {
     }
   });
 });
+
+describe("issueInvite, phase 1 people rules", () => {
+  it("keeps the job title and the phone on the invite and the audit row", async () => {
+    await issueInvite(rig.deps(), rig.actor, { ...CLIENT_INVITE(), phone: "+44 20 7946 0000" });
+    const [row] = await invites();
+    expect(row).toMatchObject({ jobTitle: "Operations lead", phone: "+44 20 7946 0000" });
+    const [audit] = await auditRowsFor(rig, "invite.issue");
+    expect(audit?.after).toMatchObject({ jobTitle: "Operations lead", phone: "+44 20 7946 0000" });
+  });
+
+  it("uses the person's own name as the alias of an agency invite when none is given", async () => {
+    await issueInvite(rig.deps(), rig.actor, { organisationId: rig.world().northgate.id, email: "rahul@northgate.example", name: "Rahul Verma", jobTitle: "Account director" });
+    const [row] = await invites();
+    expect(row?.alias).toBe("Rahul Verma");
+  });
+
+  it("refuses a second agency person whose own name is already an alias", async () => {
+    await issueInvite(rig.deps(), rig.actor, { organisationId: rig.world().northgate.id, email: "a@northgate.example", name: "Sam Lee", jobTitle: "Director" });
+    expect(await refusal(issueInvite(rig.deps(), rig.actor, { organisationId: rig.world().northgate.id, email: "b@northgate.example", name: "Sam Lee", jobTitle: "Analyst" }))).toBe("alias-taken");
+  });
+
+  it("invites Fynix admins and staff into the Fynix organisation: admin is stored as manager and staff as member", async () => {
+    await issueInvite(rig.deps(), rig.actor, { organisationId: rig.world().fynix.id, email: "boss@fynix.example", name: "Boss Person", jobTitle: "Director", role: "admin" });
+    await issueInvite(rig.deps(), rig.actor, { organisationId: rig.world().fynix.id, email: "helper@fynix.example", name: "Helper Person", jobTitle: "Analyst", role: "staff" });
+    const rows = await invites();
+    expect(rows.map((row) => [row.orgKind, row.role, row.alias])).toEqual([["fynix", "manager", null], ["fynix", "member", null]]);
+  });
+
+  it("refuses a Fynix invite from staff", async () => {
+    expect(await refusal(issueInvite(rig.deps(), rig.staffActor, { organisationId: rig.world().fynix.id, email: "x@fynix.example", name: "X Person", jobTitle: "Analyst", role: "staff" }))).toBe("admin-required");
+  });
+
+  it("lists every invite with its organisation, its state and who invited, and never a token or hash", async () => {
+    const first = await issueInvite(rig.deps(), rig.actor, CLIENT_INVITE());
+    await issueInvite(rig.deps(), rig.actor, AGENCY_INVITE());
+    await revokeInvite(rig.deps(), rig.actor, first.inviteId);
+    const listed = await listInvites(rig.deps(), rig.staffActor);
+    expect(listed.map((row) => [row.email, row.state, row.organisationName])).toEqual([
+      ["rahul@northgate.example", "pending", "Northgate Leads Ltd"],
+      ["priya.nair@kestrel.example", "revoked", "Kestrel Logistics Ltd"],
+    ]);
+    expect(listed[0]).toMatchObject({ jobTitle: "Operations lead", invitedBy: rig.world().users[0]?.name });
+    expect(JSON.stringify(listed)).not.toMatch(/token/i);
+  });
+});
+

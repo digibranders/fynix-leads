@@ -3,10 +3,12 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { AuthFormState } from "@/lib/auth/form-state";
-import { BREACH_CHECK_UNAVAILABLE, GENERIC_FAILURE, retryMessage, signInMessage } from "@/lib/auth/messages";
+import type { FormState } from "@/lib/fynix/form-state";
+import { BREACH_CHECK_UNAVAILABLE, GENERIC_FAILURE, retryMessage, SESSION_ENDED_NOTICE, signInMessage } from "@/lib/auth/messages";
 import { safeNextPath } from "@/lib/auth/next-path";
-import { getAuth, getAuthServices } from "@/server/auth";
+import { getAuth, getAuthServices, getSessionContext } from "@/server/auth";
 import { clientAddressFrom } from "@/server/auth/client-address";
+import { changeOwnPassword } from "@/server/auth/change-password";
 import { completePasswordReset, requestPasswordReset } from "@/server/auth/password-reset";
 import { signInWithPassword } from "@/server/auth/sign-in";
 
@@ -79,4 +81,24 @@ export async function completePasswordResetAction(_previous: AuthFormState, form
 export async function signOutAction(): Promise<void> {
   await getAuth().api.signOut({ headers: await headers() });
   redirect("/sign-in?signed-out=1");
+}
+
+/**
+ * The profile page's change-password form, for every portal. It needs a signed-in person, asks for the current password and never gives a password back:
+ * an error carries only the sentence for the field it belongs to. Better Auth ends the person's other sessions and keeps this one.
+ */
+export async function changePasswordAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  const requestHeaders = await headers();
+  const context = await getSessionContext();
+  if (context === null) return { status: "error", message: SESSION_ENDED_NOTICE, fields: {}, values: {} };
+  const outcome = await attempt("", () =>
+    changeOwnPassword(getAuthServices(), { userId: context.userId, currentPassword: field(formData, "currentPassword"), newPassword: field(formData, "newPassword"), headers: requestHeaders }),
+  );
+  if (!outcome.ok) return { status: "error", message: GENERIC_FAILURE, fields: {}, values: {} };
+  const result = outcome.value;
+  if (result.status === "changed") return { status: "done", redirectTo: null };
+  if (result.status === "wrong-password") return { status: "error", message: null, fields: { currentPassword: "That is not your current password." }, values: {} };
+  if (result.status === "weak-password") return { status: "error", message: null, fields: { newPassword: result.message }, values: {} };
+  if (result.status === "check-unavailable") return { status: "error", message: BREACH_CHECK_UNAVAILABLE, fields: {}, values: {} };
+  return { status: "error", message: retryMessage(result.retryAfterSeconds), fields: {}, values: {} };
 }

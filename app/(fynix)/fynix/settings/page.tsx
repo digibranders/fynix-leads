@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
-import { FileText, Users } from "@phosphor-icons/react/dist/ssr";
+import { FileText } from "@phosphor-icons/react/dist/ssr";
 import { Suspense } from "react";
+import { InvitePersonButton } from "@/components/fynix/people/people-actions";
+import { PeopleTable } from "@/components/fynix/people/people-table";
 import { EmptyState } from "@/components/kit/empty-state";
 import { ListRow } from "@/components/kit/list";
 import { PageHeader } from "@/components/kit/page-header";
 import { Panel, PanelHeader } from "@/components/kit/panel";
-import { Person } from "@/components/kit/person";
 import { PageSkeleton } from "@/components/kit/skeletons";
 import { When } from "@/components/kit/when";
 import { Badge } from "@/components/ui/badge";
@@ -16,40 +17,25 @@ import { requireFynix } from "@/server/fynix/session";
 
 export const metadata: Metadata = { title: "Settings" };
 
-const PARTY_LABEL = { client: "Clients", agency: "Coordinators and agencies" } as const;
+const PARTY_LABEL = { client: "Clients", agency: "Coordinators and agencies", fynix: "Fynix team" } as const;
 
 async function Settings() {
   const view = await requireFynix();
-  const { team, terms } = await readSettings(getDomain(), view.actor);
+  const { fynixOrg, team, terms } = await readSettings(getDomain(), view.actor);
   return (
     <div className="flex flex-col gap-4">
       <PageHeader title="Settings" description="Who works at Fynix and which terms people accept." />
 
-      <div className="grid items-start gap-4 lg:grid-cols-2">
-        <Panel aria-label="Fynix team">
-          <PanelHeader title="Fynix team" count={team.length} />
-          {team.length === 0 ? (
-            <EmptyState icon={Users} title="No team members">
-              People appear here once they accept an invite.
-            </EmptyState>
-          ) : (
-            <ul className="flex flex-col pb-3">
-              {team.map((person) => (
-                <ListRow
-                  key={person.email}
-                  title={<Person name={person.name} sub={person.email} />}
-                  trailing={
-                    <span className="flex items-center gap-1.5">
-                      <Badge variant="quiet" size="sm">{person.role === "manager" ? "Admin" : "Staff"}</Badge>
-                      {person.status === "suspended" ? <Badge variant="red" size="sm">Suspended</Badge> : null}
-                    </span>
-                  }
-                />
-              ))}
-            </ul>
-          )}
-        </Panel>
+      <PeopleTable
+        title="Fynix team"
+        people={team}
+        canWrite={view.canWrite}
+        selfUserId={view.actor.userId}
+        emptyHint="Invite a colleague to start."
+        action={view.canWrite && fynixOrg !== null ? <InvitePersonButton kind="fynix" organisations={[fynixOrg]} description="They get an email with a link to set a password. Fynix terms must be published first." /> : null}
+      />
 
+      <div className="grid items-start gap-4">
         <Panel aria-label="Terms in force">
           <PanelHeader title="Terms in force" count={terms.length} action={view.canWrite ? <PublishTermsButton /> : null} />
           {terms.length === 0 ? (

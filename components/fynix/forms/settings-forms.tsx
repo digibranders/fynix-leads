@@ -7,6 +7,7 @@ import { FormGroup, SelectField, TextAreaField, TextField } from "./form-parts";
 const PARTIES = [
   { value: "client", label: "Clients" },
   { value: "agency", label: "Coordinators and agencies" },
+  { value: "fynix", label: "Fynix team" },
 ] as const;
 
 /** Publishes a new version of the terms for one side. The version in force is replaced, never edited. */

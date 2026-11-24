@@ -38,7 +38,8 @@ const tenantCampaignColumns = {
 } as const;
 
 /** Separate constants per role, so a later phase can give the roles different columns without touching the other. */
-export const clientOrganisationColumns = { ...tenantOrganisationColumns } as const;
+/** A client also reads its own time zone (migration 0059); an agency does not read a client's. */
+export const clientOrganisationColumns = { ...tenantOrganisationColumns, timeZone: organisation.timeZone } as const;
 export const agencyOrganisationColumns = { ...tenantOrganisationColumns, parentOrgId: organisation.parentOrgId } as const;
 export const clientCampaignColumns = { ...tenantCampaignColumns } as const;
 export const agencyCampaignColumns = { ...tenantCampaignColumns } as const;

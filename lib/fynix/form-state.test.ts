@@ -17,7 +17,7 @@ describe("fieldErrors with the real domain schemas", () => {
   });
 
   it("says an email is not valid without quoting it", () => {
-    const errors = errorsOf(issueInviteSchema, { organisationId: "5b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b", email: "not-an-email", name: "A", alias: "B" });
+    const errors = errorsOf(issueInviteSchema, { organisationId: "5b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b", email: "not-an-email", name: "A", jobTitle: "Buyer", alias: "B" });
     expect(errors).toEqual({ email: "Enter a valid email address." });
     expect(JSON.stringify(errors)).not.toContain("not-an-email");
   });

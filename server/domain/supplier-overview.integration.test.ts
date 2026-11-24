@@ -49,7 +49,7 @@ describe("listSupplierRows", () => {
     await publishApprovedTerms(rig);
     const created = await createSupplier(rig.deps(), rig.actor, { name: "Saltmarsh Demand" });
     expect((await listSupplierRows(rig.deps(), rig.actor)).find((row) => row.id === created.id)).toMatchObject({ peopleCount: 0, inviteWaiting: false });
-    await issueInvite(rig.deps(), rig.actor, { organisationId: created.id, email: "lead@saltmarsh.example", name: "Lead Person", role: "manager", alias: "Saltmarsh, Fynix" });
+    await issueInvite(rig.deps(), rig.actor, { organisationId: created.id, email: "lead@saltmarsh.example", name: "Lead Person", jobTitle: "Operations lead", role: "manager", alias: "Saltmarsh, Fynix" });
     expect((await listSupplierRows(rig.deps(), rig.actor)).find((row) => row.id === created.id)).toMatchObject({ peopleCount: 0, inviteWaiting: true });
     await rig.dbs.owner.db.update(invite).set({ revokedAt: new Date() }).where(eq(invite.orgId, created.id));
     expect((await listSupplierRows(rig.deps(), rig.actor)).find((row) => row.id === created.id)?.inviteWaiting).toBe(false);
@@ -68,7 +68,7 @@ describe("readSupplierDetail", () => {
     const { brightpath, kestrel, halden } = rig.world();
     const partner = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: brightpath.id, name: "Ridgeway Partner Ltd" });
     await addPerson(partner.id, "agency", "Partner Person", "partner.person@ridgeway.example");
-    await issueInvite(rig.deps(), rig.actor, { organisationId: brightpath.id, email: "new.hire@brightpath.example", name: "New Hire", role: "member", alias: "Bright, Fynix" });
+    await issueInvite(rig.deps(), rig.actor, { organisationId: brightpath.id, email: "new.hire@brightpath.example", name: "New Hire", jobTitle: "Operations lead", role: "member", alias: "Bright, Fynix" });
 
     const detail = await readSupplierDetail(rig.deps(), rig.staffActor, brightpath.publicRef);
     expect(detail).toMatchObject({ id: brightpath.id, publicRef: brightpath.publicRef, name: brightpath.name, status: "active", peopleTotal: 2 });
@@ -84,7 +84,7 @@ describe("readSupplierDetail", () => {
   it("shows an invite past its expiry as expired, and a suspended member as suspended", async () => {
     await publishApprovedTerms(rig);
     const { brightpath } = rig.world();
-    await issueInvite(rig.deps(), rig.actor, { organisationId: brightpath.id, email: "late@brightpath.example", name: "Late Person", role: "member", alias: "Late, Fynix" });
+    await issueInvite(rig.deps(), rig.actor, { organisationId: brightpath.id, email: "late@brightpath.example", name: "Late Person", jobTitle: "Operations lead", role: "member", alias: "Late, Fynix" });
     await rig.dbs.owner.db.update(member).set({ status: "suspended" }).where(eq(member.orgId, brightpath.id));
     rig.clock.now = new Date(Date.now() + 8 * 86_400_000);
     const detail = await readSupplierDetail(rig.deps(), rig.actor, brightpath.publicRef);

@@ -19,3 +19,4 @@ export * from "./lead";
 export * from "./lead-history";
 export * from "./meeting";
 export * from "./messaging";
+export * from "./client-profile";

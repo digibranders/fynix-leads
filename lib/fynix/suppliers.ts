@@ -31,12 +31,11 @@ export function supplierSubtitle(row: { readonly agencyCount: number; readonly c
   return `${countOf(row.agencyCount, "agency", "agencies")}, ${countOf(row.campaignCount, "campaign", "campaigns")}`;
 }
 
-/** The address of the Suppliers screen with a filter, a search and a selection. A value that is the default is left out, so the plain list has a plain address. */
-export function suppliersHref(options: { readonly status?: SupplierFilter; readonly q?: string; readonly supplier?: string }): string {
+/** The address of the Suppliers screen with a filter and a search. A value that is the default is left out, so the plain list has a plain address. */
+export function suppliersHref(options: { readonly status?: SupplierFilter; readonly q?: string }): string {
   const query = new URLSearchParams();
   if (options.status === "archived") query.set("status", "archived");
   if (options.q !== undefined && options.q.trim() !== "") query.set("q", options.q.trim());
-  if (options.supplier !== undefined && options.supplier !== "") query.set("supplier", options.supplier);
   const text = query.toString();
   return text === "" ? "/fynix/suppliers" : `/fynix/suppliers?${text}`;
 }

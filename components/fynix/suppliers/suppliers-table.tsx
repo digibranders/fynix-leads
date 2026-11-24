@@ -5,6 +5,7 @@ import { Panel, PanelHeader } from "@/components/kit/panel";
 import { TabNav } from "@/components/kit/tab-nav";
 import { SearchForm, Toolbar } from "@/components/kit/toolbar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { campaignCountsText } from "@/lib/fynix/campaign-counts";
 import { filterSuppliers, filterCounts, supplierSubtitle, suppliersHref, type SupplierFilter } from "@/lib/fynix/suppliers";
 import type { SupplierRow } from "@/server/domain/supplier-overview";
 import { AddSupplierButton } from "./supplier-actions";
@@ -13,12 +14,11 @@ type Props = {
   rows: readonly SupplierRow[];
   filter: SupplierFilter;
   query: string;
-  selectedRef: string | undefined;
   canWrite: boolean;
 };
 
 /** The suppliers list: Active and Archived as link tabs (the filter is in the address), a search, and a row per supplier that opens its record. */
-export function SuppliersTable({ rows, filter, query, selectedRef, canWrite }: Props) {
+export function SuppliersTable({ rows, filter, query, canWrite }: Props) {
   const counts = filterCounts(rows);
   const shown = filterSuppliers(rows, filter, query);
 
@@ -66,15 +66,12 @@ export function SuppliersTable({ rows, filter, query, selectedRef, canWrite }: P
             </TableHeader>
             <TableBody>
               {shown.map((row) => {
-                const selected = row.publicRef === selectedRef;
                 return (
-                  <TableRow key={row.id} data-state={selected ? "selected" : undefined} className="relative">
+                  <TableRow key={row.id} className="relative">
                     <TableCell className="font-mono text-caption text-ink-2 max-md:hidden">{row.publicRef}</TableCell>
                     <TableCell className="max-md:max-w-0 max-md:w-full">
                       <Link
-                        href={suppliersHref({ status: filter, q: query, supplier: row.publicRef })}
-                        scroll={false}
-                        aria-current={selected ? "true" : undefined}
+                        href={`/fynix/suppliers/${row.publicRef}`}
                         className="block truncate rounded-xs text-row font-semibold after:absolute after:inset-0 after:content-['']"
                       >
                         {row.name}
@@ -84,7 +81,7 @@ export function SuppliersTable({ rows, filter, query, selectedRef, canWrite }: P
                     </TableCell>
                     <TableCell className="text-right max-md:hidden">{row.agencyCount}</TableCell>
                     <TableCell className="text-right max-md:hidden">{row.peopleCount}</TableCell>
-                    <TableCell className="text-right">{row.campaignCount}</TableCell>
+                    <TableCell className="text-right">{campaignCountsText(row.campaignCounts)}</TableCell>
                   </TableRow>
                 );
               })}

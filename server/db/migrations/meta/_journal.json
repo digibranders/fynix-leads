@@ -407,6 +407,41 @@
       "when": 1795530087136,
       "tag": "0057_client_closes_lead",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1795532131052,
+      "tag": "0058_client_profile_people_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1795532176527,
+      "tag": "0059_client_profile_grants",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1795532744358,
+      "tag": "0060_invite_agency_policy_fix",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1795533731738,
+      "tag": "0061_member_meeting_emails",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1795533735430,
+      "tag": "0062_team_and_profile_grants",
+      "breakpoints": true
     }
   ]
 }

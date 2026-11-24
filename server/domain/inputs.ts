@@ -12,25 +12,50 @@ const optionalText = (max: number) => z.string().trim().max(max, `must be at mos
 const list = z.array(name(80)).max(30, "must have at most 30 entries");
 const count = z.number().int().min(0).max(1_000_000);
 
+/** An IANA zone such as `Europe/London`. Trimmed, then checked against the runtime's time zone database (lib/domain/campaign-settings.ts). */
+export const timeZoneSchema = z.string().trim().refine(isIanaTimeZone, "must be an IANA time zone such as Europe/London");
+
+/** The profile Fynix takes for a client: how it is introduced to prospects, what it offers, what sets it apart, and its case studies. */
+const profileFields = {
+  introduction: name(2000),
+  services: name(2000),
+  differentiator: name(1000),
+  caseStudies: optionalText(4000).nullable().optional(),
+};
+export const clientProfileSchema = z.object(profileFields).strict();
+export type ClientProfileInput = z.infer<typeof clientProfileSchema>;
+
 export const createOrganisationSchema = z
   .object({
     kind: z.enum(["client", "agency"]),
     name: name(120),
-    /** What an agency sees of a client. Required for a client; an agency has none. */
+    /** Optional and for a client only: it defaults to the name (the brand and the client are one thing since phase 1). */
     brandName: name(80).optional(),
+    timeZone: timeZoneSchema.optional(),
+    /** A client's profile, taken when it is added. */
+    profile: clientProfileSchema.optional(),
+    /** Set after the screen warned that a company of that name exists. */
+    confirmDuplicate: z.boolean().optional(),
   })
   .strict()
-  .refine((input) => (input.kind === "client") === (input.brandName !== undefined), { path: ["brandName"], message: "is required for a client and not allowed for an agency" });
+  .refine((input) => input.kind === "client" || (input.brandName === undefined && input.profile === undefined), { path: ["kind"], message: "a brand name and a profile are for a client only" });
 export type CreateOrganisationInput = z.infer<typeof createOrganisationSchema>;
 
 export const updateOrganisationSchema = z
-  .object({ name: name(120).optional(), brandName: name(80).optional() })
+  .object({ name: name(120).optional(), brandName: name(80).optional(), timeZone: timeZoneSchema.nullable().optional() })
   .strict()
-  .refine((input) => input.name !== undefined || input.brandName !== undefined, { message: "must change something" });
+  .refine((input) => input.name !== undefined || input.brandName !== undefined || input.timeZone !== undefined, { message: "must change something" });
 export type UpdateOrganisationInput = z.infer<typeof updateOrganisationSchema>;
 
-/** An IANA zone such as `Europe/London`. Trimmed, then checked against the runtime's time zone database (lib/domain/campaign-settings.ts). */
-export const timeZoneSchema = z.string().trim().refine(isIanaTimeZone, "must be an IANA time zone such as Europe/London");
+export const updateClientProfileSchema = z.object({ clientOrgId: z.uuid(), ...profileFields }).strict();
+export type UpdateClientProfileInput = z.infer<typeof updateClientProfileSchema>;
+
+/** A link now; an uploaded file needs the scanned upload route, which is not wired to this screen yet. */
+export const addCollateralSchema = z
+  .object({ clientOrgId: z.uuid(), kind: z.literal("link"), title: name(160), url: z.url({ protocol: /^https?$/ }).max(2000) })
+  .strict();
+export type AddCollateralInput = z.infer<typeof addCollateralSchema>;
+
 const meetingMinutes = z.number().int().min(MEETING_MINUTES_MIN).max(MEETING_MINUTES_MAX);
 
 const campaignRequired = {
@@ -76,17 +101,32 @@ export type UpdateCampaignInput = z.infer<typeof updateCampaignSchema>;
 export const publishTermsSchema = z.object({ party: z.enum(["client", "agency", "fynix"]), title: name(160), body: name(60_000) }).strict();
 export type PublishTermsInput = z.infer<typeof publishTermsSchema>;
 
-export const issueInviteSchema = z
-  .object({
-    organisationId: z.uuid(),
-    email: z.email().max(254),
-    name: name(120),
-    role: z.enum(["member", "manager"]).default("member"),
-    /** The Fynix name the client sees for an agency user. Required for an agency, not allowed for a client. */
-    alias: name(60).optional(),
-  })
-  .strict();
+/** A phone number as typed: digits, spaces and the usual punctuation. Not normalised, because Fynix and the client read it as written. */
+export const phoneSchema = z.string().trim().min(5, "must be at least 5 characters").max(40, "must be at most 40 characters").regex(/^[0-9+()\-. ]+$/, "may hold digits, spaces and + ( ) - . only");
+/** Fynix people are invited as `admin` (can change set-up) or `staff` (read it and work leads); stored as `manager` and `member`. */
+const inviteRole = z.enum(["member", "manager", "admin", "staff"]).default("member").transform((role) => (role === "admin" ? "manager" : role === "staff" ? "member" : role));
+
+const inviteFields = {
+  email: z.email().max(254),
+  name: name(120),
+  jobTitle: name(120),
+  phone: phoneSchema.optional(),
+  role: inviteRole,
+  /** The Fynix name the client sees for an agency user. Defaults to the person's name; not allowed for a client or Fynix. */
+  alias: name(60).optional(),
+};
+export const issueInviteSchema = z.object({ organisationId: z.uuid(), ...inviteFields }).strict();
 export type IssueInviteInput = z.input<typeof issueInviteSchema>;
+
+export const memberDetailsSchema = z
+  .object({ displayName: name(120).optional(), jobTitle: name(120).optional(), phone: phoneSchema.nullable().optional() })
+  .strict()
+  .refine((input) => input.displayName !== undefined || input.jobTitle !== undefined || input.phone !== undefined, { message: "must change something" });
+export type MemberDetailsInput = z.infer<typeof memberDetailsSchema>;
+
+/** The profile page: a person's own name, job title and phone. All three are sent every time; a blank phone is `null`. */
+export const ownProfileSchema = z.object({ displayName: name(120), jobTitle: name(120), phone: phoneSchema.nullable() }).strict();
+export type OwnProfileInput = z.infer<typeof ownProfileSchema>;
 
 export const aliasSchema = z.string().trim().min(2, "must be at least 2 characters").max(60, "must be at most 60 characters");
 export const displayNameSchema = name(120);
