@@ -146,6 +146,8 @@ export const PROBES: readonly Probe[] = [
   { name: "auth: password hashes", statement: "select password from account", expectedError: DENIED_TABLE },
   { name: "auth: session tokens", statement: "select token from session", expectedError: DENIED_TABLE },
   { name: "auth: reset tokens", statement: "select identifier, value from verification", expectedError: DENIED_TABLE },
+  { name: "auth: authenticator secrets", statement: "select secret, backup_codes from two_factor", expectedError: DENIED_TABLE },
+  { name: "write: turn off someone's second step", statement: "delete from two_factor", expectedError: DENIED_TABLE },
   { name: "auth: join every auth table", statement: 'select u.email, a.password, s.token from "user" u join account a on a.user_id = u.id join session s on s.user_id = u.id', expectedError: DENIED_TABLE },
   // Tenant roles read member (migration 0032), so the read path "member rows" covers what they may see; writes stay refused.
   { name: "write: add a membership", statement: "insert into member (user_id, org_id, org_kind, role) values (gen_random_uuid(), gen_random_uuid(), 'client', 'manager')", expectedError: DENIED_TABLE },

@@ -1,16 +1,17 @@
 import { getAuthTables } from "better-auth/db";
 import { getTableColumns } from "drizzle-orm";
+import { twoFactor as twoFactorPlugin } from "better-auth/plugins";
 import { describe, expect, it } from "vitest";
 import { MIN_SECRET_LENGTH } from "@/server/auth/create-auth";
-import { account, session, user, verification } from "@/server/db/schema";
+import { account, session, twoFactor, user, verification } from "@/server/db/schema";
 
 /**
  * Better Auth reads and writes these four tables by the field names it declares. If a Better Auth upgrade adds, renames
  * or requires a field, this fails with the table and field named, before a sign-in does.
  */
 
-const tables = getAuthTables({ emailAndPassword: { enabled: true } } as never);
-const ours = { user, session, account, verification } as const;
+const tables = getAuthTables({ emailAndPassword: { enabled: true }, plugins: [twoFactorPlugin()] } as never);
+const ours = { user, session, account, verification, twoFactor } as const;
 
 describe("the auth tables match what Better Auth declares", () => {
   it.each(Object.entries(ours))("%s has exactly Better Auth's fields, plus id", (model, table) => {

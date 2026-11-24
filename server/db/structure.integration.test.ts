@@ -141,6 +141,8 @@ const EXPECTED_ACCESS: Readonly<Record<string, readonly RuntimeRoleName[]>> = {
   session: ["leads_auth"],
   account: ["leads_auth"],
   verification: ["leads_auth"],
+  // Gate G1: the authenticator secret and backup codes (encrypted). leads_auth alone.
+  two_factor: ["leads_auth"],
   member: ["leads_auth", "leads_fynix", "leads_client", "leads_agency"],
   rate_limit: ["leads_public"],
   email_outbox: ["leads_auth", "leads_fynix", "leads_public"],
@@ -188,7 +190,7 @@ const EXPECTED_ACCESS: Readonly<Record<string, readonly RuntimeRoleName[]>> = {
   meeting_join: ["leads_fynix", "leads_client", "leads_agency"],
 };
 /** The tables nobody but leads_auth touches. `user` is not one of them any more: Fynix reads four columns of it. */
-const AUTH_TABLES = ["session", "account", "verification"] as const;
+const AUTH_TABLES = ["session", "account", "verification", "two_factor"] as const;
 
 describe("access matrix", () => {
   it("lists every table, and no table that does not exist", async () => {

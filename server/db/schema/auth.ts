@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, index, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { boolean, check, index, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 /**
  * Better Auth's four tables. Property names are the field names Better Auth uses, so the adapter maps them with no
@@ -17,6 +17,8 @@ export const user = pgTable(
     email: text("email").notNull().unique(),
     emailVerified: boolean("email_verified").notNull().default(false),
     image: text("image"),
+    /** Better Auth's two-factor plugin sets it once an authenticator app is confirmed. Nullable like the plugin declares it (a field it does not require). */
+    twoFactorEnabled: boolean("two_factor_enabled").default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -75,4 +77,25 @@ export const verification = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index("verification_identifier_idx").on(table.identifier)],
+);
+
+/**
+ * The second sign-in step (gate G1), written by Better Auth's two-factor plugin as `leads_auth` only. `secret` and `backup_codes` are
+ * encrypted with the auth secret. A row exists from the moment enrolment starts; `verified` turns true when the first code is confirmed.
+ * Nothing is deleted except when a person turns the step off.
+ */
+export const twoFactor = pgTable(
+  "two_factor",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    secret: text("secret").notNull(),
+    backupCodes: text("backup_codes").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    verified: boolean("verified").default(true),
+    failedVerificationCount: integer("failed_verification_count").default(0),
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
+  },
+  (table) => [index("two_factor_user_id_idx").on(table.userId), index("two_factor_secret_idx").on(table.secret)],
 );

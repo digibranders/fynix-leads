@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildIcs, meetingUid } from "./ics";
+import { checkEmailInvariants, type InvariantContext } from "./invariants";
 import { LAUNCH_TEMPLATES, isProspectTemplate, launchCalendar, type LaunchContent, type LaunchParams } from "./launch-templates";
 import { EMAIL_TEMPLATES, LINK_REMOVED_TEXT, formatEmailDate, linkRuleFor, parseEmailContent, renderEmail, type EmailContent, type EmailTemplate } from "./templates";
 
@@ -156,18 +157,31 @@ const FIXTURES: Record<EmailTemplate, EmailContent> = {
   prospect_reminder_24h: prospect("prospect_reminder_24h"),
   prospect_reminder_1h: prospect("prospect_reminder_1h"),
 };
+const INVARIANTS: InvariantContext = {
+  portalLink: PORTAL_LINK,
+  allowedProspectUrls: [MEET, PRIVACY],
+  forbiddenInProspect: [/fynix/i, new RegExp(COORDINATOR, "i"), new RegExp(AGENCY, "i"), /Open the lead/, /leads\.fynix\.digital/, /\/client\/leads/],
+};
 const everyRendering = (content: EmailContent, link: string | null) => {
   const mail = renderEmail(content, link);
   return { ...mail, all: `${mail.subject}\n${mail.text}\n${mail.html}` };
 };
 
 describe("every template, rendered", () => {
-  it.each(EMAIL_TEMPLATES)("%s: sentence case, no exclamation mark and no em or en dash, with and without its link", (template) => {
-    for (const link of [PORTAL_LINK, null]) {
-      const { all } = everyRendering(FIXTURES[template], link);
-      expect(DASHES.test(all)).toBe(false);
-      expect(all.replace("<!doctype html>", "")).not.toContain("!");
-    }
+  it.each(EMAIL_TEMPLATES)("%s: holds every rule of the shared check (dashes, exclamation marks, its link rule, and for a letter the names and addresses it must never carry)", (template) => {
+    expect(checkEmailInvariants(FIXTURES[template], INVARIANTS)).toEqual({ ok: true, problems: [] });
+  });
+
+  it("the shared check finds a deliberate fault of each kind", () => {
+    const dash = String.fromCharCode(0x2014);
+    expect(checkEmailInvariants({ template: "invite", params: { ...INVITE.params, name: `A ${dash} B` } } as EmailContent, INVARIANTS).problems).toContain("The sent copy has an em or en dash.");
+    expect(checkEmailInvariants({ template: "invite", params: { ...INVITE.params, name: "Priya!" } } as EmailContent, INVARIANTS).problems).toContain("The sent copy has an exclamation mark.");
+    // A letter that names Fynix, and a portal email checked against a link it does not carry.
+    const named = { template: "prospect_confirmed", params: { ...PROSPECT_PARAMS, clientBrand: "Fynix Logistics" } } as EmailContent;
+    expect(checkEmailInvariants(named, INVARIANTS).ok).toBe(false);
+    expect(checkEmailInvariants(FIXTURES.alias_code, { ...INVARIANTS, portalLink: "https://x.example/a" }).ok).toBe(true);
+    const wrongUrl = { template: "prospect_confirmed", params: { ...PROSPECT_PARAMS, privacyUrl: "https://elsewhere.example/policy" } } as EmailContent;
+    expect(checkEmailInvariants(wrongUrl, INVARIANTS).problems).toContain("The letter holds a web address that is not the meeting link or the privacy page.");
   });
 
   it.each(LAUNCH_TEMPLATES)("%s: reads back from its stored params, and a missing required field is refused", (template) => {

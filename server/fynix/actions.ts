@@ -24,7 +24,6 @@ import {
   createSupplierSchema,
   overturnRejectionSchema,
   recordMeetingOutcomeSchema,
-  resolveDisputeSchema,
   deactivateCampaignHostSchema,
   issueInviteSchema,
   publishAgreementSchema,
@@ -40,7 +39,7 @@ import { reactivateMember, suspendMember, updateMemberDetails } from "@/server/d
 import { setCampaignPrivacy, setProspectEmail } from "@/server/domain/campaign-privacy";
 import { closeCampaign, createCampaign, reopenCampaign, updateCampaign } from "@/server/domain/campaigns";
 import { removeCampaignShare, setCampaignShare } from "@/server/domain/shares";
-import { fynixOverturnRejection, fynixResolveDispute } from "@/server/domain/leads";
+import { fynixOverturnRejection } from "@/server/domain/leads";
 import { fynixRecordMeetingOutcome } from "@/server/domain/meetings";
 import { addCollateral, createOrganisation, removeCollateral, setOrganisationStatus, updateClientProfile, updateOrganisation } from "@/server/domain/organisations";
 import { createPartnerAgency, createSupplier } from "@/server/domain/suppliers";
@@ -380,20 +379,6 @@ export async function revokeInviteAction(_previous: FormState, formData: FormDat
     labels: {},
     perform: async (deps, actor, input) => {
       await revokeInvite(deps, actor, inviteInput.parse(input).inviteId);
-    },
-  });
-}
-
-export async function resolveDisputeAction(_previous: FormState, formData: FormData): Promise<FormState> {
-  const note = field(formData, "note").trim();
-  return runAction({
-    formData,
-    fieldNames: ["resolution", "note"],
-    build: () => ({ leadId: field(formData, "leadId"), resolution: field(formData, "resolution"), ...(note === "" ? {} : { note }) }),
-    schema: resolveDisputeSchema,
-    labels: { resolution: "Decision", note: "Note" },
-    perform: async (deps, actor, input) => {
-      await fynixResolveDispute(deps.fynixDb, deps, actor, input);
     },
   });
 }

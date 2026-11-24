@@ -4,6 +4,8 @@ import {
   Buildings,
   CalendarBlank,
   ChatsCircle,
+  ClockCounterClockwise,
+  EnvelopeSimple,
   Funnel,
   Gear,
   Handshake,
@@ -41,6 +43,8 @@ export const GLYPHS: Record<NavIcon, Icon> = {
   scales: Scales,
   prohibit: Prohibit,
   gear: Gear,
+  history: ClockCounterClockwise,
+  envelope: EnvelopeSimple,
 };
 
 interface Props {

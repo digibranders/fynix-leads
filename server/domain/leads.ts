@@ -24,13 +24,11 @@ import { withTenantScope, type ScopedTransaction } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
-import { fynixWorkWrite, fynixWrite, type FynixActor } from "@/server/domain/fynix-write";
+import { fynixWorkWrite, type FynixActor } from "@/server/domain/fynix-write";
 import {
   clientReviewLeadSchema,
   decideLeadSchema,
-  disputeLeadSchema,
   overturnRejectionSchema,
-  resolveDisputeSchema,
   submitLeadSchema,
   type SubmitLeadParsed,
 } from "@/server/domain/inputs";
@@ -569,147 +567,5 @@ export async function fynixOverturnRejection(db: Database, deps: Pick<DomainDeps
     return updated;
   });
 }
-
-/**
- * Client raises a dispute on a delivered lead within the 48-hour window (spec v2 section 8.3).
- */
-export async function disputeLead(
-  db: Database,
-  deps: Pick<DomainDeps, "now">,
-  actor: TenantActor,
-  input: unknown,
-) {
-  if (actor.orgKind !== "client") {
-    throw new DomainError("not-authorised", "Only client members can dispute leads.");
-  }
-  const parsed = parseInput(disputeLeadSchema, input);
-
-  return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
-    const [leadRow] = await tx
-      .select({
-        id: lead.id,
-        stage: lead.stage,
-        deliveredAt: lead.deliveredAt,
-      })
-      .from(lead)
-      .innerJoin(campaign, eq(lead.campaignId, campaign.id))
-      .where(and(eq(lead.id, parsed.leadId), eq(campaign.clientOrgId, actor.orgId)))
-      .limit(1);
-
-    if (leadRow === undefined) {
-      throw new DomainError("not-found", "There is no such lead.");
-    }
-
-    if (leadRow.stage !== "delivered") {
-      throw new DomainError("invalid-lead-stage", "Only delivered leads can be disputed.");
-    }
-
-    const now = deps.now();
-    const deliveredTime = leadRow.deliveredAt?.getTime() ?? 0;
-    const elapsedMs = now.getTime() - deliveredTime;
-    const fortyEightHoursMs = 48 * 60 * 60 * 1000;
-
-    if (elapsedMs > fortyEightHoursMs) {
-      throw new DomainError("dispute-window-expired", "The 48-hour dispute window has closed.");
-    }
-
-    const [updated] = await tx
-      .update(lead)
-      .set({
-        stage: "disputed",
-        disputeReason: parsed.disputeReason,
-        disputedAt: now,
-        updatedAt: now,
-      })
-      .where(eq(lead.id, parsed.leadId))
-      .returning(clientLeadColumns);
-
-    await tx.insert(leadHistory).values({
-      leadId: leadRow.id,
-      actorUserId: actor.userId,
-      actorRole: "client",
-      action: "lead.dispute",
-      fromStage: "delivered",
-      toStage: "disputed",
-      note: parsed.disputeReason,
-      snapshot: { disputeReason: parsed.disputeReason },
-      createdAt: now,
-    });
-
-    return updated;
-  });
-}
-
-/**
- * Fynix resolves a lead dispute: upheld (lead rejected) or rejected (remains delivered).
- */
-export async function fynixResolveDispute(
-  db: Database,
-  deps: Pick<DomainDeps, "now">,
-  actor: FynixActor,
-  input: unknown,
-) {
-  const parsed = parseInput(resolveDisputeSchema, input);
-
-  return fynixWrite(db, actor, async ({ tx, audit }) => {
-    const [leadRow] = await tx
-      .select({
-        id: lead.id,
-        publicRef: lead.publicRef,
-        stage: lead.stage,
-      })
-      .from(lead)
-      .where(eq(lead.id, parsed.leadId))
-      .limit(1);
-
-    if (leadRow === undefined) {
-      throw new DomainError("not-found", "There is no such lead.");
-    }
-
-    if (leadRow.stage !== "disputed") {
-      throw new DomainError("invalid-lead-stage", "Only disputed leads can have dispute resolved.");
-    }
-
-    const now = deps.now();
-    const newStage: LeadStage = parsed.resolution === "upheld" ? "rejected" : "delivered";
-
-    const [updated] = await tx
-      .update(lead)
-      .set({
-        stage: newStage,
-        closedAt: parsed.resolution === "upheld" ? now : null,
-        updatedAt: now,
-      })
-      .where(eq(lead.id, parsed.leadId))
-      .returning({
-        id: lead.id,
-        publicRef: lead.publicRef,
-        stage: lead.stage,
-        updatedAt: lead.updatedAt,
-      });
-
-    await tx.insert(leadHistory).values({
-      leadId: leadRow.id,
-      actorUserId: actor.userId,
-      actorRole: "fynix",
-      action: "lead.resolve_dispute",
-      fromStage: "disputed",
-      toStage: newStage,
-      note: parsed.note ?? `Dispute ${parsed.resolution}`,
-      snapshot: { resolution: parsed.resolution, note: parsed.note },
-      createdAt: now,
-    });
-
-    await audit({
-      action: "lead.resolve_dispute",
-      subject: { table: "lead", id: leadRow.id, ref: leadRow.publicRef },
-      before: { stage: "disputed" },
-      after: { stage: newStage, resolution: parsed.resolution },
-    });
-
-    return updated;
-  });
-}
-
 
 export * from "@/server/domain/lead-reads";

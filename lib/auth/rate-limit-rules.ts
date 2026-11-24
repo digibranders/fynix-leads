@@ -53,6 +53,23 @@ export function passwordChangeChecks(userId: string): readonly RateLimitCheck[] 
 }
 
 /**
+ * Entering a code at the second sign-in step. The plugin also counts five wrong codes per challenge and locks the account for 15 minutes after ten, but
+ * its own HTTP limit never runs here, so these are ours: a network gets 20 tries per 15 minutes, and one challenge (the cookie issued after the password) 10.
+ * `challenge` is the value of the challenge cookie, hashed before it is stored.
+ */
+export function secondFactorChecks(address: string, challenge: string): readonly RateLimitCheck[] {
+  return [
+    { key: `second-factor:network:${address}`, rule: { limit: 20, windowSeconds: FIFTEEN_MINUTES } },
+    { key: `second-factor:challenge:${challenge}`, rule: { limit: 10, windowSeconds: FIFTEEN_MINUTES } },
+  ];
+}
+
+/** Starting, confirming and turning off the step from the profile page: the password and the code are guess targets for anyone holding an open session. */
+export function secondFactorSetupChecks(userId: string): readonly RateLimitCheck[] {
+  return [{ key: `second-factor-setup:user:${userId}`, rule: { limit: 10, windowSeconds: FIFTEEN_MINUTES } }];
+}
+
+/**
  * Looking an invite link up (the accept-invite page) is a way to guess tokens, so it is limited before the lookup, per
  * network. The token itself is 32 random bytes, so guessing is hopeless; the limit is for the load and for scanners.
  */

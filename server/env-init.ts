@@ -46,6 +46,8 @@ export function buildEnvFile(secrets: EnvSecrets): string {
     "PASSWORD_BREACH_CHECK=hibp",
     "# Optional in development: without a Brevo key email is only written to the outbox table (`pnpm mail:last` prints it).",
     "# BREVO_API_KEY=",
+    "# Gate G1, off by default. REQUIRE_FYNIX_2FA=true makes every Fynix person turn on the second sign-in step first. Turn it on only once everyone has enrolled.",
+    "# REQUIRE_FYNIX_2FA=false",
     "# Phase 6, all off by default. LAUNCH_EMAILS_ENABLED=true turns on every launch email (it needs a neutral MAIL_SENDER_ADDRESS); MEET_PROVIDER=google makes real rooms.",
     "# LAUNCH_EMAILS_ENABLED=false",
     "# MAIL_SENDER_ADDRESS=",

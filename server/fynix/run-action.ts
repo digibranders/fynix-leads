@@ -3,11 +3,12 @@ import { revalidatePath } from "next/cache";
 import type { z } from "zod";
 import { fieldErrors, type FormState, type FormValues } from "@/lib/fynix/form-state";
 import { getSessionContext } from "@/server/auth";
+import { secondFactorPending } from "@/server/auth/second-factor";
 import { getDomain } from "@/server/domain";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError, type DomainErrorCode } from "@/server/domain/errors";
 import type { FynixActor } from "@/server/domain/fynix-write";
-import { domainMessage, SESSION_GONE, SOMETHING_WENT_WRONG } from "@/server/fynix/errors";
+import { domainMessage, SECOND_FACTOR_REQUIRED, SESSION_GONE, SOMETHING_WENT_WRONG } from "@/server/fynix/errors";
 
 /** The text of one form field, or an empty string when the field is missing or is a file. */
 export function field(formData: FormData, name: string): string {
@@ -55,6 +56,7 @@ export async function runAction(spec: ActionSpec): Promise<FormState> {
   const values: FormValues = Object.fromEntries(spec.fieldNames.map((name) => [name, field(spec.formData, name)]));
   const context = await getSessionContext();
   if (context === null || context.kind !== "fynix") return failed(SESSION_GONE, {}, values);
+  if (secondFactorPending(context)) return failed(SECOND_FACTOR_REQUIRED, {}, values);
 
   const problems = spec.precheck?.(spec.formData) ?? {};
   if (Object.keys(problems).length > 0) return failed(null, problems, values);

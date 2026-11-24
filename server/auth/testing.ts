@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { count, desc, eq } from "drizzle-orm";
 import { BreachCheckUnavailableError, type BreachChecker } from "@/server/auth/breach-check";
 import { createAccountWithGrant } from "@/server/auth/create-account";
@@ -115,4 +116,19 @@ export async function latestResetToken(rig: AuthRig, email: string): Promise<str
   const token = newest?.link == null ? null : new URL(newest.link).searchParams.get("token");
   if (token === null) throw new Error(`No reset link was queued for ${email}`);
   return token;
+}
+
+const BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+
+/** The six digit code an authenticator app shows for a base32 secret at `at` (RFC 6238: HMAC-SHA1, 30 second steps). For tests that stand in for the app. */
+export function totpCode(base32Secret: string, at: Date = new Date()): string {
+  let bits = "";
+  for (const char of base32Secret.replace(/=+$/, "").toUpperCase()) bits += BASE32.indexOf(char).toString(2).padStart(5, "0");
+  const bytes = Buffer.from(bits.match(/.{8}/g)?.map((byte) => Number.parseInt(byte, 2)) ?? []);
+  const counter = Buffer.alloc(8);
+  counter.writeBigUInt64BE(BigInt(Math.floor(at.getTime() / 30_000)));
+  const digest = createHmac("sha1", bytes).update(counter).digest();
+  const offset = (digest[digest.length - 1] ?? 0) & 0x0f;
+  const value = digest.readUInt32BE(offset) & 0x7fffffff;
+  return String(value % 1_000_000).padStart(6, "0");
 }

@@ -1,6 +1,6 @@
 # Launch checklist: the sender domain and the meeting room
 
-What must be true before the portal emails a real prospect or makes a real meeting room. Everything is built and switched off. Nothing is sent to a prospect and Google is not called until the steps below are done and the two switches are turned on. This page is the plain-language version of gates G3 and G4 in `docs/superpowers/specs/2026-11-24-meetings-and-email-decision.md`. Gates G1 (a second sign-in step for Fynix) and G2 (the terms) are separate and unchanged.
+What must be true before the portal emails a real prospect or makes a real meeting room. Everything is built and switched off. Nothing is sent to a prospect and Google is not called until the steps below are done and the two switches are turned on. This page is the plain-language version of gates G3 and G4 in `docs/superpowers/specs/2026-11-24-meetings-and-email-decision.md`. Gate G1 (a second sign-in step for Fynix) is built and has its own section below; gate G2 (the terms) is separate and unchanged.
 
 ## What the owner arranges, in order
 
@@ -55,3 +55,13 @@ One day, in the existing Workspace, with the room account and three people on di
 - A prospect letter has no link to the portal. Its only addresses are the Meet link (checked to be on `meet.google.com`) and the client's own privacy page.
 - Each message has one recipient. The person who acted is never emailed about their own action.
 - The room is made before a booking is saved, and a failure to make one never stops the booking: the screens say the link will follow.
+
+## G1: the second sign-in step for Fynix
+
+Built, and off until the owner says. Before any real client or agency data is entered:
+
+1. Every Fynix person enrols from Profile, then "Second sign-in step": password, the key in an authenticator app, the first code, and the backup codes saved somewhere safe (shown once).
+2. Each person signs out and back in once with a code, and once with a backup code (that one is then spent; make a fresh set by turning the step off and on).
+3. The owner checks the audit log shows each enrolment and the backup-code sign-in.
+4. The developer sets `REQUIRE_FYNIX_2FA=true` and restarts. A Fynix person who has not enrolled is sent to Profile; client and agency people are unaffected.
+5. A person who loses their phone and backup codes is reset by the owner in the database (`docs/deploy.md`, "Fynix second sign-in step"). Decide who holds that access before the switch is on.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Database } from "@/server/db/pool";
 import { DomainError } from "@/server/domain/errors";
-import { clientReviewLead, disputeLead, submitLead } from "./leads";
+import { clientReviewLead, submitLead } from "./leads";
 
 describe("leads domain service", () => {
   const dummyDb = {} as unknown as Database;
@@ -62,17 +62,6 @@ describe("leads domain service", () => {
           leadId: "88888888-8888-4888-8888-888888888888",
           action: "accept",
           selectedMeetingTime: "2026-12-05T14:00:00Z",
-        }),
-      ).rejects.toThrow(DomainError);
-    });
-  });
-
-  describe("disputeLead authorization", () => {
-    it("refuses agency actors from disputing leads", async () => {
-      await expect(
-        disputeLead(dummyDb, deps, agencyActor, {
-          leadId: "88888888-8888-4888-8888-888888888888",
-          disputeReason: "Wrong qualification",
         }),
       ).rejects.toThrow(DomainError);
     });

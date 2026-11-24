@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 import type { AgreementsPage, CampaignHeader, CampaignRow, HostView } from "@/server/domain/campaign-overview";
 import type { ClientDetail, ClientRow } from "@/server/domain/client-overview";
 import type { PersonRow } from "@/server/domain/people-overview";
-import type { DisputeRow } from "@/server/domain/dispute-overview";
 import type { SupplierDetail, SupplierRow } from "@/server/domain/supplier-overview";
 
 // The forms call server actions, which need a running app. The screens only need their buttons to render.
@@ -28,7 +27,6 @@ const { HostsTable } = await import("@/components/fynix/campaigns/hosts-table");
 const { HostPanel } = await import("@/components/fynix/campaigns/host-panel");
 const { BriefView } = await import("@/components/fynix/campaigns/brief-view");
 const { ClientsTable } = await import("@/components/fynix/clients/clients-table");
-const { DisputesTable } = await import("@/components/fynix/disputes/disputes-table");
 const { CampaignTitle } = await import("@/components/fynix/campaigns/campaign-header");
 
 vi.mock("next/navigation", () => ({ useSelectedLayoutSegment: () => "hosts", useRouter: () => ({ push: () => undefined }) }));
@@ -333,25 +331,6 @@ describe("Clients", () => {
   });
 });
 
-const dispute: DisputeRow = { leadId: "l1", leadRef: "LD-3K7M", campaignName: "UK mid-market finance teams", clientBrandName: "Kestrel", prospectName: "Priya Nair", prospectCompany: "Harbour Freight", reason: "The contact had left the company.", disputedAt: day("2026-11-20") };
-
-describe("Disputes", () => {
-  it("shows each dispute with its lead, campaign, reason and a labelled action for an admin", () => {
-    const html = renderToStaticMarkup(<DisputesTable rows={[dispute, { ...dispute, leadId: "l2", leadRef: "LD-9ZZZ", reason: "" }]} canWrite />);
-    expect(html).toContain("Open disputes");
-    expect(html).toContain("Priya Nair");
-    expect(html).toContain("LD-3K7M");
-    expect(html).toContain("The contact had left the company.");
-    expect(html).toContain("No reason given");
-    expect(html).toContain("Decide dispute");
-  });
-
-  it("hides the decision from staff and says when nothing is open", () => {
-    expect(renderToStaticMarkup(<DisputesTable rows={[dispute]} canWrite={false} />)).not.toContain("Decide dispute");
-    expect(renderToStaticMarkup(<DisputesTable rows={[]} canWrite />)).toContain("No open disputes");
-  });
-});
-
 describe("Campaign header", () => {
   it("shows the status, the parties, the zone and the four sub-pages, and Edit only for an admin", () => {
     const admin = renderToStaticMarkup(<CampaignTitle campaign={header} canWrite />);
@@ -410,7 +389,6 @@ describe("copy", () => {
       renderToStaticMarkup(<ClientOverview client={clientDetail} canWrite />),
       renderToStaticMarkup(<CampaignsTable rows={[campaignRow]} />),
       renderToStaticMarkup(<BriefView campaign={header} />),
-      renderToStaticMarkup(<DisputesTable rows={[dispute]} canWrite />),
       renderToStaticMarkup(<HostPanel host={imogen} reference="CMP-7Q2X" campaignId="c1" clientName="Kestrel Ledger" campaignZone="Europe/London" now={day("2026-11-13")} canWrite />),
     ].join("");
     expect(html).not.toMatch(/[\u2013\u2014]/);

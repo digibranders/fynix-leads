@@ -121,7 +121,6 @@ runScript(async () => {
         .values({ campaignId: row.id, party: "client", version: 1, monthlyTarget: 20, totalTarget: 120, rules: "A no-show counts after ten minutes. A client who cancels less than 24 hours before is counted as a no-show.", notes: "Reviewed every quarter.", createdBy: adminUser.memberId })
         .onConflictDoNothing();
       const clientAgreement = firstRow(await db.select({ id: agreement.id }).from(agreement).where(and(eq(agreement.campaignId, row.id), eq(agreement.party, "client"), eq(agreement.version, 1))), "client agreement");
-      await db.insert(agreement).values({ campaignId: row.id, party: "supplier", version: 1, monthlyTarget: 18, totalTarget: 108, rules: "Cancellations need two days notice.", notes: "Paid on delivered meetings.", createdBy: adminUser.memberId }).onConflictDoNothing();
       await db.insert(agreementAcceptance).values({ agreementId: clientAgreement.id, userId: clientUser.userId, networkAddress: "203.0.113.10" }).onConflictDoNothing();
     }
 

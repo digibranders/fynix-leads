@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { PORTALS, type PortalKind } from "./nav";
+import { forViewer, PORTALS, type PortalKind } from "./nav";
 import { ShellFrame } from "./shell-frame";
 import { preferenceFrom, SIDEBAR_COOKIE } from "./sidebar-preference";
 import { SidebarContent } from "./sidebar";
@@ -15,6 +15,8 @@ interface Props {
   counts?: Readonly<Record<string, number>>;
   /** Unread notices for the bell in the top bar. */
   unreadNotices?: number;
+  /** Whether the viewer is a Fynix admin, who also sees the audit log and the email templates in the menu. */
+  isAdmin?: boolean;
   children: React.ReactNode;
 }
 
@@ -24,8 +26,8 @@ interface Props {
  * the rest of the menu in a sheet. Layout switches by CSS only. The layout that renders it reads the session, so it sits behind a
  * `<Suspense>` boundary, and reading the sidebar cookie here costs nothing extra.
  */
-export async function AppShell({ portal, userName, roleLabel, counts = {}, unreadNotices = 0, children }: Props) {
-  const config = PORTALS[portal];
+export async function AppShell({ portal, userName, roleLabel, counts = {}, unreadNotices = 0, isAdmin = false, children }: Props) {
+  const config = forViewer(PORTALS[portal], isAdmin);
   const footer = <UserMenu name={userName} roleLabel={roleLabel} profileHref={`${config.homeHref}/profile`} />;
   const initial = preferenceFrom((await cookies()).get(SIDEBAR_COOKIE)?.value);
 

@@ -55,6 +55,11 @@ export const runtimeEnvSchema = z
     MAIL_SENDER_ADDRESS: z.preprocess(emptyAsMissing, z.string().max(254).regex(/^[^@\s]+@[^@\s]+\.[^@\s]+$/, "must be an email address").optional()),
     /** The display name of that address. Unset means "Fynix" with the default address, or the address itself with another one. */
     MAIL_SENDER_NAME: z.preprocess(emptyAsMissing, z.string().min(1).max(70).optional()),
+    /**
+     * Gate G1. `true` makes every Fynix person turn on the second sign-in step (an authenticator app) before any other Fynix page opens; they are sent to their profile
+     * page to do it. Anything else is off, so a deploy never locks anyone out. Turn it on only once every Fynix person has enrolled.
+     */
+    REQUIRE_FYNIX_2FA: z.preprocess(emptyAsMissing, z.enum(["true", "false"]).optional()),
     /** Where meeting rooms come from. `none` (the default): no room is made and the screens say the link will follow. `google`: the Meet REST API with the three variables below. */
     MEET_PROVIDER: z.preprocess(emptyAsMissing, z.enum(["none", "google"]).optional()),
     /** The OAuth client and the refresh token of the one neutral room account (the Meet note, "What the owner arranges", step 5). */
@@ -115,7 +120,7 @@ export function declaredVariables(): { readonly runtime: string[]; readonly tool
 
 /** The variable names roles.ts derives, for the same check. */
 export function derivedVariables(): { readonly runtime: string[]; readonly tooling: string[] } {
-  const runtime = [...RUNTIME_ROLES.map((role) => urlVariable(role, "dev")), "BETTER_AUTH_SECRET", "APP_ORIGIN", "PASSWORD_BREACH_CHECK", "BREVO_API_KEY", "LAUNCH_EMAILS_ENABLED", "MAIL_SENDER_ADDRESS", "MAIL_SENDER_NAME", "MEET_PROVIDER", "GOOGLE_MEET_CLIENT_ID", "GOOGLE_MEET_CLIENT_SECRET", "GOOGLE_MEET_REFRESH_TOKEN"];
+  const runtime = [...RUNTIME_ROLES.map((role) => urlVariable(role, "dev")), "BETTER_AUTH_SECRET", "APP_ORIGIN", "PASSWORD_BREACH_CHECK", "BREVO_API_KEY", "REQUIRE_FYNIX_2FA", "LAUNCH_EMAILS_ENABLED", "MAIL_SENDER_ADDRESS", "MAIL_SENDER_NAME", "MEET_PROVIDER", "GOOGLE_MEET_CLIENT_ID", "GOOGLE_MEET_CLIENT_SECRET", "GOOGLE_MEET_REFRESH_TOKEN"];
   const tooling = [
     "DATABASE_URL_ADMIN",
     urlVariable("leads_owner", "dev"),

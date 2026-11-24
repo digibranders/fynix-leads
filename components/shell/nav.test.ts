@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { breadcrumb, currentItem, flatItems, moreGroups, PORTALS, tabItems } from "./nav";
+import { breadcrumb, currentItem, flatItems, forViewer, moreGroups, PORTALS, tabItems } from "./nav";
 
 describe("phone tab bar", () => {
   it("puts four real items of the portal on the bar, home first", () => {
@@ -108,5 +108,27 @@ describe("messages badge and notices page", () => {
 
   it("titles the Notices page of each portal", () => {
     for (const portal of Object.values(PORTALS)) expect(breadcrumb(portal, `${portal.homeHref}/notices`), portal.kind).toEqual(["Notices"]);
+  });
+});
+
+describe("admin only items", () => {
+  const hrefs = (admin: boolean): string[] => flatItems(forViewer(PORTALS.fynix, admin)).map((item) => item.href);
+
+  it("shows the audit log and the email templates to a Fynix admin, in the System group beside Settings, and in the More sheet", () => {
+    expect(hrefs(true)).toEqual(expect.arrayContaining(["/fynix/settings", "/fynix/audit", "/fynix/templates"]));
+    expect(moreGroups(forViewer(PORTALS.fynix, true)).flatMap((group) => group.items.map((item) => item.href))).toEqual(expect.arrayContaining(["/fynix/audit", "/fynix/templates"]));
+  });
+
+  it("hides them from Fynix staff everywhere the menu is built, and keeps everything else", () => {
+    const staff = forViewer(PORTALS.fynix, false);
+    expect(hrefs(false)).not.toContain("/fynix/audit");
+    expect(hrefs(false)).not.toContain("/fynix/templates");
+    expect(hrefs(false)).toContain("/fynix/settings");
+    expect(moreGroups(staff).flatMap((group) => group.items.map((item) => item.href))).not.toContain("/fynix/audit");
+    expect(tabItems(staff)).toHaveLength(4);
+  });
+
+  it("only the Fynix portal has any", () => {
+    for (const portal of [PORTALS.client, PORTALS.supplier, PORTALS.agency]) expect(forViewer(portal, false)).toEqual(portal);
   });
 });

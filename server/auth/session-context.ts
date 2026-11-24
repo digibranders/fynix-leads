@@ -12,7 +12,7 @@ export interface SessionReader {
       query: { disableRefresh: true };
     }): Promise<{
       readonly session: { readonly id: string; readonly createdAt: Date };
-      readonly user: { readonly id: string; readonly name: string };
+      readonly user: { readonly id: string; readonly name: string; readonly twoFactorEnabled?: boolean | null };
     } | null>;
   };
 }
@@ -24,6 +24,8 @@ interface SessionContextBase {
   readonly sessionId: string;
   readonly orgId: string;
   readonly memberRole: "member" | "manager";
+  /** Whether the person has turned the second sign-in step on. Read from the session's user row, so no pool needs a grant on the column. */
+  readonly twoFactorEnabled?: boolean;
 }
 
 /** A signed-in Fynix admin. Runs on the `leads_fynix` pool, which sees every organisation. */
@@ -82,5 +84,5 @@ export async function resolveSessionContext(deps: SessionResolution, headers: He
   const secondFactor = deps.secondFactor ?? secondFactorSatisfied;
   if (!(await secondFactor({ kind: membership.orgKind, userId: found.user.id, sessionId: found.session.id }))) return null;
 
-  return contextFor(membership.orgKind, { userId: found.user.id, name: found.user.name, sessionId: found.session.id, orgId: membership.orgId, memberRole: membership.role });
+  return contextFor(membership.orgKind, { userId: found.user.id, name: found.user.name, sessionId: found.session.id, orgId: membership.orgId, memberRole: membership.role, twoFactorEnabled: found.user.twoFactorEnabled === true });
 }

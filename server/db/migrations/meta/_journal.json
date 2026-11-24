@@ -533,6 +533,20 @@
       "when": 1795546566992,
       "tag": "0075_phase6_grants_functions",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1795549117067,
+      "tag": "0076_two_factor",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1795549123839,
+      "tag": "0077_two_factor_grants",
+      "breakpoints": true
     }
   ]
 }

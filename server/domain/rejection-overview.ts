@@ -27,8 +27,8 @@ export interface RejectionRow {
 export type RejectionState = "open" | "reviewed" | "all";
 
 /**
- * Every rejection waiting for Fynix, newest first: the main queue, in place of the disputes list (the old dispute tables and code stay but nothing
- * new uses them). Only a rejection after the meeting is here; a rejection before it never counted and has nothing to change. Open to staff.
+ * Every rejection waiting for Fynix, newest first: the main queue, in place of the disputes list (the old dispute code was removed in phase 7; the lead
+ * dispute columns and the `disputed` stage stay as the record of old leads). Only a rejection after the meeting is here; a rejection before it never counted and has nothing to change. Open to staff.
  */
 export async function listRejections(deps: DomainDeps, actor: FynixActor, state: RejectionState = "open"): Promise<readonly RejectionRow[]> {
   return fynixRead(deps.fynixDb, actor, async (tx) => {
