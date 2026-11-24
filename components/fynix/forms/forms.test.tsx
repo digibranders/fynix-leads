@@ -4,14 +4,23 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => undefined }) }));
 vi.mock("@/server/fynix/actions", () => {
   const action = async () => ({ status: "idle" as const });
-  return { addSupplierAction: action, addAgencyAction: action, invitePersonAction: action, publishAgreementAction: action, setShareAction: action, removeShareAction: action, addHostAction: action, pauseHostAction: action, setHoursAction: action, addBlockAction: action, removeBlockAction: action, createCampaignAction: action, updateCampaignAction: action };
+  return { addSupplierAction: action, addAgencyAction: action, invitePersonAction: action, publishAgreementAction: action, publishTermsAction: action, setShareAction: action, removeShareAction: action, addHostAction: action, pauseHostAction: action, setHoursAction: action, addBlockAction: action, removeBlockAction: action, createCampaignAction: action, updateCampaignAction: action };
 });
 
 const { AddAgencyForm, AddSupplierForm, InvitePersonForm } = await import("@/components/fynix/forms/supplier-forms");
 const { AddHostForm, CreateCampaignForm, EditCampaignForm, NewAgreementForm, ShareForm } = await import("@/components/fynix/forms/campaign-forms");
 const { BlockForm, HoursForm } = await import("@/components/fynix/forms/availability-forms");
+const { PublishTermsForm } = await import("@/components/fynix/forms/settings-forms");
 
 describe("the forms render", () => {
+  it("Publish terms asks who the terms are for, a title and the text", () => {
+    const markup = renderToStaticMarkup(<PublishTermsForm />);
+    expect(markup).toContain('name="party"');
+    expect(markup).toContain('name="title"');
+    expect(markup).toContain('name="body"');
+    expect(markup).toContain("Publish terms");
+  });
+
   it("Add coordinator and Add agency have a name and the primary button", () => {
     const supplier = renderToStaticMarkup(<AddSupplierForm />);
     expect(supplier).toContain('name="name"');

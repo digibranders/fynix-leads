@@ -9,6 +9,7 @@ import { Person } from "@/components/kit/person";
 import { PageSkeleton } from "@/components/kit/skeletons";
 import { When } from "@/components/kit/when";
 import { Badge } from "@/components/ui/badge";
+import { PublishTermsButton } from "@/components/fynix/settings/settings-actions";
 import { getDomain } from "@/server/domain";
 import { readSettings } from "@/server/domain/settings-overview";
 import { requireFynix } from "@/server/fynix/session";
@@ -50,10 +51,10 @@ async function Settings() {
         </Panel>
 
         <Panel aria-label="Terms in force">
-          <PanelHeader title="Terms in force" count={terms.length} />
+          <PanelHeader title="Terms in force" count={terms.length} action={view.canWrite ? <PublishTermsButton /> : null} />
           {terms.length === 0 ? (
             <EmptyState icon={FileText} title="No terms are published">
-              Terms appear here once they are published for a party.
+              Publish terms for each side before you invite its people.
             </EmptyState>
           ) : (
             <ul className="flex flex-col pb-3">

@@ -20,6 +20,7 @@ import {
   deactivateCampaignHostSchema,
   issueInviteSchema,
   publishAgreementSchema,
+  publishTermsSchema,
   removeCampaignShareSchema,
   setCampaignShareSchema,
   setHostHoursSchema,
@@ -32,6 +33,7 @@ import { removeCampaignShare, setCampaignShare } from "@/server/domain/shares";
 import { fynixResolveDispute } from "@/server/domain/leads";
 import { createOrganisation } from "@/server/domain/organisations";
 import { createPartnerAgency, createSupplier } from "@/server/domain/suppliers";
+import { publishTerms } from "@/server/domain/terms";
 import { field, numberField, runAction } from "@/server/fynix/run-action";
 
 /**
@@ -215,6 +217,19 @@ export async function publishAgreementAction(_previous: FormState, formData: For
     labels: { monthlyTarget: "Per month", totalTarget: "In total", disputeWindowHours: "Dispute window", rules: "Counting rules", notes: "Notes", party: "Agreement" },
     perform: async (deps, actor, input) => {
       await publishAgreement(deps, actor, input);
+    },
+  });
+}
+
+export async function publishTermsAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runAction({
+    formData,
+    fieldNames: ["party", "title", "body"],
+    build: () => ({ party: field(formData, "party"), title: field(formData, "title"), body: field(formData, "body") }),
+    schema: publishTermsSchema,
+    labels: { party: "Side", title: "Title", body: "Text" },
+    perform: async (deps, actor, input) => {
+      await publishTerms(deps, actor, input);
     },
   });
 }

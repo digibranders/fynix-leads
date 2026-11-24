@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { createContext, useActionState, useContext, useEffect } from "react";
+import { toast } from "sonner";
 import { Notice } from "@/components/auth/notice";
 import { SubmitButton } from "@/components/auth/submit-button";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,8 @@ type Props = {
   action: (previous: FormState, formData: FormData) => Promise<FormState>;
   submitLabel: string;
   pendingLabel: string;
+  /** What the person reads when the change is saved. */
+  savedMessage?: string;
   children: React.ReactNode;
 };
 
@@ -27,16 +30,17 @@ type Props = {
  * with the whole form shows at the top as a notice; a problem with a field shows under the field. When the change is saved the
  * sheet closes and, if the action named a page, the router moves there.
  */
-export function ActionForm({ action, submitLabel, pendingLabel, children }: Props) {
+export function ActionForm({ action, submitLabel, pendingLabel, savedMessage = "Saved", children }: Props) {
   const [state, formAction, pending] = useActionState(action, IDLE_FORM);
   const close = useSheetClose();
   const router = useRouter();
 
   useEffect(() => {
     if (state.status !== "done") return;
+    toast.success(savedMessage);
     close();
     if (state.redirectTo !== null) router.push(state.redirectTo);
-  }, [state, close, router]);
+  }, [state, close, router, savedMessage]);
 
   return (
     <FormStateContext.Provider value={state}>

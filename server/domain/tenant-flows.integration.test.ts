@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { agreement, aliasIdentity, auditLog, campaign, campaignHost, campaignShare, hostHours, member, organisation, user } from "@/server/db/schema";
+import { agreement, aliasIdentity, auditLog, campaign, campaignHost, campaignShare, hostHours, lead, member, organisation, user } from "@/server/db/schema";
 import { listClientMeetings, listAgencyMeetings, recordMeetingOutcome } from "@/server/domain/meetings";
 import { clientReviewLead, listAgencyLeads, listClientLeads, submitLead } from "@/server/domain/leads";
 import { getConversationSeenAt, getOrCreateConversation, listConversationMessages, listConversations, markConversationRead, postMessage, type MessagingActor } from "@/server/domain/messaging";
@@ -18,12 +18,6 @@ import { addGroupMembers, canCreateGroup, createGroup, deleteGroup, getGroupInfo
 import { openDomainRig } from "@/server/domain/testing";
 
 /**
- * SKIPPED until the tenant data access is made to work. Run as the real roles, every flow below fails: the policies of
- * migrations 0032 to 0036 read hidden tables and columns (campaign.client_org_id, organisation, alias_identity's code hash),
- * the campaign and campaign_share policies call each other, and the column-level grants omit columns the code reads. Fixing
- * that needs SECURITY DEFINER helpers for the cross-table checks, which this project has so far avoided on purpose, so it is
- * an owner decision. Remove `.skip` when it is done; these tests are the acceptance check.
- *
  * The tenant flows end to end, as the roles the app really runs them as (leads_client and leads_agency, never the owner):
  * a lead is submitted, reviewed and held, and people talk about it. These had no database test before, and a grant that is
  * one column short only shows up here, as "permission denied".
@@ -138,6 +132,21 @@ describe("a lead from submission to outcome", () => {
     const meetingRow = clientMeetings[0];
     if (meetingRow === undefined) throw new Error("No meeting");
     await recordMeetingOutcome(db.leads_client.db, rig.deps(), cast.clientActor, { meetingId: meetingRow.id, outcome: "held" });
+  });
+});
+
+describe("a client rejects a lead before the meeting", () => {
+  it("closes the lead with the reason, as the client's own database role", async () => {
+    const db = rig.dbs.roles;
+    await submitLead(db.leads_agency.db, rig.deps(), cast.agencyActor, leadInput([nextWeekdayAt(10, 3)]));
+    const [created] = await listClientLeads(db.leads_client.db, cast.clientActor);
+    if (created === undefined) throw new Error("No lead");
+
+    await clientReviewLead(db.leads_client.db, rig.deps(), cast.clientActor, { leadId: created.id, action: "decline", declineReason: "Not in our target market" });
+
+    const [row] = await rig.dbs.owner.db.select({ stage: lead.stage, declineReason: lead.declineReason, closedAt: lead.closedAt }).from(lead).where(eq(lead.id, created.id));
+    expect(row).toMatchObject({ stage: "declined", declineReason: "Not in our target market" });
+    expect(row?.closedAt).toBeInstanceOf(Date);
   });
 });
 
