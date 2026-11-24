@@ -3,8 +3,8 @@ import { SECURITY_HEADERS } from "./lib/http/security-headers";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  // Bottom-left (the default) sits on the rail's footer note.
-  devIndicators: { position: "bottom-right" },
+  // The dev-only "N" badge sits on top of the page; it is not part of the product.
+  devIndicators: false,
   cacheComponents: true,
   // A message may carry up to five files of 10 MB each, and they travel in the form post.
   experimental: { serverActions: { bodySizeLimit: "52mb" } },

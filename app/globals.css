@@ -6,13 +6,13 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
-  Fynix Leads design tokens: the hybrid language ("structured softness").
-  Authoritative source: docs/superpowers/specs/design-directions-v2/d-hybrid/tokens.css.
+  Fynix Leads design tokens: "Ledger Soft".
+  Authoritative description: DESIGN.md. Approved comps: docs/superpowers/specs/design-directions-v3/b-ledger-soft/.
   Rules the tokens enforce:
-  - No 1px outlines on controls, chips, inputs or tiles.
-  - Dividers are 1px at --line (7%), inset, between rows only.
-  - Raised surfaces use a layered shadow plus an inset 1px ring at 6%.
-  - Status never relies on colour alone: every chip pairs an icon with a label.
+  - Surfaces are separated by tone and a ring shadow, never by an outline. Cards, buttons, chips and tables carry no border.
+  - The one visible edge is on form controls (--ctl-edge, 3:1 against the surface it sits on, WCAG 1.4.11).
+  - Colour carries status only. One brand accent (peach) marks selection, progress and the active place.
+  - Status never relies on colour alone: every chip pairs a label with its colour.
 */
 :root {
   /* Brand */
@@ -23,16 +23,14 @@
   --offwhite: #f3efe9; /* text and icons on navy */
 
   /* Canvas and surfaces */
-  --canvas: #f1ede6;
+  --canvas: #f4f2ee;
   --surface: #ffffff;
-  --surface-tonal: rgba(12, 30, 46, 0.06);
-  --surface-hero: var(--navy);
-  --selected: #fbf1e7;
-  --selected-marker: var(--peach);
+  --surface-tonal: rgba(12, 30, 46, 0.045);
+  --selected: #fbf1e7; /* peach wash: selected row, selected card, next meeting */
   --bubble-client: #f8e8d8;
   --bubble-fynix: var(--navy-05);
 
-  /* Navy alpha steps (wells, tiles, controls, dividers) */
+  /* Navy alpha steps (tonal fills, hover, dividers) */
   --navy-03: rgba(12, 30, 46, 0.03);
   --navy-04: rgba(12, 30, 46, 0.04);
   --navy-05: rgba(12, 30, 46, 0.05);
@@ -40,82 +38,69 @@
   --navy-07: rgba(12, 30, 46, 0.07);
   --navy-08: rgba(12, 30, 46, 0.08);
   --navy-10: rgba(12, 30, 46, 0.1);
-  --line: rgba(12, 30, 46, 0.07); /* the only divider colour */
-  --scrim: rgba(12, 30, 46, 0.3);
+  --line: rgba(12, 30, 46, 0.06); /* the only divider colour, between rows and sections */
+  --ctl-edge: #87929f; /* the edge of an input, select or checkbox: 3.1:1 on white */
+  --scrim: rgba(12, 30, 46, 0.34);
 
-  /* On-navy alpha steps (rail and hero) */
+  /* On-navy alpha steps (sidebar, hero) */
   --on-navy-05: rgba(255, 255, 255, 0.05);
   --on-navy-07: rgba(255, 255, 255, 0.07);
   --on-navy-10: rgba(255, 255, 255, 0.1);
   --on-navy-16: rgba(255, 255, 255, 0.16);
-  --on-navy-text: rgba(243, 239, 233, 0.68);
-  --on-navy-muted: rgba(243, 239, 233, 0.6);
+  --on-navy-text: rgba(243, 239, 233, 0.72); /* 8.1:1 on navy */
+  --on-navy-muted: rgba(243, 239, 233, 0.6); /* 6.1:1 on navy */
 
   /* Text */
   --ink: #0c1e2e;
   --ink-2: #3f4d59;
   --ink-muted: #56626d;
 
-  /* Status: text, border-free soft fill, solid */
+  /* Status: text, soft fill (a tint, never an outline), solid for bars and icons */
   --amber-text: #7a4700;
-  --amber-soft: #fbefd3;
+  --amber-soft: #fef3e2;
   --amber-solid: #d9961a;
   --green-text: #176b3d;
-  --green-soft: #e0f1e7;
+  --green-soft: #e3f3ea;
   --green-solid: #2e9a5f;
   --red-text: #a3251d;
-  --red-soft: #fbe6e2;
-  --red-soft-hover: #f6d5d0;
+  --red-soft: #fce8e5;
+  --red-soft-hover: #f8d8d3;
   --red-solid: #d4483d;
   --blue-text: #1d4e8f;
-  --blue-soft: #e1ecf9;
+  --blue-soft: #e4eefb;
   --blue-solid: #3b7bd0;
+  --teal-text: #0e6262;
+  --teal-soft: #ddf1f1;
+  --teal-solid: #2a9d9d;
 
-  /* Spacing (8px grid with a 4px half-step) and layout */
-  --s-1: 4px;
-  --s-2: 8px;
-  --s-3: 12px;
-  --s-4: 16px;
-  --s-5: 20px;
-  --s-6: 24px;
-  --s-8: 32px;
-  --s-10: 40px;
-  --s-12: 48px;
-  --gap-modules: 16px; /* between panels, panes and bento tiles */
-  --gap-tiles: 12px; /* between tiles inside a panel */
-  --inset-rail: 12px;
-  --pad-panel: 24px;
-  --pad-tile: 16px;
-  --canvas-w: 1440px;
-  --rail-w: 220px;
-  --content-left: 248px; /* rail inset + rail width + module gap */
-  --content-right: 24px;
-  --list-pane-w: 372px;
-  --detail-pane-w: 380px;
+  /* Layout */
+  --sidebar-w: 248px;
+  --topbar-h: 56px;
+  --content-max: 1280px;
+  --queue-w: 340px;
 
-  /* Row heights and control sizes */
-  --h-table-row: 50px;
-  --h-table-head: 38px;
-  --h-list-row: 96px;
-  --h-timeline-row: 40px;
-  --h-input: 44px;
-  --h-search: 40px;
-  --h-button: 44px;
-  --h-button-sm: 32px;
-  --h-nav: 42px;
-  --h-segment: 32px;
-  --h-chip: 26px;
-  --h-chip-sm: 22px;
-  --h-keycap: 22px;
-  --h-action-bar: 76px;
+  /* Control heights */
+  --h-control: 34px;
+  --h-control-sm: 30px;
+  --h-control-xs: 26px;
+  --h-control-lg: 40px;
 
   /* Motion */
   --dur-press: 120ms;
-  --dur-hover: 180ms;
-  --dur-state: 240ms;
-  --dur-panel: 360ms;
-  --dur-slow: 520ms;
-  --press-scale: 0.98;
+  --dur-hover: 160ms;
+  --dur-state: 220ms;
+  --dur-panel: 320ms;
+  --press-scale: 0.985;
+
+  /* Phone chrome: the glass tab bar and the More sheet. A spring is a damped step response sampled into linear(). */
+  --tabbar-h: 68px;
+  --tabbar-gap: 12px;
+  --tabbar-stack: calc(var(--tabbar-h) + var(--tabbar-gap) + env(safe-area-inset-bottom, 0px)); /* what the bar covers at the foot of the screen */
+  --tabbar-clear: calc(var(--tabbar-stack) + 20px); /* bottom padding that keeps the last row of a page clear of it */
+  --dur-lens: 620ms;
+  --dur-sheet: 520ms;
+  --ease-lens: linear(0, 0.0457, 0.1545, 0.293, 0.438, 0.5747, 0.6948, 0.7945, 0.8732, 0.9324, 0.9745, 1.0025, 1.0196, 1.0284, 1.0315, 1.0307, 1.0276, 1.0233, 1.0188, 1.0144, 1.0104, 1.0071, 1.0045, 1.0025, 1.0011, 1.0001, 0.9995, 0.9991, 0.999, 0.999, 0.9991, 0.9992, 0.9994, 0.9995, 1);
+  --ease-sheet: linear(0, 0.0318, 0.1073, 0.2044, 0.3085, 0.4107, 0.5059, 0.5912, 0.6657, 0.7295, 0.7831, 0.8276, 0.8641, 0.8937, 0.9175, 0.9364, 0.9514, 0.9631, 0.9722, 0.9792, 0.9846, 0.9887, 0.9918, 0.9941, 0.9958, 0.9971, 0.998, 0.9987, 0.9991, 0.9995, 1);
 
   /* shadcn semantic variables, mapped onto the tokens above */
   --background: var(--canvas);
@@ -126,39 +111,23 @@
   --popover-foreground: var(--ink);
   --primary: var(--navy);
   --primary-foreground: var(--offwhite);
-  --secondary: var(--navy-07);
+  --secondary: var(--navy-05);
   --secondary-foreground: var(--ink);
   --muted: var(--navy-05);
   --muted-foreground: var(--ink-muted);
-  --accent: var(--navy-07); /* shadcn "accent" is the hover surface, not the brand accent */
+  --accent: var(--navy-05); /* shadcn "accent" is the hover surface, not the brand accent */
   --accent-foreground: var(--ink);
   --destructive: var(--red-text);
   --border: var(--line);
-  --input: var(--navy-05);
+  --input: var(--navy-04);
   --ring: var(--navy);
 
-  --chart-1: var(--navy);
-  --chart-2: var(--ink-muted);
-  --chart-3: var(--peach);
-  --chart-4: var(--green-solid);
-  --chart-5: var(--amber-solid);
-
-  /* Sidebar tokens stay tonal for the shadcn components that read them. The navy rail uses the on-navy tokens directly. */
-  --sidebar: var(--canvas);
-  --sidebar-foreground: var(--ink-2);
-  --sidebar-primary: var(--navy);
-  --sidebar-primary-foreground: var(--offwhite);
-  --sidebar-accent: var(--navy-07);
-  --sidebar-accent-foreground: var(--ink);
-  --sidebar-border: var(--line);
-  --sidebar-ring: var(--navy);
 }
 
 /* Colours and fonts reference variables, so they are inlined. */
 @theme inline {
   --font-sans: var(--font-geist-sans), "Geist", ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), "Geist Mono", ui-monospace, monospace;
-  --font-serif: var(--font-geist-serif), "Geist Serif", Georgia, serif; /* the hero figure only */
   --font-heading: var(--font-sans);
 
   /* Brand and surfaces */
@@ -175,6 +144,7 @@
   --color-bubble-fynix: var(--bubble-fynix);
   --color-scrim: var(--scrim);
   --color-line: var(--line);
+  --color-ctl-edge: var(--ctl-edge);
   --color-navy-03: var(--navy-03);
   --color-navy-04: var(--navy-04);
   --color-navy-05: var(--navy-05);
@@ -208,6 +178,9 @@
   --color-blue-text: var(--blue-text);
   --color-blue-soft: var(--blue-soft);
   --color-blue-solid: var(--blue-solid);
+  --color-teal-text: var(--teal-text);
+  --color-teal-soft: var(--teal-soft);
+  --color-teal-solid: var(--teal-solid);
 
   /* shadcn semantic colours */
   --color-background: var(--background);
@@ -228,19 +201,6 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
 
   /* Every transition without an explicit duration gets the hover duration and the soft-landing curve. */
   --default-transition-duration: var(--dur-hover);
@@ -249,44 +209,30 @@
 
 /* Literal values are emitted as real variables so arbitrary utilities like shadow-(--shadow-popover) work. */
 @theme static {
-  /* Radii: 7 key caps, 12 rows and inputs, 16 tiles and lifted cards, 22 panels, 24 rail, rounded-full for controls */
-  --radius-xs: 7px;
-  --radius-sm: 12px;
-  --radius-md: 16px;
-  --radius-lg: 22px;
-  --radius-xl: 24px;
-  --radius-2xl: 28px;
-  --radius-3xl: 32px;
-  --radius-4xl: 40px;
+  /* Radii: 6 chips and key caps, 9 controls and rows, 12 popovers and tiles, 14 cards, 18 dialogs and sheets, full for avatars and pills */
+  --radius-xs: 6px;
+  --radius-sm: 9px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --radius-2xl: 22px;
+  --radius-3xl: 28px;
+  --radius-4xl: 36px;
 
-  /* Shadow stacks */
+  /* Shadow stacks: a 1px ring at 5%, a contact shadow, a long soft one. Tinted navy, never black. */
   --shadow-raised:
-    inset 0 0 0 1px rgba(12, 30, 46, 0.06), 0 1px 2px rgba(12, 30, 46, 0.04),
-    0 4px 10px -2px rgba(12, 30, 46, 0.05), 0 16px 32px -12px rgba(12, 30, 46, 0.09);
-  --shadow-selected:
-    inset 0 0 0 1px rgba(12, 30, 46, 0.06), 0 1px 2px rgba(12, 30, 46, 0.06),
-    0 6px 14px -3px rgba(12, 30, 46, 0.09), 0 18px 30px -12px rgba(12, 30, 46, 0.14);
-  --shadow-tile-lift:
-    inset 0 0 0 1px rgba(12, 30, 46, 0.05), 0 1px 2px rgba(12, 30, 46, 0.05),
-    0 6px 12px -6px rgba(12, 30, 46, 0.08);
+    0 0 0 1px rgba(12, 30, 46, 0.05), 0 1px 2px rgba(12, 30, 46, 0.04), 0 12px 28px -16px rgba(12, 30, 46, 0.16);
+  --shadow-lift:
+    0 0 0 1px rgba(12, 30, 46, 0.06), 0 2px 4px rgba(12, 30, 46, 0.05), 0 18px 34px -16px rgba(12, 30, 46, 0.22);
   --shadow-popover:
-    inset 0 0 0 1px rgba(12, 30, 46, 0.06), 0 4px 8px -2px rgba(12, 30, 46, 0.08),
-    0 24px 48px -12px rgba(12, 30, 46, 0.2);
-  --shadow-tray: 0 -1px 0 rgba(12, 30, 46, 0.06), 0 -14px 24px -14px rgba(12, 30, 46, 0.12);
-  --shadow-rail:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 2px rgba(12, 30, 46, 0.2),
-    0 14px 34px rgba(12, 30, 46, 0.18);
-  --shadow-hero:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 2px 4px rgba(12, 30, 46, 0.14), 0 20px 40px -14px rgba(12, 30, 46, 0.38);
-  --shadow-btn-primary:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 1px 2px rgba(12, 30, 46, 0.25),
-    0 8px 16px -6px rgba(12, 30, 46, 0.4);
-  --shadow-nav-active: 0 4px 12px -4px rgba(233, 175, 136, 0.5);
-  --shadow-disc: 0 1px 2px rgba(12, 30, 46, 0.06); /* the 30px icon disc on a navy 4% tile */
-  --shadow-segment: 0 1px 2px rgba(12, 30, 46, 0.2); /* the active segment of the segmented control */
-  --shadow-glow: 0 0 14px rgba(233, 175, 136, 0.45); /* the peach progress fill on the hero tile */
-  --hero-glow: radial-gradient(closest-side, rgba(233, 175, 136, 0.09), rgba(233, 175, 136, 0)); /* the only gradient: a soft corner glow on the hero tile */
+    0 0 0 1px rgba(12, 30, 46, 0.06), 0 4px 8px -2px rgba(12, 30, 46, 0.08), 0 24px 48px -12px rgba(12, 30, 46, 0.22);
+  --shadow-tray: 0 -1px 0 rgba(12, 30, 46, 0.05), 0 -14px 24px -16px rgba(12, 30, 46, 0.14);
+  --shadow-hero: 0 2px 4px rgba(12, 30, 46, 0.14), 0 20px 40px -18px rgba(12, 30, 46, 0.5);
+  --shadow-btn-primary: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 1px 2px rgba(12, 30, 46, 0.3);
+  --shadow-btn-peach: 0 8px 20px -8px rgba(233, 175, 136, 0.65);
+  --shadow-slot: 0 14px 28px -14px rgba(12, 30, 46, 0.6);
+  --shadow-segment: 0 1px 2px rgba(12, 30, 46, 0.12);
+  --hero-glow: radial-gradient(closest-side, rgba(233, 175, 136, 0.22), rgba(233, 175, 136, 0)); /* the only gradient: a corner glow on the hero card */
 
   /* Type scale (size and line height). Tailwind text-xs and text-sm stay for 12px and 14px. */
   --text-caption: 12px;
@@ -294,27 +240,27 @@
   --text-label: 12.5px;
   --text-label--line-height: 17px;
   --text-table: 13px;
-  --text-table--line-height: 17px;
-  --text-body: 14px;
+  --text-table--line-height: 18px;
+  --text-body: 13.5px;
   --text-body--line-height: 20px;
-  --text-row: 14.5px;
-  --text-section: 16px;
-  --text-section--line-height: 22px;
+  --text-row: 14px;
   --text-row--line-height: 20px;
+  --text-section: 15px;
+  --text-section--line-height: 22px;
   --text-value: 15px;
   --text-value--line-height: 20px;
   --text-lead: 16px;
   --text-lead--line-height: 24px;
-  --text-title: 28px;
-  --text-title--line-height: 34px;
-  --text-name: 34px;
-  --text-name--line-height: 38px;
-  --text-figure: 38px;
-  --text-figure--line-height: 40px;
-  --text-hero: 96px;
-  --text-hero--line-height: 96px;
-  --tracking-title: -0.015em;
-  --tracking-figure: -0.02em;
+  --text-title: 22px;
+  --text-title--line-height: 28px;
+  --text-name: 26px;
+  --text-name--line-height: 32px;
+  --text-figure: 26px;
+  --text-figure--line-height: 30px;
+  --text-display: 46px;
+  --text-display--line-height: 46px;
+  --tracking-title: -0.02em;
+  --tracking-figure: -0.025em;
 
   /* Easing: soft landing by default, a gentle overshoot for press release and count badges */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -329,6 +275,14 @@
     appearance: none;
     display: none;
   }
+  input[type="number"] {
+    appearance: textfield;
+  }
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    appearance: none;
+    margin: 0;
+  }
 
   * {
     @apply border-border;
@@ -340,8 +294,8 @@
   body {
     background: var(--canvas);
     color: var(--ink);
-    font-size: 14px;
-    line-height: 1.43;
+    font-size: 13.5px;
+    line-height: 1.45;
     font-variant-numeric: tabular-nums;
     caret-color: var(--navy);
     -webkit-font-smoothing: antialiased;
@@ -362,7 +316,12 @@
   }
   :focus-visible {
     outline: 2px solid var(--ring);
-    outline-offset: 3px;
+    outline-offset: 2px;
+  }
+  /* Slim scrollbars that stay out of the way */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(12, 30, 46, 0.22) transparent;
   }
 }
 
@@ -372,7 +331,6 @@
     --dur-hover: 0ms;
     --dur-state: 0ms;
     --dur-panel: 0ms;
-    --dur-slow: 0ms;
   }
   *,
   *::before,
@@ -381,5 +339,240 @@
     animation-iteration-count: 1 !important; /* an infinite loop at 0.01ms would flicker, so the skeleton pulse stops */
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ------------------------------------------------------------------------------------------------------------------
+ * Phone chrome: the glass tab bar, the More sheet and the depth of the page behind it. Glass is a web approximation
+ * (blur, a layered highlight, a 1px ring) and never relies on an outline. Reduced motion and reduced transparency are
+ * handled at the end of this block.
+ * ---------------------------------------------------------------------------------------------------------------- */
+.glass-ink {
+  background: linear-gradient(180deg, rgb(24 46 66 / 0.9), rgb(12 30 46 / 0.92));
+  -webkit-backdrop-filter: blur(26px) saturate(170%);
+  backdrop-filter: blur(26px) saturate(170%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.24),
+    inset 0 0 0 1px rgb(255 255 255 / 0.08),
+    0 20px 40px -10px rgb(12 30 46 / 0.6),
+    0 2px 6px rgb(12 30 46 / 0.2);
+}
+.glass-sheet {
+  background: linear-gradient(180deg, rgb(22 44 64 / 0.9), rgb(12 30 46 / 0.95));
+  -webkit-backdrop-filter: blur(40px) saturate(160%);
+  backdrop-filter: blur(40px) saturate(160%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.2),
+    0 -20px 50px -18px rgb(0 0 0 / 0.6);
+}
+.tab-lens {
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.2), rgb(255 255 255 / 0.08));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.28),
+    0 8px 18px -8px rgb(0 0 0 / 0.5);
+  will-change: transform;
+}
+.tab-badge {
+  animation: badge-pop 460ms var(--ease-lens) both;
+}
+@keyframes badge-pop {
+  0% {
+    transform: scale(0.4);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* The sheet rises on a spring and leaves a little faster. While a finger drags it, inline styles take over. */
+.sheet-ink {
+  transform: translateY(0);
+  transition: transform var(--dur-sheet) var(--ease-sheet);
+  will-change: transform;
+}
+.sheet-ink[data-starting-style] {
+  transform: translateY(100%);
+}
+.sheet-ink[data-ending-style] {
+  transform: translateY(100%);
+  transition-duration: 300ms;
+  transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+}
+.sheet-scrim {
+  background: rgb(6 15 24 / 0.5);
+  transition: opacity 360ms var(--ease-out);
+}
+.sheet-scrim[data-starting-style],
+.sheet-scrim[data-ending-style] {
+  opacity: 0;
+}
+/* Rows settle in one after the other once the sheet is on its way up. */
+.sheet-row {
+  animation: sheet-row-in 560ms var(--ease-sheet) both;
+  animation-delay: calc(var(--i, 0) * 36ms + 120ms);
+}
+@keyframes sheet-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+  }
+}
+.sheet-press {
+  transition: transform 220ms var(--ease-lens), background-color var(--dur-hover);
+}
+.sheet-press:active {
+  transform: scale(0.97);
+  transition-duration: 90ms;
+}
+
+@media (max-width: 767px) {
+  .glass-top {
+    background: rgb(244 242 238 / 0.82);
+    -webkit-backdrop-filter: blur(22px) saturate(180%);
+    backdrop-filter: blur(22px) saturate(180%);
+    transition: box-shadow 260ms var(--ease-out);
+  }
+  .glass-top[data-scrolled="true"] {
+    box-shadow: 0 1px 0 rgb(12 30 46 / 0.07), 0 10px 26px -14px rgb(12 30 46 / 0.22);
+  }
+  /* A new screen eases in from just below, the way a pushed screen settles. */
+  .page-in {
+    animation: page-in 420ms var(--ease-out) both;
+  }
+  /* The page sinks back and its corners round while the sheet is up, like a card presentation. The scale follows --sheet-p, which
+     the sheet writes while a finger drags it. The clip is the viewport, so the rounded corners show wherever the page is scrolled to. */
+  .app-surface {
+    transition: transform var(--dur-sheet) var(--ease-sheet);
+  }
+  html[data-sheet] .app-surface {
+    transform-origin: 50% var(--sheet-origin, 50vh);
+    transform: scale(calc(1 - 0.06 * var(--sheet-p, 1)));
+    clip-path: inset(var(--sheet-top, 0px) 0 calc(100% - var(--sheet-top, 0px) - 100dvh) 0 round 28px);
+  }
+  html[data-sheet-drag] .app-surface {
+    transition: none;
+  }
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass-ink,
+  .glass-sheet {
+    background: var(--navy);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .glass-top {
+    background: var(--canvas);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-sheet] .app-surface {
+    transform: none;
+  }
+  .sheet-row,
+  .page-in,
+  .tab-badge {
+    animation: none;
+  }
+}
+
+/* ------------------------------------------------------------------------------------------------------------------
+ * The sidebar folds into a 76px icon rail. `data-sidebar` on .shell is auto, collapsed or expanded (see shell-frame.tsx). Auto is the
+ * rail on a tablet (768 to 1099px) and the full sidebar beyond. The rail hides labels, shows a dot for a count, and names each icon
+ * on hover or focus. Keep the tablet range in step with TABLET in shell-frame.tsx.
+ * ---------------------------------------------------------------------------------------------------------------- */
+.sb-dot {
+  display: none;
+  position: absolute;
+  top: 6px;
+  right: 14px;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: var(--peach);
+  box-shadow: 0 0 0 2px var(--navy);
+}
+.sb-item::after {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 14px);
+  z-index: 60;
+  translate: 0 -50%;
+  padding: 6px 10px;
+  border-radius: 9px;
+  background: var(--navy);
+  color: #f4f2ee;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.12),
+    0 10px 24px -8px rgb(12 30 46 / 0.55);
+}
+@media (min-width: 768px) {
+  .shell[data-sidebar="collapsed"] {
+    --sidebar-w: 76px;
+  }
+  .shell[data-sidebar="collapsed"] .sb-hide {
+    display: none;
+  }
+  .shell[data-sidebar="collapsed"] .sb-dot {
+    display: block;
+  }
+  .shell[data-sidebar="collapsed"] .sb-item,
+  .shell[data-sidebar="collapsed"] .sb-brand {
+    justify-content: center;
+    padding-inline: 0;
+  }
+  .shell[data-sidebar="collapsed"] .sb-nav {
+    overflow: visible;
+  }
+  .shell[data-sidebar="collapsed"] .sb-user {
+    flex-direction: column;
+    padding-inline: 0;
+  }
+  .shell[data-sidebar="collapsed"] .sb-flip {
+    transform: scaleX(-1);
+  }
+  .shell[data-sidebar="collapsed"] .sb-item:is(:hover, :focus-visible)::after {
+    content: attr(data-label);
+  }
+}
+@media (min-width: 768px) and (max-width: 1099px) {
+  .shell[data-sidebar="auto"] {
+    --sidebar-w: 76px;
+  }
+  .shell[data-sidebar="auto"] .sb-hide {
+    display: none;
+  }
+  .shell[data-sidebar="auto"] .sb-dot {
+    display: block;
+  }
+  .shell[data-sidebar="auto"] .sb-item,
+  .shell[data-sidebar="auto"] .sb-brand {
+    justify-content: center;
+    padding-inline: 0;
+  }
+  .shell[data-sidebar="auto"] .sb-nav {
+    overflow: visible;
+  }
+  .shell[data-sidebar="auto"] .sb-user {
+    flex-direction: column;
+    padding-inline: 0;
+  }
+  .shell[data-sidebar="auto"] .sb-flip {
+    transform: scaleX(-1);
+  }
+  .shell[data-sidebar="auto"] .sb-item:is(:hover, :focus-visible)::after {
+    content: attr(data-label);
   }
 }

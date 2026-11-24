@@ -3,8 +3,8 @@ import { Notice } from "@/components/auth/notice";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { capitalise, formatDayMonth, monthName } from "@/lib/fynix/format";
 import type { AgreementsPage } from "@/server/domain/campaign-overview";
-import { Card } from "../card";
-import { EmptyState } from "../empty-state";
+import { EmptyState } from "@/components/kit/empty-state";
+import { Panel, PanelHeader } from "@/components/kit/panel";
 import { AddShareButton, ShareRowActions } from "./agreement-actions";
 
 type Props = {
@@ -28,18 +28,12 @@ export function SharesCard({ page, campaignId, supplierName, timeZone, now, canW
   const addButton = canWrite && options.length > 0 ? <AddShareButton campaignId={campaignId} options={options} /> : null;
 
   return (
-    <Card aria-labelledby="shares-heading" className="px-2 pb-3">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 pt-4 pb-3">
-        <h2 id="shares-heading" className="text-value font-semibold">
-          Monthly shares
-        </h2>
-        <span className="grid h-6 min-w-6 place-items-center rounded-full bg-navy-05 px-2 text-[12.5px] font-semibold">{shares.length}</span>
-        <p className="min-w-0 flex-1 text-table text-ink-2 max-md:basis-full">Set by {supplierName}. A Fynix admin can change them.</p>
-        {addButton}
-      </div>
+    <Panel aria-label="Monthly shares">
+      <PanelHeader title="Monthly shares" count={shares.length} action={addButton} />
+      <p className="px-5 pb-2 text-body text-ink-muted">Set by {supplierName}. A Fynix admin can change them.</p>
 
       {summary.overAllocated && summary.supplierMonthlyTarget !== null && (
-        <Notice tone="amber" icon={Warning} compact className="mx-2 mb-3">
+        <Notice tone="amber" icon={Warning} compact className="mx-5 mb-3">
           {overSentence(summary.totalShares, summary.supplierMonthlyTarget)}
         </Notice>
       )}
@@ -51,14 +45,15 @@ export function SharesCard({ page, campaignId, supplierName, timeZone, now, canW
             : "Shares split the supplier's monthly target between the supplier and its partner agencies."}
         </EmptyState>
       ) : (
+        <div className="px-2.5">
         <Table>
           <TableHeader>
-            <TableRow>
+            <TableRow className="hover:[&>th]:bg-navy-04">
               <TableHead>Agency</TableHead>
               <TableHead className="text-right">Monthly share</TableHead>
               <TableHead className="text-right max-md:hidden">Delivered in {month}</TableHead>
               <TableHead className="max-md:hidden">Last changed</TableHead>
-              <TableHead className="pr-3.5 text-right">
+              <TableHead className="text-right">
                 <span className="sr-only">Actions</span>
               </TableHead>
             </TableRow>
@@ -66,18 +61,18 @@ export function SharesCard({ page, campaignId, supplierName, timeZone, now, canW
           <TableBody>
             {shares.map((row) => (
               <TableRow key={row.agencyOrgId}>
-                <TableCell className="h-[60px]">
+                <TableCell>
                   <span className="block text-row font-semibold">{row.agencyName}</span>
-                  <span className="block text-table text-ink-2">{row.ownBookings ? "Own bookings" : "Partner agency"}</span>
+                  <span className="block text-caption text-ink-muted">{row.ownBookings ? "Own bookings" : "Partner agency"}</span>
                 </TableCell>
                 <TableCell className="text-right">{row.monthlyShare}</TableCell>
                 <TableCell className="text-right max-md:hidden">
-                  <span className="sr-only">Not counted yet</span>
+                  <span className="text-ink-muted">Not counted yet</span>
                 </TableCell>
-                <TableCell className="text-ink-2 max-md:hidden">
+                <TableCell className="text-ink-muted max-md:hidden">
                   {row.changedBy === null ? formatDayMonth(row.updatedAt, timeZone) : `${row.changedBy}, Fynix, ${formatDayMonth(row.updatedAt, timeZone)}`}
                 </TableCell>
-                <TableCell className="pr-3.5 text-right">
+                <TableCell className="text-right">
                   {canWrite && <ShareRowActions campaignId={campaignId} agency={{ id: row.agencyOrgId, name: row.agencyName, monthlyShare: row.monthlyShare }} />}
                 </TableCell>
               </TableRow>
@@ -85,7 +80,7 @@ export function SharesCard({ page, campaignId, supplierName, timeZone, now, canW
           </TableBody>
           <TableFooter>
             <TableRow className="[&>td]:shadow-none">
-              <TableCell className="h-[44px] font-semibold">Total</TableCell>
+              <TableCell className="font-semibold">Total</TableCell>
               <TableCell className="text-right font-semibold">{summary.supplierMonthlyTarget === null ? summary.totalShares : `${summary.totalShares} of ${summary.supplierMonthlyTarget}`}</TableCell>
               <TableCell className="max-md:hidden" />
               <TableCell className="max-md:hidden" />
@@ -93,14 +88,15 @@ export function SharesCard({ page, campaignId, supplierName, timeZone, now, canW
             </TableRow>
           </TableFooter>
         </Table>
+        </div>
       )}
 
       {shares.length > 0 && summary.supplierMonthlyTarget === null && (
-        <p className="mt-2 flex items-start gap-2 px-3.5 pt-2 text-table text-ink-2">
-          <Info aria-hidden size={15} className="mt-px shrink-0" />
+        <p className="flex items-start gap-2 px-5 pt-3 pb-4 text-caption text-ink-muted">
+          <Info aria-hidden size={14} className="mt-px shrink-0" />
           There is no supplier agreement yet, so there is no target to compare the total with.
         </p>
       )}
-    </Card>
+    </Panel>
   );
 }

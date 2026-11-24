@@ -1,5 +1,5 @@
-import { ListScreenSkeleton } from "@/components/fynix/skeletons";
+import { PageSkeleton } from "@/components/kit/skeletons";
 
 export default function Loading() {
-  return <ListScreenSkeleton withPanel />;
+  return <PageSkeleton />;
 }

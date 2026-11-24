@@ -1,8 +1,21 @@
 import type { Metadata } from "next";
-import { Table } from "@phosphor-icons/react/dist/ssr";
-import { EmptyState } from "@/components/fynix/empty-state";
-import { FynixPageHeader } from "@/components/fynix/page-header";
-import { StatusChip } from "@/components/fynix/status-chip";
+import { Table as TableIcon } from "@phosphor-icons/react/dist/ssr";
+import { Suspense } from "react";
+import { EmptyState } from "@/components/kit/empty-state";
+import { PageHeader } from "@/components/kit/page-header";
+import { Pager } from "@/components/kit/pager";
+import { Panel } from "@/components/kit/panel";
+import { Person } from "@/components/kit/person";
+import { PageSkeleton } from "@/components/kit/skeletons";
+import { StatusChip } from "@/components/kit/status-chip";
+import { SearchForm, Toolbar } from "@/components/kit/toolbar";
+import { When } from "@/components/kit/when";
+import { PipelineBar } from "@/components/leads/pipeline-bar";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { leadsHref } from "@/lib/leads/href";
+import { filterLeads, paginate, parsePage } from "@/lib/leads/list";
+import { parseGroup } from "@/lib/leads/pipeline";
 import type { LeadStage } from "@/lib/leads/stage";
 import { getDatabase } from "@/server/db/client";
 import { listFynixLeads } from "@/server/domain/leads";
@@ -10,82 +23,108 @@ import { requireFynix } from "@/server/fynix/session";
 
 export const metadata: Metadata = { title: "Leads" };
 
-export default async function FynixGlobalLeadsPage() {
+const BASE = "/fynix/leads";
+const one = (value: string | string[] | undefined): string | undefined => (typeof value === "string" ? value : undefined);
+
+async function Leads({ searchParams }: { searchParams: PageProps<"/fynix/leads">["searchParams"] }) {
   const view = await requireFynix();
-  const db = getDatabase("leads_fynix").db;
-  const leads = await listFynixLeads(db, view.actor);
+  const params = await searchParams;
+  const group = parseGroup(params.stage);
+  const q = one(params.q) ?? "";
+
+  const all = await listFynixLeads(getDatabase("leads_fynix").db, view.actor);
+  const filtered = filterLeads(all, { group, q });
+  const page = paginate(filtered, parsePage(params.page));
+  const href = (nextPage: number) => leadsHref(BASE, { stage: group, q, page: nextPage });
 
   return (
-    <div className="flex flex-col gap-6">
-      <FynixPageHeader
-        title="Global Leads"
-        subtitle="Monitor qualified leads across all campaigns, track pipeline throughput, and resolve disputes."
-      />
+    <div className="flex flex-col gap-4">
+      <PageHeader title="Leads" description="Qualified leads across all campaigns, from submission to delivery." />
 
-      {leads.length === 0 ? (
-        <div className="rounded-lg bg-surface p-6 shadow-raised">
-          <EmptyState icon={Table} title="No leads submitted yet">
+      {all.length === 0 ? (
+        <Panel>
+          <EmptyState icon={TableIcon} title="No leads submitted yet">
             As partner agencies and suppliers submit qualified prospects, they will appear here across all campaigns.
           </EmptyState>
-        </div>
+        </Panel>
       ) : (
-        <div className="overflow-hidden rounded-lg bg-surface shadow-raised ">
-          <table className="w-full text-left text-sm">
-            <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wider text-ink-2">
-              <tr>
-                <th className="px-4 py-3">Reference</th>
-                <th className="px-4 py-3">Campaign</th>
-                <th className="px-4 py-3">Prospect</th>
-                <th className="px-4 py-3">Company</th>
-                <th className="px-4 py-3">Stage</th>
-                <th className="px-4 py-3">Meeting Time</th>
-                <th className="px-4 py-3">Flags</th>
-                <th className="px-4 py-3">Submitted</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {leads.map((leadItem) => (
-                <tr key={leadItem.id} className="hover:bg-canvas/50">
-                  <td className="px-4 py-3 font-mono font-medium text-xs">{leadItem.publicRef}</td>
-                  <td className="px-4 py-3">
-                    <p className="font-semibold text-ink">{leadItem.campaignName}</p>
-                    <p className="text-xs text-ink-2">{leadItem.clientBrandName}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <p className="font-semibold text-ink">{leadItem.prospectName}</p>
-                    <p className="text-xs text-ink-2">{leadItem.prospectTitle}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <p className="text-ink">{leadItem.prospectCompany}</p>
-                    <p className="text-xs text-ink-2">{leadItem.prospectDomain}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusChip kind="lead" status={leadItem.stage as LeadStage} size="sm" />
-                  </td>
-                  <td className="px-4 py-3 text-xs text-ink-2">
-                    {leadItem.scheduledMeetingTime
-                      ? new Date(leadItem.scheduledMeetingTime).toLocaleString("en-GB", {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                        })
-                      : "Pending"}
-                  </td>
-                  <td className="px-4 py-3">
-                    {leadItem.overShare && (
-                      <span className="rounded bg-amber-soft px-2 py-0.5 text-xs font-semibold text-amber-text">
-                        Over-share
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-xs text-ink-2">
-                    {new Date(leadItem.submittedAt).toLocaleDateString("en-GB")}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          <PipelineBar leads={all} basePath={BASE} group={group} q={q} />
+          <Panel aria-label="Leads">
+            <Toolbar trailing={`${filtered.length} ${filtered.length === 1 ? "lead" : "leads"}`}>
+              <SearchForm defaultValue={q} placeholder="Search by name, company or reference" hidden={{ stage: group ?? undefined }} />
+            </Toolbar>
+            {page.rows.length === 0 ? (
+              <EmptyState icon={TableIcon} title="No leads match">
+                Clear the search or pick another stage to see more.
+              </EmptyState>
+            ) : (
+              <div className="px-2.5">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:[&>th]:bg-navy-04">
+                      <TableHead>Prospect</TableHead>
+                      <TableHead className="max-md:hidden">Campaign</TableHead>
+                      <TableHead className="max-xl:hidden">Company</TableHead>
+                      <TableHead>Stage</TableHead>
+                      <TableHead className="max-lg:hidden">Meeting</TableHead>
+                      <TableHead className="max-lg:hidden">Submitted</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {page.rows.map((lead) => (
+                      <TableRow key={lead.id}>
+                        <TableCell>
+                          <Person name={lead.prospectName} sub={<span className="font-mono">{lead.publicRef}</span>} />
+                        </TableCell>
+                        <TableCell className="max-md:hidden">
+                          <span className="block leading-tight">
+                            {lead.campaignName}
+                            <span className="block text-caption text-ink-muted">{lead.clientBrandName}</span>
+                          </span>
+                        </TableCell>
+                        <TableCell className="max-xl:hidden">
+                          <span className="block leading-tight">
+                            {lead.prospectCompany}
+                            <span className="block text-caption text-ink-muted">{lead.prospectDomain}</span>
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="flex flex-wrap items-center gap-1.5">
+                            <StatusChip kind="lead" status={lead.stage as LeadStage} size="sm" />
+                            {lead.overShare ? <Badge variant="amber" size="sm">Over share</Badge> : null}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-ink-2 max-lg:hidden">
+                          {lead.scheduledMeetingTime ? <When at={lead.scheduledMeetingTime} /> : <span className="text-ink-muted">Not scheduled</span>}
+                        </TableCell>
+                        <TableCell className="text-ink-muted max-lg:hidden">
+                          <When at={lead.submittedAt} style="day" />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+            <Pager
+              from={page.from}
+              to={page.to}
+              total={page.total}
+              prevHref={page.page > 1 ? href(page.page - 1) : undefined}
+              nextHref={page.page < page.pages ? href(page.page + 1) : undefined}
+            />
+          </Panel>
+        </>
       )}
     </div>
+  );
+}
+
+export default function FynixLeadsPage({ searchParams }: PageProps<"/fynix/leads">) {
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <Leads searchParams={searchParams} />
+    </Suspense>
   );
 }

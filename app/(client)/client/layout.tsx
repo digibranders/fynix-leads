@@ -1,27 +1,29 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { ShellSkeleton } from "@/components/fynix/skeletons";
-import { TenantShell } from "@/components/tenant/app-shell";
-import { CLIENT_NAV } from "@/components/tenant/nav-config";
+import { AppShell } from "@/components/shell/app-shell";
+import { ShellSkeleton } from "@/components/shell/shell-skeleton";
 import { requireClient } from "@/server/client/session";
+import { getDatabase } from "@/server/db/client";
+import { listClientLeads } from "@/server/domain/leads";
 
 export const metadata: Metadata = {
-  title: { default: "Client Portal", template: "%s | Client Portal" },
+  title: { default: "Client portal", template: "%s | Client portal" },
   robots: { index: false, follow: false },
 };
 
 async function ClientShellLoader({ children }: { children: React.ReactNode }) {
   const view = await requireClient();
+  // The count beside "Availability" is the same read the queue page makes, so the two can never disagree.
+  const waiting = await listClientLeads(getDatabase("leads_client").db, view.actor, { stage: "awaiting_client" });
   return (
-    <TenantShell
+    <AppShell
+      portal="client"
       userName={view.name}
       roleLabel={view.canWrite ? "Client manager" : "Client member"}
-      portalLabel="Client"
-      homeHref="/client"
-      navItems={CLIENT_NAV}
+      counts={{ respond: waiting.length }}
     >
       {children}
-    </TenantShell>
+    </AppShell>
   );
 }
 

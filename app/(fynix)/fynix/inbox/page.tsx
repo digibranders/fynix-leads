@@ -1,12 +1,15 @@
 import { canCreateGroup, getGroupInfo } from "@/server/domain/groups";
 import { listConversationAttachments } from "@/server/domain/attachments";
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import { PageHeader } from "@/components/kit/page-header";
+import { PageSkeleton } from "@/components/kit/skeletons";
 import {
   MessagingView,
   type ConversationSummary,
   type ForwardTargetOption,
   type ThreadMessageView,
-} from "@/components/tenant/messaging-view";
+} from "@/components/messaging/messaging-view";
 import { getDatabase } from "@/server/db/client";
 import { requireFynix } from "@/server/fynix/session";
 import {
@@ -18,10 +21,9 @@ import {
 
 export const metadata: Metadata = { title: "Inbox" };
 
-export default async function FynixInboxPage(props: {
-  searchParams?: Promise<{ conv?: string }>;
-}) {
-  const searchParams = props.searchParams ? await props.searchParams : {};
+async function Inbox({ searchParams: pending }: { searchParams: PageProps<"/fynix/inbox">["searchParams"] }) {
+  const params = await pending;
+  const searchParams = { conv: typeof params.conv === "string" ? params.conv : undefined };
   const view = await requireFynix();
   const db = getDatabase("leads_fynix").db;
 
@@ -85,7 +87,8 @@ export default async function FynixInboxPage(props: {
   }));
 
   return (
-    <div>
+    <div className="flex flex-col gap-4">
+      <PageHeader title="Inbox" description="Conversations with clients and suppliers about campaigns and leads." />
       <MessagingView
         role="fynix"
         currentUserId={view.actor.userId}
@@ -99,5 +102,13 @@ export default async function FynixInboxPage(props: {
         availableForwardTargets={availableForwardTargets}
       />
     </div>
+  );
+}
+
+export default function FynixInboxPage({ searchParams }: PageProps<"/fynix/inbox">) {
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <Inbox searchParams={searchParams} />
+    </Suspense>
   );
 }

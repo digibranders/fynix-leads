@@ -1,23 +1,24 @@
 import { Compass } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
-import { EmptyState } from "@/components/fynix/empty-state";
-import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/kit/empty-state";
+import { Panel } from "@/components/kit/panel";
+import { buttonVariants } from "@/components/ui/button";
 
-/** An address under /fynix that names nothing, such as a campaign reference that does not exist. The shell stays, so the rail still works. */
+/** An address under /fynix that names nothing, such as a campaign reference that does not exist. The shell stays, so the sidebar still works. */
 export default function FynixNotFound() {
   return (
-    <div className="mx-auto mt-10 max-w-md rounded-lg bg-surface shadow-raised">
+    <Panel className="mx-auto mt-10 max-w-md">
       <EmptyState
         icon={Compass}
         title="Not found"
         action={
-          <Button nativeButton={false} render={<Link href="/fynix/suppliers" />}>
-            Back to suppliers
-          </Button>
+          <Link href="/fynix/campaigns" className={buttonVariants({ variant: "default" })}>
+            Back to campaigns
+          </Link>
         }
       >
         That address does not match a supplier or a campaign. Check the reference, or pick one from the list.
       </EmptyState>
-    </div>
+    </Panel>
   );
 }

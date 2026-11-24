@@ -16,7 +16,7 @@ function KindBadge({ kind }: { kind: "fynix" | "client" | "agency" }) {
   const label = KIND_LABEL[kind];
   if (kind === "fynix") {
     return (
-      <span className="inline-flex h-[30px] items-center gap-1.5 rounded-full bg-navy-07 pr-3 pl-2.5 text-table font-semibold">
+      <span className="inline-flex h-[30px] items-center gap-1.5 rounded-xs bg-navy-07 pr-3 pl-2.5 text-table font-semibold">
         <ShieldCheck aria-hidden size={17} />
         {label}
       </span>
@@ -24,14 +24,14 @@ function KindBadge({ kind }: { kind: "fynix" | "client" | "agency" }) {
   }
   if (kind === "client") {
     return (
-      <span className="inline-flex h-[30px] items-center gap-1.5 rounded-full bg-navy-07 pr-3 pl-2.5 text-table font-semibold">
+      <span className="inline-flex h-[30px] items-center gap-1.5 rounded-xs bg-navy-07 pr-3 pl-2.5 text-table font-semibold">
         <Buildings aria-hidden size={17} />
         {label}
       </span>
     );
   }
   return (
-    <span className="inline-flex h-[30px] items-center gap-1.5 rounded-full bg-navy-07 pr-3 pl-2.5 text-table font-semibold">
+    <span className="inline-flex h-[30px] items-center gap-1.5 rounded-xs bg-navy-07 pr-3 pl-2.5 text-table font-semibold">
       <Handshake aria-hidden size={17} />
       {label}
     </span>
@@ -54,12 +54,12 @@ async function Welcome() {
     <div className="w-full max-w-[400px] rounded-lg bg-surface px-5 pt-7 pb-6 shadow-raised sm:px-7 sm:pt-8 sm:pb-7">
       <h1 className="sr-only">Signed in</h1>
       <div className="flex flex-col items-center gap-3 text-center">
-        <span aria-hidden className="grid size-14 place-items-center rounded-full bg-peach text-lead font-semibold text-navy">
+        <span aria-hidden className="grid size-14 place-items-center rounded-md bg-peach text-lead font-semibold text-navy">
           {initialsOf(context.name)}
         </span>
         <p className="mt-0.5 text-title font-semibold tracking-title break-words">{context.name}</p>
         <KindBadge kind={context.kind} />
-        <p className="text-body text-ink-2">You are signed in.</p>
+        <p className="text-body text-ink-muted">You are signed in.</p>
         <SignOutForm />
       </div>
     </div>

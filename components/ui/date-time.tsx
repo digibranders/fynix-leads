@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Choice, type ChoiceOption } from "@/components/ui/choice";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { CONTROL } from "./input";
 
 /** Dates travel as "YYYY-MM-DD" and times as "HH:mm", exactly what the browser's own date and time boxes post. */
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
@@ -104,7 +105,8 @@ export function DateField({ value, onChange, name, id, placeholder = "Pick a dat
         aria-label={aria["aria-label"]}
         aria-describedby={aria["aria-describedby"]}
         className={cn(
-          "flex h-11 w-full min-w-0 items-center justify-between gap-2 rounded-sm bg-input pr-3 pl-3.5 text-left text-base outline-none transition-[box-shadow,background-color] select-none hover:bg-navy-07 focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:bg-red-soft aria-invalid:ring-2 aria-invalid:ring-red-solid md:text-sm",
+          CONTROL,
+          "flex h-(--h-control) w-full min-w-0 items-center justify-between gap-2 rounded-sm pr-2.5 pl-3 text-left text-[16px] select-none md:text-[13.5px]",
           chosen === null && "text-muted-foreground",
           className,
         )}
@@ -114,13 +116,13 @@ export function DateField({ value, onChange, name, id, placeholder = "Pick a dat
       </PopoverTrigger>
       <PopoverContent align="start" className="w-[17.5rem] gap-2 p-3">
         <div className="flex items-center justify-between">
-          <button type="button" aria-label="Previous month" onClick={() => step(-1)} className="grid size-9 place-items-center rounded-full text-ink-2 transition-colors hover:bg-navy-05">
+          <button type="button" aria-label="Previous month" onClick={() => step(-1)} className="grid size-9 place-items-center rounded-sm text-ink-2 transition-colors hover:bg-navy-05">
             <CaretLeft aria-hidden size={16} weight="bold" />
           </button>
           <p aria-live="polite" className="text-table font-semibold text-ink">
             {MONTHS[shown.month]} {shown.year}
           </p>
-          <button type="button" aria-label="Next month" onClick={() => step(1)} className="grid size-9 place-items-center rounded-full text-ink-2 transition-colors hover:bg-navy-05">
+          <button type="button" aria-label="Next month" onClick={() => step(1)} className="grid size-9 place-items-center rounded-sm text-ink-2 transition-colors hover:bg-navy-05">
             <CaretRight aria-hidden size={16} weight="bold" />
           </button>
         </div>
@@ -145,7 +147,7 @@ export function DateField({ value, onChange, name, id, placeholder = "Pick a dat
                 disabled={tooEarly(day)}
                 onClick={() => pick(day)}
                 className={cn(
-                  "mx-auto grid size-9 place-items-center rounded-full text-table transition-colors disabled:cursor-not-allowed disabled:opacity-35",
+                  "mx-auto grid size-9 place-items-center rounded-sm text-table transition-colors disabled:cursor-not-allowed disabled:opacity-35",
                   selected ? "bg-navy font-semibold text-offwhite" : "text-ink hover:bg-navy-05",
                   isToday && !selected && "font-semibold text-peach-deep shadow-[inset_0_0_0_1.5px_var(--peach)]",
                 )}
@@ -156,7 +158,7 @@ export function DateField({ value, onChange, name, id, placeholder = "Pick a dat
           })}
         </div>
         <div className="flex items-center justify-between pt-1">
-          <button type="button" disabled={tooEarly(now)} onClick={() => pick(now)} className="rounded-full px-3 py-1.5 text-xs font-semibold text-ink-2 transition-colors hover:bg-navy-05 disabled:opacity-35">
+          <button type="button" disabled={tooEarly(now)} onClick={() => pick(now)} className="rounded-sm px-3 py-1.5 text-xs font-semibold text-ink-2 transition-colors hover:bg-navy-05 disabled:opacity-35">
             Today
           </button>
           {required ? null : (
@@ -166,7 +168,7 @@ export function DateField({ value, onChange, name, id, placeholder = "Pick a dat
                 onChange("");
                 setOpen(false);
               }}
-              className="rounded-full px-3 py-1.5 text-xs font-semibold text-ink-2 transition-colors hover:bg-navy-05"
+              className="rounded-sm px-3 py-1.5 text-xs font-semibold text-ink-2 transition-colors hover:bg-navy-05"
             >
               Clear
             </button>

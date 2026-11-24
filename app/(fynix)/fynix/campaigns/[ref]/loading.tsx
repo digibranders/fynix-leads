@@ -1,10 +1,10 @@
-import { CampaignHeaderSkeleton, CardSkeleton } from "@/components/fynix/skeletons";
+import { HeaderSkeleton, TableSkeleton } from "@/components/kit/skeletons";
 
 export default function Loading() {
   return (
-    <>
-      <CampaignHeaderSkeleton />
-      <CardSkeleton />
-    </>
+    <div aria-busy="true" className="flex flex-col gap-4">
+      <HeaderSkeleton />
+      <TableSkeleton rows={4} />
+    </div>
   );
 }

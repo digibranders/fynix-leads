@@ -1,125 +1,139 @@
 import type { Metadata } from "next";
-import { Clock } from "@phosphor-icons/react/dist/ssr";
-import { EmptyState } from "@/components/fynix/empty-state";
-import { StatusChip } from "@/components/fynix/status-chip";
-import {
-  AcceptLeadTimeButton,
-  DeclineLeadForm,
-} from "@/components/tenant/lead-review-actions";
-import { TenantPageHeader } from "@/components/tenant/page-header";
-import type { LeadStage } from "@/lib/leads/stage";
+import Link from "next/link";
+import { Suspense } from "react";
+import { CheckCircle } from "@phosphor-icons/react/dist/ssr";
+import { EmptyState } from "@/components/kit/empty-state";
+import { Facts, Quote } from "@/components/kit/facts";
+import { PageHeader } from "@/components/kit/page-header";
+import { Panel } from "@/components/kit/panel";
+import { PageSkeleton } from "@/components/kit/skeletons";
+import { Person } from "@/components/kit/person";
+import { StatusChip } from "@/components/kit/status-chip";
+import { When } from "@/components/kit/when";
+import { ReviewPanel } from "@/components/leads/review-panel";
+import { buttonVariants } from "@/components/ui/button";
+import { formatWaiting, isOverdue } from "@/lib/time/age";
+import { cn } from "@/lib/utils";
 import { getDatabase } from "@/server/db/client";
 import { listClientLeads } from "@/server/domain/leads";
 import { requireClient } from "@/server/client/session";
 
-export const metadata: Metadata = { title: "To respond" };
+export const metadata: Metadata = { title: "Availability" };
 
-export default async function ClientReviewQueuePage() {
+const one = (value: string | string[] | undefined): string | undefined => (typeof value === "string" ? value : undefined);
+
+async function Review({ searchParams }: { searchParams: PageProps<"/client/review">["searchParams"] }) {
   const view = await requireClient();
+  const params = await searchParams;
   const db = getDatabase("leads_client").db;
-  const awaitingLeads = await listClientLeads(db, view.actor, { stage: "awaiting_client" });
+  const now = new Date();
+
+  // Oldest first: the lead that has waited longest is the one to answer next.
+  const queue = (await listClientLeads(db, view.actor, { stage: "awaiting_client" })).sort(
+    (a, b) => new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime(),
+  );
+  const selected = queue.find((item) => item.id === one(params.lead)) ?? queue[0];
 
   return (
-    <div className="flex flex-col gap-6">
-      <TenantPageHeader
-        title="To respond"
-        subtitle="Review qualified prospects and confirm your preferred meeting time."
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        title="Availability"
+        description={
+          queue.length === 0
+            ? "Nothing is waiting for your answer."
+            : `${queue.length} ${queue.length === 1 ? "lead needs" : "leads need"} your answer. Pick a time to accept, or decline.`
+        }
       />
 
-      {awaitingLeads.length === 0 ? (
-        <div className="rounded-lg bg-surface p-6 shadow-raised">
-          <EmptyState icon={Clock} title="No leads awaiting response">
-            When partner agencies source qualified leads matching your criteria, they will arrive here for meeting confirmation.
+      {selected === undefined ? (
+        <Panel>
+          <EmptyState
+            icon={CheckCircle}
+            title="You are all caught up"
+            action={
+              <Link href="/client/leads" className={buttonVariants({ variant: "secondary" })}>
+                See all leads
+              </Link>
+            }
+          >
+            New qualified leads arrive here for you to accept a meeting time or decline.
           </EmptyState>
-        </div>
+        </Panel>
       ) : (
-        <div className="flex flex-col gap-6">
-          {awaitingLeads.map((leadItem) => {
-            const proposedTimes = Array.isArray(leadItem.proposedTimes)
-              ? (leadItem.proposedTimes as string[])
-              : [];
-
-            return (
-              <div
-                key={leadItem.id}
-                className="rounded-lg bg-surface p-6 shadow-raised flex flex-col gap-4 "
-              >
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-canvas ">
-                        {leadItem.publicRef}
+        <div className="grid items-start gap-4 lg:grid-cols-[var(--queue-w)_minmax(0,1fr)]">
+          <Panel aria-label="Leads to respond to" className="p-2">
+            <ul className="flex flex-col gap-0.5">
+              {queue.map((item) => {
+                const here = item.id === selected.id;
+                const since = new Date(item.submittedAt);
+                return (
+                  <li key={item.id}>
+                    <Link
+                      href={`/client/review?lead=${item.id}`}
+                      aria-current={here ? "true" : undefined}
+                      scroll={false}
+                      className={cn(
+                        "relative flex items-center gap-3 rounded-md px-3 py-2.5 transition-colors",
+                        here ? "bg-selected before:absolute before:top-3 before:bottom-3 before:left-0 before:w-[3px] before:rounded-r-full before:bg-peach" : "hover:bg-navy-04",
+                      )}
+                    >
+                      <Person name={item.prospectName} sub={item.prospectCompany} className="flex-1" />
+                      <span className={cn("shrink-0 text-label", isOverdue(since, now) ? "font-semibold text-amber-text" : "text-ink-muted")}>
+                        {formatWaiting(since, now)}
                       </span>
-                      <StatusChip kind="lead" status={leadItem.stage as LeadStage} size="sm" />
-                    </div>
-                    <h3 className="mt-2 text-title font-semibold">
-                      {leadItem.prospectName}
-                    </h3>
-                    <p className="text-sm text-ink-2">
-                      {leadItem.prospectTitle} at{" "}
-                      <span className="font-medium text-ink">{leadItem.prospectCompany}</span> ({leadItem.prospectDomain})
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <DeclineLeadForm leadId={leadItem.id} />
-                  </div>
-                </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </Panel>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 rounded bg-canvas p-4 text-xs">
-                  <div>
-                    <span className="font-semibold text-ink-2 uppercase tracking-wider block">Budget</span>
-                    <p className="mt-1 text-ink">{leadItem.bantBudget}</p>
-                  </div>
-                  <div>
-                    <span className="font-semibold text-ink-2 uppercase tracking-wider block">Authority</span>
-                    <p className="mt-1 text-ink">{leadItem.bantAuthority}</p>
-                  </div>
-                  <div>
-                    <span className="font-semibold text-ink-2 uppercase tracking-wider block">Need</span>
-                    <p className="mt-1 text-ink">{leadItem.bantNeed}</p>
-                  </div>
-                  <div>
-                    <span className="font-semibold text-ink-2 uppercase tracking-wider block">Timeline</span>
-                    <p className="mt-1 text-ink">{leadItem.bantTimeline}</p>
-                  </div>
-                </div>
-
-                {leadItem.prospectNotes && (
-                  <p className="text-xs text-ink-2 italic">
-                    Note: {leadItem.prospectNotes}
-                  </p>
-                )}
-
-                <div className="mt-2 pt-4 border-t border-line">
-                  <h4 className="text-xs font-semibold text-ink-2 uppercase tracking-wider mb-2">
-                    Select a proposed meeting time:
-                  </h4>
-                  <div className="flex flex-wrap items-center gap-3">
-                    {proposedTimes.map((isoTime, index) => {
-                      const dateObj = new Date(isoTime);
-                      const display = isNaN(dateObj.getTime())
-                        ? isoTime
-                        : dateObj.toLocaleString("en-GB", {
-                            dateStyle: "medium",
-                            timeStyle: "short",
-                          });
-
-                      return (
-                        <AcceptLeadTimeButton
-                          key={index}
-                          leadId={leadItem.id}
-                          meetingTimeIso={isoTime}
-                          displayTime={display}
-                        />
-                      );
-                    })}
-                  </div>
-                </div>
+          <Panel aria-label={`${selected.prospectName}, ${selected.prospectCompany}`} className="flex min-h-[560px] flex-col">
+            <div className="flex flex-wrap items-start justify-between gap-3 px-6 pt-6">
+              <div className="min-w-0">
+                <h2 className="text-name font-semibold tracking-title text-balance">{selected.prospectName}</h2>
+                <p className="mt-0.5 text-lead text-ink-muted">
+                  {selected.prospectTitle}, {selected.prospectCompany}
+                </p>
               </div>
-            );
-          })}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-xs bg-navy-05 px-1.5 py-0.5 font-mono text-caption font-medium text-ink-2">{selected.publicRef}</span>
+                <StatusChip kind="lead" status="awaiting_client" />
+              </div>
+            </div>
+            <p className="px-6 pt-1 text-label text-ink-muted">
+              Submitted <When at={selected.submittedAt} style="day" />
+              {selected.prospectDomain ? ` · ${selected.prospectDomain}` : ""}
+            </p>
+
+            <div className="flex flex-col gap-5 px-6 py-5">
+              <Facts
+                items={[
+                  ["Budget", selected.bantBudget],
+                  ["Authority", selected.bantAuthority],
+                  ["Need", selected.bantNeed],
+                  ["Timeline", selected.bantTimeline],
+                ]}
+              />
+              {selected.prospectNotes ? <Quote>{selected.prospectNotes}</Quote> : null}
+            </div>
+
+            <ReviewPanel
+              key={selected.id}
+              leadId={selected.id}
+              times={Array.isArray(selected.proposedTimes) ? (selected.proposedTimes as string[]) : []}
+            />
+          </Panel>
         </div>
       )}
     </div>
+  );
+}
+
+export default function ClientReviewQueuePage({ searchParams }: PageProps<"/client/review">) {
+  return (
+    <Suspense fallback={<PageSkeleton rows={3} />}>
+      <Review searchParams={searchParams} />
+    </Suspense>
   );
 }

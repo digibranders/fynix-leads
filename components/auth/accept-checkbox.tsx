@@ -42,7 +42,7 @@ export function AcceptCheckbox({ id, name, label, inputRef, error }: Props) {
         <span
           aria-hidden
           className={`grid size-6 shrink-0 place-items-center rounded-xs text-offwhite peer-checked:bg-navy peer-checked:shadow-none peer-focus-visible:shadow-[0_0_0_2px_var(--surface),0_0_0_4px_var(--navy)] peer-checked:[&_svg]:opacity-100 ${
-            shown ? "bg-red-soft shadow-[inset_0_0_0_1.5px_var(--red-solid)]" : "bg-navy-05 shadow-[inset_0_0_0_1.5px_#6B7782]"
+            shown ? "bg-red-soft shadow-[inset_0_0_0_1.5px_var(--red-solid)]" : "bg-surface shadow-[inset_0_0_0_1.5px_var(--ctl-edge)]"
           }`}
         >
           <Check weight="bold" size={14} className="opacity-0" />

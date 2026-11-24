@@ -38,9 +38,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
           toast: "cn-toast border-0! shadow-popover! font-sans",
           title: "font-semibold",
           actionButton:
-            "h-8! max-md:h-10! rounded-full! bg-navy-07! px-3.5! text-[13px]! font-semibold! text-foreground! hover:bg-navy-10!",
+            "h-8! max-md:h-10! rounded-sm! bg-navy-07! px-3.5! text-[13px]! font-semibold! text-foreground! hover:bg-navy-10!",
           cancelButton:
-            "h-8! max-md:h-10! rounded-full! bg-transparent! px-3.5! text-[13px]! font-semibold! text-ink-2!",
+            "h-8! max-md:h-10! rounded-sm! bg-transparent! px-3.5! text-[13px]! font-semibold! text-ink-2!",
         },
       }}
       {...props}

@@ -1,36 +1,44 @@
 import type { Metadata } from "next";
-import { CalendarBlank } from "@phosphor-icons/react/dist/ssr";
-import { EmptyState } from "@/components/fynix/empty-state";
-import { MeetingsTable } from "@/components/tenant/meetings-table";
-import { TenantPageHeader } from "@/components/tenant/page-header";
+import { Suspense } from "react";
+import { PageHeader } from "@/components/kit/page-header";
+import { PageSkeleton } from "@/components/kit/skeletons";
+import { PortalMeetings, MEETING_SHOWS, meetingsSummary } from "@/components/meetings/portal-meetings";
+import { parsePage } from "@/lib/leads/list";
 import { getDatabase } from "@/server/db/client";
 import { listAgencyMeetings } from "@/server/domain/meetings";
 import { requireAgency } from "@/server/agency/session";
 
-export const metadata: Metadata = { title: "Agency Meetings" };
+export const metadata: Metadata = { title: "Meetings" };
 
-export default async function AgencyMeetingsPage() {
+const one = (value: string | string[] | undefined): string | undefined => (typeof value === "string" ? value : undefined);
+const EMPTY = "Meetings confirmed by clients appear here with calendar downloads and Google Meet links.";
+
+async function Meetings({ searchParams }: { searchParams: PageProps<"/agency/meetings">["searchParams"] }) {
   const view = await requireAgency();
-  const db = getDatabase("leads_agency").db;
-  const meetings = await listAgencyMeetings(db, view.actor);
+  const params = await searchParams;
+  const meetings = await listAgencyMeetings(getDatabase("leads_agency").db, view.actor);
   const now = new Date();
-
   return (
-    <div className="flex flex-col gap-6">
-      <TenantPageHeader
-        title="Campaign Meetings"
-        subtitle="Track upcoming and held meetings for your qualified prospects."
+    <div className="flex flex-col gap-4">
+      <PageHeader title="Meetings" description={meetingsSummary(meetings, now, "Meetings for your qualified prospects appear here once a client confirms a time.")} />
+      <PortalMeetings
+        meetings={meetings}
+        basePath="/agency/meetings"
+        show={MEETING_SHOWS.find((entry) => entry.key === one(params.show))?.key ?? null}
+        q={one(params.q) ?? ""}
+        page={parsePage(params.page)}
+        canWrite={view.canWrite}
+        now={now}
+        emptyText={EMPTY}
       />
-
-      {meetings.length === 0 ? (
-        <div className="rounded-lg bg-surface p-6 shadow-raised">
-          <EmptyState icon={CalendarBlank} title="No meetings scheduled yet">
-            Meetings confirmed by clients will appear here with Google Meet links.
-          </EmptyState>
-        </div>
-      ) : (
-        <MeetingsTable meetings={meetings} canWrite={view.canWrite} now={now} showBrand />
-      )}
     </div>
+  );
+}
+
+export default function AgencyMeetingsPage({ searchParams }: PageProps<"/agency/meetings">) {
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <Meetings searchParams={searchParams} />
+    </Suspense>
   );
 }

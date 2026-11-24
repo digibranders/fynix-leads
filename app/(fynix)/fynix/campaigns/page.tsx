@@ -1,32 +1,34 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { CampaignsTable } from "@/components/fynix/campaigns/campaigns-table";
-import { FynixPageHeader } from "@/components/fynix/page-header";
-import { ListBodySkeleton } from "@/components/fynix/skeletons";
-import { getDomain } from "@/server/domain";
 import { NewCampaignButton } from "@/components/fynix/campaigns/campaign-edit-actions";
+import { PageHeader } from "@/components/kit/page-header";
+import { PageSkeleton } from "@/components/kit/skeletons";
+import { getDomain } from "@/server/domain";
 import { listCampaignChoices, listCampaignRows } from "@/server/domain/campaign-overview";
 import { requireFynix } from "@/server/fynix/session";
 
 export const metadata: Metadata = { title: "Campaigns" };
 
-async function Campaigns() {
-  const view = await requireFynix();
-  return <CampaignsTable rows={await listCampaignRows(getDomain(), view.actor)} />;
-}
+const one = (value: string | string[] | undefined): string | undefined => (typeof value === "string" ? value : undefined);
 
-async function HeaderActions() {
+async function Campaigns({ searchParams }: { searchParams: PageProps<"/fynix/campaigns">["searchParams"] }) {
   const view = await requireFynix();
-  return view.canWrite ? <NewCampaignButton choices={await listCampaignChoices(getDomain(), view.actor)} /> : null;
-}
-
-export default function CampaignsPage() {
+  const params = await searchParams;
+  const deps = getDomain();
+  const [rows, choices] = await Promise.all([listCampaignRows(deps, view.actor), view.canWrite ? listCampaignChoices(deps, view.actor) : Promise.resolve(null)]);
   return (
-    <>
-      <FynixPageHeader title="Campaigns" subtitle="Every campaign, with its client and the supplier that serves it" actions={<Suspense fallback={null}><HeaderActions /></Suspense>} />
-      <Suspense fallback={<ListBodySkeleton />}>
-        <Campaigns />
-      </Suspense>
-    </>
+    <div className="flex flex-col gap-4">
+      <PageHeader title="Campaigns" description="Every campaign, with its client and the supplier that serves it." actions={choices === null ? null : <NewCampaignButton choices={choices} />} />
+      <CampaignsTable rows={rows} query={one(params.q) ?? ""} />
+    </div>
+  );
+}
+
+export default function CampaignsPage({ searchParams }: PageProps<"/fynix/campaigns">) {
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <Campaigns searchParams={searchParams} />
+    </Suspense>
   );
 }

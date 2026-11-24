@@ -1,128 +1,157 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CheckCircle, Clock, Target, UsersThree, Warning } from "@phosphor-icons/react/dist/ssr";
-import { EmptyState } from "@/components/fynix/empty-state";
-import { TenantKpiCard, TenantKpiGrid } from "@/components/tenant/metric-cards";
-import { TenantPageHeader } from "@/components/tenant/page-header";
+import { Suspense } from "react";
+import { PaperPlaneRight, Table, UsersThree } from "@phosphor-icons/react/dist/ssr";
+import { EmptyState } from "@/components/kit/empty-state";
+import { Hero } from "@/components/kit/hero";
+import { ListRow } from "@/components/kit/list";
+import { PageHeader } from "@/components/kit/page-header";
+import { Panel, PanelHeader } from "@/components/kit/panel";
+import { Person } from "@/components/kit/person";
+import { PageSkeleton } from "@/components/kit/skeletons";
+import { StageBar } from "@/components/kit/stage-bar";
+import { MiniStat } from "@/components/kit/stat";
+import { StatusChip } from "@/components/kit/status-chip";
 import { buttonVariants } from "@/components/ui/button";
+import { countByGroup, PIPELINE_GROUPS } from "@/lib/leads/pipeline";
+import type { LeadStage } from "@/lib/leads/stage";
 import { getDatabase } from "@/server/db/client";
 import { getSupplierOverviewMetrics } from "@/server/domain/analytics";
+import { listAgencyLeads } from "@/server/domain/leads";
 import { requireSupplier } from "@/server/supplier/session";
 
 export const metadata: Metadata = { title: "Overview" };
 
-export default async function SupplierOverviewPage() {
+async function Overview() {
   const view = await requireSupplier();
   const db = getDatabase("leads_agency").db;
-  const metrics = await getSupplierOverviewMetrics(db, view.actor);
+  const [metrics, leads] = await Promise.all([getSupplierOverviewMetrics(db, view.actor), listAgencyLeads(db, view.actor)]);
+  const counts = countByGroup(leads);
+  const latest = leads.slice(0, 5);
 
   return (
-    <div className="flex flex-col gap-6">
-      <TenantPageHeader
+    <div className="flex flex-col gap-4">
+      <PageHeader
         title="Overview"
-        subtitle="Track your partner agencies, delivered meetings, and shares."
+        description="Your delivery against target, and how your partner agencies are doing."
         actions={
-          <div className="flex items-center gap-3">
-            <Link
-              href="/supplier/leads/new"
-              className={buttonVariants({ variant: "default", size: "sm" })}
-            >
-              Submit Lead
-            </Link>
-            <Link
-              href="/supplier/agencies"
-              className={buttonVariants({ variant: "secondary", size: "sm" })}
-            >
-              Partner Agencies
-            </Link>
-          </div>
+          <Link href="/supplier/agencies" className={buttonVariants({ variant: "secondary" })}>
+            Partner agencies
+          </Link>
         }
       />
 
-      <TenantKpiGrid>
-        <TenantKpiCard
-          title="Target vs Delivered"
-          value={`${metrics.deliveredCount} / ${metrics.supplierTarget}`}
-          subtitle={
-            metrics.supplierTarget > 0
-              ? `${Math.round((metrics.deliveredCount / metrics.supplierTarget) * 100)}% of monthly target delivered`
-              : "No active monthly target"
-          }
-          icon={Target}
-          tone="emerald"
-        />
-        <TenantKpiCard
-          title="Awaiting Client"
-          value={metrics.awaitingClientCount}
-          subtitle="Prospects pending client response"
-          icon={Clock}
-          tone={metrics.awaitingClientCount > 0 ? "amber" : "default"}
-        />
-        <TenantKpiCard
-          title="Over-Share Submissions"
-          value={metrics.overShareCount}
-          subtitle="Submitted above allocated share"
-          icon={Warning}
-          tone={metrics.overShareCount > 0 ? "rose" : "default"}
-        />
-        <TenantKpiCard
-          title="Active Disputes"
-          value={metrics.disputedCount}
-          subtitle="Leads currently under dispute"
-          icon={CheckCircle}
-          tone="default"
-        />
-      </TenantKpiGrid>
-
-      <div className="rounded-lg bg-surface p-6 shadow-raised ">
-        <div className="flex items-center justify-between pb-4 border-b border-line">
-          <div>
-            <h2 className="text-section font-semibold">Partner Agency Breakdown</h2>
-            <p className="mt-1 text-body text-ink-2">Performance and share allocation across partner agencies and direct supply.</p>
-          </div>
-          <Link
-            href="/supplier/agencies"
-            className={buttonVariants({ variant: "secondary", size: "sm" })}
-          >
-            Manage Shares
+      <Hero
+        kicker={metrics.awaitingClientCount > 0 ? "With the client" : "All clear"}
+        title={
+          metrics.awaitingClientCount > 0
+            ? `${metrics.awaitingClientCount} ${metrics.awaitingClientCount === 1 ? "lead is" : "leads are"} waiting for a client response`
+            : "No lead is waiting on a client"
+        }
+        description="Submit qualified prospects for your campaigns, with proposed meeting times, and follow them here."
+        actions={
+          <Link href="/supplier/leads/new" className={buttonVariants({ variant: "peach", size: "lg" })}>
+            <PaperPlaneRight aria-hidden weight="bold" />
+            Submit a lead
           </Link>
-        </div>
+        }
+        aside={
+          <>
+            <p className="text-label font-semibold text-peach">Delivered so far</p>
+            <p className="text-display font-semibold tracking-figure">{metrics.deliveredCount}</p>
+            <p className="text-body text-on-navy-text">{metrics.supplierTarget > 0 ? `Monthly target: ${metrics.supplierTarget} a month` : "No active monthly target."}</p>
+          </>
+        }
+      />
 
-        {metrics.agencyBreakdown.length === 0 ? (
-          <div className="mt-6 rounded-md bg-canvas">
-            <EmptyState icon={UsersThree} title="No partner agencies allocated">
-              When partner agencies are invited and assigned campaign shares, their delivery status will appear here.
+      <div className="grid gap-4 sm:grid-cols-3">
+        <MiniStat label="Awaiting client" value={metrics.awaitingClientCount} foot="Prospects pending a client response" tone="amber" />
+        <MiniStat label="Over share" value={metrics.overShareCount} foot={metrics.overShareCount > 0 ? "Submitted above an allocated share" : "None above a share"} />
+        <MiniStat label="Active disputes" value={metrics.disputedCount} foot={metrics.disputedCount > 0 ? "Under review by Fynix" : "None open"} tone="red" />
+      </div>
+
+      {leads.length > 0 ? (
+        <StageBar
+          allHref="/supplier/leads"
+          allCount={leads.length}
+          allActive={false}
+          segments={PIPELINE_GROUPS.map((group) => ({
+            key: group.key,
+            label: group.label,
+            count: counts[group.key],
+            color: group.color,
+            href: `/supplier/leads?stage=${group.key}`,
+          }))}
+        />
+      ) : null}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Panel aria-label="Partner agencies">
+          <PanelHeader
+            title="Partner agencies"
+            action={
+              <Link href="/supplier/campaigns" className={buttonVariants({ variant: "ghost", size: "xs" })}>
+                Manage shares
+              </Link>
+            }
+          />
+          {metrics.agencyBreakdown.length === 0 ? (
+            <EmptyState icon={UsersThree} title="No shares allocated">
+              When partner agencies are given campaign shares, their delivery appears here.
             </EmptyState>
-          </div>
-        ) : (
-          <div className="mt-4 overflow-hidden rounded-md ">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wider text-ink-2">
-                <tr>
-                  <th className="px-4 py-3">Agency</th>
-                  <th className="px-4 py-3 text-right">Share Target</th>
-                  <th className="px-4 py-3 text-right">Delivered</th>
-                  <th className="px-4 py-3 text-right">Awaiting Client</th>
-                  <th className="px-4 py-3 text-right">Over-Share</th>
-                  <th className="px-4 py-3 text-right">Disputed</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {metrics.agencyBreakdown.map((item) => (
-                  <tr key={item.agencyOrgId} className="hover:bg-canvas/50">
-                    <td className="px-4 py-3 font-medium text-ink">{item.agencyName}</td>
-                    <td className="px-4 py-3 text-right font-medium text-ink">{item.shareTarget}</td>
-                    <td className="px-4 py-3 text-right text-emerald-600 font-medium">{item.deliveredCount}</td>
-                    <td className="px-4 py-3 text-right text-ink-2">{item.awaitingClientCount}</td>
-                    <td className="px-4 py-3 text-right text-ink-2">{item.overShareCount}</td>
-                    <td className="px-4 py-3 text-right text-ink-2">{item.disputedCount}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+          ) : (
+            <ul className="flex flex-col pb-3">
+              {metrics.agencyBreakdown.map((item) => (
+                <ListRow
+                  key={item.agencyOrgId}
+                  title={item.agencyOrgId === view.actor.orgId ? "Your own team" : item.agencyName}
+                  sub={`${item.awaitingClientCount} awaiting, ${item.overShareCount} over share, ${item.disputedCount} disputed`}
+                  trailing={
+                    <span className="text-right text-body text-ink-muted">
+                      <b className="font-semibold text-ink">{item.deliveredCount}</b> delivered, share {item.shareTarget} a month
+                    </span>
+                  }
+                />
+              ))}
+            </ul>
+          )}
+        </Panel>
+
+        <Panel aria-label="Latest leads">
+          <PanelHeader
+            title="Latest leads"
+            action={
+              <Link href="/supplier/leads" className={buttonVariants({ variant: "ghost", size: "xs" })}>
+                All leads
+              </Link>
+            }
+          />
+          {latest.length === 0 ? (
+            <EmptyState icon={Table} title="No leads yet">
+              Leads submitted by your team and your partner agencies appear here.
+            </EmptyState>
+          ) : (
+            <ul className="flex flex-col pb-3">
+              {latest.map((lead) => (
+                <ListRow
+                  key={lead.id}
+                  title={<Person name={lead.prospectName} sub={lead.prospectCompany} />}
+                  trailing={<StatusChip kind="lead" status={lead.stage as LeadStage} size="sm" />}
+                />
+              ))}
+            </ul>
+          )}
+        </Panel>
       </div>
     </div>
+  );
+}
+
+export default function SupplierOverviewPage() {
+  // The session read is in its own boundary: a layout does not run again on a client navigation, so the page must hold its own.
+  return (
+    <Suspense fallback={<PageSkeleton rows={4} />}>
+      <Overview />
+    </Suspense>
   );
 }

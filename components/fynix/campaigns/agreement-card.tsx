@@ -2,9 +2,9 @@ import { ClockCounterClockwise, Handshake } from "@phosphor-icons/react/dist/ssr
 import { Badge } from "@/components/ui/badge";
 import { countOf, formatDayMonth, formatWeekdayDate } from "@/lib/fynix/format";
 import type { AgreementSideView } from "@/server/domain/campaign-overview";
-import { Card, Tonal } from "../card";
-import { EmptyState } from "../empty-state";
-import { StatusChip } from "../status-chip";
+import { EmptyState } from "@/components/kit/empty-state";
+import { Panel, PanelHeader } from "@/components/kit/panel";
+import { StatusChip } from "@/components/kit/status-chip";
 import { NewVersionButton } from "./agreement-actions";
 
 type Props = {
@@ -19,9 +19,9 @@ type Props = {
 function Tile({ label, value, unit }: { label: string; value: number; unit: string }) {
   return (
     <div className="min-w-0 rounded-md bg-tonal p-3.5">
-      <p className="text-table text-ink-2">{label}</p>
+      <p className="text-caption font-semibold text-ink-muted">{label}</p>
       <p className="mt-0.5 text-figure font-semibold tracking-figure max-sm:text-title">{value}</p>
-      <p className="text-table text-ink-2">{unit}</p>
+      <p className="text-caption text-ink-muted">{unit}</p>
     </div>
   );
 }
@@ -38,12 +38,12 @@ export function AgreementCard({ side, withName, campaignId, timeZone, canWrite }
 
   if (current === null) {
     return (
-      <Card aria-label={title}>
-        <h2 className="px-5 pt-5 text-value font-semibold">{title}</h2>
+      <Panel aria-label={title}>
+        <PanelHeader title={title} />
         <EmptyState icon={Handshake} title="No agreement yet" action={canWrite ? <NewVersionButton campaignId={campaignId} party={side.party} defaults={null} /> : undefined}>
           {canWrite ? `Write down what Fynix has agreed with ${withName}.` : "A Fynix admin writes the agreement."}
         </EmptyState>
-      </Card>
+      </Panel>
     );
   }
 
@@ -55,26 +55,26 @@ export function AgreementCard({ side, withName, campaignId, timeZone, canWrite }
       : `Between Fynix and ${withName}. Accepted by ${first.name}${extra > 0 ? ` and ${countOf(extra, "other", "others")}` : ""} on ${formatWeekdayDate(first.at, timeZone)}.`;
 
   return (
-    <Card aria-label={title} className="flex flex-col gap-4 p-5">
+    <Panel aria-label={title} className="flex flex-col gap-4 p-5">
       <div className="flex flex-wrap items-center gap-2">
-        <h2 className="mr-1 text-value font-semibold">{title}</h2>
+        <h2 className="mr-1 text-section font-semibold tracking-[-0.01em]">{title}</h2>
         <Badge variant="quiet" className="font-mono font-medium">
           Version {current.version}
         </Badge>
         <StatusChip kind="agreement" status={first === undefined ? "waiting" : "accepted"} />
       </div>
-      <p className="text-body text-ink-2">{sentence}</p>
+      <p className="text-body text-ink-muted">{sentence}</p>
       <div className="grid grid-cols-3 gap-3">
         <Tile label="Per month" value={current.monthlyTarget} unit="meetings" />
         <Tile label="In total" value={current.totalTarget} unit={monthsLine(current.monthlyTarget, current.totalTarget)} />
         <Tile label="Dispute window" value={current.disputeWindowHours} unit="hours" />
       </div>
-      <Tonal className="bg-transparent p-0">
+      <div>
         <p className="text-body whitespace-pre-line text-ink-2">{current.rules === "" ? "No counting rules are written for this version." : current.rules}</p>
         {current.notes !== "" && <p className="mt-2 text-body whitespace-pre-line text-ink-2">{current.notes}</p>}
-      </Tonal>
+      </div>
       <div className="mt-auto flex items-center justify-between gap-3 pt-1">
-        <p className="flex min-w-0 items-start gap-2 text-table text-ink-2">
+        <p className="flex min-w-0 items-start gap-2 text-caption text-ink-muted">
           <ClockCounterClockwise aria-hidden size={16} className="mt-px shrink-0" />
           {previous === null
             ? "No earlier versions"
@@ -88,6 +88,6 @@ export function AgreementCard({ side, withName, campaignId, timeZone, canWrite }
           />
         )}
       </div>
-    </Card>
+    </Panel>
   );
 }
