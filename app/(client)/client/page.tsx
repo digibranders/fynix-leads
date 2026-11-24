@@ -17,6 +17,7 @@ import { When } from "@/components/kit/when";
 import { buttonVariants } from "@/components/ui/button";
 import { campaignFilterHrefs, parseCampaignFilter } from "@/lib/campaign-status";
 import type { LeadStage } from "@/lib/leads/stage";
+import { clientQueueCount } from "@/lib/leads/decision-queue";
 import { countByGroup, PIPELINE_GROUPS } from "@/lib/leads/pipeline";
 import { formatWaiting } from "@/lib/time/age";
 import { getDatabase } from "@/server/db/client";
@@ -52,10 +53,13 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/client">["
     .map((lead) => ({ lead, when: new Date(lead.scheduledMeetingTime as Date | string) }))
     .sort(byTime)
     .slice(0, 4);
-  const outcomeDue = leads.filter((lead) => lead.stage === "outcome_due");
+  // A booked meeting whose time has passed is waiting for its outcome, the same rule as the meetings screen.
+  const outcomeDue = leads.filter((lead) => lead.stage === "outcome_due" || (lead.stage === "scheduled" && lead.scheduledMeetingTime !== null && new Date(lead.scheduledMeetingTime).getTime() <= now.getTime()));
   const latest = [...leads].sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()).slice(0, 5);
   const counts = countByGroup(leads);
-  const waiting = metrics.awaitingClientCount;
+  // Both queues: leads waiting for a time and leads waiting for accept or reject.
+  const waiting = clientQueueCount(leads);
+  const decisionWaiting = counts.decision;
 
   return (
     <div className="flex flex-col gap-4">
@@ -77,20 +81,22 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/client">["
         title={waiting > 0 ? `${waiting} ${waiting === 1 ? "lead is" : "leads are"} waiting for you` : "Nothing is waiting for you"}
         description={
           oldest
-            ? `The oldest was submitted ${formatWaiting(oldest.when, now)} ago, from ${oldest.lead.prospectCompany}.`
-            : "New qualified leads will appear here for your response."
+            ? `The oldest was submitted ${formatWaiting(oldest.when, now)} ago, from ${oldest.lead.prospectCompany}.${decisionWaiting > 0 ? ` ${decisionWaiting} ${decisionWaiting === 1 ? "lead is" : "leads are"} waiting for you to accept or reject.` : ""}`
+            : decisionWaiting > 0
+              ? `${decisionWaiting} ${decisionWaiting === 1 ? "lead is" : "leads are"} waiting for you to accept or reject.`
+              : "New qualified leads will appear here for your response."
         }
         actions={
           waiting > 0 ? (
             <Link href="/client/review" className={buttonVariants({ variant: "peach", size: "lg" })}>
               <Tray aria-hidden weight="bold" />
-              Start reviewing
+              Start answering
             </Link>
           ) : null
         }
         aside={
           <>
-            <p className="text-label font-semibold text-peach">{chosen === null ? "Delivered, active campaigns" : "Delivered, this campaign"}</p>
+            <p className="text-label font-semibold text-peach">{chosen === null ? "Accepted so far, active campaigns" : "Accepted so far, this campaign"}</p>
             <p className="text-display font-semibold tracking-figure">{metrics.deliveredCount}</p>
             <p className="text-body text-on-navy-text">{metrics.targetCount > 0 ? `Monthly target, active campaigns: ${metrics.targetCount} a month` : "No active campaign has a monthly target."}</p>
           </>
@@ -103,8 +109,8 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/client">["
           value={metrics.scheduledCount}
           foot={upcoming[0] ? <>Next: <When at={upcoming[0].when} /></> : "None booked"}
         />
-        <MiniStat label="Outcome due" value={outcomeDue.length} foot={outcomeDue.length > 0 ? "Calls held, outcome not yet recorded" : "Nothing to record"} />
-        <MiniStat label="Disputes" value={metrics.disputedCount} foot={metrics.disputedCount > 0 ? "Under review by Fynix" : "None open"} />
+        <MiniStat label="Outcome due" value={outcomeDue.length} foot={outcomeDue.length > 0 ? "Meeting time has passed, record how it went" : "Nothing to record"} />
+        <MiniStat label="Needs your answer" value={waiting} foot={waiting > 0 ? "A time to pick or a lead to accept or reject" : "Nothing waiting"} tone={waiting > 0 ? "amber" : undefined} />
       </div>
 
       {leads.length > 0 ? (
@@ -170,7 +176,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/client">["
               {latest.map((lead) => (
                 <ListRow
                   key={lead.id}
-                  title={<Person name={lead.prospectName} sub={lead.prospectCompany} />}
+                  title={<Person name={lead.prospectName} href={`/client/leads/${lead.publicRef}`} sub={lead.prospectCompany} />}
                   trailing={<StatusChip kind="lead" status={lead.stage as LeadStage} size="sm" />}
                 />
               ))}

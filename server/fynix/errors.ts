@@ -34,6 +34,7 @@ const MESSAGES: Readonly<Record<DomainErrorCode, string>> = {
   "no-host": "The campaign needs at least one active host before it can go live.",
   "campaign-closed": "That campaign is closed. Reopen it first.",
   "agreement-unused": "Agreements are made for the campaign, not for the coordinator separately.",
+  "outcome-already-recorded": "The outcome of this meeting was recorded already. Refresh the page.",
 };
 
 export function domainMessage(code: DomainErrorCode, overrides: Partial<Record<DomainErrorCode, string>> = {}): string {

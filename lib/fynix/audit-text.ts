@@ -24,6 +24,14 @@ const SENTENCES: Readonly<Record<string, string>> = {
   "agreement.accept": "Agreement accepted",
   "campaign_host.add": "Host added",
   "campaign_host.deactivate": "Host paused",
+  "lead.accept": "Meeting time confirmed",
+  "lead.decline": "Rejected before the meeting",
+  "meeting.outcome": "Outcome recorded",
+  "lead.record_outcome": "Outcome recorded by Fynix",
+  "lead.decide_accept": "Accepted by the client",
+  "lead.decide_reject": "Rejected by the client",
+  "lead.auto_accept": "Accepted automatically",
+  "lead.overturn_rejection": "Rejection changed to accepted",
 };
 
 export function auditSentence(action: string): string {

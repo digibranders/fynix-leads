@@ -23,6 +23,7 @@
     "password:set": "tsx scripts/set-password.ts",
     "mail:last": "tsx scripts/mail-last.ts",
     "outbox:run": "tsx scripts/outbox-run.ts",
+    "leads:sweep": "tsx scripts/leads-sweep.ts",
     "ratelimit:purge": "tsx scripts/rate-limit-purge.ts",
     "terms:placeholder": "tsx scripts/terms-placeholder.ts"
   },

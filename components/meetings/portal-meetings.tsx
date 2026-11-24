@@ -41,6 +41,7 @@ export function PortalMeetings({
   q,
   page: requestedPage,
   canWrite,
+  outcomeSide = "tenant",
   now,
   emptyText,
   campaigns,
@@ -52,6 +53,8 @@ export function PortalMeetings({
   readonly q: string;
   readonly page: number;
   readonly canWrite: boolean;
+  /** Whose action records an outcome. Fynix has its own. */
+  readonly outcomeSide?: "tenant" | "fynix";
   readonly now: Date;
   readonly emptyText: string;
   /** The campaigns to filter by; left out inside a campaign. */
@@ -114,7 +117,7 @@ export function PortalMeetings({
           Clear the search or pick another stage to see more.
         </EmptyState>
       ) : (
-        <MeetingsTable meetings={page.rows} canWrite={canWrite} now={now} showBrand closedCampaigns={closed} />
+        <MeetingsTable meetings={page.rows} canWrite={canWrite} now={now} showBrand closedCampaigns={closed} leadsPath={/^\/[a-z]+\/meetings$/.test(basePath) ? basePath.replace(/meetings$/, "leads") : "/fynix/leads"} outcomeSide={outcomeSide} />
       )}
       <Pager
         from={page.from}

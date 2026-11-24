@@ -22,6 +22,8 @@ import {
   createPartnerAgencySchema,
   createOrganisationSchema,
   createSupplierSchema,
+  overturnRejectionSchema,
+  recordMeetingOutcomeSchema,
   resolveDisputeSchema,
   deactivateCampaignHostSchema,
   issueInviteSchema,
@@ -37,7 +39,8 @@ import { issueInvite, resendInvite, revokeInvite } from "@/server/domain/invites
 import { reactivateMember, suspendMember, updateMemberDetails } from "@/server/domain/members";
 import { closeCampaign, createCampaign, reopenCampaign, updateCampaign } from "@/server/domain/campaigns";
 import { removeCampaignShare, setCampaignShare } from "@/server/domain/shares";
-import { fynixResolveDispute } from "@/server/domain/leads";
+import { fynixOverturnRejection, fynixResolveDispute } from "@/server/domain/leads";
+import { fynixRecordMeetingOutcome } from "@/server/domain/meetings";
 import { addCollateral, createOrganisation, removeCollateral, setOrganisationStatus, updateClientProfile, updateOrganisation } from "@/server/domain/organisations";
 import { createPartnerAgency, createSupplier } from "@/server/domain/suppliers";
 import { publishTerms } from "@/server/domain/terms";
@@ -390,6 +393,39 @@ export async function resolveDisputeAction(_previous: FormState, formData: FormD
     labels: { resolution: "Decision", note: "Note" },
     perform: async (deps, actor, input) => {
       await fynixResolveDispute(deps.fynixDb, deps, actor, input);
+    },
+  });
+}
+
+const LEAD_REFUSALS = { "invalid-lead-stage": "This lead has moved on since you opened it. Refresh the page.", "outcome-already-recorded": "Someone recorded this outcome already. Refresh the page." } as const;
+
+/** Fynix changes a client's rejection to accepted, with its own note. Admin and staff both may. */
+export async function overturnRejectionAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runAction({
+    formData,
+    fieldNames: ["note"],
+    build: () => ({ leadId: field(formData, "leadId"), note: field(formData, "note") }),
+    schema: overturnRejectionSchema,
+    labels: { note: "Note" },
+    messages: LEAD_REFUSALS,
+    perform: async (deps, actor, input) => {
+      await fynixOverturnRejection(deps.fynixDb, deps, actor, input);
+    },
+  });
+}
+
+/** Fynix records how a meeting went. The first side to record sets it. */
+export async function fynixRecordOutcomeAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  const notes = field(formData, "notes").trim();
+  return runAction({
+    formData,
+    fieldNames: ["outcome", "notes"],
+    build: () => ({ meetingId: field(formData, "meetingId"), outcome: field(formData, "outcome"), ...(notes === "" ? {} : { notes }) }),
+    schema: recordMeetingOutcomeSchema,
+    labels: { outcome: "Outcome", notes: "Notes" },
+    messages: LEAD_REFUSALS,
+    perform: async (deps, actor, input) => {
+      await fynixRecordMeetingOutcome(deps.fynixDb, deps, actor, input);
     },
   });
 }

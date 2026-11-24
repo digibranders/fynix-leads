@@ -10,7 +10,7 @@ export function CampaignsSummary({ campaigns }: { readonly campaigns: readonly T
   return (
     <div className="grid gap-4 sm:grid-cols-3">
       <MiniStat label="Active campaigns" value={active.length} foot={`${campaigns.length} in total`} />
-      <MiniStat label="Delivered, active campaigns" value={delivered} foot="Accepted and counted" tone="green" />
+      <MiniStat label="Accepted so far, active campaigns" value={delivered} foot="Accepted and counted" tone="green" />
       <MiniStat label="In progress, active campaigns" value={inProgress} foot="Waiting, booked or awaiting an outcome" tone="blue" />
     </div>
   );

@@ -12,7 +12,6 @@ import { Person } from "@/components/kit/person";
 import { StatusChip } from "@/components/kit/status-chip";
 import { SearchForm, Toolbar } from "@/components/kit/toolbar";
 import { When } from "@/components/kit/when";
-import { DisputeButton } from "@/components/leads/dispute-button";
 import { PipelineBar } from "@/components/leads/pipeline-bar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { campaignFilterHrefs, closedCampaignIds, parseCampaignFilter } from "@/lib/campaign-status";
@@ -78,16 +77,13 @@ async function Leads({ searchParams }: { searchParams: PageProps<"/client/leads"
                       <TableHead>Stage</TableHead>
                       <TableHead className="max-lg:hidden">Meeting</TableHead>
                       <TableHead className="max-lg:hidden">Submitted</TableHead>
-                      <TableHead className="text-right">
-                        <span className="sr-only">Actions</span>
-                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {page.rows.map((lead) => (
-                      <TableRow key={lead.id}>
+                      <TableRow key={lead.id} className="relative">
                         <TableCell>
-                          <Person name={lead.prospectName} sub={<span className="font-mono">{lead.publicRef}</span>} />
+                          <Person name={lead.prospectName} href={`${BASE}/${lead.publicRef}`} sub={<span className="font-mono">{lead.publicRef}</span>} />
                         </TableCell>
                         <TableCell className="max-md:hidden">
                           <span className="block leading-tight">
@@ -109,9 +105,6 @@ async function Leads({ searchParams }: { searchParams: PageProps<"/client/leads"
                         </TableCell>
                         <TableCell className="text-ink-muted max-lg:hidden">
                           <When at={lead.submittedAt} style="day" />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {lead.canDispute && view.canWrite ? <DisputeButton leadId={lead.id} prospectName={lead.prospectName} /> : null}
                         </TableCell>
                       </TableRow>
                     ))}

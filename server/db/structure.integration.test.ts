@@ -177,6 +177,8 @@ const EXPECTED_ACCESS: Readonly<Record<string, readonly RuntimeRoleName[]>> = {
   // Chat groups and their members: no runtime role touches them; the SECURITY DEFINER functions of 0051 are the only way in and out.
   chat_group: [],
   chat_group_member: [],
+  // Reminders to the client after "meeting finished": a trigger writes them and two SECURITY DEFINER functions (0066) read them, for the sweep (leads_auth) alone.
+  lead_reminder: [],
 };
 /** The tables nobody but leads_auth touches. `user` is not one of them any more: Fynix reads four columns of it. */
 const AUTH_TABLES = ["session", "account", "verification"] as const;

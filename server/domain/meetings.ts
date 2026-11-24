@@ -1,14 +1,14 @@
-import { desc, eq, or, sql } from "drizzle-orm";
+import { and, desc, eq, or, sql } from "drizzle-orm";
 import type { LeadStage } from "@/lib/leads/stage";
 import { agencyMeetingColumns, clientMeetingColumns } from "@/server/db/columns";
 import type { Database } from "@/server/db/pool";
 import { campaign, campaignShare, lead, leadHistory, meeting } from "@/server/db/schema";
-import { withTenantScope } from "@/server/db/scope";
+import { withTenantScope, type ScopedTransaction } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
-import type { FynixActor } from "@/server/domain/fynix-write";
+import { fynixWorkWrite, type FynixActor } from "@/server/domain/fynix-write";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
-import { recordMeetingOutcomeSchema } from "@/server/domain/inputs";
+import { recordMeetingOutcomeSchema, type RecordMeetingOutcomeInput } from "@/server/domain/inputs";
 import { parseInput } from "@/server/domain/parse";
 import { insertWithPublicRef } from "@/server/domain/refs";
 
@@ -62,10 +62,83 @@ export async function scheduleMeeting(
   });
 }
 
+/** Which side recorded an outcome. The coordinator is the agency with no parent that serves the campaign; every other agency is an agency. */
+export type OutcomeSide = "client" | "agency" | "coordinator" | "fynix";
+
+const NEXT_STAGE = { held: "awaiting_decision", client_no_show: "client_no_show", prospect_no_show: "prospect_no_show" } as const satisfies Record<RecordMeetingOutcomeInput["outcome"], LeadStage>;
+
 /**
- * Records the outcome of a meeting: held, client_no_show, or prospect_no_show.
- * If held, sets meeting.heldAt = now, updates lead.stage = 'delivered', lead.deliveredAt = now,
- * and appends a record to leadHistory.
+ * The one place an outcome is written, for every side. The first to record sets it (a second finds the meeting no longer `scheduled`):
+ * - held: the lead waits for the client's accept or reject (`awaiting_decision`), and the 48 hour clock starts at `outcome_recorded_at`;
+ * - client no-show: counts as one at once (`delivered_at` is the counted-at moment);
+ * - prospect no-show: the lead closes and counts as zero (`closed_at`).
+ * Who recorded it is kept as a side, never a name.
+ */
+async function applyOutcome(
+  tx: ScopedTransaction,
+  now: Date,
+  who: { readonly userId: string; readonly side: OutcomeSide },
+  parsed: RecordMeetingOutcomeInput,
+) {
+  const [meetingRow] = await tx
+    .select({ id: meeting.id, leadId: meeting.leadId, outcome: meeting.outcome, notes: meeting.notes })
+    .from(meeting)
+    .where(eq(meeting.id, parsed.meetingId))
+    .limit(1);
+  if (meetingRow === undefined) throw new DomainError("not-found", "There is no such meeting.");
+
+  const [leadRow] = await tx.select({ id: lead.id, stage: lead.stage }).from(lead).where(eq(lead.id, meetingRow.leadId)).limit(1);
+  if (leadRow === undefined) throw new DomainError("not-found", "There is no such lead for this meeting.");
+
+  if (meetingRow.outcome !== "scheduled") throw new DomainError("outcome-already-recorded", "The outcome of this meeting has been recorded already.");
+  if (leadRow.stage !== "scheduled" && leadRow.stage !== "outcome_due") throw new DomainError("invalid-lead-stage", "An outcome can be recorded on a scheduled lead only.");
+
+  const nextStage: LeadStage = NEXT_STAGE[parsed.outcome];
+  const [updatedMeeting] = await tx
+    .update(meeting)
+    .set({
+      outcome: parsed.outcome,
+      heldAt: parsed.outcome === "held" ? now : null,
+      notes: parsed.notes !== undefined ? parsed.notes : meetingRow.notes,
+      recordedAt: now,
+      recordedByUserId: who.userId,
+      recordedByRole: who.side,
+      updatedAt: now,
+    })
+    // Two people can press at once: the guard on the old outcome lets only the first one through.
+    .where(and(eq(meeting.id, meetingRow.id), eq(meeting.outcome, "scheduled")))
+    .returning(agencyMeetingColumns);
+  if (updatedMeeting === undefined) throw new DomainError("outcome-already-recorded", "The outcome of this meeting has been recorded already.");
+
+  await tx
+    .update(lead)
+    .set({
+      stage: nextStage,
+      outcomeRecordedAt: now,
+      deliveredAt: parsed.outcome === "client_no_show" ? now : null,
+      closedAt: parsed.outcome === "prospect_no_show" ? now : null,
+      updatedAt: now,
+    })
+    .where(eq(lead.id, leadRow.id));
+
+  await tx.insert(leadHistory).values({
+    leadId: leadRow.id,
+    actorUserId: who.userId,
+    actorRole: who.side === "fynix" ? "fynix" : who.side === "client" ? "client" : "agency",
+    action: "meeting.outcome",
+    fromStage: leadRow.stage,
+    toStage: nextStage,
+    note: parsed.notes ?? `Meeting outcome recorded as ${parsed.outcome}`,
+    snapshot: { outcome: parsed.outcome, meetingId: meetingRow.id, recordedBy: who.side },
+    createdAt: now,
+  });
+
+  return updatedMeeting;
+}
+
+/**
+ * The client, the agency and the coordinator each record the outcome of a meeting: held, client_no_show or prospect_no_show. Fynix does it
+ * through `fynixRecordMeetingOutcome`. Row-level security shows a tenant only its own meetings and leads; the side is read from the campaign.
  */
 export async function recordMeetingOutcome(
   db: Database,
@@ -76,85 +149,40 @@ export async function recordMeetingOutcome(
   if (actor.orgKind !== "client" && actor.orgKind !== "agency") {
     throw new DomainError("not-authorised", "Only client or agency members can record meeting outcomes.");
   }
-
   const parsed = parseInput(recordMeetingOutcomeSchema, input);
 
   return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
-    const [meetingRow] = await tx
-      .select({
-        id: meeting.id,
-        publicRef: meeting.publicRef,
-        leadId: meeting.leadId,
-        campaignId: meeting.campaignId,
-        outcome: meeting.outcome,
-        notes: meeting.notes,
-        scheduledStartTime: meeting.scheduledStartTime,
-      })
-      .from(meeting)
-      .where(eq(meeting.id, parsed.meetingId))
-      .limit(1);
-
-    if (meetingRow === undefined) {
-      throw new DomainError("not-found", "There is no such meeting.");
+    let side: OutcomeSide = "client";
+    if (actor.orgKind === "agency") {
+      const [row] = await tx
+        .select({ sourceOrgId: lead.sourceOrgId, supplierOrgId: campaign.agencyOrgId })
+        .from(meeting)
+        .innerJoin(lead, eq(lead.id, meeting.leadId))
+        .innerJoin(campaign, eq(campaign.id, meeting.campaignId))
+        .where(eq(meeting.id, parsed.meetingId))
+        .limit(1);
+      // A lead the agency may not read leaves no row: the same answer as a meeting that does not exist.
+      if (row === undefined) throw new DomainError("not-found", "There is no such meeting.");
+      side = row.supplierOrgId === actor.orgId ? "coordinator" : "agency";
     }
+    return applyOutcome(tx, deps.now(), { userId: actor.userId, side }, parsed);
+  });
+}
 
-    const [leadRow] = await tx
-      .select({
-        id: lead.id,
-        stage: lead.stage,
-        publicRef: lead.publicRef,
-      })
-      .from(lead)
-      .where(eq(lead.id, meetingRow.leadId))
-      .limit(1);
-
-    if (leadRow === undefined) {
-      throw new DomainError("not-found", "There is no such lead for this meeting.");
-    }
-
-    const now = deps.now();
-    const nextStage: LeadStage =
-      parsed.outcome === "held"
-        ? "delivered"
-        : parsed.outcome === "client_no_show"
-          ? "client_no_show"
-          : "prospect_no_show";
-
-    const [updatedMeeting] = await tx
-      .update(meeting)
-      .set({
-        outcome: parsed.outcome,
-        heldAt: parsed.outcome === "held" ? now : null,
-        notes: parsed.notes !== undefined ? parsed.notes : meetingRow.notes,
-        recordedAt: now,
-        recordedByUserId: actor.userId,
-        updatedAt: now,
-      })
-      .where(eq(meeting.id, meetingRow.id))
-      .returning(actor.orgKind === "client" ? clientMeetingColumns : agencyMeetingColumns);
-
-    await tx
-      .update(lead)
-      .set({
-        stage: nextStage,
-        deliveredAt: parsed.outcome === "held" ? now : null,
-        updatedAt: now,
-      })
-      .where(eq(lead.id, leadRow.id));
-
-    await tx.insert(leadHistory).values({
-      leadId: leadRow.id,
-      actorUserId: actor.userId,
-      actorRole: actor.orgKind,
-      action: "meeting.outcome",
-      fromStage: leadRow.stage,
-      toStage: nextStage,
-      note: parsed.notes ?? `Meeting outcome recorded as ${parsed.outcome}`,
-      snapshot: { outcome: parsed.outcome, meetingId: meetingRow.id },
-      createdAt: now,
+/** Fynix records an outcome too (admin or staff), with an audit row. The first to record sets it, like any other side. */
+export async function fynixRecordMeetingOutcome(db: Database, deps: Pick<DomainDeps, "now">, actor: FynixActor, input: unknown) {
+  const parsed = parseInput(recordMeetingOutcomeSchema, input);
+  return fynixWorkWrite(db, actor, async ({ tx, audit }) => {
+    const updated = await applyOutcome(tx, deps.now(), { userId: actor.userId, side: "fynix" }, parsed);
+    const [leadRow] = await tx.select({ id: lead.id, publicRef: lead.publicRef, stage: lead.stage }).from(lead).where(eq(lead.id, updated.leadId)).limit(1);
+    if (leadRow === undefined) throw new DomainError("not-found", "There is no such lead for this meeting.");
+    await audit({
+      action: "lead.record_outcome",
+      subject: { table: "lead", id: leadRow.id, ref: leadRow.publicRef },
+      before: { outcome: "scheduled" },
+      after: { outcome: parsed.outcome, stage: leadRow.stage },
     });
-
-    return updatedMeeting;
+    return updated;
   });
 }
 
@@ -174,6 +202,7 @@ export async function listClientMeetings(db: Database, actor: TenantActor) {
         prospectCompany: lead.prospectCompany,
         prospectEmail: lead.prospectEmail,
         leadRef: lead.publicRef,
+        leadStage: lead.stage,
         campaignName: campaign.name,
         campaignRef: campaign.publicRef,
       })
@@ -200,6 +229,7 @@ export async function listAgencyMeetings(db: Database, actor: TenantActor) {
         prospectName: lead.prospectName,
         prospectCompany: lead.prospectCompany,
         leadRef: lead.publicRef,
+        leadStage: lead.stage,
         campaignName: campaign.name,
         campaignRef: campaign.publicRef,
         clientBrandName: campaign.clientBrandName,
@@ -226,6 +256,7 @@ export async function listFynixMeetings(db: Database, _actor: FynixActor) {
       prospectName: lead.prospectName,
       prospectCompany: lead.prospectCompany,
       leadRef: lead.publicRef,
+      leadStage: lead.stage,
       campaignName: campaign.name,
       campaignRef: campaign.publicRef,
       clientBrandName: campaign.clientBrandName,

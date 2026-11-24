@@ -2,7 +2,7 @@ import { CalendarCheck, ChatsCircle, Funnel, Tray } from "@phosphor-icons/react/
 
 const POINTS = [
   { icon: Tray, text: "Review qualified leads and choose a meeting time." },
-  { icon: CalendarCheck, text: "See what is booked, held and delivered." },
+  { icon: CalendarCheck, text: "See what is booked, held and accepted." },
   { icon: ChatsCircle, text: "Keep every message with the team in one place." },
 ] as const;
 

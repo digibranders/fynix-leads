@@ -29,8 +29,9 @@ async function Meetings({ searchParams }: { searchParams: PageProps<"/fynix/meet
         show={MEETING_SHOWS.find((entry) => entry.key === one(params.show))?.key ?? null}
         q={one(params.q) ?? ""}
         page={parsePage(params.page)}
-        // Fynix watches meetings; the client records the outcome.
-        canWrite={false}
+        // Fynix staff and admins both record outcomes: the action is open to every Fynix member.
+        canWrite
+        outcomeSide="fynix"
         now={now}
         emptyText="Meetings appear here once a client accepts a time."
         campaigns={campaigns}

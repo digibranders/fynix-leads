@@ -216,8 +216,8 @@ describe("Campaigns", () => {
 const agreements: AgreementsPage = {
   agreement: { inForceVersion: null, current: { version: 2, monthlyTarget: 12, totalTarget: 72, disputeWindowHours: 48, rules: "A meeting counts when it is held.", notes: "", createdAt: day("2026-11-03"), accepted: [{ name: "Daniel Okafor", at: day("2026-11-04"), side: "client" }] }, previous: { version: 1, createdAt: day("2026-10-02"), supersededAt: day("2026-11-03") }, history: [{ version: 1, monthlyTarget: 10, totalTarget: 60, createdAt: day("2026-10-02"), acceptedByBoth: true }] },
   shares: [
-    { agencyOrgId: "s1", agencyName: "Northgate Outreach", ownBookings: true, monthlyShare: 4, updatedAt: day("2026-11-02"), changedBy: "Meera Sethi" },
-    { agencyOrgId: "a1", agencyName: "Ridgeline Partners", ownBookings: false, monthlyShare: 11, updatedAt: day("2026-11-05"), changedBy: null },
+    { agencyOrgId: "s1", agencyName: "Northgate Outreach", ownBookings: true, monthlyShare: 4, countedByMonth: { "2026-11": 3 }, updatedAt: day("2026-11-02"), changedBy: "Meera Sethi" },
+    { agencyOrgId: "a1", agencyName: "Ridgeline Partners", ownBookings: false, monthlyShare: 11, countedByMonth: {}, updatedAt: day("2026-11-05"), changedBy: null },
   ],
   summary: { totalShares: 15, campaignMonthlyTarget: 14, overAllocated: true },
   options: [{ id: "a2", name: "Calder Bay Media", ownBookings: false }],
@@ -247,7 +247,8 @@ describe("Agreements and shares", () => {
     const html = renderToStaticMarkup(<SharesCard page={agreements} campaignId="c1" supplierName="Northgate Outreach" timeZone="Europe/London" now={day("2026-11-13")} canWrite />);
     expect(html).toContain("15 of 14");
     expect(html).toContain("Shares add up to 15 a month, 1 more than the campaign&#x27;s target of 14.");
-    expect(html).toContain("Delivered in November");
+    expect(html).toContain("Accepted in November");
+    expect(html).not.toContain("Not counted yet");
     expect(html).toContain("Meera Sethi, Fynix, 2 Nov");
     expect(html).toContain("Own bookings");
     expect(html).toContain("Add share");

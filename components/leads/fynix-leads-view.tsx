@@ -97,9 +97,9 @@ export function FynixLeadsView({
               </TableHeader>
               <TableBody>
                 {page.rows.map((lead) => (
-                  <TableRow key={lead.id}>
+                  <TableRow key={lead.id} className="relative">
                     <TableCell>
-                      <Person name={lead.prospectName} sub={<span className="font-mono">{lead.publicRef}</span>} />
+                      <Person name={lead.prospectName} href={`/fynix/leads/${lead.publicRef}`} sub={<span className="font-mono">{lead.publicRef}</span>} />
                     </TableCell>
                     {campaigns !== undefined ? (
                       <TableCell className="max-md:hidden">

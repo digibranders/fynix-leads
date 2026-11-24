@@ -288,25 +288,38 @@ export const submitLeadSchema = z
   .strict();
 export type SubmitLeadInput = z.input<typeof submitLeadSchema>;
 
+/** The note that goes with every accept and every reject of a lead: required both ways (lead flow decision, 2026-11-24). */
+export const DECISION_NOTE_MIN = 5;
+export const DECISION_NOTE_MAX = 1000;
+const decisionNote = z.string().trim().min(DECISION_NOTE_MIN, `must be at least ${DECISION_NOTE_MIN} characters`).max(DECISION_NOTE_MAX, `must be at most ${DECISION_NOTE_MAX} characters`);
+
 export const clientReviewLeadSchema = z
   .object({
     leadId: z.uuid(),
     action: z.enum(["accept", "propose_times", "decline"]),
     selectedMeetingTime: instant.optional(),
     proposedTimes: z.array(instant).max(3).optional(),
-    declineReason: optionalText(500).optional(),
+    declineReason: decisionNote.optional(),
   })
   .strict()
   .refine(
     (input) => {
       if (input.action === "accept") return input.selectedMeetingTime !== undefined;
       if (input.action === "propose_times") return (input.proposedTimes?.length ?? 0) > 0;
-      if (input.action === "decline") return typeof input.declineReason === "string" && input.declineReason.length > 0;
+      if (input.action === "decline") return input.declineReason !== undefined;
       return true;
     },
     { message: "action requirements not met (accept requires selected time, decline requires reason, propose requires times)" },
   );
 export type ClientReviewLeadInput = z.input<typeof clientReviewLeadSchema>;
+
+/** The client's answer after the meeting. */
+export const decideLeadSchema = z.object({ leadId: z.uuid(), decision: z.enum(["accept", "reject"]), note: decisionNote }).strict();
+export type DecideLeadInput = z.infer<typeof decideLeadSchema>;
+
+/** Fynix changes a rejection to accepted, with its own note. */
+export const overturnRejectionSchema = z.object({ leadId: z.uuid(), note: decisionNote }).strict();
+export type OverturnRejectionInput = z.infer<typeof overturnRejectionSchema>;
 
 export const disputeLeadSchema = z
   .object({

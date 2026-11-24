@@ -15,6 +15,8 @@ export const LEAD_STAGES = [
   "held",
   "client_no_show",
   "prospect_no_show",
+  "awaiting_decision",
+  "accepted",
   "delivered",
   "disputed",
   "declined",
@@ -61,6 +63,14 @@ export const lead = pgTable(
     declineReason: text("decline_reason"),
     disputeReason: text("dispute_reason"),
 
+    // The client's answer after the meeting, or Fynix's when it overturns a rejection (lead flow decision, 2026-11-24).
+    // `outcome_recorded_at` is when the meeting's outcome was first recorded; the 48 hour clock of the automatic acceptance starts there.
+    outcomeRecordedAt: timestamp("outcome_recorded_at", { withTimezone: true }),
+    decisionNote: text("decision_note"),
+    decisionAt: timestamp("decision_at", { withTimezone: true }),
+    decisionByUserId: uuid("decision_by_user_id"),
+    decisionSource: text("decision_source"),
+
     // Proposed and agreed meeting times
     proposedTimes: jsonb("proposed_times").notNull().default(sql`'[]'::jsonb`),
     scheduledMeetingTime: timestamp("scheduled_meeting_time", { withTimezone: true }),
@@ -105,10 +115,17 @@ export const lead = pgTable(
       columns: [table.hostMemberId],
       foreignColumns: [member.id],
     }),
+    foreignKey({
+      name: "lead_decision_by_fk",
+      columns: [table.decisionByUserId],
+      foreignColumns: [user.id],
+    }),
+    check("lead_decision_source_check", sql`${table.decisionSource} IS NULL OR ${table.decisionSource} IN ('client', 'auto', 'fynix')`),
+    check("lead_decision_note_length", sql`${table.decisionNote} IS NULL OR char_length(btrim(${table.decisionNote})) BETWEEN 1 AND 1000`),
     check("lead_public_ref_format", sql`${table.publicRef} ~ '^LD-[0-9A-HJKMNP-TV-Z]{4}$'`),
     check(
       "lead_stage_check",
-      sql`${table.stage} IN ('draft', 'awaiting_client', 'scheduled', 'outcome_due', 'reschedule_needed', 'held', 'client_no_show', 'prospect_no_show', 'delivered', 'disputed', 'declined', 'withdrawn', 'lost', 'rejected')`,
+      sql`${table.stage} IN ('draft', 'awaiting_client', 'scheduled', 'outcome_due', 'reschedule_needed', 'held', 'client_no_show', 'prospect_no_show', 'awaiting_decision', 'accepted', 'delivered', 'disputed', 'declined', 'withdrawn', 'lost', 'rejected')`,
     ),
     check("lead_prospect_name_length", sql`char_length(btrim(${table.prospectName})) BETWEEN 1 AND 120 AND ${table.prospectName} = btrim(${table.prospectName})`),
     check("lead_prospect_title_length", sql`char_length(btrim(${table.prospectTitle})) BETWEEN 1 AND 120 AND ${table.prospectTitle} = btrim(${table.prospectTitle})`),

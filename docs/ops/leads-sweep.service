@@ -1,0 +1,15 @@
+# Template. The live unit belongs in the vps-setup repository (fynix/leads/); copy it there, do not install this file by hand.
+# Accepts every lead the client left unanswered for 48 hours after the meeting, and counts the reminders that are due.
+# It needs only the runtime environment (DATABASE_URL_AUTH). It sends no email and reads no session.
+[Unit]
+Description=Fynix leads: accept leads left unanswered for 48 hours
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=fynix-leads
+WorkingDirectory=/srv/fynix-leads
+EnvironmentFile=/etc/fynix-leads/env
+ExecStart=/usr/bin/env pnpm leads:sweep
+StandardOutput=append:/var/log/fynix-leads/leads-sweep.log
+StandardError=append:/var/log/fynix-leads/leads-sweep.log

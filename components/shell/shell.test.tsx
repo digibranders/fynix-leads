@@ -35,9 +35,9 @@ describe("SidebarContent", () => {
 
   it("builds the other portals from the same list", () => {
     pathname.value = "/fynix/campaigns/CMP-4821";
-    const html = render("fynix", { disputes: 3 });
+    const html = render("fynix", { rejections: 3 });
     expect(html).toContain("Fynix team");
-    expect(html).toContain("Disputes");
+    expect(html).toContain("Rejections");
     expect(html).toContain("3 waiting");
     expect(html.match(/aria-current="page"/g)).toHaveLength(1);
     expect(render("agency")).toContain("My aliases");

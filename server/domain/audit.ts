@@ -37,6 +37,8 @@ export const AUDIT_ACTIONS = [
   "host_block.add",
   "host_block.remove",
   "lead.resolve_dispute",
+  "lead.record_outcome",
+  "lead.overturn_rejection",
   "conversation.create",
   "conversation.open_direct",
   "conversation.message",

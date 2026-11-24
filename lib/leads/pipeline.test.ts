@@ -12,11 +12,13 @@ describe("pipeline groups", () => {
   });
 
   it("counts by group and keeps empty groups at zero", () => {
-    const counts = countByGroup([{ stage: "awaiting_client" }, { stage: "awaiting_client" }, { stage: "client_no_show" }, { stage: "unknown_stage" }]);
+    const counts = countByGroup([{ stage: "awaiting_client" }, { stage: "awaiting_client" }, { stage: "prospect_no_show" }, { stage: "awaiting_decision" }, { stage: "client_no_show" }, { stage: "unknown_stage" }]);
     expect(counts.awaiting).toBe(2);
-    expect(counts.disputed).toBe(1);
-    expect(counts.delivered).toBe(0);
-    expect(Object.values(counts).reduce((a, b) => a + b, 0)).toBe(3);
+    expect(counts.closed).toBe(1);
+    expect(counts.decision).toBe(1);
+    expect(counts.delivered).toBe(1);
+    expect(counts.disputed).toBe(0);
+    expect(Object.values(counts).reduce((a, b) => a + b, 0)).toBe(5);
   });
 
   it("filters to a group, or returns everything for null", () => {

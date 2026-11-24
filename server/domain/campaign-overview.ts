@@ -1,9 +1,10 @@
 import { and, asc, count, desc, eq, gt, inArray, notInArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type { CampaignStatus } from "@/lib/domain/campaign-status";
+import { countedMonth, isCountedStage } from "@/lib/domain/counting-month";
 import { summariseShares, type ShareSummary } from "@/lib/domain/share-allocation";
 import type { HoursWindow } from "@/lib/domain/weekly-hours";
-import { auditLog, campaign, campaignHost, campaignShare, hostBlock, hostHours, member, organisation } from "@/server/db/schema";
+import { auditLog, campaign, campaignHost, campaignShare, hostBlock, hostHours, lead, member, organisation } from "@/server/db/schema";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
 import { fynixRead, type FynixActor } from "@/server/domain/fynix-write";
@@ -261,6 +262,8 @@ export interface ShareView {
   /** True for the supplier's own bookings, false for a partner agency. */
   readonly ownBookings: boolean;
   readonly monthlyShare: number;
+  /** Counted leads of this agency by month ("YYYY-MM", the month of the meeting in the campaign's time zone). A month with none is absent. */
+  readonly countedByMonth: Readonly<Record<string, number>>;
   readonly updatedAt: Date;
   /** The admin who last set it, as the audit log has it. `null` when the log has no row (a share written by a script). */
   readonly changedBy: string | null;
@@ -308,7 +311,7 @@ export async function readAgreementsPage(deps: DomainDeps, actor: FynixActor, ca
   const id = parseInput(uuidSchema, campaignId);
   const agreements = await readAgreements(deps, actor, id);
   return fynixRead(deps.fynixDb, actor, async (tx) => {
-    const [target] = await tx.select({ id: campaign.id, supplierOrgId: campaign.agencyOrgId, monthlyTarget: campaign.monthlyTarget }).from(campaign).where(eq(campaign.id, id)).limit(1);
+    const [target] = await tx.select({ id: campaign.id, supplierOrgId: campaign.agencyOrgId, monthlyTarget: campaign.monthlyTarget, timeZone: campaign.timeZone }).from(campaign).where(eq(campaign.id, id)).limit(1);
     if (target === undefined) throw new DomainError("not-found", "There is no such campaign.");
 
     const signerIds = (agreements.current?.acceptances ?? []).map((entry) => entry.userId);
@@ -334,8 +337,20 @@ export async function readAgreementsPage(deps: DomainDeps, actor: FynixActor, ca
     const changedBy = new Map<string, string>();
     for (const row of changes) if (!changedBy.has(row.subjectId)) changedBy.set(row.subjectId, row.name);
 
+    // Counted leads by agency and month: the one rule (`isCountedStage`) and the month of the meeting in the campaign's zone (`countedMonth`).
+    const leadRows = await tx.select({ sourceOrgId: lead.sourceOrgId, stage: lead.stage, meetingTime: lead.scheduledMeetingTime }).from(lead).where(eq(lead.campaignId, id));
+    const counted = new Map<string, Record<string, number>>();
+    for (const row of leadRows) {
+      if (!isCountedStage(row.stage) || row.meetingTime === null) continue;
+      const months = counted.get(row.sourceOrgId) ?? {};
+      const month = countedMonth(row.meetingTime, target.timeZone);
+      months[month] = (months[month] ?? 0) + 1;
+      counted.set(row.sourceOrgId, months);
+    }
+
     const shares = shareRows.map(
       (row): ShareView => ({
+        countedByMonth: counted.get(row.agencyOrgId) ?? {},
         agencyOrgId: row.agencyOrgId,
         agencyName: row.agencyName,
         ownBookings: row.agencyOrgId === target.supplierOrgId,

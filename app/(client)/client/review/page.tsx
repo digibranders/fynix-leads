@@ -3,7 +3,10 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { CheckCircle } from "@phosphor-icons/react/dist/ssr";
 import { EmptyState } from "@/components/kit/empty-state";
+import { ClosedTag } from "@/components/kit/closed-tag";
 import { Facts, Quote } from "@/components/kit/facts";
+import { TabNav } from "@/components/kit/tab-nav";
+import { DecisionQueue } from "@/components/leads/decision-queue";
 import { PageHeader } from "@/components/kit/page-header";
 import { Panel } from "@/components/kit/panel";
 import { PageSkeleton } from "@/components/kit/skeletons";
@@ -12,10 +15,11 @@ import { StatusChip } from "@/components/kit/status-chip";
 import { When } from "@/components/kit/when";
 import { ReviewPanel } from "@/components/leads/review-panel";
 import { buttonVariants } from "@/components/ui/button";
+import { isClosed } from "@/lib/campaign-status";
 import { formatWaiting, isOverdue } from "@/lib/time/age";
 import { cn } from "@/lib/utils";
 import { getDatabase } from "@/server/db/client";
-import { listClientLeads } from "@/server/domain/leads";
+import { listClientQueues } from "@/server/domain/client-queue";
 import { requireClient } from "@/server/client/session";
 
 export const metadata: Metadata = { title: "Availability" };
@@ -28,24 +32,34 @@ async function Review({ searchParams }: { searchParams: PageProps<"/client/revie
   const db = getDatabase("leads_client").db;
   const now = new Date();
 
-  // Oldest first: the lead that has waited longest is the one to answer next.
-  const queue = (await listClientLeads(db, view.actor, { stage: "awaiting_client" })).sort(
-    (a, b) => new Date(a.submittedAt).getTime() - new Date(b.submittedAt).getTime(),
-  );
+  // Two queues: leads waiting for a time (oldest first, the longest wait is answered next) and leads waiting for accept or reject.
+  const { availability: queue, decisions } = await listClientQueues(db, view.actor);
+  const showDecisions = one(params.show) === "decision" || (one(params.show) !== "time" && queue.length === 0 && decisions.length > 0);
   const selected = queue.find((item) => item.id === one(params.lead)) ?? queue[0];
+  const total = queue.length + decisions.length;
 
   return (
     <div className="flex flex-col gap-4">
       <PageHeader
         title="Availability"
         description={
-          queue.length === 0
+          total === 0
             ? "Nothing is waiting for your answer."
-            : `${queue.length} ${queue.length === 1 ? "lead needs" : "leads need"} your answer. Pick a time to accept, or decline.`
+            : `${total} ${total === 1 ? "lead needs" : "leads need"} your answer: a time to pick or a decision to make.`
         }
       />
 
-      {selected === undefined ? (
+      <TabNav
+        label="Queue"
+        items={[
+          { label: "Pick a time", href: "/client/review?show=time", count: queue.length, active: !showDecisions },
+          { label: "Decision needed", href: "/client/review?show=decision", count: decisions.length, active: showDecisions },
+        ]}
+      />
+
+      {showDecisions ? (
+        <DecisionQueue items={decisions} now={now} />
+      ) : selected === undefined ? (
         <Panel>
           <EmptyState
             icon={CheckCircle}
@@ -56,7 +70,7 @@ async function Review({ searchParams }: { searchParams: PageProps<"/client/revie
               </Link>
             }
           >
-            New qualified leads arrive here for you to accept a meeting time or decline.
+            New qualified leads arrive here for you to pick a meeting time. Picking a time books the meeting only.
           </EmptyState>
         </Panel>
       ) : (
@@ -69,7 +83,7 @@ async function Review({ searchParams }: { searchParams: PageProps<"/client/revie
                 return (
                   <li key={item.id}>
                     <Link
-                      href={`/client/review?lead=${item.id}`}
+                      href={`/client/review?show=time&lead=${item.id}`}
                       aria-current={here ? "true" : undefined}
                       scroll={false}
                       className={cn(
@@ -97,7 +111,9 @@ async function Review({ searchParams }: { searchParams: PageProps<"/client/revie
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-xs bg-navy-05 px-1.5 py-0.5 font-mono text-caption font-medium text-ink-2">{selected.publicRef}</span>
+                <Link href={`/client/leads/${selected.publicRef}`} className="rounded-xs bg-navy-05 px-1.5 py-0.5 font-mono text-caption font-medium text-ink-2 hover:underline">
+                  {selected.publicRef}
+                </Link>
                 <StatusChip kind="lead" status="awaiting_client" />
               </div>
             </div>
@@ -109,10 +125,14 @@ async function Review({ searchParams }: { searchParams: PageProps<"/client/revie
             <div className="flex flex-col gap-5 px-6 py-5">
               <Facts
                 items={[
-                  ["Budget", selected.bantBudget],
-                  ["Authority", selected.bantAuthority],
-                  ["Need", selected.bantNeed],
-                  ["Timeline", selected.bantTimeline],
+                  ["Host", selected.hostName ?? "Not named"],
+                  ["Sent as", selected.alias === null ? "Not shown" : `${selected.alias.displayName}, ${selected.alias.jobTitle}`],
+                  ["Campaign", <span key="c" className="flex flex-wrap items-center gap-1.5">{selected.campaignName}{isClosed(selected.campaignStatus) ? <ClosedTag /> : null}</span>],
+                  ["Host's time zone", selected.hostTimeZone ?? "Not set"],
+                  ["Budget", selected.bant.budget],
+                  ["Authority", selected.bant.authority],
+                  ["Need", selected.bant.need],
+                  ["Timeline", selected.bant.timeline],
                 ]}
               />
               {selected.prospectNotes ? <Quote>{selected.prospectNotes}</Quote> : null}
@@ -121,7 +141,9 @@ async function Review({ searchParams }: { searchParams: PageProps<"/client/revie
             <ReviewPanel
               key={selected.id}
               leadId={selected.id}
-              times={Array.isArray(selected.proposedTimes) ? (selected.proposedTimes as string[]) : []}
+              prospectName={selected.prospectName}
+              times={selected.proposedTimes}
+              hostZone={selected.hostTimeZone}
             />
           </Panel>
         </div>

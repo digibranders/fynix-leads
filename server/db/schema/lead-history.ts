@@ -12,7 +12,8 @@ export const leadHistory = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     leadId: uuid("lead_id").notNull(),
-    actorUserId: uuid("actor_user_id").notNull(),
+    // Null for a step the system took itself (the automatic acceptance).
+    actorUserId: uuid("actor_user_id"),
     actorRole: text("actor_role").notNull(),
     action: text("action").notNull(),
     fromStage: text("from_stage"),
@@ -32,6 +33,6 @@ export const leadHistory = pgTable(
       columns: [table.actorUserId],
       foreignColumns: [user.id],
     }),
-    check("lead_history_role_check", sql`${table.actorRole} IN ('client', 'agency', 'fynix')`),
+    check("lead_history_role_check", sql`${table.actorRole} IN ('client', 'agency', 'fynix', 'system')`),
   ],
 );
