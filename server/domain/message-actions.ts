@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { getSessionContext } from "@/server/auth";
 import { getDatabase } from "@/server/db/client";
-import { cleanFileName, checkUpload, MAX_ATTACHMENTS_PER_MESSAGE } from "@/lib/files/rules";
+import { messagePostChecks, retryMessage } from "@/lib/auth/rate-limit-rules";
+import { cleanFileName, checkUpload, checkUploadSize, MAX_ATTACHMENTS_PER_MESSAGE } from "@/lib/files/rules";
+import { firstBlockedLimit } from "@/server/auth/rate-limit";
 import { getDomain } from "@/server/domain";
 import { addMessageAttachment } from "@/server/domain/attachments";
 import { deleteUpload, saveUpload } from "@/server/files/storage";
@@ -128,10 +130,17 @@ export async function postMessageAction(
     return { status: "error", message: "Write a message or attach a file." };
   }
 
+  const deps = getDomain();
+  // Before any file is read or scanned. A failure of the limiter itself propagates: it fails closed.
+  const blocked = await firstBlockedLimit(deps.publicDb, messagePostChecks(context.userId, files.length), deps.now());
+  if (blocked !== null) return { status: "error", message: retryMessage(blocked.retryAfterSeconds) };
+
   // Check every file and scan it before anything is saved, so a refused file leaves no message behind.
   const checked: { readonly name: string; readonly contentType: string; readonly bytes: Uint8Array }[] = [];
   try {
     for (const file of files) {
+      const sizeProblem = checkUploadSize(file);
+      if (sizeProblem !== null) return { status: "error", message: sizeProblem };
       const bytes = new Uint8Array(await file.arrayBuffer());
       const verdict = checkUpload({ name: file.name, size: bytes.length }, bytes.subarray(0, 16));
       if (!verdict.ok) return { status: "error", message: verdict.reason };
@@ -145,31 +154,41 @@ export async function postMessageAction(
 
   const body = typed !== "" ? typed : `Attached ${checked.map((file) => file.name).join(", ")}`.slice(0, 10_000);
   const { actor, db } = resolveActorAndDb(context);
-  const deps = getDomain();
   const storedKeys: string[] = [];
+  let posted = false;
 
   try {
-    const msg = await postMessage(db, actor, { conversationId, body }, deps);
+    // Files go to disk before the message exists, so the likeliest failure (disk) leaves no message behind.
+    const saved: { readonly file: (typeof checked)[number]; readonly storageKey: string }[] = [];
     for (const file of checked) {
       const storageKey = await saveUpload(file.bytes);
       storedKeys.push(storageKey);
+      saved.push({ file, storageKey });
+    }
+    const msg = await postMessage(db, actor, { conversationId, body }, deps);
+    posted = true;
+    for (const { file, storageKey } of saved) {
       await addMessageAttachment(db, actor, { messageId: msg.id, fileName: file.name, contentType: file.contentType, sizeBytes: file.bytes.length, storageKey });
     }
 
-    revalidatePath("/client/messages");
-    revalidatePath("/agency/messages");
-    revalidatePath("/supplier/messages");
-    revalidatePath("/fynix/messages");
-    revalidatePath("/fynix/inbox");
-
+    revalidateMessagePaths();
     return { status: "success", data: msg };
   } catch (error) {
     await Promise.all(storedKeys.map((key) => deleteUpload(key)));
+    // The message is already in the conversation (it commits before its files are recorded): show it, and say what is missing.
+    if (posted) {
+      revalidateMessagePaths();
+      return { status: "error", message: "Your message was sent, but its files could not be attached. Send them again." };
+    }
     if (error instanceof DomainError) {
       return { status: "error", message: error.message };
     }
     return { status: "error", message: "Failed to send message." };
   }
+}
+
+function revalidateMessagePaths(): void {
+  for (const path of ["/client/messages", "/agency/messages", "/supplier/messages", "/fynix/messages", "/fynix/inbox"]) revalidatePath(path);
 }
 
 /**

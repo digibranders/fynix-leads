@@ -66,6 +66,20 @@ export function inviteRedeemChecks(tokenHash: string, address: string): readonly
   ];
 }
 
+/**
+ * Posting in a conversation, per signed-in user: a burst of chat is fine, a script is not. Each attached file also spends
+ * from a slower budget, because a file costs a malware scan and disk. `fileCount` is how many files the message carries.
+ */
+export function messagePostChecks(userId: string, fileCount: number): readonly RateLimitCheck[] {
+  const files: RateLimitCheck[] = Array.from({ length: fileCount }, () => ({ key: `message-file:user:${userId}`, rule: { limit: 30, windowSeconds: ONE_HOUR } }));
+  return [{ key: `message-post:user:${userId}`, rule: { limit: 40, windowSeconds: 5 * 60 } }, ...files];
+}
+
+/** Submitting a lead, per signed-in user: an agency member works through a list, not hundreds an hour. */
+export function leadSubmitChecks(userId: string): readonly RateLimitCheck[] {
+  return [{ key: `lead-submit:user:${userId}`, rule: { limit: 60, windowSeconds: ONE_HOUR } }];
+}
+
 /** "Try again in 3 minutes", from the seconds left in the window. */
 export function retryMessage(retryAfterSeconds: number): string {
   const minutes = Math.max(1, Math.ceil(retryAfterSeconds / 60));

@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { leadSubmitChecks, retryMessage } from "@/lib/auth/rate-limit-rules";
 import { getSessionContext } from "@/server/auth";
+import { firstBlockedLimit } from "@/server/auth/rate-limit";
 import { getDatabase } from "@/server/db/client";
 import { getDomain } from "@/server/domain";
 import { DomainError } from "@/server/domain/errors";
@@ -32,6 +34,10 @@ export async function submitLeadAction(
   if (context === null || context.kind !== "agency") {
     return { status: "error", message: "Only agency or supplier members can submit leads." };
   }
+
+  const limits = getDomain();
+  const blocked = await firstBlockedLimit(limits.publicDb, leadSubmitChecks(context.userId), limits.now());
+  if (blocked !== null) return { status: "error", message: retryMessage(blocked.retryAfterSeconds) };
 
   const timesRaw = formData.getAll("proposedTimes");
   const proposedTimes = timesRaw.filter((t): t is string => typeof t === "string" && t.length > 0);

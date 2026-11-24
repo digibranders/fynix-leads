@@ -91,7 +91,9 @@ export function toCsv(
     if (value === null || value === undefined) {
       return "";
     }
-    const str = String(value);
+    // A cell that starts with = + - @ (or a tab or return) is read as a formula by Excel and Sheets: the apostrophe makes it text.
+    const raw = String(value);
+    const str = typeof value === "string" && /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
     if (str.includes('"') || str.includes(",") || str.includes("\n") || str.includes("\r")) {
       return `"${str.replaceAll('"', '""')}"`;
     }

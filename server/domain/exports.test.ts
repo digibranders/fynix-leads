@@ -19,6 +19,13 @@ describe("exports domain service", () => {
       expect(csv).toBe("Name,Role,Active\r\nAlice Smith,Engineer,true\r\nBob Jones,Manager,false\r\n");
     });
 
+    it("turns text that starts like a formula into plain text, and leaves numbers alone", () => {
+      const csv = toCsv(["Name", "Notes", "Count"], [['=HYPERLINK("http://x")', "+44 7700 900123", -3], ["-1+1", "@SUM(A1)", 5], ["Plain", "a-b", 0]]);
+      expect(csv).toBe(
+        "Name,Notes,Count\r\n\"'=HYPERLINK(\"\"http://x\"\")\",'+44 7700 900123,-3\r\n'-1+1,'@SUM(A1),5\r\nPlain,a-b,0\r\n",
+      );
+    });
+
     it("escapes fields containing commas", () => {
       const headers = ["Company", "Location"];
       const rows = [["Acme, Inc.", "London, UK"]];

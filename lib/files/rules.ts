@@ -61,10 +61,17 @@ export function sniffContentType(head: Uint8Array, extension: string): string | 
 
 export type UploadCheck = { readonly ok: true; readonly contentType: string } | { readonly ok: false; readonly reason: string };
 
+/** The size part of the check, on the size the browser reports, so a file that is too big is refused before it is read into memory. */
+export function checkUploadSize(file: { readonly name: string; readonly size: number }): string | null {
+  if (file.size <= 0) return `${file.name} is empty.`;
+  if (file.size > MAX_ATTACHMENT_BYTES) return `${file.name} is larger than 10 MB.`;
+  return null;
+}
+
 /** Checks one file before anything is stored. `head` is at least the first 8 bytes. */
 export function checkUpload(file: { readonly name: string; readonly size: number }, head: Uint8Array): UploadCheck {
-  if (file.size <= 0) return { ok: false, reason: `${file.name} is empty.` };
-  if (file.size > MAX_ATTACHMENT_BYTES) return { ok: false, reason: `${file.name} is larger than 10 MB.` };
+  const sizeProblem = checkUploadSize(file);
+  if (sizeProblem !== null) return { ok: false, reason: sizeProblem };
   const extension = extensionOf(file.name);
   const allowed = ALLOWED_TYPES.find((type) => type.extensions.includes(extension));
   if (allowed === undefined) return { ok: false, reason: `${file.name} is not a PDF, Word, Excel, PNG or JPG file.` };
