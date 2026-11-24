@@ -19,6 +19,7 @@ import {
 } from "@/server/domain/group-actions";
 import type { GroupCandidate, GroupMemberView } from "@/server/domain/groups";
 import { NATIVE_FIELD } from "@/components/kit/field-classes";
+import { GROUP_RULE_TEXT } from "@/lib/messaging/group-rules";
 import { CONTROL } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -51,7 +52,7 @@ function Problem({ message }: { readonly message: string }) {
  * The picker: a search box, then the people grouped by organisation with a checkbox each. Used to make a group and to add to one.
  * The list itself comes from the database, already limited to whom this person may add.
  */
-function PeoplePicker({ candidates, selected, onToggle, onPick }: { readonly candidates: readonly GroupCandidate[]; readonly selected: ReadonlySet<string>; readonly onToggle: (userId: string) => void; readonly onPick?: (userId: string) => void }) {
+export function PeoplePicker({ candidates, selected, onToggle, onPick, showRule = false }: { readonly candidates: readonly GroupCandidate[]; readonly selected: ReadonlySet<string>; readonly onToggle: (userId: string) => void; readonly onPick?: (userId: string) => void; /** Say what a group may hold. Left off for a chat between two people. */ readonly showRule?: boolean }) {
   const [query, setQuery] = useState("");
   const groups = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -68,6 +69,7 @@ function PeoplePicker({ candidates, selected, onToggle, onPick }: { readonly can
         <label htmlFor="group-people-search" className="sr-only">Search people</label>
         <input id="group-people-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search people or companies" className={`${CONTROL} h-(--h-control) w-full rounded-sm pr-3 pl-10 text-base placeholder:text-ink-muted md:text-[13.5px]`} />
       </div>
+      {showRule ? <p className="text-caption text-ink-muted">{GROUP_RULE_TEXT}</p> : null}
       <div className="max-h-72 min-h-24 overflow-y-auto rounded-md bg-tonal p-1.5">
         {groups.length === 0 ? (
           <p className="p-4 text-center text-table text-ink-muted">{candidates.length === 0 ? "There is nobody you can add." : "No one matches."}</p>
@@ -97,18 +99,25 @@ function PeoplePicker({ candidates, selected, onToggle, onPick }: { readonly can
   );
 }
 
-function useCandidates(active: boolean): readonly GroupCandidate[] | null {
+const EMPTY_CHOICE: ReadonlySet<string> = new Set();
+
+/**
+ * Who may be picked. The list is asked for again each time the choice changes: once someone of one side is chosen, the database offers only Fynix and that
+ * same side, so the picker can never be filled with a mix it would refuse. The old list stays on screen until the new one arrives.
+ */
+function useCandidates(active: boolean, chosen: ReadonlySet<string> = EMPTY_CHOICE, groupId?: string): readonly GroupCandidate[] | null {
   const [candidates, setCandidates] = useState<readonly GroupCandidate[] | null>(null);
+  const key = [...chosen].sort().join(",");
   useEffect(() => {
     if (!active) return;
     let live = true;
-    void loadGroupCandidatesAction().then((rows) => {
+    void loadGroupCandidatesAction({ groupId, chosen: key === "" ? [] : key.split(",") }).then((rows) => {
       if (live) setCandidates(rows);
     });
     return () => {
       live = false;
     };
-  }, [active]);
+  }, [active, groupId, key]);
   return candidates;
 }
 
@@ -121,7 +130,7 @@ export function NewChatMenu({ onCreated }: { readonly onCreated: (conversationId
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const candidates = useCandidates(open);
+  const candidates = useCandidates(open, selected);
 
   function toggle(userId: string): void {
     const next = new Set(selected);
@@ -206,7 +215,7 @@ export function NewChatMenu({ onCreated }: { readonly onCreated: (conversationId
           {candidates === null ? (
             <p className="flex items-center gap-2 text-table text-ink-muted"><CircleNotch aria-hidden className="motion-safe:animate-spin" size={16} />Loading people</p>
           ) : (
-            <PeoplePicker candidates={candidates} selected={selected} onToggle={toggle} />
+            <PeoplePicker candidates={candidates} selected={selected} onToggle={toggle} showRule />
           )}
           {selected.size > 0 ? <p className="text-caption text-ink-muted">{selected.size} chosen, plus you</p> : null}
           {error !== null ? <Problem message={error} /> : null}
@@ -235,7 +244,7 @@ export function GroupPanel({ group, open, onOpenChange, onChanged, onLeft }: { r
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const candidates = useCandidates(open && adding && group.canManage);
+  const candidates = useCandidates(open && adding && group.canManage, chosen, group.groupId);
 
   useEffect(() => {
     if (!open) return;
@@ -319,7 +328,7 @@ export function GroupPanel({ group, open, onOpenChange, onChanged, onLeft }: { r
                 {candidates === null ? (
                   <p className="text-table text-ink-muted">Loading people</p>
                 ) : (
-                  <PeoplePicker candidates={addable} selected={chosen} onToggle={(id) => setChosen((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; })} />
+                  <PeoplePicker showRule candidates={addable} selected={chosen} onToggle={(id) => setChosen((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; })} />
                 )}
                 <div className="flex gap-2">
                   <Button

@@ -9,6 +9,7 @@ import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError, isUniqueViolation } from "@/server/domain/errors";
 import { fynixRead, fynixWorkWrite, type FynixActor } from "@/server/domain/fynix-write";
 import { markRejectionReviewedSchema, requestRejectionReviewSchema } from "@/server/domain/inputs";
+import { notify } from "@/server/domain/notices";
 import { parseInput } from "@/server/domain/parse";
 
 /** Hours the coordinator has to ask for a review of a rejection after the client made it (lead flow decision, "Review of a rejection"). */
@@ -40,6 +41,7 @@ export async function requestRejectionReview(db: Database, deps: Pick<DomainDeps
         .values({ leadId: row.id, requestedByUserId: actor.userId, note: parsed.note, requestedAt: now, status: "open" })
         .returning(agencyRejectionReviewColumns);
       if (created === undefined) throw new Error("Insert of rejection_review returned no row");
+      await notify(tx, { type: "review_requested", leadId: row.id });
       return created;
     } catch (error) {
       if (isUniqueViolation(error, "rejection_review_lead_unique")) throw new DomainError("already-requested", "A review of this rejection has been asked for already.");

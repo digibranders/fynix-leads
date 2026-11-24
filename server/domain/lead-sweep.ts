@@ -31,9 +31,28 @@ export async function sweepLeads(deps: Pick<DomainDeps, "authDb">, now: Date): P
   return result.rows.map((row) => ({ id: row.swept_id, publicRef: row.swept_ref }));
 }
 
+/** A reminder that was turned into notices: how many people of the client were told. */
+export interface SentReminder extends Omit<DueReminder, "dueAt"> {
+  readonly notified: number;
+}
+
 /**
- * The reminders that are due at `now`: 12, 24 and 36 hours after the outcome, for a lead still waiting for the client. Nothing sends them yet:
- * the notice in the app (phase 5) and the email (phase 6) read this list.
+ * Turns the reminders that are due at `now` into notices in the app (`app_send_lead_reminders`, migration 0071): one to every active person of the
+ * client of the campaign, stating the hours left before the automatic acceptance. Each reminder is stamped sent in the same database call that writes the
+ * notices, so a second run writes nothing, and a lead the client has answered is never reminded. When several are due at once only the latest becomes a
+ * notice. Because it stamps `sent_at`, `dueReminders` no longer lists these reminders afterwards: the email half (phase 6) needs its own stamp, or to
+ * send in the same call. Runs as `leads_auth` from `pnpm leads:sweep`, after `sweepLeads`.
+ */
+export async function sendLeadReminders(deps: Pick<DomainDeps, "authDb">, now: Date): Promise<readonly SentReminder[]> {
+  const result = await deps.authDb.execute<{ reminder_id: string; lead_id: string; lead_ref: string; campaign_id: string; kind: DueReminder["kind"]; hours_left: number; notified: number }>(
+    sql`select reminder_id, lead_id, lead_ref, campaign_id, kind, hours_left, notified from public.app_send_lead_reminders(${now.toISOString()}::timestamptz)`,
+  );
+  return result.rows.map((row) => ({ reminderId: row.reminder_id, leadId: row.lead_id, leadRef: row.lead_ref, campaignId: row.campaign_id, kind: row.kind, hoursLeft: row.hours_left, notified: row.notified }));
+}
+
+/**
+ * The reminders that are due at `now`: 12, 24 and 36 hours after the outcome, for a lead still waiting for the client and not yet stamped sent. A read
+ * only list; the notices in the app are written by `sendLeadReminders`, and the email (phase 6) will read this list.
  */
 export async function dueReminders(deps: Pick<DomainDeps, "authDb">, now: Date): Promise<readonly DueReminder[]> {
   const result = await deps.authDb.execute<{ reminder_id: string; lead_id: string; lead_ref: string; campaign_id: string; kind: DueReminder["kind"]; due_at: Date | string; hours_left: number }>(

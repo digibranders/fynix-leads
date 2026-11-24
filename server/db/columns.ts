@@ -214,6 +214,10 @@ export const tenantNotificationColumns = {
   title: notification.title,
   body: notification.body,
   link: notification.link,
+  // What the notice is about (migration 0070). The person already reads the lead, meeting or campaign it names.
+  leadId: notification.leadId,
+  meetingId: notification.meetingId,
+  campaignId: notification.campaignId,
   readAt: notification.readAt,
   createdAt: notification.createdAt,
 } as const;

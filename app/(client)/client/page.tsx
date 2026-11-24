@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
-import { CalendarBlank, Table, Tray } from "@phosphor-icons/react/dist/ssr";
+import { Table, Tray } from "@phosphor-icons/react/dist/ssr";
 import { CampaignFilter } from "@/components/kit/campaign-filter";
 import { EmptyState } from "@/components/kit/empty-state";
 import { Hero } from "@/components/kit/hero";
-import { ListRow, DateTile } from "@/components/kit/list";
+import { ListRow } from "@/components/kit/list";
 import { PageHeader } from "@/components/kit/page-header";
 import { PageSkeleton } from "@/components/kit/skeletons";
 import { Panel, PanelHeader } from "@/components/kit/panel";
@@ -24,6 +24,9 @@ import { getDatabase } from "@/server/db/client";
 import { getClientOverviewMetrics } from "@/server/domain/analytics";
 import { listTenantCampaigns } from "@/server/domain/campaigns-tenant";
 import { listClientLeads } from "@/server/domain/leads";
+import { listClientMeetings } from "@/server/domain/meetings";
+import { UpcomingMeetings } from "@/components/meetings/upcoming-meetings";
+import { upcomingMeetings } from "@/lib/meetings/upcoming";
 import { requireClient } from "@/server/client/session";
 
 export const metadata: Metadata = { title: "Overview" };
@@ -34,7 +37,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/client">["
   const view = await requireClient();
   const params = await searchParams;
   const db = getDatabase("leads_client").db;
-  const [allLeads, campaigns] = await Promise.all([listClientLeads(db, view.actor), listTenantCampaigns(db, view.actor, "client")]);
+  const [allLeads, campaigns, allMeetings] = await Promise.all([listClientLeads(db, view.actor), listTenantCampaigns(db, view.actor, "client"), listClientMeetings(db, view.actor)]);
   // The overview is about active campaigns. With more than one, a switcher picks one; a stale or closed campaign in the address shows all of them.
   const active = campaigns.filter((row) => row.status === "active");
   const chosen = parseCampaignFilter(params.campaign, active);
@@ -48,11 +51,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/client">["
     .map((lead) => ({ lead, when: new Date(lead.submittedAt) }))
     .sort(byTime);
   const oldest = awaiting[0];
-  const upcoming = leads
-    .filter((lead) => lead.stage === "scheduled" && lead.scheduledMeetingTime)
-    .map((lead) => ({ lead, when: new Date(lead.scheduledMeetingTime as Date | string) }))
-    .sort(byTime)
-    .slice(0, 4);
+  const upcoming = upcomingMeetings(allMeetings, inScope, now);
   // A booked meeting whose time has passed is waiting for its outcome, the same rule as the meetings screen.
   const outcomeDue = leads.filter((lead) => lead.stage === "outcome_due" || (lead.stage === "scheduled" && lead.scheduledMeetingTime !== null && new Date(lead.scheduledMeetingTime).getTime() <= now.getTime()));
   const latest = [...leads].sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()).slice(0, 5);
@@ -107,7 +106,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/client">["
         <MiniStat
           label="Meetings scheduled"
           value={metrics.scheduledCount}
-          foot={upcoming[0] ? <>Next: <When at={upcoming[0].when} /></> : "None booked"}
+          foot={upcoming[0] ? <>Next: <When at={upcoming[0].scheduledStartTime} /></> : "None booked"}
         />
         <MiniStat label="Outcome due" value={outcomeDue.length} foot={outcomeDue.length > 0 ? "Meeting time has passed, record how it went" : "Nothing to record"} />
         <MiniStat label="Needs your answer" value={waiting} foot={waiting > 0 ? "A time to pick or a lead to accept or reject" : "Nothing waiting"} tone={waiting > 0 ? "amber" : undefined} />
@@ -129,34 +128,7 @@ async function Overview({ searchParams }: { searchParams: PageProps<"/client">["
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-        <Panel aria-label="Upcoming meetings">
-          <PanelHeader
-            title="Upcoming meetings"
-            action={
-              <Link href="/client/meetings" className={buttonVariants({ variant: "ghost", size: "xs" })}>
-                All meetings
-              </Link>
-            }
-          />
-          {upcoming.length === 0 ? (
-            <EmptyState icon={CalendarBlank} title="No meetings booked">
-              When you accept a time, the meeting shows up here.
-            </EmptyState>
-          ) : (
-            <ul className="flex flex-col pb-3">
-              {upcoming.map(({ lead, when }, index) => (
-                <ListRow
-                  key={lead.id}
-                  highlight={index === 0}
-                  leading={<DateTile date={when} />}
-                  title={lead.prospectName}
-                  sub={lead.prospectCompany}
-                  trailing={<When at={when} style="time" />}
-                />
-              ))}
-            </ul>
-          )}
-        </Panel>
+        <UpcomingMeetings meetings={upcoming} allHref="/client/meetings" emptyText="When you accept a time, the meeting shows up here." />
 
         <Panel aria-label="Latest leads">
           <PanelHeader

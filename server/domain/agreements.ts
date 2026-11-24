@@ -7,6 +7,7 @@ import { DomainError, isUniqueViolation } from "@/server/domain/errors";
 import { fynixRead, fynixWrite, type FynixActor } from "@/server/domain/fynix-write";
 import { assertCampaignOpen } from "@/server/domain/campaign-rules";
 import { acceptTenantAgreementSchema, publishAgreementSchema, recordAgreementAcceptanceSchema, uuidSchema } from "@/server/domain/inputs";
+import { notify } from "@/server/domain/notices";
 import { parseInput } from "@/server/domain/parse";
 import { snapshotAcceptance, snapshotAgreement } from "@/server/domain/snapshots";
 
@@ -108,6 +109,7 @@ export async function publishAgreement(deps: DomainDeps, actor: FynixActor, inpu
       before: latest === undefined ? null : snapshotAgreement(latest),
       after: snapshotAgreement(created),
     });
+    await notify(tx, { type: "agreement_published", version: created.version, campaignId: target.id });
     return { ...created, acceptances: [] };
   });
 }

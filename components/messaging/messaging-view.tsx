@@ -79,6 +79,8 @@ export interface MessagingViewProps {
   /** The group behind the open thread, when it is one. */
   readonly groupInfo?: GroupInfoView | null;
   readonly availableForwardTargets?: readonly ForwardTargetOption[];
+  /** True when the address names the thread (`?conv=`), as a notice, a lead's Messages button or "New message to Fynix" does: a phone then opens the thread, not the list. */
+  readonly openedByLink?: boolean;
 }
 
 const LIST_WIDTH_KEY = "fynix-leads:thread-list-width";
@@ -198,6 +200,7 @@ export function MessagingView({
   canCreateGroup = false,
   groupInfo = null,
   availableForwardTargets = [],
+  openedByLink = false,
 }: MessagingViewProps) {
   const [selectedId, setSelectedId] = useState<string | null>(initialConversationId ?? (conversations[0]?.id ?? null));
   const [filterTab, setFilterTab] = useState<"all" | "unread">("all");
@@ -213,7 +216,16 @@ export function MessagingView({
   const router = useRouter();
   const pathname = usePathname();
   const rootRef = useRef<HTMLDivElement>(null);
-  const [mobileChat, setMobileChat] = useState(false);
+  const [mobileChat, setMobileChat] = useState(openedByLink);
+  // The address can name another thread while this page stays mounted (a bell click on Messages): follow it, and show the thread on a phone.
+  const [seenInitialId, setSeenInitialId] = useState<string | null>(initialConversationId ?? null);
+  if ((initialConversationId ?? null) !== seenInitialId) {
+    setSeenInitialId(initialConversationId ?? null);
+    if (initialConversationId !== null && initialConversationId !== undefined) {
+      setSelectedId(initialConversationId);
+      if (openedByLink) setMobileChat(true);
+    }
+  }
   const [panelOpen, setPanelOpen] = useState(false);
   const [navigating, startNavigation] = useTransition();
   const savedWidth = useSyncExternalStore(subscribeNothing, readSavedWidth, () => LIST_DEFAULT);
@@ -421,7 +433,7 @@ export function MessagingView({
               )}
               {activeConversation.leadRef ? (
                 <Link
-                  href={`/${role === "fynix" ? "fynix/leads" : role === "client" ? "client/leads" : role === "supplier" ? "supplier/leads" : "agency/leads"}`}
+                  href={`/${role === "fynix" ? "fynix/leads" : role === "client" ? "client/leads" : role === "supplier" ? "supplier/leads" : "agency/leads"}/${activeConversation.leadRef}`}
                   className={buttonVariants({ variant: "secondary", size: "sm", className: "shrink-0 @max-[619px]/mv:hidden" })}
                 >
                   Open lead

@@ -8,6 +8,7 @@ import { DomainError } from "@/server/domain/errors";
 import { fynixWrite, type FynixActor } from "@/server/domain/fynix-write";
 import { assertCanGoLive, readGoLiveState } from "@/server/domain/campaign-rules";
 import { closeCampaignSchema, createCampaignSchema, updateCampaignSchema, uuidSchema } from "@/server/domain/inputs";
+import { notify } from "@/server/domain/notices";
 import { parseInput } from "@/server/domain/parse";
 import { insertWithPublicRef } from "@/server/domain/refs";
 import { snapshotCampaign, type CampaignRow } from "@/server/domain/snapshots";
@@ -123,6 +124,8 @@ export async function updateCampaign(deps: DomainDeps, actor: FynixActor, campai
     const [after] = await tx.update(campaign).set({ ...parsed, ...closedAt }).where(eq(campaign.id, id)).returning(campaignColumns);
     if (after === undefined) throw new Error("The campaign update returned no row");
     await audit({ action: campaignAuditAction(before.status, after.status), subject: { table: "campaign", id, ref: after.publicRef }, before: snapshotCampaign(before), after: snapshotCampaign(after) });
+    if (after.status === "active" && before.status !== "active") await notify(tx, { type: "campaign_active", campaignId: id });
+    else if (isClosed(after.status) && !isClosed(before.status)) await notify(tx, { type: "campaign_closed", campaignId: id });
     return record(after);
   });
 }
@@ -140,6 +143,7 @@ export async function closeCampaign(deps: DomainDeps, actor: FynixActor, campaig
     const [after] = await tx.update(campaign).set({ status: "completed", closedAt: deps.now() }).where(eq(campaign.id, before.id)).returning(campaignColumns);
     if (after === undefined) throw new Error("The campaign update returned no row");
     await audit({ action: "campaign.close", subject: { table: "campaign", id: before.id, ref: after.publicRef }, before: snapshotCampaign(before), after: { ...snapshotCampaign(after), note: parsed.note } });
+    await notify(tx, { type: "campaign_closed", campaignId: before.id });
     return record(after);
   });
 }

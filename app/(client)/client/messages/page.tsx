@@ -10,7 +10,10 @@ import {
   type ThreadMessageView,
 } from "@/components/messaging/messaging-view";
 import { getDatabase } from "@/server/db/client";
+import { NewFynixThread } from "@/components/messaging/new-fynix-thread";
+import { listTenantCampaigns } from "@/server/domain/campaigns-tenant";
 import { requireClient } from "@/server/client/session";
+import { leadRefFromSubject } from "@/lib/leads/thread-ref";
 import { getConversationSeenAt, listConversations, listConversationMessages } from "@/server/domain/messaging";
 
 export const metadata: Metadata = { title: "Messages" };
@@ -21,7 +24,7 @@ async function Messages({ searchParams: pending }: { searchParams: PageProps<"/c
   const view = await requireClient();
   const db = getDatabase("leads_client").db;
 
-  const rawConversations = await listConversations(db, view.actor);
+  const [rawConversations, campaigns] = await Promise.all([listConversations(db, view.actor), listTenantCampaigns(db, view.actor, "client")]);
 
   const selectedId = searchParams.conv ?? rawConversations[0]?.id ?? null;
 
@@ -43,6 +46,7 @@ async function Messages({ searchParams: pending }: { searchParams: PageProps<"/c
     subject: c.subject ?? null,
     isDirect: c.isDirect,
     counterpartyName: "Fynix",
+    leadRef: c.leadId === null || c.leadId === undefined ? null : leadRefFromSubject(c.subject ?? null),
     lastMessageAt: c.updatedAt.toISOString(),
   }));
 
@@ -60,7 +64,7 @@ async function Messages({ searchParams: pending }: { searchParams: PageProps<"/c
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title="Messages" description="Your conversations with Fynix about your campaigns and leads." />
+      <PageHeader title="Messages" description="Your conversations with Fynix about your campaigns and leads." actions={<NewFynixThread campaigns={campaigns.map((row) => ({ value: row.id, label: row.name }))} />} />
       <MessagingView
         role="client"
         currentUserId={view.actor.userId}
@@ -71,6 +75,7 @@ async function Messages({ searchParams: pending }: { searchParams: PageProps<"/c
         attachments={attachments}
         canCreateGroup={canCreate}
         groupInfo={groupInfo}
+        openedByLink={searchParams.conv !== undefined}
       />
     </div>
   );

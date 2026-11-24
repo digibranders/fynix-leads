@@ -11,7 +11,10 @@ import {
   type ThreadMessageView,
 } from "@/components/messaging/messaging-view";
 import { getDatabase } from "@/server/db/client";
+import { NewFynixThread } from "@/components/messaging/new-fynix-thread";
+import { listTenantCampaigns } from "@/server/domain/campaigns-tenant";
 import { requireSupplier } from "@/server/supplier/session";
+import { leadRefFromSubject } from "@/lib/leads/thread-ref";
 import { getConversationSeenAt, listConversations, listConversationMessages } from "@/server/domain/messaging";
 
 export const metadata: Metadata = { title: "Messages" };
@@ -22,7 +25,7 @@ async function Messages({ searchParams: pending }: { searchParams: PageProps<"/s
   const view = await requireSupplier();
   const db = getDatabase("leads_agency").db;
 
-  const rawConversations = await listConversations(db, view.actor);
+  const [rawConversations, campaigns] = await Promise.all([listConversations(db, view.actor), listTenantCampaigns(db, view.actor, "supplier")]);
 
   const selectedId = searchParams.conv ?? rawConversations[0]?.id ?? null;
 
@@ -46,6 +49,7 @@ async function Messages({ searchParams: pending }: { searchParams: PageProps<"/s
       subject: c.subject ?? null,
       isDirect: c.isDirect,
       counterpartyName: isFynixSide ? "Fynix" : "Partner agency",
+      leadRef: c.leadId === null || c.leadId === undefined ? null : leadRefFromSubject(c.subject ?? null),
       lastMessageAt: c.updatedAt.toISOString(),
     };
   });
@@ -76,7 +80,7 @@ async function Messages({ searchParams: pending }: { searchParams: PageProps<"/s
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title="Messages" description="Your conversations with Fynix and your partner agencies about campaigns and leads." />
+      <PageHeader title="Messages" description="Your conversations with Fynix and your partner agencies about campaigns and leads." actions={<NewFynixThread campaigns={campaigns.map((row) => ({ value: row.id, label: row.name }))} />} />
       <MessagingView
         role="supplier"
         currentUserId={view.actor.userId}
@@ -88,6 +92,7 @@ async function Messages({ searchParams: pending }: { searchParams: PageProps<"/s
         canCreateGroup={canCreate}
         groupInfo={groupInfo}
         availableForwardTargets={availableForwardTargets}
+        openedByLink={searchParams.conv !== undefined}
       />
     </div>
   );

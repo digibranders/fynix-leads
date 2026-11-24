@@ -39,8 +39,11 @@ function CommandDialog({
   children,
   className,
   showCloseButton = false,
+  shouldFilter = true,
   ...props
 }: Omit<React.ComponentProps<typeof Dialog>, "children"> & {
+  /** Turn off cmdk's own text filter when the list is already filtered (the palette mixes pages with results from the server). */
+  shouldFilter?: boolean
   title?: string
   description?: string
   className?: string
@@ -61,7 +64,7 @@ function CommandDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         {/* cmdk's input, list and items read their state from this root; without it they throw on open. */}
-        <Command className="bg-transparent p-1">{children}</Command>
+        <Command shouldFilter={shouldFilter} className="bg-transparent p-1">{children}</Command>
       </DialogContent>
     </Dialog>
   )

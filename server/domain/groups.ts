@@ -5,7 +5,8 @@ import type { Database } from "@/server/db/pool";
 import type { ScopedTransaction } from "@/server/db/scope";
 import { appendAudit, type AuditEntry } from "@/server/domain/audit";
 import { DomainError } from "@/server/domain/errors";
-import { createGroupSchema, directChatSchema, groupIdSchema, groupMemberSchema, groupMembersSchema, markConversationReadSchema, renameGroupSchema } from "@/server/domain/inputs";
+import { fynixRead, type FynixActor } from "@/server/domain/fynix-write";
+import { candidateScopeSchema, createGroupSchema, directChatSchema, groupIdSchema, groupMemberSchema, groupMembersSchema, markConversationReadSchema, renameGroupSchema } from "@/server/domain/inputs";
 import { withActorScope, type MessagingActor } from "@/server/domain/messaging";
 import { parseInput } from "@/server/domain/parse";
 
@@ -18,6 +19,18 @@ export interface GroupCandidate {
   readonly displayName: string;
   readonly orgName: string;
   readonly roleLabel: string;
+}
+
+/** A group that holds more than one side (made before groups were limited to one). For the owner to repair; the read changes nothing. */
+export interface MixedGroup {
+  readonly groupId: string;
+  readonly publicRef: string;
+  readonly name: string;
+  readonly kind: "group" | "direct";
+  readonly memberCount: number;
+  /** The sides present, for example "Client: Kestrel" and "Coordinator side: Brightpath". */
+  readonly sides: readonly string[];
+  readonly createdAt: Date;
 }
 
 export interface GroupMemberView {
@@ -65,13 +78,28 @@ export async function canCreateGroup(db: Database, actor: MessagingActor): Promi
   });
 }
 
-/** Who this person may put in a group, grouped for the picker. Empty for someone who cannot create groups. */
-export async function listGroupCandidates(db: Database, actor: MessagingActor): Promise<readonly GroupCandidate[]> {
+/**
+ * Who this person may put in a group, grouped for the picker. Empty for someone who cannot create groups. A group holds Fynix people and one side only:
+ * one client, or one coordinator with its agencies. Name the people already chosen (`chosen`) and, when adding to a group the person manages, the group
+ * (`groupId`), and the list narrows to Fynix and that one side; with nobody from a side yet, the whole pool.
+ */
+export async function listGroupCandidates(db: Database, actor: MessagingActor, options: { readonly groupId?: string; readonly chosen?: readonly string[] } = {}): Promise<readonly GroupCandidate[]> {
+  const parsed = parseInput(candidateScopeSchema, { groupId: options.groupId, chosen: options.chosen ?? [] });
   return withActorScope(db, actor, async (tx) => {
     const result = await tx.execute<{ user_id: string; display_name: string; org_name: string; role_label: string }>(
-      sql`select user_id, display_name, org_name, role_label from public.app_group_candidates()`,
+      sql`select user_id, display_name, org_name, role_label from public.app_group_candidates_scoped(${parsed.groupId ?? null}::uuid, ${`{${parsed.chosen.join(",")}}`}::uuid[])`,
     );
     return result.rows.map((row) => ({ userId: row.user_id, displayName: row.display_name, orgName: row.org_name, roleLabel: row.role_label }));
+  });
+}
+
+/** The active groups that hold more than one side, for the owner to repair. Fynix only (open to staff); nothing is changed or removed. */
+export async function listMixedGroups(db: Database, actor: FynixActor): Promise<readonly MixedGroup[]> {
+  return fynixRead(db, actor, async (tx) => {
+    const result = await tx.execute<{ group_id: string; public_ref: string; name: string; kind: "group" | "direct"; member_count: number; sides: string[]; created_at: Date | string }>(
+      sql`select group_id, public_ref, name, kind, member_count, sides, created_at from public.app_mixed_groups()`,
+    );
+    return result.rows.map((row) => ({ groupId: row.group_id, publicRef: row.public_ref, name: row.name, kind: row.kind, memberCount: row.member_count, sides: row.sides, createdAt: new Date(row.created_at) }));
   });
 }
 

@@ -255,6 +255,15 @@ export const PROBES: readonly Probe[] = [
   { name: "who serves a lead, as a client", statement: "select app_lead_served_by_me(gen_random_uuid())", expectedError: /permission denied for function app_lead_served_by_me/, roles: ["leads_client"] },
   { name: "the visibility of a proposal to the supply side, as a client", statement: "select app_reschedule_visible_to_supply(gen_random_uuid())", expectedError: /permission denied for function app_reschedule_visible_to_supply/, roles: ["leads_client"] },
   { name: "the visibility of a proposal to the client, as an agency", statement: "select app_reschedule_visible_to_client(gen_random_uuid())", expectedError: /permission denied for function app_reschedule_visible_to_client/, roles: ["leads_agency"] },
+  // Phase 5: only a function writes a notice for another person, and it checks the caller belongs to the lead or campaign it names.
+  { name: "write: put a notice in front of another person", statement: "insert into notification (user_id, kind, title, body, link) values (gen_random_uuid(), 'general', 'x', 'x', '/')", expectedError: DENIED_TABLE },
+  { name: "write: put a notice in front of another person, with a lead", statement: "insert into notification (user_id, kind, title, body, link, lead_id) values (gen_random_uuid(), 'general', 'x', 'x', '/', gen_random_uuid())", expectedError: DENIED_TABLE },
+  { name: "the internal notice writer, as a tenant", statement: "select app_notice_insert(gen_random_uuid(), null, null, array['fynix'], 'general', 'x', 'x', 'lead', null)", expectedError: /permission denied for function app_notice_insert/ },
+  { name: "a notice about a lead that is not mine", statement: "select app_notify_lead(gen_random_uuid(), array['fynix', 'client', 'source'], 'general', 'x', 'x')", expectedError: /domain:not-authorised/ },
+  { name: "a notice about a campaign that is not mine", statement: "select app_notify_campaign(gen_random_uuid(), array['fynix'], 'general', 'x', 'x', 'campaign')", expectedError: /domain:not-authorised/ },
+  { name: "the reminder sender, as a tenant", statement: "select * from app_send_lead_reminders(now())", expectedError: /permission denied for function app_send_lead_reminders/ },
+  { name: "the groups that mix sides, as a tenant", statement: "select * from app_mixed_groups()", expectedError: /permission denied for function app_mixed_groups/ },
+  { name: "the side root of a person, as a tenant", statement: "select app_side_root(gen_random_uuid())", expectedError: /permission denied for function app_side_root/ },
 ];
 
 /**

@@ -10,6 +10,7 @@ import { DomainError } from "@/server/domain/errors";
 import { fynixRead, fynixWorkWrite, type FynixActor } from "@/server/domain/fynix-write";
 import { contestOutcomeSchema, decideContestSchema } from "@/server/domain/inputs";
 import { leadPatchForOutcome } from "@/server/domain/meetings";
+import { notify } from "@/server/domain/notices";
 import { parseInput } from "@/server/domain/parse";
 
 /** Hours the other side has to contest a recorded outcome (lead flow decision, "A wrong outcome"). */
@@ -78,6 +79,7 @@ export async function contestOutcome(db: Database, deps: Pick<DomainDeps, "now">
       snapshot: { outcome: row.outcome, contestedBy: role },
       createdAt: now,
     });
+    await notify(tx, { type: "outcome_contested", by: role, note: parsed.note, leadId: row.leadId, meetingId: row.id });
     return updated;
   });
 }
@@ -172,6 +174,7 @@ export async function fynixDecideContest(deps: DomainDeps, actor: FynixActor, le
       snapshot: { outcome: parsed.outcome, contestedOutcome: row.meetingOutcome },
       createdAt: now,
     });
+    await notify(tx, { type: "contest_decided", outcome: parsed.outcome, note: parsed.note, leadId: row.id, meetingId: row.meetingId });
     await audit({
       action: "lead.decide_contest",
       subject: { table: "lead", id: row.id, ref: row.publicRef },

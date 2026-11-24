@@ -4,6 +4,7 @@ import { Dialog } from "@base-ui/react/dialog";
 import { CaretRight, MagnifyingGlass } from "@phosphor-icons/react";
 import Link from "next/link";
 import { useEffect, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { badgeLabel, formatBadge } from "@/lib/shell/badge";
 import { GLYPHS } from "./sidebar";
 import type { NavGroup } from "./nav";
 
@@ -166,7 +167,7 @@ export function MoreSheet({ open, onOpenChange, groups, counts, footer, onSearch
               className="sheet-row sheet-press mb-2 flex h-11 items-center gap-2.5 rounded-[14px] bg-offwhite/10 px-3.5 text-left text-[15px] text-offwhite/65"
             >
               <MagnifyingGlass aria-hidden size={17} />
-              Search pages
+              Search
             </button>
 
             <div style={stagger()} className="sheet-row mb-1 rounded-[20px] bg-offwhite/[0.08] p-1.5">
@@ -196,7 +197,7 @@ export function MoreSheet({ open, onOpenChange, groups, counts, footer, onSearch
                           </span>
                           <span className="flex-1 text-[16px] font-semibold tracking-[-0.01em]">{item.label}</span>
                           {count > 0 ? (
-                            <span className="grid h-[22px] min-w-[22px] place-items-center rounded-full bg-peach px-1.5 text-[12px] font-bold text-navy">{count}</span>
+                            <span aria-label={badgeLabel(count, item.countKind)} className="grid h-[22px] min-w-[22px] place-items-center rounded-full bg-peach px-1.5 text-[12px] font-bold text-navy">{formatBadge(count)}</span>
                           ) : null}
                           <CaretRight aria-hidden size={15} weight="bold" className="text-offwhite/40" />
                         </Link>

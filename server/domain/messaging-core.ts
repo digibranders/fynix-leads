@@ -55,6 +55,9 @@ const fynixNotificationColumns = {
   title: notification.title,
   body: notification.body,
   link: notification.link,
+  leadId: notification.leadId,
+  meetingId: notification.meetingId,
+  campaignId: notification.campaignId,
   readAt: notification.readAt,
   createdAt: notification.createdAt,
 } as const;

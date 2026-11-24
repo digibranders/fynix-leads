@@ -21,6 +21,7 @@ import {
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { badgeLabel, formatBadge } from "@/lib/shell/badge";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "./shell-frame";
 import { currentItem, type NavIcon, type PortalConfig } from "./nav";
@@ -102,10 +103,10 @@ export function SidebarContent({ portal, counts = {}, footer, onNavigate }: Prop
                       {count > 0 ? <span aria-hidden className="sb-dot" /> : null}
                       {count > 0 ? (
                         <b
-                          aria-label={`${count} waiting`}
+                          aria-label={badgeLabel(count, item.countKind)}
                           className="sb-hide ml-auto rounded-xs bg-peach/16 px-1.5 text-[11.5px] leading-[18px] font-semibold text-[#f3cdb0]"
                         >
-                          {count}
+                          {formatBadge(count)}
                         </b>
                       ) : null}
                     </Link>

@@ -3,7 +3,9 @@ import { check, foreignKey, index, integer, pgTable, primaryKey, text, timestamp
 import { user } from "./auth";
 import { campaign } from "./campaign";
 import { lead } from "./lead";
+import { meeting } from "./meeting";
 import { organisation } from "./organisation";
+import { NOTICE_KINDS } from "../../../lib/leads/notice-kinds";
 
 export const CONVERSATION_SIDES = [
   "client_fynix",
@@ -23,15 +25,8 @@ export const SENDER_ROLES = [
 
 export type SenderRole = (typeof SENDER_ROLES)[number];
 
-export const NOTIFICATION_KINDS = [
-  "lead_submitted",
-  "lead_reviewed",
-  "meeting_scheduled",
-  "outcome_recorded",
-  "dispute_raised",
-  "message_received",
-  "general",
-] as const;
+/** Every kind a notice can have (phase 5 widened the list of migration 0036); defined in lib/leads/notices.ts with what each says. */
+export const NOTIFICATION_KINDS = NOTICE_KINDS;
 
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -158,6 +153,10 @@ export const notification = pgTable(
     title: text("title").notNull(),
     body: text("body").notNull(),
     link: text("link").notNull(),
+    /** What the notice is about, for the screen that opens it. All three are null for a notice that is about none of them (migration 0070). */
+    leadId: uuid("lead_id"),
+    meetingId: uuid("meeting_id"),
+    campaignId: uuid("campaign_id"),
     readAt: timestamp("read_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -172,10 +171,10 @@ export const notification = pgTable(
       columns: [table.orgId],
       foreignColumns: [organisation.id],
     }).onDelete("set null"),
-    check(
-      "notification_kind_check",
-      sql`${table.kind} IN ('lead_submitted', 'lead_reviewed', 'meeting_scheduled', 'outcome_recorded', 'dispute_raised', 'message_received', 'general')`,
-    ),
+    foreignKey({ name: "notification_lead_fk", columns: [table.leadId], foreignColumns: [lead.id] }).onDelete("cascade"),
+    foreignKey({ name: "notification_meeting_fk", columns: [table.meetingId], foreignColumns: [meeting.id] }).onDelete("cascade"),
+    foreignKey({ name: "notification_campaign_fk", columns: [table.campaignId], foreignColumns: [campaign.id] }).onDelete("cascade"),
+    check("notification_kind_check", sql`${table.kind} IN (${sql.raw(NOTICE_KINDS.map((kind) => `'${kind}'`).join(", "))})`),
     index("notification_user_read_idx").on(table.userId, table.readAt),
     index("notification_user_created_idx").on(table.userId, table.createdAt),
   ],

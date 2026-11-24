@@ -4,6 +4,7 @@ import { DotsThreeOutline } from "@phosphor-icons/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { badgeLabel, formatBadge } from "@/lib/shell/badge";
 import { cn } from "@/lib/utils";
 import { CommandPalette } from "./command-palette";
 import { currentItem, moreGroups, tabItems, type PortalConfig } from "./nav";
@@ -84,8 +85,8 @@ export function TabBar({ portal, counts, footer }: Props) {
                 <span className="relative grid place-items-center transition-transform duration-[360ms] ease-(--ease-lens) group-active/tab:scale-90 group-active/tab:duration-100">
                   <Glyph size={24} weight={on ? "fill" : "regular"} className={cn("transition-colors duration-200", on ? "text-peach" : "text-offwhite/60")} />
                   {count > 0 ? (
-                    <b key={count} aria-label={`${count} waiting`} className="tab-badge absolute -top-1.5 left-[calc(50%+4px)] grid h-[18px] min-w-[18px] place-items-center rounded-full bg-peach px-1 text-[11px] font-extrabold text-navy shadow-[0_0_0_2px_rgb(12_30_46)]">
-                      {count}
+                    <b key={count} aria-label={badgeLabel(count, tab.countKind)} className="tab-badge absolute -top-1.5 left-[calc(50%+4px)] grid h-[18px] min-w-[18px] place-items-center rounded-full bg-peach px-1 text-[11px] font-extrabold text-navy shadow-[0_0_0_2px_rgb(12_30_46)]">
+                      {formatBadge(count)}
                     </b>
                   ) : null}
                 </span>

@@ -11,6 +11,7 @@ import {
 } from "@/components/messaging/messaging-view";
 import { getDatabase } from "@/server/db/client";
 import { requireAgency } from "@/server/agency/session";
+import { leadRefFromSubject } from "@/lib/leads/thread-ref";
 import { getConversationSeenAt, listConversations, listConversationMessages } from "@/server/domain/messaging";
 
 export const metadata: Metadata = { title: "Messages" };
@@ -43,6 +44,7 @@ async function Messages({ searchParams: pending }: { searchParams: PageProps<"/a
     subject: c.subject ?? null,
     isDirect: c.isDirect,
     counterpartyName: "Lead coordinator",
+    leadRef: c.leadId === null || c.leadId === undefined ? null : leadRefFromSubject(c.subject ?? null),
     lastMessageAt: c.updatedAt.toISOString(),
   }));
 
@@ -71,6 +73,7 @@ async function Messages({ searchParams: pending }: { searchParams: PageProps<"/a
         attachments={attachments}
         canCreateGroup={canCreate}
         groupInfo={groupInfo}
+        openedByLink={searchParams.conv !== undefined}
       />
     </div>
   );
