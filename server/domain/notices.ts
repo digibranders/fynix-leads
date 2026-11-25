@@ -39,7 +39,9 @@ export async function notify(tx: ScopedTransaction, event: NotifyEvent): Promise
   const { campaignId, ...rest } = event;
   for (const delivery of campaignNotices(rest) as readonly NoticeDelivery[]) {
     await tx.execute(sql`select public.app_notify_campaign(${campaignId}::uuid, ${textArray(delivery.audience)}::text[], ${delivery.kind}, ${delivery.title}, ${delivery.body}, ${delivery.target})`);
-  }  await enqueueCampaignEmails(tx, { ...rest, campaignId });
+  }
+  // The email of the same event, when it has one (a new agreement version). Nothing happens while LAUNCH_EMAILS_ENABLED is not true.
+  await enqueueCampaignEmails(tx, { ...rest, campaignId });
 }
 
 /**

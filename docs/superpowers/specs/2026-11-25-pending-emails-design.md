@@ -118,3 +118,13 @@ Queueing:
 - **"Waiting" is measured from the lead's last change**, not from when it was submitted, so a lead that came back to the client last night is not chased this morning.
 - **The paragraph's rules are reported one sentence each on the form**, and a paragraph that names the coordinator or an agency is refused when saved as well as left out when queued.
 - **An agency is told about its share only when it holds a share of the campaign.** An agency with no share has nothing to reach.
+- **The daily reminder goes out between 9 am and 8 pm local time.** A lead that becomes due in the evening waits for the next morning.
+- **A lead the client has asked other times for is not chased.** It keeps the same stage, but the next move is not the client's.
+- **A company is matched by its name without the legal ending.** "Brightpath Marketing" is refused in a paragraph as well as "Brightpath Marketing Ltd".
+
+## Known limits
+
+- A target that is raised after it was met in a month is not announced a second time that month.
+- A sender whose share is zero is "beyond its share" on every lead, so Fynix is told each time.
+- The reminder's 24 hours start again whenever the lead is changed, by anyone.
+- After a client asks for other times, nothing in the app lets the agency answer. Fynix has to pick a time for the client. This was so before this build; the reminder only stops chasing the client for it.

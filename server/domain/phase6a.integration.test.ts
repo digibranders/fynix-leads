@@ -876,11 +876,27 @@ describe("the opening paragraph of a campaign's letter", () => {
   });
 
   it("reads a company's name without its legal ending the same way in the database as in the code", async () => {
-    const names = ["Brightpath Marketing Ltd", "  Larkfield Outreach, Inc. ", "Nordvik Cold Chain Co. Ltd", "Kestrel GmbH", "AB Ltd", "Co Ltd", "Ridgeway Partner LIMITED", "Plain Name", "Halden Foods S.A.", "Société Générale SA"];
+    const names = ["Bright   Path\tMedia  Ltd", "Brightpath Marketing Ltd", "  Larkfield Outreach, Inc. ", "Nordvik Cold Chain Co. Ltd", "Kestrel GmbH", "AB Ltd", "Co Ltd", "Ridgeway Partner LIMITED", "Plain Name", "Halden Foods S.A.", "Société Générale SA"];
     for (const name of names) {
       const [row] = (await ownerDb().execute<{ core: string }>(sql`select public.app_name_core(${name}) as core`)).rows;
       expect(row?.core, name).toBe(nameCore(name));
     }
+  });
+
+  it("comes from the campaign alone: a paragraph a caller puts into the params of a letter is thrown away", async () => {
+    emailsOn();
+    await prospectEmailOn();
+    const one = await sent();
+    await clearMail();
+    const smuggled = JSON.stringify({ letterOpening: "Sent for you by the people at Brightpath." });
+    await asTenant(agencyDb(), cast.coordinator, (tx) => tx.execute(sql`select public.app_enqueue_lead_email(${one.leadId}::uuid, '{prospect}'::text[], 'prospect_confirmed', ${smuggled}::jsonb, 's', 'b', ${ORIGIN})`));
+    expect(await mails("prospect_confirmed")).toHaveLength(1);
+    expect(await paramsOf("prospect_confirmed")).not.toHaveProperty("letterOpening");
+    // With a paragraph on the campaign, the campaign's is the one that is used.
+    await setProspectLetterOpening(rig.deps(), rig.actor, cast.campaignId, OPENING);
+    await clearMail();
+    await asTenant(agencyDb(), cast.coordinator, (tx) => tx.execute(sql`select public.app_enqueue_lead_email(${one.leadId}::uuid, '{prospect}'::text[], 'prospect_confirmed', ${smuggled}::jsonb, 's', 'b', ${ORIGIN})`));
+    expect(await paramsOf("prospect_confirmed")).toMatchObject({ letterOpening: OPENING });
   });
 
   it("goes into the confirmation letter and no other letter, and the prospect reads it in place of the default first sentence", async () => {
@@ -1124,10 +1140,24 @@ describe("targets, shares, agreements and leads left waiting", () => {
       await clearMail();
       expect(await sendWaitingReminders(authDb(), noonInTwoDays(), on())).toEqual({ clients: 0, summary: 0 });
       expect(await mails()).toEqual([]);
+      // A later step on the lead by someone else does not make it the client's turn again.
+      await ownerDb().execute(sql`insert into lead_history (lead_id, actor_role, action, from_stage, to_stage, note, created_at) values (${asked.leadId}::uuid, 'fynix', 'lead.correct', 'awaiting_client', 'awaiting_client', 'A detail corrected', now() + interval '1 minute')`);
+      expect(await sendWaitingReminders(authDb(), hours(noonInTwoDays(), 1), on())).toEqual({ clients: 0, summary: 0 });
       // A second lead, which the client has simply not answered, is chased alone.
       const quiet = await sent();
       expect(await sendWaitingReminders(authDb(), hours(noonInTwoDays(), 24), on())).toEqual({ clients: 1, summary: 1 });
       expect((await mails("leads_waiting_daily"))[0]?.params).toMatchObject({ waiting: 1, ref: quiet.publicRef });
+    });
+
+    it("does not send in the evening or at night: a lead that becomes due then waits for the next morning", async () => {
+      emailsOn();
+      await ownerDb().update(organisation).set({ timeZone: "Europe/London" }).where(eq(organisation.id, cast.clientActor.orgId));
+      await sent();
+      await clearMail();
+      // Nine in the evening UTC is nine or ten at night in London.
+      expect(await sendWaitingReminders(authDb(), hours(noonInTwoDays(), 9), on())).toEqual({ clients: 0, summary: 0 });
+      expect(await mails()).toEqual([]);
+      expect(await sendWaitingReminders(authDb(), hours(noonInTwoDays(), 22), on())).toEqual({ clients: 1, summary: 1 });
     });
 
     it("uses the campaign's zone when the client's is missing or mistyped, and with the switch off writes the notice and no email and no summary", async () => {

@@ -51,6 +51,8 @@ describe("the opening paragraph of a prospect letter", () => {
     expect(nameCore("Kestrel GmbH")).toBe("kestrel");
     expect(nameCore("AB Ltd")).toBe("ab ltd");
     expect(nameCore("Co Ltd")).toBe("co ltd");
+    expect(nameCore("Bright   Path\tMedia  Ltd")).toBe("bright path media");
+    expect(checkLetterOpening("Bright Path Media sent us.", ["Bright   Path Media Ltd"]).ok).toBe(false);
   });
 
   it("refuses a dash and an exclamation mark", () => {

@@ -24,7 +24,7 @@ const LONG_DASH = new RegExp(`[${String.fromCharCode(0x2013, 0x2014)}]`);
  */
 const LEGAL_ENDING = /([\s,.]+(ltd|limited|llc|llp|inc|incorporated|plc|gmbh|pvt|private|pty|co|corp|corporation|company|bv|sa|ag|sarl|srl))+[\s.]*$/;
 export function nameCore(name: string): string {
-  const full = name.trim().toLowerCase();
+  const full = name.replace(/\s+/g, " ").trim().toLowerCase();
   const core = full.replace(LEGAL_ENDING, "").trim();
   return core.length >= 3 ? core : full;
 }

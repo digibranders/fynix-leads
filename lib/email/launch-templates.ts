@@ -67,6 +67,8 @@ export function isMeetUrl(value: string): boolean {
 }
 
 const text = z.string().min(1).max(500);
+/** The most clients Fynix's daily summary carries. The email lists the first twenty by name and says how many more there are. */
+export const SUMMARY_CLIENTS_MAX = 200;
 const meetUrl = z.string().max(200).refine(isMeetUrl, `must be an https link on ${MEET_HOST}`);
 
 const paramsSchema = z.object({
@@ -93,14 +95,15 @@ const paramsSchema = z.object({
   campaignName: text.optional(),
   /** A month written out, "November 2026". */
   period: text.optional(),
-  reached: z.number().int().min(0).max(100_000).optional(),
-  target: z.number().int().min(1).max(100_000).optional(),
+  // As wide as the database's own integers: a count that is merely large must never stop the acceptance that completed a target.
+  reached: z.number().int().min(0).max(2_147_483_647).optional(),
+  target: z.number().int().min(1).max(2_147_483_647).optional(),
   /** Whether a met target is the month's or the campaign's total. */
   scope: z.enum(["month", "total"]).optional(),
   /** How many leads wait for a time. */
-  waiting: z.number().int().min(1).max(100_000).optional(),
-  /** Fynix's daily summary: each client with leads waiting, and how many. */
-  clients: z.array(z.object({ name: text, waiting: z.number().int().min(1).max(100_000) })).min(1).max(200).optional(),
+  waiting: z.number().int().min(1).max(2_147_483_647).optional(),
+  /** Fynix's daily summary: each client with leads waiting, and how many. The sweep sends at most `SUMMARY_CLIENTS_MAX`. */
+  clients: z.array(z.object({ name: text, waiting: z.number().int().min(1).max(2_147_483_647) })).min(1).max(SUMMARY_CLIENTS_MAX).optional(),
   /** An agreement's version number. */
   version: z.number().int().min(1).max(100_000).optional(),
   // Added by the database for a prospect letter:

@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { SUMMARY_CLIENTS_MAX } from "@/lib/email/launch-templates";
 import type { Database } from "@/server/db/pool";
 import type { MeetProvider } from "@/server/meet/provider";
 import { claimTargetNotices, enqueueLeadEmails, type EnqueueOptions } from "@/server/mail/lead-emails";
@@ -65,21 +66,27 @@ export async function sendMeetingReminderEmails(authDb: Database, now: Date, enq
 /**
  * The daily reminder to each client with a lead that has waited more than 24 hours for a time (`app_claim_waiting_reminders`: once per client and local day,
  * from 9 am there, with its notice in the app), and Fynix's one summary of them (`app_claim_waiting_summary`, once per day). The client's notice is written
- * whatever the email switch says; the summary is an email and nothing else, so it is only claimed when emails are on.
+ * whatever the email switch says; the summary is an email and nothing else, so it is only claimed when emails are on. The two are separate transactions, so a
+ * summary that cannot be written never undoes a client's reminder.
  */
 export async function sendWaitingReminders(authDb: Database, now: Date, enqueue: EnqueueOptions): Promise<{ readonly clients: number; readonly summary: number }> {
-  return authDb.transaction(async (tx) => {
-    const options = { ...enqueue, system: true };
+  const options = { ...enqueue, system: true };
+  const clients = await authDb.transaction(async (tx) => {
     const due = await tx.execute<{ lead_id: string; waiting: number }>(sql`select lead_id, waiting from public.app_claim_waiting_reminders(${now.toISOString()}::timestamptz)`);
     for (const row of due.rows) await enqueueLeadEmails(tx, { type: "leads_waiting", waiting: row.waiting, leadId: row.lead_id }, options);
-    if (enqueue.enabled !== true) return { clients: due.rows.length, summary: 0 };
-    const summary = await tx.execute<{ client_name: string; waiting: number; oldest_lead: string }>(sql`select client_name, waiting, oldest_lead from public.app_claim_waiting_summary(${now.toISOString()}::timestamptz)`);
-    const longest = summary.rows[0];
-    if (longest !== undefined) {
-      await enqueueLeadEmails(tx, { type: "leads_waiting_summary", clients: summary.rows.map((row) => ({ name: row.client_name, waiting: row.waiting })), leadId: longest.oldest_lead }, options);
-    }
-    return { clients: due.rows.length, summary: summary.rows.length };
+    return due.rows.length;
   });
+  if (enqueue.enabled !== true) return { clients, summary: 0 };
+  const summary = await authDb.transaction(async (tx) => {
+    const listed = await tx.execute<{ client_name: string; waiting: number; oldest_lead: string }>(sql`select client_name, waiting, oldest_lead from public.app_claim_waiting_summary(${now.toISOString()}::timestamptz)`);
+    const longest = listed.rows[0];
+    if (longest === undefined) return 0;
+    // The longest waits come first. A name longer than an email field holds is cut, so no one client can stop the summary.
+    const rows = listed.rows.slice(0, SUMMARY_CLIENTS_MAX).map((row) => ({ name: row.client_name.slice(0, 500), waiting: row.waiting }));
+    await enqueueLeadEmails(tx, { type: "leads_waiting_summary", clients: rows, leadId: longest.oldest_lead }, options);
+    return listed.rows.length;
+  });
+  return { clients, summary };
 }
 
 /**

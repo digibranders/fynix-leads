@@ -26,8 +26,16 @@ runScript(async () => {
     const enqueue = { enabled: emails, origin: env.APP_ORIGIN };
     const swept = await sweepLeadsWithEmails(auth.db, now, enqueue);
     const reminders = await sendLeadReminders({ authDb: auth.db }, now);
-    const waiting = await sendWaitingReminders(auth.db, now, enqueue);
-    console.log(`Lead sweep: ${swept.length} accepted automatically${swept.length === 0 ? "" : ` (${swept.map((row) => row.publicRef).join(", ")})`}, ${reminders.length} reminders sent as notices, ${waiting.clients} clients reminded of leads waiting for a time.`);
+    console.log(`Lead sweep: ${swept.length} accepted automatically${swept.length === 0 ? "" : ` (${swept.map((row) => row.publicRef).join(", ")})`}, ${reminders.length} reminders sent as notices.`);
+    // The daily reminder is the newest step and the least urgent: a fault in it is reported and the steps after it still run. Only the error's name is logged,
+    // because its message can carry an address.
+    try {
+      const waiting = await sendWaitingReminders(auth.db, now, enqueue);
+      console.log(`Leads waiting for a time: ${waiting.clients} clients reminded, ${waiting.summary} listed for Fynix.`);
+    } catch (error) {
+      console.error("The reminder of leads waiting for a time failed", error instanceof Error ? error.name : "unknown error");
+      process.exitCode = 1;
+    }
     if (emails) {
       const reminderEmails = await sendReminderEmails(auth.db, now, enqueue);
       const meeting = await sendMeetingReminderEmails(auth.db, now, enqueue);
