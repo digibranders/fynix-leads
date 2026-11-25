@@ -17,6 +17,8 @@ import { campaignClientName } from "@/server/db/client-name";
  */
 export interface ExportFilter {
   readonly campaignId?: string;
+  /** Only leads sent by this coordinator or agency. Read by Fynix exports only: a tenant role cannot read `lead.source_org_id` of every lead. */
+  readonly sourceOrgId?: string;
   readonly stage?: LeadStage;
   /** Leads and meetings from this moment on (submitted for a lead, scheduled start for a meeting). */
   readonly from?: Date;
@@ -65,7 +67,7 @@ export async function exportLeadsCsv(db: Database, actor: ExportActor, filter: E
       })
       .from(lead)
       .innerJoin(campaign, eq(campaign.id, lead.campaignId))
-      .where(and(...leadConditions(filter)))
+      .where(and(...leadConditions(filter), ...(filter.sourceOrgId === undefined ? [] : [eq(lead.sourceOrgId, filter.sourceOrgId)])))
       .orderBy(desc(lead.submittedAt));
     return generateFynixLeadsCsv(rows);
   }

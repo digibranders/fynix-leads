@@ -54,6 +54,7 @@ export function FynixLeadsView({
   campaign = null,
   sort = null,
   exportCampaignId,
+  exportSourceOrgId,
   emptyText,
 }: {
   readonly leads: readonly FynixLeadRow[];
@@ -68,6 +69,8 @@ export function FynixLeadsView({
   readonly sort?: Sort | null;
   /** Inside a campaign the export is that campaign's. */
   readonly exportCampaignId?: string;
+  /** Narrows the CSV to the leads one agency sent (the agency record's Leads tab). */
+  readonly exportSourceOrgId?: string;
   readonly emptyText: string;
 }) {
   if (leads.length === 0) {
@@ -94,7 +97,7 @@ export function FynixLeadsView({
           trailing={
             <span className="flex items-center gap-3">
               {`${filtered.length} ${filtered.length === 1 ? "lead" : "leads"}`}
-              <ExportButton href={exportHref("leads", campaign ?? exportCampaignId ?? null)} />
+              <ExportButton href={exportHref("leads", campaign ?? exportCampaignId ?? null, exportSourceOrgId ?? null)} />
             </span>
           }
         >

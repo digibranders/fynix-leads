@@ -32,6 +32,7 @@ async function Leads({ params, searchParams }: { params: PageProps<"/fynix/agenc
       campaigns={campaigns}
       campaign={parseCampaignFilter(query.campaign, campaigns)}
       sort={parseSort(query.sort)}
+      exportSourceOrgId={agency.id}
       emptyText="Leads this agency sends appear here."
     />
   );
