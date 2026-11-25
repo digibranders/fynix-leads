@@ -18,13 +18,15 @@ import { submitLeadAction } from "@/server/domain/lead-actions";
 export interface CampaignOption {
   readonly id: string;
   readonly name: string;
-  readonly clientBrandName: string;
+  readonly clientOrgId: string;
+  readonly clientName: string;
 }
 
 export interface AliasOption {
   readonly id: string;
   readonly displayName: string;
-  readonly clientBrandName: string;
+  readonly clientOrgId: string | null;
+  readonly clientName: string;
   readonly aliasEmail: string;
 }
 
@@ -97,9 +99,9 @@ export function SubmitLeadForm({ campaigns, aliases, hosts, notLive = [], leadsH
   // The first save of a new draft answers with its id, so the next save and the final send both work on that draft.
   const draftId = draftState.leadId ?? draft?.id ?? "";
   const chosenHost = hosts.find((host) => host.id === hostId && host.campaignId === campaignId);
-  const brand = campaigns.find((c) => c.id === campaignId)?.clientBrandName.trim().toLowerCase();
-  // An alias fronts one client's brand and a host belongs to one campaign, so the lists follow the campaign chosen.
-  const campaignAliases = brand === undefined ? [] : aliases.filter((a) => a.clientBrandName.trim().toLowerCase() === brand);
+  const clientOrgId = campaigns.find((c) => c.id === campaignId)?.clientOrgId;
+  // An alias fronts one client and a host belongs to one campaign, so the lists follow the campaign chosen.
+  const campaignAliases = clientOrgId === undefined ? [] : aliases.filter((a) => a.clientOrgId === clientOrgId);
   const campaignHosts = hosts.filter((h) => h.campaignId === campaignId);
 
   return (
@@ -153,10 +155,10 @@ export function SubmitLeadForm({ campaigns, aliases, hosts, notLive = [], leadsH
                   required
                   placeholder="Select a campaign"
                   emptyLabel={notLive.length > 0 ? "No campaign is live yet" : "No campaigns are assigned to you yet"}
-                  options={campaigns.map((c) => ({ value: c.id, label: `${c.name} (${c.clientBrandName})` }))}
+                  options={campaigns.map((c) => ({ value: c.id, label: `${c.name} (${c.clientName})` }))}
                 />
               </Field>
-              <Field id="lead-alias" label="Client brand alias">
+              <Field id="lead-alias" label="Client alias">
                 <Choice
                   key={`alias-${campaignId}`}
                   id="lead-alias"
@@ -165,7 +167,7 @@ export function SubmitLeadForm({ campaigns, aliases, hosts, notLive = [], leadsH
                   required
                   placeholder="Select a verified alias"
                   emptyLabel={campaignId === "" ? "Choose a campaign first" : "No verified alias for this client yet"}
-                  options={campaignAliases.map((a) => ({ value: a.id, label: `${a.displayName}, ${a.clientBrandName} (${a.aliasEmail})` }))}
+                  options={campaignAliases.map((a) => ({ value: a.id, label: `${a.displayName}, ${a.clientName} (${a.aliasEmail})` }))}
                 />
               </Field>
               <div className="md:col-span-2">

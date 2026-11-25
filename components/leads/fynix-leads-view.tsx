@@ -26,7 +26,7 @@ export interface FynixLeadRow {
   readonly publicRef: string;
   readonly campaignId: string;
   readonly campaignName: string;
-  readonly clientBrandName: string;
+  readonly clientName: string;
   readonly prospectName: string;
   readonly prospectCompany: string;
   readonly prospectDomain: string;
@@ -131,7 +131,7 @@ export function FynixLeadsView({
                         <span className="flex flex-wrap items-center gap-1.5 leading-tight">
                           <span>
                             {lead.campaignName}
-                            <span className="block text-caption text-ink-muted">{lead.clientBrandName}</span>
+                            <span className="block text-caption text-ink-muted">{lead.clientName}</span>
                           </span>
                           {closed.has(lead.campaignId) ? <ClosedTag /> : null}
                         </span>

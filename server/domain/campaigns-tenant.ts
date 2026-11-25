@@ -7,6 +7,7 @@ import { campaignBucket, notLiveReason, type CampaignBucket } from "@/lib/campai
 import { withTenantScope } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import { DomainError } from "@/server/domain/errors";
+import { campaignClientName } from "@/server/db/client-name";
 
 /** One agency's line on a supplier's campaign: the monthly share it holds and what it has delivered. */
 export interface CampaignAgencyLine {
@@ -36,7 +37,7 @@ export interface TenantCampaign {
   readonly id: string;
   readonly publicRef: string;
   readonly name: string;
-  readonly clientBrandName: string;
+  readonly clientName: string;
   readonly status: "draft" | "active" | "paused" | "completed" | "archived";
   readonly startDate: string;
   readonly endDate: string;
@@ -71,7 +72,7 @@ export async function listTenantCampaigns(db: Database, actor: TenantActor, view
         id: campaign.id,
         publicRef: campaign.publicRef,
         name: campaign.name,
-        clientBrandName: campaign.clientBrandName,
+        clientName: campaignClientName(campaign.id),
         status: campaign.status,
         startDate: campaign.startDate,
         endDate: campaign.endDate,

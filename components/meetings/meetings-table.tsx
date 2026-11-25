@@ -14,8 +14,8 @@ import { ContestOutcomeModal, DownloadIcsButton, JoinMeetButton, RecordMeetingOu
 
 export interface MeetingRow extends MeetingItemData {
   readonly leadRef: string;
-  /** The client's brand, shown to suppliers and agencies, who work for several clients. */
-  readonly clientBrandName?: string;
+  /** The client's name, shown to suppliers and agencies, who work for several clients. */
+  readonly clientName?: string;
 }
 
 /** Where a meeting is in its life: still to come, the call has passed and the outcome is due, or finished. */
@@ -164,7 +164,7 @@ export function MeetingsTable({
                     <span>
                       {item.campaignName}
                       <span className="block text-caption text-ink-muted">
-                        {showBrand && item.clientBrandName !== undefined ? `${item.clientBrandName}, ` : ""}
+                        {showBrand && item.clientName !== undefined ? `${item.clientName}, ` : ""}
                         {item.prospectCompany}
                       </span>
                     </span>

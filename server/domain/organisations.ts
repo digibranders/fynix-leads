@@ -16,7 +16,6 @@ export interface OrganisationRecord {
   readonly publicRef: string;
   readonly kind: "fynix" | "client" | "agency";
   readonly name: string;
-  readonly brandName: string | null;
   /** The IANA zone the company works in; `null` until Fynix sets it. */
   readonly timeZone: string | null;
   /** The supplier a partner agency works under. `null` for a client, a supplier and Fynix. */
@@ -29,7 +28,6 @@ export const organisationColumns = {
   publicRef: organisation.publicRef,
   kind: organisation.kind,
   name: organisation.name,
-  brandName: organisation.brandName,
   timeZone: organisation.timeZone,
   parentOrgId: organisation.parentOrgId,
   status: organisation.status,
@@ -47,7 +45,7 @@ async function loadEditable(tx: ScopedTransaction, id: string): Promise<Organisa
 export function insertOrganisation(
   tx: ScopedTransaction,
   randomBytes: RandomBytes,
-  values: { readonly kind: "client" | "agency"; readonly name: string; readonly brandName: string | null; readonly parentOrgId: string | null; readonly timeZone?: string | null },
+  values: { readonly kind: "client" | "agency"; readonly name: string; readonly parentOrgId: string | null; readonly timeZone?: string | null },
 ): Promise<OrganisationRecord> {
   return insertWithPublicRef(tx, { prefix: "ORG", constraint: "organisation_public_ref_unique", randomBytes }, async (attempt, publicRef) => {
     const [row] = await attempt.insert(organisation).values({ publicRef, ...values }).returning(organisationColumns);
@@ -120,8 +118,7 @@ async function upsertProfile(
 
 /**
  * Creates a client or an agency with no parent (an agency with no parent is a supplier). The reference is generated here and retried when it is
- * taken. A client's brand name defaults to its name, since the brand and the client are one thing (the column stays until phase 7); its time zone
- * and profile can be given here. A company with the same name (same kind, any case) is refused with `duplicate-name` unless `confirmDuplicate` is true.
+ * taken. A client has one name; its time zone and profile can be given here. A company with the same name (same kind, any case) is refused with `duplicate-name` unless `confirmDuplicate` is true.
  */
 export async function createOrganisation(deps: DomainDeps, actor: FynixActor, input: unknown): Promise<OrganisationRecord> {
   const parsed = parseInput(createOrganisationSchema, input);
@@ -130,7 +127,6 @@ export async function createOrganisation(deps: DomainDeps, actor: FynixActor, in
     const created = await insertOrganisation(tx, deps.randomBytes, {
       kind: parsed.kind,
       name: parsed.name,
-      brandName: parsed.kind === "client" ? (parsed.brandName ?? parsed.name) : null,
       parentOrgId: null,
       timeZone: parsed.timeZone ?? null,
     });
@@ -144,22 +140,17 @@ export async function createOrganisation(deps: DomainDeps, actor: FynixActor, in
 }
 
 /**
- * Renames an organisation, changes a client's brand name or sets the time zone of either (`null` clears it). The brand copy on the client's campaigns
- * follows (migration 0004). A client whose brand was its name keeps them equal when it is renamed, since the two are one thing.
+ * Renames an organisation or sets the time zone of either (`null` clears it). A client has one name: everyone who may see it sees the new name.
  */
 export async function updateOrganisation(deps: DomainDeps, actor: FynixActor, organisationId: string, input: unknown): Promise<OrganisationRecord> {
   const id = parseInput(uuidSchema, organisationId);
   const parsed = parseInput(updateOrganisationSchema, input);
   return fynixWrite(deps.fynixDb, actor, async ({ tx, audit }) => {
     const before = await loadEditable(tx, id);
-    if (parsed.brandName !== undefined && before.kind !== "client") throw new DomainError("invalid-input", "Only a client has a brand name.");
-    const brandFollowsName = before.kind === "client" && parsed.name !== undefined && parsed.brandName === undefined && before.brandName === before.name;
     const [after] = await tx
       .update(organisation)
       .set({
         ...(parsed.name === undefined ? {} : { name: parsed.name }),
-        ...(parsed.brandName === undefined ? {} : { brandName: parsed.brandName }),
-        ...(brandFollowsName ? { brandName: parsed.name ?? before.name } : {}),
         ...(parsed.timeZone === undefined ? {} : { timeZone: parsed.timeZone }),
       })
       .where(eq(organisation.id, id))

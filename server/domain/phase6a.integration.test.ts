@@ -97,12 +97,10 @@ beforeEach(async () => {
   if (admin === undefined) throw new Error("No Fynix admin");
   await owner.insert(agreement).values({ campaignId: target.id, party: "client", version: 1, monthlyTarget: 12, totalTarget: 72, createdBy: await memberOf(admin.id) });
   await owner.insert(campaignShare).values({ campaignId: target.id, agencyOrgId: world.brightpath.id, monthlyShare: 5 }).onConflictDoNothing();
-  const [brand] = await owner.select({ name: campaign.clientBrandName }).from(campaign).where(eq(campaign.id, target.id));
-  const brandName = brand?.name ?? "Brand";
   const verifiedAlias = async (memberId: string, displayName: string, email: string, ref: string): Promise<string> => {
     const [row] = await owner
       .insert(aliasIdentity)
-      .values({ publicRef: ref, memberId, clientBrandName: brandName, displayName, jobTitle: "Business development", aliasEmail: email, verifiedAt: new Date(), status: "active" })
+      .values({ publicRef: ref, memberId, clientOrgId: target.client.id, displayName, jobTitle: "Business development", aliasEmail: email, verifiedAt: new Date(), status: "active" })
       .returning({ id: aliasIdentity.id });
     if (row === undefined) throw new Error("No alias");
     return row.id;
@@ -368,7 +366,7 @@ describe("a submitted lead, a proposal of other times and a booked meeting", () 
     const [letter] = letters;
     expect(letter).toMatchObject({ recipient: "marta2@nordvik-cold.example", senderName: "Lena Hartmann", replyTo: "lena@brand.example", link: null, status: "pending" });
     expect(letter?.params).toMatchObject({ prospectName: "Marta Lindqvist 2", signerName: "Lena Hartmann", signerTitle: "Business development", privacyUrl: PRIVACY, calendar: { sequence: 0 } });
-    expect(typeof letter?.params.clientBrand).toBe("string");
+    expect(letter?.params.clientBrand).toBe(rig.world().campaigns[0]?.client.name);
   });
 
   it("does not queue a prospect letter when no neutral sender address is set, even with the campaign switched on", async () => {

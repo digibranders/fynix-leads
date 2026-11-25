@@ -159,7 +159,7 @@ describe("exports domain service", () => {
       const testLead = {
         publicRef: "LD-7K1R",
         campaignName: "Enterprise Cloud Outreach",
-        clientBrandName: "Kestrel Cyber",
+        clientName: "Kestrel Cyber",
         prospectName: "Eli Vance",
         prospectTitle: "Chief Scientist",
         prospectCompany: "Black Mesa",
@@ -177,6 +177,8 @@ describe("exports domain service", () => {
       expect(csv).toContain("LD-7K1R");
       expect(csv).toContain("Enterprise Cloud Outreach");
       expect(csv).toContain("Kestrel Cyber");
+      expect(csv.split("\r\n")[0]).toContain("Campaign,Client,Prospect Name");
+      expect(csv).not.toContain("Client Brand");
       expect(csv).toContain("Eli Vance");
       expect(csv).toContain("delivered");
     });
@@ -194,7 +196,7 @@ describe("exports domain service", () => {
       expect(csv).not.toContain("Kestrel Ledger");
     });
 
-    it("adds the client's name for Fynix only", () => {
+    it("adds the client's name for Fynix and for an agency, never for a client", () => {
       const csv = generateMeetingsCsv([meeting], { withClient: true });
       expect(csv.split("\r\n")[0]).toContain("Campaign,Client,Start");
       expect(csv).toContain("Kestrel Ledger");

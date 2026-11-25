@@ -25,14 +25,12 @@ const tenantOrganisationColumns = {
   publicRef: organisation.publicRef,
   kind: organisation.kind,
   name: organisation.name,
-  brandName: organisation.brandName,
 } as const;
 
 const tenantCampaignColumns = {
   id: campaign.id,
   publicRef: campaign.publicRef,
   name: campaign.name,
-  clientBrandName: campaign.clientBrandName,
   status: campaign.status,
   startDate: campaign.startDate,
   endDate: campaign.endDate,

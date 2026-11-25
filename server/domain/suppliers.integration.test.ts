@@ -22,7 +22,7 @@ const UNKNOWN = "99999999-9999-4999-8999-999999999999";
 describe("createSupplier", () => {
   it("creates an agency with no parent and a generated reference, and audits it", async () => {
     const created = await createSupplier(rig.deps(), rig.actor, { name: "  Ridgeway Media Pvt Ltd " });
-    expect(created).toMatchObject({ kind: "agency", name: "Ridgeway Media Pvt Ltd", brandName: null, parentOrgId: null, status: "active" });
+    expect(created).toMatchObject({ kind: "agency", name: "Ridgeway Media Pvt Ltd", parentOrgId: null, status: "active" });
     expect(created.publicRef).toMatch(/^ORG-[0-9A-HJKMNP-TV-Z]{4}$/);
     const [audit] = await auditRowsFor(rig, "organisation.create");
     expect(audit).toMatchObject({ actorUserId: rig.actor.userId, subjectTable: "organisation", subjectId: created.id, subjectRef: created.publicRef, before: null, after: { kind: "agency", parentOrgId: null } });

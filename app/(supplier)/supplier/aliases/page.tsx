@@ -18,7 +18,7 @@ async function Aliases() {
       <AliasesView
         canWrite={view.canWrite}
         clients={clients}
-        aliases={aliases.map((alias) => ({ publicRef: alias.publicRef, displayName: alias.displayName, jobTitle: alias.jobTitle, clientBrandName: alias.clientBrandName, aliasEmail: alias.aliasEmail, verified: alias.verifiedAt !== null, clientOrgId: alias.clientOrgId, retired: alias.status !== "active" }))}
+        aliases={aliases.map((alias) => ({ publicRef: alias.publicRef, displayName: alias.displayName, jobTitle: alias.jobTitle, clientName: alias.clientName, aliasEmail: alias.aliasEmail, verified: alias.verifiedAt !== null, clientOrgId: alias.clientOrgId, retired: alias.status !== "active" }))}
       />
     </div>
   );

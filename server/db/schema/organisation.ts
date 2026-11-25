@@ -14,7 +14,7 @@ export const organisation = pgTable(
     publicRef: text("public_ref").notNull(),
     kind: organisationKind("kind").notNull(),
     name: text("name").notNull(),
-    /** What an agency sees of a client. Required for clients, optional for the others. */
+    // Unused since release 1, dropped in release 2. A client's one name is `name`; a trigger keeps this equal to it for the process that still runs the old code.
     brandName: text("brand_name"),
     status: organisationStatus("status").notNull().default("active"),
     /**

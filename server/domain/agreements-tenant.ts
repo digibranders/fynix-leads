@@ -5,6 +5,7 @@ import { withTenantScope, type ScopedTransaction } from "@/server/db/scope";
 import { DomainError } from "@/server/domain/errors";
 import { parseInput } from "@/server/domain/parse";
 import { uuidSchema } from "@/server/domain/inputs";
+import { campaignClientName } from "@/server/db/client-name";
 
 /** A tenant manager's side of the one campaign agreement: a client's is `client`, a coordinator's is `supplier`. */
 export type TenantAgreementActor = { readonly userId: string; readonly orgId: string; readonly orgKind?: "client" | "agency" };
@@ -13,7 +14,7 @@ export interface TenantAgreement {
   readonly id: string;
   readonly campaignId: string;
   readonly campaignName: string;
-  readonly clientBrandName: string;
+  readonly clientName: string;
   readonly version: number;
   readonly monthlyTarget: number;
   readonly totalTarget: number;
@@ -48,7 +49,7 @@ export async function listCurrentAgreements(db: Database, actor: TenantAgreement
         id: agreement.id,
         campaignId: agreement.campaignId,
         campaignName: campaign.name,
-        clientBrandName: campaign.clientBrandName,
+        clientName: campaignClientName(campaign.id),
         version: agreement.version,
         monthlyTarget: agreement.monthlyTarget,
         totalTarget: agreement.totalTarget,

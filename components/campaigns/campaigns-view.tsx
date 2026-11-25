@@ -74,7 +74,7 @@ export function CampaignsView({ campaigns, portal, basePath, tab = DEFAULT_CAMPA
                   <div className="min-w-0">
                     <h2 className="text-section font-semibold tracking-[-0.01em] text-ink">{row.name}</h2>
                     <p className="mt-0.5 text-table text-ink-muted">
-                      {portal === "client" ? <span className="font-mono">{row.publicRef}</span> : <>{row.clientBrandName}, <span className="font-mono">{row.publicRef}</span></>}
+                      {portal === "client" ? <span className="font-mono">{row.publicRef}</span> : <>{row.clientName}, <span className="font-mono">{row.publicRef}</span></>}
                     </p>
                   </div>
                   <StatusChip kind="campaign" status={row.status} />

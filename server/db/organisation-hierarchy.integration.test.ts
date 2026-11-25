@@ -53,7 +53,7 @@ describe("organisation.parent_org_id", () => {
 
   it("refuses a parent on a client, because only an agency may have one", async () => {
     const message = await failure(
-      dbs.owner.db.insert(organisation).values({ publicRef: "ORG-5E6F", kind: "client", name: "Orchard Foods Ltd", brandName: "Orchard", parentOrgId: world.brightpath.id }),
+      dbs.owner.db.insert(organisation).values({ publicRef: "ORG-5E6F", kind: "client", name: "Orchard Foods Ltd", parentOrgId: world.brightpath.id }),
     );
     expect(message).toContain("organisation_parent_only_agency");
   });

@@ -18,7 +18,7 @@ export interface AliasRow {
   readonly publicRef: string;
   readonly displayName: string;
   readonly jobTitle: string;
-  readonly clientBrandName: string;
+  readonly clientName: string;
   readonly aliasEmail: string;
   readonly verified: boolean;
   /** The client the alias is for; null on an alias made before it picked its client from a list. */
@@ -212,7 +212,7 @@ function AddAliasSheet({ clients, variant = "default" }: { readonly clients: rea
           <form noValidate action={action} className="flex min-h-0 flex-1 flex-col">
             <SheetHeader className="p-5 pb-3">
               <SheetTitle>Add an alias</SheetTitle>
-              <SheetDescription>One identity per client brand. We email a 6 digit code to the alias address, and the alias works for leads once you enter it.</SheetDescription>
+              <SheetDescription>One identity per client. We email a 6 digit code to the alias address, and the alias works for leads once you enter it.</SheetDescription>
             </SheetHeader>
             <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-5 pb-6">
               <Field id="alias-client" label="Client">
@@ -265,14 +265,14 @@ export function AliasesView({ aliases, clients, canWrite }: { readonly aliases: 
           title="No aliases yet"
           action={canWrite ? <AddAliasSheet clients={clients} /> : undefined}
         >
-          {canWrite ? "Add an alias for each client brand you book for. A lead can only be sent under a verified alias." : "A manager adds an alias for each client brand. A lead can only be sent under a verified alias."}
+          {canWrite ? "Add an alias for each client you book for. A lead can only be sent under a verified alias." : "A manager adds an alias for each client. A lead can only be sent under a verified alias."}
         </EmptyState>
       ) : (
         <ul className="flex flex-col pb-3">
           {aliases.map((alias) => (
             <li key={alias.publicRef} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3 shadow-[inset_0_-1px_0_var(--line)] last:shadow-none">
               <div className="min-w-0 flex-1 basis-64">
-                <Person name={alias.displayName} sub={`${alias.jobTitle}, for ${alias.clientBrandName}`} />
+                <Person name={alias.displayName} sub={alias.clientName === "" ? `${alias.jobTitle}, client not set` : `${alias.jobTitle}, for ${alias.clientName}`} />
               </div>
               <p className="min-w-0 basis-full text-caption text-ink-muted md:basis-72 md:flex-none">
                 <span className="block break-words">{alias.aliasEmail}</span>

@@ -30,7 +30,6 @@ export interface SeededOrganisation {
   readonly id: string;
   readonly publicRef: string;
   readonly name: string;
-  readonly brandName: string | null;
   readonly kind: "fynix" | "client" | "agency";
 }
 
@@ -264,7 +263,7 @@ async function seedSetup(
   const partnerRef = "ORG-6P3S";
   const partnerName = "Ridgeway Partner Media Ltd";
   const partnerRow = firstRow(await db.insert(organisation).values({ publicRef: partnerRef, kind: "agency", name: partnerName, parentOrgId: world.brightpath.id }).returning({ id: organisation.id }), "partner agency");
-  const partner: SeededOrganisation = { id: partnerRow.id, publicRef: partnerRef, name: partnerName, brandName: null, kind: "agency" };
+  const partner: SeededOrganisation = { id: partnerRow.id, publicRef: partnerRef, name: partnerName, kind: "agency" };
 
   const clientAgreement = firstRow(
     await db
@@ -292,19 +291,19 @@ async function seedSetup(
  */
 export async function seedWorld(owner: DatabaseHandle, options: { readonly withUsers?: boolean; readonly withDomain?: boolean; readonly withSetup?: boolean } = {}): Promise<SeedWorld> {
   const { db } = owner;
-  const insertOrganisation = async (publicRef: string, kind: "fynix" | "client" | "agency", name: string, brandName: string | null): Promise<SeededOrganisation> => {
+  const insertOrganisation = async (publicRef: string, kind: "fynix" | "client" | "agency", name: string): Promise<SeededOrganisation> => {
     const row = firstRow(
-      await db.insert(organisation).values({ publicRef, kind, name, brandName }).returning({ id: organisation.id }),
+      await db.insert(organisation).values({ publicRef, kind, name }).returning({ id: organisation.id }),
       `organisation ${publicRef}`,
     );
-    return { id: row.id, publicRef, name, brandName, kind };
+    return { id: row.id, publicRef, name, kind };
   };
 
-  const fynix = await insertOrganisation("ORG-7F2A", "fynix", "Fynix Digital Operations", null);
-  const kestrel = await insertOrganisation("ORG-4K9P", "client", "Kestrel Logistics Ltd", "Kestrel");
-  const halden = await insertOrganisation("ORG-8H3D", "client", "Halden Foods Ltd", "Halden");
-  const brightpath = await insertOrganisation("ORG-2B6R", "agency", "Brightpath Media Pvt Ltd", null);
-  const northgate = await insertOrganisation("ORG-9N5T", "agency", "Northgate Leads Ltd", null);
+  const fynix = await insertOrganisation("ORG-7F2A", "fynix", "Fynix Digital Operations");
+  const kestrel = await insertOrganisation("ORG-4K9P", "client", "Kestrel Logistics Ltd");
+  const halden = await insertOrganisation("ORG-8H3D", "client", "Halden Foods Ltd");
+  const brightpath = await insertOrganisation("ORG-2B6R", "agency", "Brightpath Media Pvt Ltd");
+  const northgate = await insertOrganisation("ORG-9N5T", "agency", "Northgate Leads Ltd");
 
   const insertCampaign = async (
     publicRef: string,
@@ -335,7 +334,7 @@ export async function seedWorld(owner: DatabaseHandle, options: { readonly withU
 
   const profiles: SeededProfile[] = [];
   for (const [index, client] of [kestrel, halden].entries()) {
-    const label = client.brandName ?? "client";
+    const label = client.name;
     const timeZone = index === 0 ? "Africa/Nairobi" : "Asia/Kolkata";
     await db.update(organisation).set({ timeZone }).where(eq(organisation.id, client.id));
     const profile = {

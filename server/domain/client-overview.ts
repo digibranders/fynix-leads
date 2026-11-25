@@ -14,8 +14,6 @@ export interface ClientRow {
   readonly id: string;
   readonly publicRef: string;
   readonly name: string;
-  /** What an agency sees in place of the client's name. */
-  readonly brandName: string;
   readonly status: "active" | "archived";
   readonly createdAt: Date;
   readonly peopleCount: number;
@@ -28,7 +26,7 @@ export interface ClientRow {
 export async function listClientRows(deps: DomainDeps, actor: FynixActor): Promise<readonly ClientRow[]> {
   return fynixRead(deps.fynixDb, actor, async (tx) => {
     const clients = await tx
-      .select({ id: organisation.id, publicRef: organisation.publicRef, name: organisation.name, brandName: organisation.brandName, status: organisation.status, createdAt: organisation.createdAt, timeZone: organisation.timeZone })
+      .select({ id: organisation.id, publicRef: organisation.publicRef, name: organisation.name, status: organisation.status, createdAt: organisation.createdAt, timeZone: organisation.timeZone })
       .from(organisation)
       .where(eq(organisation.kind, "client"))
       .orderBy(asc(organisation.name));
@@ -36,7 +34,7 @@ export async function listClientRows(deps: DomainDeps, actor: FynixActor): Promi
     const statuses = await tx.select({ key: campaign.clientOrgId, status: campaign.status }).from(campaign);
     return clients.map((row): ClientRow => {
       const own = statuses.filter((entry) => entry.key === row.id).map((entry) => entry.status);
-      return { ...row, brandName: row.brandName ?? row.name, peopleCount: people.get(row.id) ?? 0, campaignCount: own.length, campaignCounts: tallyCampaigns(own) };
+      return { ...row, peopleCount: people.get(row.id) ?? 0, campaignCount: own.length, campaignCounts: tallyCampaigns(own) };
     });
   });
 }

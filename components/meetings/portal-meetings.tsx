@@ -101,7 +101,7 @@ export function PortalMeetings({
         meeting.prospectCompany.toLowerCase().includes(needle) ||
         meeting.publicRef.toLowerCase().includes(needle) ||
         meeting.campaignName.toLowerCase().includes(needle) ||
-        (meeting.clientBrandName ?? "").toLowerCase().includes(needle)),
+        (meeting.clientName ?? "").toLowerCase().includes(needle)),
   );
   const sortParam = sortValue(sort) ?? null;
   // Upcoming and due meetings read soonest first; finished ones, newest first (the order the data arrives in). A chosen column overrides both.
