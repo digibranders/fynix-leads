@@ -11,7 +11,11 @@ export function ExportButton({ href, label = "Export CSV" }: { readonly href: st
   );
 }
 
-/** The address of an export: the kind of file and the campaign the list is narrowed to, if any. */
-export function exportHref(kind: "leads" | "meetings", campaign: string | null): string {
-  return campaign === null ? `/api/export/${kind}` : `/api/export/${kind}?campaign=${encodeURIComponent(campaign)}`;
+/** The address of an export: the kind of file, the campaign the list is narrowed to, if any, and (Fynix only) the agency that sent the leads. */
+export function exportHref(kind: "leads" | "meetings", campaign: string | null, source: string | null = null): string {
+  const query = [
+    ...(campaign === null ? [] : [`campaign=${encodeURIComponent(campaign)}`]),
+    ...(source === null ? [] : [`source=${encodeURIComponent(source)}`]),
+  ].join("&");
+  return query === "" ? `/api/export/${kind}` : `/api/export/${kind}?${query}`;
 }

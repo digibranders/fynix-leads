@@ -738,6 +738,13 @@ describe("exports", () => {
     expect(meetings).toContain(clean.publicRef);
     expect(await exportLeadsCsv(rig.dbs.roles.leads_fynix.db, rig.actor, { campaignId: "00000000-0000-4000-8000-000000000000" })).toBe(csv.split("\r\n")[0] + "\r\n");
     expect((await exportLeadsCsv(rig.dbs.roles.leads_fynix.db, rig.actor, { to: new Date(Date.now() - 86_400_000) })).split("\r\n")).toHaveLength(2);
+    // Narrowed to the agency that sent the lead: the partner agency sent `clean`, the coordinator sent `hostile`.
+    const fromPartner = await exportLeadsCsv(rig.dbs.roles.leads_fynix.db, rig.actor, { sourceOrgId: cast.partner.orgId });
+    expect(fromPartner).toContain(clean.publicRef);
+    expect(fromPartner).not.toContain(hostile.publicRef);
+    const fromCoordinator = await exportLeadsCsv(rig.dbs.roles.leads_fynix.db, rig.actor, { sourceOrgId: cast.coordinator.orgId });
+    expect(fromCoordinator).toContain(hostile.publicRef);
+    expect(fromCoordinator).not.toContain(clean.publicRef);
   });
 });
 

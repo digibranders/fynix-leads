@@ -21,7 +21,13 @@ export async function GET(request: Request, context: { params: Promise<{ kind: s
 
   const campaign = new URL(request.url).searchParams.get("campaign");
   if (campaign !== null && !UUID.test(campaign)) return notFound();
-  const filter: ExportFilter = campaign === null ? {} : { campaignId: campaign };
+  // Only Fynix may narrow a file to the leads one agency sent: a tenant's own rows are already its own, and its role cannot read every lead's source.
+  const source = new URL(request.url).searchParams.get("source");
+  if (source !== null && !UUID.test(source)) return notFound();
+  const filter: ExportFilter = {
+    ...(campaign === null ? {} : { campaignId: campaign }),
+    ...(source === null || session.kind !== "fynix" ? {} : { sourceOrgId: source }),
+  };
 
   const role = session.kind === "client" ? "leads_client" : session.kind === "agency" ? "leads_agency" : "leads_fynix";
   const actor: ExportActor = session.kind === "fynix" ? { userId: session.userId } : { userId: session.userId, orgId: session.orgId, orgKind: session.kind, role: session.memberRole };
