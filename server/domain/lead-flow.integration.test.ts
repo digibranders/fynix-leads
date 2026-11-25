@@ -559,7 +559,7 @@ describe("the month a lead counts in", () => {
   });
 });
 
-describe("the client's name for the supply side (release 1 of retiring the brand columns)", () => {
+describe("the client's name for the supply side", () => {
   it("shows the coordinator and the partner agency the client's name on the campaign, in the submission options and in the meetings file, and the client no extra column", async () => {
     const world = rig.world();
     const clientName = world.campaigns[0]?.client.name ?? "";
@@ -578,13 +578,12 @@ describe("the client's name for the supply side (release 1 of retiring the brand
     expect((await exportMeetingsCsv(clientDb(), cast.clientActor)).split("\r\n")[0]).not.toContain("Client,");
   });
 
-  it("refuses a lead under an alias that never picked its client until the backfill matches it, then accepts it", async () => {
+  it("refuses a lead under an alias that never picked its client until the client is picked, then accepts it", async () => {
     await ownerDb().execute(sql`update alias_identity set client_org_id = null where id = ${cast.coordinatorAlias}`);
     const options = await getLeadSubmissionOptions(agencyDb(), cast.coordinator);
     expect(options.aliases.find((row) => row.id === cast.coordinatorAlias)).toMatchObject({ clientOrgId: null, clientName: "" });
     await expect(booked("coordinator")).rejects.toThrow(/no client yet/);
-    const left = (await ownerDb().execute<{ left: number }>(sql`select public.app_backfill_alias_clients() as left`)).rows[0]?.left;
-    expect(left).toBe(0);
+    await ownerDb().execute(sql`update alias_identity set client_org_id = (select client_org_id from campaign where id = ${cast.campaignId}) where id = ${cast.coordinatorAlias}`);
     await expect(booked("coordinator")).resolves.toMatchObject({ publicRef: expect.stringMatching(/^LD-/) });
   });
 });

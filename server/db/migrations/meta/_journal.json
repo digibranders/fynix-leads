@@ -554,6 +554,13 @@
       "when": 1795581432852,
       "tag": "0078_client_name_release_1",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1795582880645,
+      "tag": "0079_drop_brand_columns",
+      "breakpoints": true
     }
   ]
 }

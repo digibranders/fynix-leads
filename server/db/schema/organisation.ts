@@ -14,8 +14,6 @@ export const organisation = pgTable(
     publicRef: text("public_ref").notNull(),
     kind: organisationKind("kind").notNull(),
     name: text("name").notNull(),
-    // Unused since release 1, dropped in release 2. A client's one name is `name`; a trigger keeps this equal to it for the process that still runs the old code.
-    brandName: text("brand_name"),
     status: organisationStatus("status").notNull().default("active"),
     /**
      * The supplier a partner agency works under. Null for Fynix, every client and every supplier. A supplier is an agency with
@@ -34,7 +32,6 @@ export const organisation = pgTable(
     // The target of the composite foreign keys that pin a campaign's two organisations to the right kind.
     unique("organisation_id_kind_unique").on(table.id, table.kind),
     check("organisation_public_ref_format", sql`${table.publicRef} ~ '^ORG-[0-9A-HJKMNP-TV-Z]{4}$'`),
-    check("organisation_client_has_brand", sql`${table.kind} <> 'client' OR ${table.brandName} IS NOT NULL`),
     // There is exactly one Fynix organisation. `pnpm admin:create` finds it or creates it, and member rows of kind
     // `fynix` point at it.
     uniqueIndex("organisation_one_fynix").on(table.kind).where(sql`${table.kind} = 'fynix'`),

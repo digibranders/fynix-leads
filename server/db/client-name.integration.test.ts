@@ -1,15 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { campaign, campaignShare, organisation } from "@/server/db/schema";
 import { captureErrorText, openTestDatabases, queryAs, resetDatabase, type TestDatabases } from "@/server/db/testing";
 import { seedWorld, type SeedWorld } from "@/server/db/testing/seed";
 
-/**
- * Release 1 of retiring the brand columns (migration 0078): a client has one name, `organisation.name`, and an agency or coordinator reads it only for the
- * clients of campaigns it serves. This is the one test file that still names the three old columns, on purpose: it proves they stay valid and filled with the
- * name for the process that runs the old code until release 2 drops them.
- */
+/** A client has one name, `organisation.name` (migration 0078), and an agency or coordinator reads it only for the clients of campaigns it serves. */
 
 let dbs: TestDatabases;
 let world: SeedWorld;
@@ -93,74 +89,5 @@ describe("app_campaign_client_name and app_client_name", () => {
     for (const role of ["leads_auth", "leads_public"] as const) {
       expect(await captureErrorText(nameOfCampaign(role, null, target.id))).toContain("permission denied for function app_campaign_client_name");
     }
-  });
-});
-
-describe("the old columns, kept valid until release 2", () => {
-  const legacyCampaignName = async (publicRef: string): Promise<unknown> =>
-    (await dbs.owner.db.execute<{ name: string }>(sql`select client_brand_name as name from campaign where public_ref = ${publicRef}`)).rows[0]?.name;
-
-  it("fill a new client's brand_name with its name, so an insert that leaves it out passes the check", async () => {
-    await dbs.owner.db.insert(organisation).values({ publicRef: "ORG-5E6F", kind: "client", name: "No Brand Ltd" });
-    const rows = await dbs.owner.db.execute<{ brand_name: string }>(sql`select brand_name from organisation where public_ref = 'ORG-5E6F'`);
-    expect(rows.rows[0]?.brand_name).toBe("No Brand Ltd");
-  });
-
-  it("write the client's name into campaign.client_brand_name, and follow a rename made by Fynix", async () => {
-    expect(await legacyCampaignName("CMP-7Q2X")).toBe(world.kestrel.name);
-    await dbs.owner.db.update(organisation).set({ name: "Kestrel Freight Ltd" }).where(eq(organisation.id, world.kestrel.id));
-    expect(await legacyCampaignName("CMP-7Q2X")).toBe("Kestrel Freight Ltd");
-    expect(await legacyCampaignName("CMP-8T3W")).toBe("Kestrel Freight Ltd");
-    expect(await legacyCampaignName("CMP-4M6R")).toBe(world.halden.name);
-    const brand = await dbs.owner.db.execute<{ brand_name: string }>(sql`select brand_name from organisation where id = ${world.kestrel.id}`);
-    expect(brand.rows[0]?.brand_name).toBe("Kestrel Freight Ltd");
-  });
-
-  it("restore campaign.client_brand_name when it is written by hand", async () => {
-    await dbs.owner.db.execute(sql`update campaign set client_brand_name = 'Typed by hand' where public_ref = 'CMP-7Q2X'`);
-    expect(await legacyCampaignName("CMP-7Q2X")).toBe(world.kestrel.name);
-  });
-
-  it("set alias_identity.client_brand_name to the client's name, cut to the 100 characters its check allows", async () => {
-    const longName = `Longname ${"x".repeat(105)}`;
-    const [client] = await dbs.owner.db.insert(organisation).values({ publicRef: "ORG-5E6F", kind: "client", name: longName }).returning({ id: organisation.id });
-    const member = (await dbs.owner.db.execute<{ id: string }>(sql`select m.id from member m join organisation o on o.id = m.org_id where o.id = ${world.brightpath.id} limit 1`)).rows[0];
-    if (client === undefined || member === undefined) throw new Error("The seed world is missing a row");
-    await dbs.owner.db.execute(sql`insert into alias_identity (public_ref, member_id, client_org_id, display_name, job_title, alias_email) values ('ALI-AAAA', ${member.id}, ${world.kestrel.id}, 'A', 'T', 'a@x.example'), ('ALI-BBBB', ${member.id}, ${client.id}, 'B', 'T', 'b@x.example')`);
-    const rows = await dbs.owner.db.execute<{ public_ref: string; client_brand_name: string }>(sql`select public_ref, client_brand_name from alias_identity order by public_ref`);
-    expect(rows.rows).toEqual([
-      { public_ref: "ALI-AAAA", client_brand_name: world.kestrel.name },
-      { public_ref: "ALI-BBBB", client_brand_name: longName.slice(0, 100) },
-    ]);
-  });
-});
-
-describe("app_backfill_alias_clients: aliases made before phase 2", () => {
-  it("matches an alias to the one client its old text names (brand or name, any case), and leaves an unmatched or ambiguous one without a client", async () => {
-    const member = (await dbs.owner.db.execute<{ id: string }>(sql`select m.id from member m where m.org_id = ${world.brightpath.id} limit 1`)).rows[0];
-    if (member === undefined) throw new Error("The seed world has no agency member");
-    // Two clients share a name apart from case, so a text that names both is ambiguous.
-    await dbs.owner.db.insert(organisation).values([
-      { publicRef: "ORG-5E6F", kind: "client", name: "Twin Foods" },
-      { publicRef: "ORG-5E6G", kind: "client", name: "TWIN FOODS" },
-    ]);
-    const old = [
-      ["ALI-AAAA", "kestrel logistics LTD", "a@x.example"],
-      ["ALI-BBBB", "Halden Foods Ltd", "b@x.example"],
-      ["ALI-CCCC", "Nobody Ltd", "c@x.example"],
-      ["ALI-DDDD", "twin foods", "d@x.example"],
-    ] as const;
-    for (const [ref, text, email] of old) {
-      await dbs.owner.db.execute(sql`insert into alias_identity (public_ref, member_id, client_brand_name, display_name, job_title, alias_email) values (${ref}, ${member.id}, ${text}, 'A', 'T', ${email})`);
-    }
-    const left = (await dbs.owner.db.execute<{ left: number }>(sql`select public.app_backfill_alias_clients() as left`)).rows[0]?.left;
-    expect(left).toBe(2);
-    const rows = await dbs.owner.db.execute<{ public_ref: string; client_org_id: string | null; client_brand_name: string }>(sql`select public_ref, client_org_id, client_brand_name from alias_identity order by public_ref`);
-    expect(rows.rows).toEqual([
-      { public_ref: "ALI-AAAA", client_org_id: world.kestrel.id, client_brand_name: world.kestrel.name },
-      { public_ref: "ALI-BBBB", client_org_id: world.halden.id, client_brand_name: world.halden.name },
-      { public_ref: "ALI-CCCC", client_org_id: null, client_brand_name: "Nobody Ltd" },
-      { public_ref: "ALI-DDDD", client_org_id: null, client_brand_name: "twin foods" },
-    ]);
   });
 });
