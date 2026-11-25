@@ -1,6 +1,7 @@
 import { ArrowCounterClockwise, EnvelopeSimple, PencilSimple, Prohibit, UserPlus, XCircle } from "@phosphor-icons/react/dist/ssr";
+import Link from "next/link";
 import type { FormState } from "@/lib/fynix/form-state";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import type { PersonRow } from "@/server/domain/people-overview";
 import { reactivatePersonAction, resendInviteAction, revokeInviteAction, suspendPersonAction } from "@/server/fynix/actions";
 import { FormSheet } from "../forms/form-sheet";
@@ -10,8 +11,19 @@ import { FYNIX_ROLES, InvitePersonForm } from "../forms/supplier-forms";
 
 type Organisations = readonly { readonly id: string; readonly name: string }[];
 
-/** The "Invite person" button with its form in a sheet. `fynix` swaps in the Fynix roles and drops the alias. */
-export function InvitePersonButton({ organisations, description, kind = "company", primary = false, action }: { organisations: Organisations; description: string; kind?: "company" | "agencies" | "fynix"; primary?: boolean; action?: (previous: FormState, formData: FormData) => Promise<FormState> }) {
+/**
+ * The "Invite person" button. With `href` it opens that page (the Fynix screens each have one); without it the form opens in a sheet,
+ * which is how the coordinator portal's Team page uses it. `fynix` swaps in the Fynix roles and drops the alias.
+ */
+export function InvitePersonButton({ organisations, description, kind = "company", primary = false, action, href }: { organisations: Organisations; description: string; kind?: "company" | "agencies" | "fynix"; primary?: boolean; action?: (previous: FormState, formData: FormData) => Promise<FormState>; href?: string }) {
+  if (href !== undefined) {
+    return (
+      <Link href={href} className={buttonVariants({ variant: primary ? "default" : "secondary" })}>
+        <UserPlus aria-hidden />
+        Invite person
+      </Link>
+    );
+  }
   return (
     <FormSheet
       trigger={

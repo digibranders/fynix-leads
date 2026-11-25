@@ -24,7 +24,7 @@ async function Agencies({ searchParams }: { searchParams: PageProps<"/fynix/agen
       <PageHeader
         title="Agencies"
         description="Partner agencies that send leads, each under a coordinator."
-        actions={view.canWrite && choices.suppliers.length > 0 ? <AddAgencyButton coordinators={choices.suppliers} primary /> : null}
+        actions={view.canWrite && choices.suppliers.length > 0 ? <AddAgencyButton primary /> : null}
       />
       <AgenciesTable rows={rows} filter={parseSupplierFilter(one(params.status))} query={one(params.q) ?? ""} canWrite={view.canWrite} coordinators={choices.suppliers} />
     </div>

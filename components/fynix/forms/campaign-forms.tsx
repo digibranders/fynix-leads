@@ -2,7 +2,7 @@
 
 import { addHostAction, closeCampaignAction, createCampaignAction, publishAgreementAction, setPrivacyLinkAction, setShareAction, updateCampaignAction } from "@/server/fynix/actions";
 import type { CampaignChoices, CampaignHeader } from "@/server/domain/campaign-overview";
-import { ActionForm } from "./action-form";
+import { ActionForm, type PageMode } from "./action-form";
 import { FormGroup, Hidden, NumberField, SelectField, TextAreaField, TextField } from "./form-parts";
 
 type Defaults = {
@@ -115,9 +115,9 @@ function CampaignFields({ brief, name, timeZone, meetingMinutes }: { brief: Brie
 }
 
 /** Makes a draft campaign for one client, served by one supplier. Neither can be changed afterwards. */
-export function CreateCampaignForm({ choices }: { choices: CampaignChoices }) {
+export function CreateCampaignForm({ choices, page }: { choices: CampaignChoices; page?: PageMode }) {
   return (
-    <ActionForm action={createCampaignAction} submitLabel="Create campaign" pendingLabel="Creating">
+    <ActionForm action={createCampaignAction} submitLabel="Create campaign" pendingLabel="Creating" page={page}>
       <FormGroup title="Who it is for">
         <SelectField name="clientOrgId" label="Client" options={choices.clients.map((row) => ({ value: row.id, label: row.name }))} placeholder="Choose the client" />
         <SelectField name="agencyOrgId" label="Coordinator" options={choices.suppliers.map((row) => ({ value: row.id, label: row.name }))} placeholder="Choose the coordinator" helper="The coordinator then gives the campaign to its own agencies." />

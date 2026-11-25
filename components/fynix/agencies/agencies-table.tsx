@@ -25,7 +25,7 @@ type Props = {
 export function AgenciesTable({ rows, filter, query, canWrite, coordinators }: Props) {
   const counts = filterCounts(rows);
   const shown = filterAgencies(rows, filter, query);
-  const add = canWrite && coordinators.length > 0 ? <AddAgencyButton coordinators={coordinators} primary /> : undefined;
+  const add = canWrite && coordinators.length > 0 ? <AddAgencyButton primary /> : undefined;
 
   if (rows.length === 0) {
     return (

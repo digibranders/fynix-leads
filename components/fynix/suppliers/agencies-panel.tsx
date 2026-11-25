@@ -12,7 +12,7 @@ export function AgenciesPanel({ supplier, canWrite }: { supplier: SupplierDetail
   const canAdd = canWrite && supplier.status === "active";
   return (
     <Panel aria-label="Partner agencies">
-      <PanelHeader title="Partner agencies" count={supplier.agencies.length} action={canAdd ? <AddAgencyButton supplierId={supplier.id} supplierName={supplier.name} /> : null} />
+      <PanelHeader title="Partner agencies" count={supplier.agencies.length} action={canAdd ? <AddAgencyButton supplierId={supplier.id} /> : null} />
       {supplier.agencies.length === 0 ? (
         <EmptyState icon={UsersThree} title="No partner agencies">
           The coordinator&apos;s own people submit the leads until an agency is added.

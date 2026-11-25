@@ -1,22 +1,13 @@
 import { Plus } from "@phosphor-icons/react/dist/ssr";
-import { Button } from "@/components/ui/button";
-import { FormSheet } from "../forms/form-sheet";
-import { AddClientForm } from "../forms/client-forms";
+import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
 
-/** The header button. Shown only to an admin. */
+/** The header button: opens the Add client page. Shown only to an admin. */
 export function AddClientButton() {
   return (
-    <FormSheet
-      trigger={
-        <Button>
-          <Plus aria-hidden />
-          Add client
-        </Button>
-      }
-      title="Add client"
-      description="A client is the company that buys the meetings."
-    >
-      <AddClientForm />
-    </FormSheet>
+    <Link href="/fynix/clients/new" className={buttonVariants()}>
+      <Plus aria-hidden />
+      Add client
+    </Link>
   );
 }
