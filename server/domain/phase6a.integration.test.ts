@@ -2,6 +2,7 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { agreement, aliasIdentity, auditLog, campaign, campaignHost, campaignShare, emailOutbox, hostHours, lead, leadReminder, meeting, meetingJoin, meetingReminder, member, notification, organisation, user } from "@/server/db/schema";
 import { COUNTED_STAGES } from "@/lib/domain/counting-month";
+import { nameCore } from "@/lib/email/letter-opening";
 import { publishAgreement } from "@/server/domain/agreements";
 import { clientCampaignColumns, meetingJoinColumns } from "@/server/db/columns";
 import type { Database } from "@/server/db/pool";
@@ -858,6 +859,8 @@ describe("the opening paragraph of a campaign's letter", () => {
     const [{ name: coordinatorName } = { name: "" }] = await ownerDb().execute<{ name: string }>(sql`select name from organisation where id = ${cast.coordinator.orgId}::uuid`).then((result) => result.rows);
     expect((await refusal(setProspectLetterOpening(rig.deps(), rig.actor, cast.campaignId, `Sent for you by ${coordinatorName.toUpperCase()}.`))).code).toBe("letter-names-supply-side");
     expect((await refusal(setProspectLetterOpening(rig.deps(), rig.actor, cast.campaignId, "Our friends at ridgeway partner ltd suggested we talk."))).code).toBe("letter-names-supply-side");
+    // The name as people say it, without its legal ending, is refused too.
+    expect((await refusal(setProspectLetterOpening(rig.deps(), rig.actor, cast.campaignId, "Our friends at Ridgeway Partner suggested we talk."))).code).toBe("letter-names-supply-side");
     expect(await ownerDb().select({ id: auditLog.id }).from(auditLog).where(eq(auditLog.action, "campaign.set_letter_opening"))).toEqual([]);
   });
 
@@ -869,6 +872,14 @@ describe("the opening paragraph of a campaign's letter", () => {
       await denied(asTenant(db, actor, (tx) => tx.execute(sql`select prospect_letter_opening from campaign`)), /permission denied for table campaign/);
       await denied(asTenant(db, actor, (tx) => tx.execute(sql`update campaign set prospect_letter_opening = 'x' where id = ${cast.campaignId}::uuid`)), /permission denied for table campaign/);
       await denied(asTenant(db, actor, (tx) => tx.execute(sql`select public.app_prospect_letter_opening(gen_random_uuid(), 'prospect_confirmed')`)), /permission denied for function app_prospect_letter_opening/);
+    }
+  });
+
+  it("reads a company's name without its legal ending the same way in the database as in the code", async () => {
+    const names = ["Brightpath Marketing Ltd", "  Larkfield Outreach, Inc. ", "Nordvik Cold Chain Co. Ltd", "Kestrel GmbH", "AB Ltd", "Co Ltd", "Ridgeway Partner LIMITED", "Plain Name", "Halden Foods S.A.", "Société Générale SA"];
+    for (const name of names) {
+      const [row] = (await ownerDb().execute<{ core: string }>(sql`select public.app_name_core(${name}) as core`)).rows;
+      expect(row?.core, name).toBe(nameCore(name));
     }
   });
 
@@ -900,7 +911,7 @@ describe("the opening paragraph of a campaign's letter", () => {
     expect(await paramsOf("prospect_confirmed")).toMatchObject({ letterOpening: text });
     await clearMail();
     // A new partner agency of that name takes a share: its name is now one a prospect must never read.
-    const late = await createPartnerAgency(rig.deps(), rig.actor, { coordinatorId: cast.coordinator.orgId, name: "Larkfield Outreach" });
+    const late = await createPartnerAgency(rig.deps(), rig.actor, { coordinatorId: cast.coordinator.orgId, name: "Larkfield Outreach Ltd" });
     await ownerDb().insert(campaignShare).values({ campaignId: cast.campaignId, agencyOrgId: late.id, monthlyShare: 1 });
     await booked();
     expect(await paramsOf("prospect_confirmed")).not.toHaveProperty("letterOpening");
@@ -1104,6 +1115,19 @@ describe("targets, shares, agreements and leads left waiting", () => {
       await ownerDb().execute(sql`delete from once_stamp`);
       expect(await sendWaitingReminders(authDb(), noonInTwoDays(), on())).toEqual({ clients: 1, summary: 1 });
       expect((await mails("leads_waiting_daily"))[0]?.params).toMatchObject({ waiting: 1 });
+    });
+
+    it("does not chase a client that has asked for other times: the next move is not its own", async () => {
+      emailsOn();
+      const asked = await sent();
+      await clientReviewLead(clientDb(), rig.deps(), cast.clientActor, { leadId: asked.leadId, action: "propose_times", proposedTimes: [nextWeekdayAt(11, 8), nextWeekdayAt(15, 9)] });
+      await clearMail();
+      expect(await sendWaitingReminders(authDb(), noonInTwoDays(), on())).toEqual({ clients: 0, summary: 0 });
+      expect(await mails()).toEqual([]);
+      // A second lead, which the client has simply not answered, is chased alone.
+      const quiet = await sent();
+      expect(await sendWaitingReminders(authDb(), hours(noonInTwoDays(), 24), on())).toEqual({ clients: 1, summary: 1 });
+      expect((await mails("leads_waiting_daily"))[0]?.params).toMatchObject({ waiting: 1, ref: quiet.publicRef });
     });
 
     it("uses the campaign's zone when the client's is missing or mistyped, and with the switch off writes the notice and no email and no summary", async () => {

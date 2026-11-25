@@ -306,6 +306,7 @@ export const PROBES: readonly Probe[] = [
   { name: "claim the targets a lead met, as the sweep would", statement: "select * from app_claim_target_notices_system(gen_random_uuid())", expectedError: /permission denied for function app_claim_target_notices_system/ },
   { name: "claim the targets of a lead that is not mine", statement: "select * from app_claim_target_notices(gen_random_uuid())", expectedError: /domain:not-authorised/ },
   { name: "claim the daily reminders, as a tenant", statement: "select * from app_claim_waiting_reminders(now())", expectedError: /permission denied for function app_claim_waiting_reminders/ },
+  { name: "the list of leads a client is chased for, as a tenant", statement: "select * from app_leads_waiting(now())", expectedError: /permission denied for function app_leads_waiting/ },
   { name: "claim Fynix's daily summary, as a tenant", statement: "select * from app_claim_waiting_summary(now())", expectedError: /permission denied for function app_claim_waiting_summary/ },
   { name: "queue a campaign email, as a tenant", statement: "select app_enqueue_campaign_email(gen_random_uuid(), array['client_managers'], 'agreement_published_info', '{}'::jsonb, 's', 'b', 'https://x.example')", expectedError: /permission denied for function app_enqueue_campaign_email/ },
   { name: "write: stamp a meeting reminder as sent", statement: "update meeting_reminder set sent_at = now()", expectedError: DENIED_TABLE },

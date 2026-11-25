@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LETTER_OPENING_MAX, checkLetterOpening, tidyLetterOpening } from "./letter-opening";
+import { LETTER_OPENING_MAX, checkLetterOpening, nameCore, tidyLetterOpening } from "./letter-opening";
 
 const GOOD = "We help cold chain teams cut spoilage, and I thought a short call would be useful.";
 
@@ -34,6 +34,23 @@ describe("the opening paragraph of a prospect letter", () => {
     const names = ["Brightpath Marketing Ltd", "Ridgeway Partner Ltd", "  "];
     expect(checkLetterOpening("Sent by brightpath marketing ltd for you.", names).problems).toEqual(["Take out the name of the coordinator or agency. A prospect must never read it."]);
     expect(checkLetterOpening(GOOD, names).ok).toBe(true);
+  });
+
+  it("refuses the everyday form of a name too: the name without its legal ending", () => {
+    const names = ["Brightpath Marketing Ltd", "Ridgeway Partner Limited", "Larkfield Outreach, Inc."];
+    for (const text of ["Brightpath Marketing suggested we talk.", "Our friends at ridgeway partner said so.", "Larkfield Outreach sent us."]) {
+      expect(checkLetterOpening(text, names).problems, text).toEqual(["Take out the name of the coordinator or agency. A prospect must never read it."]);
+    }
+    expect(checkLetterOpening("A bright path lies ahead for cold chain teams.", names).ok).toBe(true);
+  });
+
+  it("takes the legal ending off a name, and keeps a name that would be too short without it", () => {
+    expect(nameCore("Brightpath Marketing Ltd")).toBe("brightpath marketing");
+    expect(nameCore("  Larkfield Outreach, Inc. ")).toBe("larkfield outreach");
+    expect(nameCore("Nordvik Cold Chain Co. Ltd")).toBe("nordvik cold chain");
+    expect(nameCore("Kestrel GmbH")).toBe("kestrel");
+    expect(nameCore("AB Ltd")).toBe("ab ltd");
+    expect(nameCore("Co Ltd")).toBe("co ltd");
   });
 
   it("refuses a dash and an exclamation mark", () => {
