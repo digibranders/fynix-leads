@@ -68,6 +68,5 @@ Every GitHub Actions job fails in 2 seconds with "recent account payments have f
 
 ## Not done on purpose
 
-- **The old name columns** (the three brand columns) are still in the database, filled with the client's name and read by nothing. A second release drops them once the first is live.
 - **Editing email wording in the app.** The Templates page shows every email. Wording changes go through code and review.
 - **Dev data.** Your dev database has sample leads that the browser checks moved forward, and a test terms text for clients.

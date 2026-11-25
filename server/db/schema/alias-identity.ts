@@ -16,11 +16,9 @@ export const aliasIdentity = pgTable(
     publicRef: text("public_ref").notNull(),
     memberId: uuid("member_id").notNull(),
     memberOrgKind: organisationKind("member_org_kind").notNull().generatedAlwaysAs(sql`'agency'::organisation_kind`),
-    // Unused since release 1, dropped in release 2. A trigger (migration 0078) sets it to the client's name; the default only lets an insert leave it out.
-    clientBrandName: text("client_brand_name").notNull().default(""),
     /**
      * The client the alias is for, picked from the clients of the campaigns the agency sees (phase 2). A trigger (migration 0064) checks that.
-     * Release 1 (migration 0078) filled it for every alias that could be matched by name; an alias left null must be edited to pick its client.
+     * Migration 0078 filled it for every alias that could be matched by name; an alias left null must be edited to pick its client.
      */
     clientOrgId: uuid("client_org_id").references(() => organisation.id, { onDelete: "restrict" }),
     displayName: text("display_name").notNull(),
@@ -42,14 +40,10 @@ export const aliasIdentity = pgTable(
     }),
     check("alias_identity_public_ref_format", sql`${table.publicRef} ~ '^ALI-[0-9A-HJKMNP-TV-Z]{4}$'`),
     check("alias_identity_status_check", sql`${table.status} IN ('active', 'archived')`),
-    check("alias_identity_brand_length", sql`char_length(btrim(${table.clientBrandName})) BETWEEN 1 AND 100 AND ${table.clientBrandName} = btrim(${table.clientBrandName})`),
     check("alias_identity_name_length", sql`char_length(btrim(${table.displayName})) BETWEEN 1 AND 100 AND ${table.displayName} = btrim(${table.displayName})`),
     check("alias_identity_title_length", sql`char_length(btrim(${table.jobTitle})) BETWEEN 1 AND 100 AND ${table.jobTitle} = btrim(${table.jobTitle})`),
     check("alias_identity_email_check", sql`${table.aliasEmail} = lower(btrim(${table.aliasEmail})) AND ${table.aliasEmail} ~ '^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$'`),
-    uniqueIndex("alias_identity_member_brand_email_unique").on(
-      table.memberId,
-      sql`lower(${table.clientBrandName})`,
-      table.aliasEmail,
-    ),
+    // The name keeps its old "brand" wording: the domain code and the process that runs the previous release both look for it. A null client (an alias not yet matched) never collides.
+    uniqueIndex("alias_identity_member_brand_email_unique").on(table.memberId, table.clientOrgId, table.aliasEmail),
   ],
 );

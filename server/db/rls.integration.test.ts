@@ -79,10 +79,8 @@ describe("tenant column lists match the grants", () => {
     const policyColumns = ["agency_org_id", "client_org_id"];
     // Since migrations 0054 (agency) and 0064 (client) both roles read the campaign brief.
     const briefColumns = columnNames(agencyCampaignBriefColumns);
-    // Release 1 of retiring the brand columns: nothing selects them, but the grants stay until release 2 drops the columns (the process that is still running reads them).
-    const retired = { campaign: ["client_brand_name"], organisation: ["brand_name"] };
-    expect(await granted(role, "campaign")).toEqual([...columnNames(TENANT_COLUMNS[role].campaign), ...policyColumns, ...briefColumns, ...retired.campaign].sort());
-    expect(await granted(role, "organisation")).toEqual([...columnNames(TENANT_COLUMNS[role].organisation), ...retired.organisation].sort());
+    expect(await granted(role, "campaign")).toEqual([...columnNames(TENANT_COLUMNS[role].campaign), ...policyColumns, ...briefColumns].sort());
+    expect(await granted(role, "organisation")).toEqual([...columnNames(TENANT_COLUMNS[role].organisation)].sort());
   });
 });
 

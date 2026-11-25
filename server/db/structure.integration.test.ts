@@ -677,11 +677,10 @@ describe("phase 1D: what a tenant role holds on the six set-up tables", () => {
   });
 
   it.each(TENANT_ROLES)("%s reads the organisation and campaign columns listed here: the settings and the internal columns stay hidden", async (role) => {
-    // brand_name and client_brand_name stay granted in release 1 of retiring them (nothing reads them; release 2 drops them), so the lists still name them.
-    expect(await grantedColumns(dbs.owner.db, role, "organisation")).toEqual(role === "leads_agency" ? ["public_ref", "kind", "name", "brand_name", "parent_org_id"] : ["public_ref", "kind", "name", "brand_name", "time_zone"]);
+    expect(await grantedColumns(dbs.owner.db, role, "organisation")).toEqual(role === "leads_agency" ? ["public_ref", "kind", "name", "parent_org_id"] : ["public_ref", "kind", "name", "time_zone"]);
     // client_org_id and agency_org_id are readable since migrations 0037 and 0039: the lead, meeting and message policies compare them.
     const campaignColumns = await grantedColumns(dbs.owner.db, role, "campaign");
-    const basics = ["id", "public_ref", "name", "client_org_id", "agency_org_id", "client_brand_name", "status", "start_date", "end_date", "monthly_target", "total_target"];
+    const basics = ["id", "public_ref", "name", "client_org_id", "agency_org_id", "status", "start_date", "end_date", "monthly_target", "total_target"];
     // Migrations 0054 and 0064: both tenant roles read the brief. Nobody but Fynix reads the notes or the settings.
     const brief = ["geography", "industries", "company_size", "icp", "job_titles", "seniority", "technologies", "bant_budget", "bant_authority", "bant_need", "bant_timeline", "instructions"];
     // Migration 0075: the client reads the privacy link of its campaigns and whether prospect email is on. An agency reads neither.

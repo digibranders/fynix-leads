@@ -22,8 +22,6 @@ export const campaign = pgTable(
     clientOrgKind: organisationKind("client_org_kind").notNull().generatedAlwaysAs(sql`'client'::organisation_kind`),
     agencyOrgId: uuid("agency_org_id").notNull(),
     agencyOrgKind: organisationKind("agency_org_kind").notNull().generatedAlwaysAs(sql`'agency'::organisation_kind`),
-    // Unused since release 1, dropped in release 2. A trigger keeps it equal to the client's name for the process that still runs the old code.
-    clientBrandName: text("client_brand_name").notNull().default(""),
     /** Fynix only. No tenant role has a grant on this column. */
     internalNotes: text("internal_notes"),
     status: campaignStatus("status").notNull().default("draft"),
