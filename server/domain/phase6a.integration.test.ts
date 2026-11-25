@@ -1,11 +1,15 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { agreement, aliasIdentity, auditLog, campaign, campaignHost, campaignShare, emailOutbox, hostHours, lead, leadReminder, meeting, meetingJoin, meetingReminder, member, user } from "@/server/db/schema";
+import { agreement, aliasIdentity, auditLog, campaign, campaignHost, campaignShare, emailOutbox, hostHours, lead, leadReminder, meeting, meetingJoin, meetingReminder, member, notification, organisation, user } from "@/server/db/schema";
+import { COUNTED_STAGES } from "@/lib/domain/counting-month";
+import { nameCore } from "@/lib/email/letter-opening";
+import { publishAgreement } from "@/server/domain/agreements";
 import { clientCampaignColumns, meetingJoinColumns } from "@/server/db/columns";
 import type { Database } from "@/server/db/pool";
 import { withTenantScope } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
-import { setCampaignPrivacy, setProspectEmail } from "@/server/domain/campaign-privacy";
+import { readCampaignPrivacy, setCampaignPrivacy, setProspectEmail, setProspectLetterOpening } from "@/server/domain/campaign-privacy";
+import { contestOutcome, fynixDecideContest } from "@/server/domain/contests";
 import { fynixAnswerForClient, fynixMarkLost } from "@/server/domain/fynix-lead-actions";
 import { sendLeadReminders } from "@/server/domain/lead-sweep";
 import { withdrawLead } from "@/server/domain/lead-drafts";
@@ -14,9 +18,10 @@ import { fynixRecordMeetingOutcome, listClientMeetings, recordMeetingOutcome } f
 import { listMeetingJoins, listMeetingJoinsForFynix } from "@/server/domain/meeting-joins";
 import { pickPostponement, proposePostponement } from "@/server/domain/postponement";
 import { createPartnerAgency } from "@/server/domain/coordinators";
+import { requestRejectionReview } from "@/server/domain/rejection-reviews";
 import { refusal } from "@/server/domain/test-helpers";
 import { openDomainRig } from "@/server/domain/testing";
-import { importJoinRecords, sendMeetingReminderEmails, sendReminderEmails, sweepLeadsWithEmails } from "@/server/mail/launch-sweep";
+import { importJoinRecords, sendMeetingReminderEmails, sendReminderEmails, sendWaitingReminders, sweepLeadsWithEmails } from "@/server/mail/launch-sweep";
 import { drainOutbox } from "@/server/mail/outbox";
 import { FakeTransport } from "@/server/mail/testing";
 import type { JoinEntry, MeetProvider } from "@/server/meet/provider";
@@ -474,7 +479,9 @@ describe("postponing and cancelling", () => {
     await clearMail();
     const later = nextWeekdayAt(11, 6);
     await proposePostponement(agencyDb(), rig.deps(), cast.coordinator, { meetingId: one.meetingId, proposedTimes: [later] });
-    expect(await mails()).toEqual([]);
+    // A proposal tells the side that picks, and nothing goes to the prospect until a new time is picked.
+    expect((await mails()).map((row) => row.template).filter((template) => template !== "postponement_proposed_info")).toEqual([]);
+    await clearMail();
     const [proposal] = await asTenant(clientDb(), cast.clientActor, (tx) => tx.execute<{ id: string }>(sql`select id from meeting_reschedule where meeting_id = ${one.meetingId}::uuid`)).then((result) => result.rows);
     await pickPostponement(clientDb(), rig.deps(), cast.clientActor, { rescheduleId: proposal?.id, pickedTime: later });
     expect((await meetingRow(one.meetingId)).icsSequence).toBe(1);
@@ -565,18 +572,20 @@ describe("the outcome and the decision", () => {
     expect(await whoGot("outcome_held_info")).toEqual(ids(cast.coordinatorColleague, ...fynixPeople()));
   });
 
-  it("tells the supply side and Fynix of a no-show, with no question to the client", async () => {
+  it("tells the supply side and Fynix of a no-show, with no question to the client, and tells the client's people when the no-show is theirs", async () => {
     emailsOn();
     const one = await booked();
     await clearMail();
     await fynixRecordMeetingOutcome(fynixDb(), rig.deps(), rig.actor, { meetingId: one.meetingId, outcome: "client_no_show" });
     expect(await whoGot("no_show_info")).toEqual(ids(cast.coordinator, cast.coordinatorColleague, cast.fynixStaff));
     expect(await whoGot("outcome_held_client")).toEqual([]);
+    expect(await whoGot("client_no_show_client")).toEqual(ids(cast.clientActor, cast.clientColleague));
     await clearMail();
     const two = await booked();
     await clearMail();
     await recordMeetingOutcome(clientDb(), rig.deps(), cast.clientActor, { meetingId: two.meetingId, outcome: "prospect_no_show" });
     expect((await mails("no_show_info")).map((row) => row.params.outcome)).toEqual(["prospect_no_show", "prospect_no_show", "prospect_no_show", "prospect_no_show"]);
+    expect(await whoGot("client_no_show_client")).toEqual([]);
   });
 
   it("tells the supply side and Fynix of an acceptance, of a rejection with the client's note scrubbed, and tells the coordinators of a rejection Fynix changed", async () => {
@@ -599,6 +608,65 @@ describe("the outcome and the decision", () => {
     await clearMail();
     await fynixOverturnRejection(fynixDb(), rig.deps(), rig.actor, { leadId: rejected.leadId, note: "The brief says logistics" });
     expect(await whoGot("rejection_overturned_info")).toEqual(ids(cast.coordinator, cast.coordinatorColleague));
+    // The client's people read Fynix's note too: the lead now counts toward their number.
+    expect(await whoGot("rejection_overturned_client")).toEqual(ids(cast.clientActor, cast.clientColleague));
+    expect((await mails("rejection_overturned_client"))[0]?.params).toMatchObject({ note: "The brief says logistics", noteFrom: "Fynix" });
+  });
+});
+
+describe("new times, contests and reviews", () => {
+  it("emails a proposal of new times to the side that picks and to Fynix, never to the side that proposed", async () => {
+    emailsOn();
+    const one = await booked();
+    await clearMail();
+    await proposePostponement(agencyDb(), rig.deps(), cast.coordinator, { meetingId: one.meetingId, proposedTimes: [nextWeekdayAt(11, 6)] });
+    expect(await whoGot("postponement_proposed_info")).toEqual(ids(cast.clientActor, cast.clientColleague, ...fynixPeople()));
+    expect((await mails("postponement_proposed_info")).every((row) => row.params.proposedBy === "supply")).toBe(true);
+
+    const two = await booked();
+    await clearMail();
+    await proposePostponement(clientDb(), rig.deps(), cast.clientActor, { meetingId: two.meetingId, proposedTimes: [nextWeekdayAt(11, 7)] });
+    expect(await whoGot("postponement_proposed_info")).toEqual(ids(cast.coordinator, cast.coordinatorColleague, ...fynixPeople()));
+    expect((await mails("postponement_proposed_info")).every((row) => row.params.proposedBy === "client")).toBe(true);
+  });
+
+  it("emails a contested outcome and Fynix's decision to all four sides, the note scrubbed and labelled, and never to the person who acted", async () => {
+    emailsOn();
+    const one = await booked();
+    await recordMeetingOutcome(agencyDb(), rig.deps(), cast.coordinator, { meetingId: one.meetingId, outcome: "client_no_show" });
+    await clearMail();
+    await contestOutcome(clientDb(), rig.deps(), cast.clientActor, { meetingId: one.meetingId, note: `We did join, call me on ${PROSPECT_PHONE}` });
+    expect(await whoGot("outcome_contested_info")).toEqual(ids(cast.clientColleague, cast.coordinator, cast.coordinatorColleague, ...fynixPeople()));
+    const [contested] = await mails("outcome_contested_info");
+    expect(contested?.params).toMatchObject({ noteFrom: "Client" });
+    expect(String(contested?.params.note)).toContain("We did join");
+    expect(JSON.stringify(contested?.params)).not.toContain("7911");
+
+    await clearMail();
+    await fynixDecideContest(rig.deps(), rig.actor, one.leadId, "held", "The room record shows the client joined");
+    expect(await whoGot("contest_decided_info")).toEqual(ids(cast.clientActor, cast.clientColleague, cast.coordinator, cast.coordinatorColleague, cast.fynixStaff));
+    expect((await mails("contest_decided_info"))[0]?.params).toMatchObject({ decided: "held", noteFrom: "Fynix", note: "The room record shows the client joined" });
+  });
+
+  it("emails Fynix alone when the coordinator asks for a review of a rejection", async () => {
+    emailsOn();
+    const one = await booked();
+    await recordMeetingOutcome(agencyDb(), rig.deps(), cast.coordinator, { meetingId: one.meetingId, outcome: "held" });
+    await decideLead(clientDb(), rig.deps(), cast.clientActor, { leadId: one.leadId, decision: "reject", note: "Wrong industry" });
+    await clearMail();
+    await requestRejectionReview(agencyDb(), rig.deps(), cast.coordinator, { leadId: one.leadId, note: "They fit the brief" });
+    expect(await whoGot("review_requested_info")).toEqual(ids(...fynixPeople()));
+  });
+
+  it("is accepted by the queue for every launch template of the enum, and the three account emails are still refused", async () => {
+    emailsOn();
+    const one = await sent();
+    await clearMail();
+    const call = (template: string) => asTenant(agencyDb(), cast.coordinator, (tx) => tx.execute(sql`select public.app_enqueue_lead_email(${one.leadId}::uuid, '{fynix}'::text[], ${template}, '{}'::jsonb, 's', 'b', ${ORIGIN})`));
+    await call("review_requested_info");
+    expect(await whoGot("review_requested_info")).toEqual(ids(...fynixPeople()));
+    await denied(call("alias_code"), /domain:invalid-input/);
+    await denied(call("not_a_template"), /domain:invalid-input/);
   });
 });
 
@@ -656,6 +724,7 @@ describe("the sweep: reminders, nudges and the 48 hours", () => {
     const swept = await sweepLeadsWithEmails(authDb(), hours(at, 49), enqueue());
     expect(swept.map((row) => row.publicRef)).toEqual([one.publicRef]);
     expect(await whoGot("lead_auto_accepted_info")).toEqual(ids(cast.coordinator, cast.coordinatorColleague, ...fynixPeople()));
+    expect(await whoGot("lead_auto_accepted_client")).toEqual(ids(cast.clientActor, cast.clientColleague));
     expect((await sweepLeadsWithEmails(authDb(), hours(at, 50), enqueue())).length).toBe(0);
   });
 
@@ -765,6 +834,340 @@ describe("the privacy link and the prospect email switch", () => {
     expect(Object.keys(context.rows[0] ?? {}).sort()).toEqual(["company", "duration_minutes", "ics_sequence", "lead_ref", "meet_url", "meeting_id", "meeting_outcome", "meeting_ref", "prospect_ready", "starts_at", "time_zone"]);
     expect(JSON.stringify(context.rows)).not.toMatch(/privacy|marta|lena@/);
     expect(context.rows[0]).toMatchObject({ prospect_ready: true });
+  });
+});
+
+describe("the opening paragraph of a campaign's letter", () => {
+  const OPENING = "We help cold chain teams cut spoilage, and I thought a short call would be useful.";
+  const paramsOf = async (template: string) => (await mails(template))[0]?.params ?? {};
+
+  it("is a Fynix admin's to write and remove: tidied into one paragraph, audited, and read back for the campaign page", async () => {
+    expect(await setProspectLetterOpening(rig.deps(), rig.actor, cast.campaignId, "  We help   cold chain teams.\n\nA short call would be useful.  ")).toMatchObject({ prospectLetterOpening: "We help cold chain teams. A short call would be useful." });
+    const [{ ref } = { ref: "" }] = await ownerDb().select({ ref: campaign.publicRef }).from(campaign).where(eq(campaign.id, cast.campaignId));
+    expect(await readCampaignPrivacy(rig.deps(), rig.actor, ref)).toMatchObject({ prospectLetterOpening: "We help cold chain teams. A short call would be useful." });
+    expect(await setProspectLetterOpening(rig.deps(), rig.actor, cast.campaignId, null)).toMatchObject({ prospectLetterOpening: null });
+    const rows = await ownerDb().select({ action: auditLog.action, before: auditLog.before, after: auditLog.after }).from(auditLog).where(eq(auditLog.action, "campaign.set_letter_opening"));
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.after).toEqual({ letterOpening: "We help cold chain teams. A short call would be useful." });
+    expect(rows[1]).toMatchObject({ before: { letterOpening: "We help cold chain teams. A short call would be useful." }, after: { letterOpening: null } });
+  });
+
+  it("refuses a paragraph that breaks a rule of the letter, and one that names the coordinator or an agency of the campaign", async () => {
+    for (const bad of ["", "   ", "A word from Fynix.", "See https://elsewhere.example/page first.", "Write to me at anna@elsewhere.example.", "x".repeat(601)]) {
+      expect((await refusal(setProspectLetterOpening(rig.deps(), rig.actor, cast.campaignId, bad))).code, bad.slice(0, 30)).toBe("invalid-input");
+    }
+    const [{ name: coordinatorName } = { name: "" }] = await ownerDb().execute<{ name: string }>(sql`select name from organisation where id = ${cast.coordinator.orgId}::uuid`).then((result) => result.rows);
+    expect((await refusal(setProspectLetterOpening(rig.deps(), rig.actor, cast.campaignId, `Sent for you by ${coordinatorName.toUpperCase()}.`))).code).toBe("letter-names-supply-side");
+    expect((await refusal(setProspectLetterOpening(rig.deps(), rig.actor, cast.campaignId, "Our friends at ridgeway partner ltd suggested we talk."))).code).toBe("letter-names-supply-side");
+    // The name as people say it, without its legal ending, is refused too.
+    expect((await refusal(setProspectLetterOpening(rig.deps(), rig.actor, cast.campaignId, "Our friends at Ridgeway Partner suggested we talk."))).code).toBe("letter-names-supply-side");
+    expect(await ownerDb().select({ id: auditLog.id }).from(auditLog).where(eq(auditLog.action, "campaign.set_letter_opening"))).toEqual([]);
+  });
+
+  it("is refused to Fynix staff, and no client or agency reads or writes it", async () => {
+    const staff = { userId: cast.fynixStaff, orgKind: "fynix" as const, role: "member" as const };
+    expect((await refusal(setProspectLetterOpening(rig.deps(), staff as never, cast.campaignId, OPENING))).code).toBe("admin-required");
+    await denied(ownerDb().execute(sql`update campaign set prospect_letter_opening = ${"x".repeat(601)} where id = ${cast.campaignId}::uuid`), /campaign_letter_opening_length/);
+    for (const [db, actor] of [[clientDb(), cast.clientActor], [agencyDb(), cast.coordinator]] as const) {
+      await denied(asTenant(db, actor, (tx) => tx.execute(sql`select prospect_letter_opening from campaign`)), /permission denied for table campaign/);
+      await denied(asTenant(db, actor, (tx) => tx.execute(sql`update campaign set prospect_letter_opening = 'x' where id = ${cast.campaignId}::uuid`)), /permission denied for table campaign/);
+      await denied(asTenant(db, actor, (tx) => tx.execute(sql`select public.app_prospect_letter_opening(gen_random_uuid(), 'prospect_confirmed')`)), /permission denied for function app_prospect_letter_opening/);
+    }
+  });
+
+  it("reads a company's name without its legal ending the same way in the database as in the code", async () => {
+    const names = ["Bright   Path\tMedia  Ltd", "Brightpath Marketing Ltd", "  Larkfield Outreach, Inc. ", "Nordvik Cold Chain Co. Ltd", "Kestrel GmbH", "AB Ltd", "Co Ltd", "Ridgeway Partner LIMITED", "Plain Name", "Halden Foods S.A.", "Société Générale SA"];
+    for (const name of names) {
+      const [row] = (await ownerDb().execute<{ core: string }>(sql`select public.app_name_core(${name}) as core`)).rows;
+      expect(row?.core, name).toBe(nameCore(name));
+    }
+  });
+
+  it("comes from the campaign alone: a paragraph a caller puts into the params of a letter is thrown away", async () => {
+    emailsOn();
+    await prospectEmailOn();
+    const one = await sent();
+    await clearMail();
+    const smuggled = JSON.stringify({ letterOpening: "Sent for you by the people at Brightpath." });
+    await asTenant(agencyDb(), cast.coordinator, (tx) => tx.execute(sql`select public.app_enqueue_lead_email(${one.leadId}::uuid, '{prospect}'::text[], 'prospect_confirmed', ${smuggled}::jsonb, 's', 'b', ${ORIGIN})`));
+    expect(await mails("prospect_confirmed")).toHaveLength(1);
+    expect(await paramsOf("prospect_confirmed")).not.toHaveProperty("letterOpening");
+    // With a paragraph on the campaign, the campaign's is the one that is used.
+    await setProspectLetterOpening(rig.deps(), rig.actor, cast.campaignId, OPENING);
+    await clearMail();
+    await asTenant(agencyDb(), cast.coordinator, (tx) => tx.execute(sql`select public.app_enqueue_lead_email(${one.leadId}::uuid, '{prospect}'::text[], 'prospect_confirmed', ${smuggled}::jsonb, 's', 'b', ${ORIGIN})`));
+    expect(await paramsOf("prospect_confirmed")).toMatchObject({ letterOpening: OPENING });
+  });
+
+  it("goes into the confirmation letter and no other letter, and the prospect reads it in place of the default first sentence", async () => {
+    emailsOn();
+    await prospectEmailOn();
+    await setProspectLetterOpening(rig.deps(), rig.actor, cast.campaignId, OPENING);
+    const one = await booked();
+    expect(await paramsOf("prospect_confirmed")).toMatchObject({ letterOpening: OPENING });
+    const transport = new FakeTransport();
+    expect((await drain(transport)).failed).toBe(0);
+    const letter = transport.sent.find((mail) => mail.to === "marta1@nordvik-cold.example");
+    expect(letter?.text).toContain(OPENING);
+    expect(letter?.text).not.toContain("Thank you for agreeing to talk.");
+    expect(letter?.text).toContain("Your meeting is confirmed for");
+    await clearMail();
+    await proposePostponement(agencyDb(), rig.deps(), cast.coordinator, { meetingId: one.meetingId, proposedTimes: [nextWeekdayAt(11, 6)] });
+    const [proposal] = await asTenant(clientDb(), cast.clientActor, (tx) => tx.execute<{ id: string }>(sql`select id from meeting_reschedule where meeting_id = ${one.meetingId}::uuid`)).then((result) => result.rows);
+    await pickPostponement(clientDb(), rig.deps(), cast.clientActor, { rescheduleId: proposal?.id, pickedTime: nextWeekdayAt(11, 6) });
+    expect(await paramsOf("prospect_moved")).not.toHaveProperty("letterOpening");
+  });
+
+  it("is left out, and the default letter goes, when it names an agency that joined the campaign after it was written", async () => {
+    emailsOn();
+    await prospectEmailOn();
+    const text = "Larkfield Outreach and others told us you are the person to ask.";
+    await setProspectLetterOpening(rig.deps(), rig.actor, cast.campaignId, text);
+    await booked();
+    expect(await paramsOf("prospect_confirmed")).toMatchObject({ letterOpening: text });
+    await clearMail();
+    // A new partner agency of that name takes a share: its name is now one a prospect must never read.
+    const late = await createPartnerAgency(rig.deps(), rig.actor, { coordinatorId: cast.coordinator.orgId, name: "Larkfield Outreach Ltd" });
+    await ownerDb().insert(campaignShare).values({ campaignId: cast.campaignId, agencyOrgId: late.id, monthlyShare: 1 });
+    await booked();
+    expect(await paramsOf("prospect_confirmed")).not.toHaveProperty("letterOpening");
+    const transport = new FakeTransport();
+    expect((await drain(transport)).failed).toBe(0);
+    expect(transport.sent.find((mail) => /is confirmed/.test(mail.subject) && mail.to.startsWith("marta"))?.text).toContain("Thank you for agreeing to talk.");
+  });
+});
+
+describe("targets, shares, agreements and leads left waiting", () => {
+  const on = () => ({ enabled: true, origin: ORIGIN });
+  /** The campaign's two targets and the coordinator's own share, set the way a published agreement and a share would leave them. */
+  async function numbers(monthly: number, total: number, coordinatorShare: number): Promise<void> {
+    await ownerDb().update(campaign).set({ monthlyTarget: monthly, totalTarget: total }).where(eq(campaign.id, cast.campaignId));
+    await ownerDb().update(campaignShare).set({ monthlyShare: coordinatorShare }).where(and(eq(campaignShare.campaignId, cast.campaignId), eq(campaignShare.agencyOrgId, cast.coordinator.orgId)));
+  }
+  /** A lead the client accepted after its meeting: it counts as one. */
+  async function accepted() {
+    const one = await booked();
+    await recordMeetingOutcome(agencyDb(), rig.deps(), cast.coordinator, { meetingId: one.meetingId, outcome: "held" });
+    await decideLead(clientDb(), rig.deps(), cast.clientActor, { leadId: one.leadId, decision: "accept", note: "A strong fit for us" });
+    return one;
+  }
+  const notices = async (like: string) => (await ownerDb().select({ userId: notification.userId, title: notification.title, body: notification.body, link: notification.link }).from(notification).where(sql`${notification.title} like ${like}`)).sort((a, b) => a.userId.localeCompare(b.userId));
+  const everyone = () => ids(cast.clientActor, cast.clientColleague, cast.coordinator, cast.coordinatorColleague, ...fynixPeople());
+
+  it("keeps the database's list of the stages that count equal to the rule in the code", async () => {
+    const [row] = (await ownerDb().execute<{ stages: string[] }>(sql`select public.app_counted_stages() as stages`)).rows;
+    expect([...(row?.stages ?? [])].sort()).toEqual([...COUNTED_STAGES].sort());
+  });
+
+  it("says an agency's share to that agency, then the month's target and the total to the client, the coordinator and Fynix, each once", async () => {
+    emailsOn();
+    await numbers(2, 3, 1);
+    await accepted();
+    // One lead counts: the coordinator sent it and its share is one. The campaign's target of two is not met.
+    expect(await whoGot("share_met_info")).toEqual(ids(cast.coordinator, cast.coordinatorColleague));
+    expect((await mails("share_met_info"))[0]?.params).toMatchObject({ reached: 1, target: 1 });
+    expect(await whoGot("target_met_info")).toEqual([]);
+    expect((await notices("You reached your share for %")).map((row) => row.userId)).toEqual(ids(cast.coordinator, cast.coordinatorColleague));
+
+    await clearMail();
+    await accepted();
+    // Two count: the month's target. The person who accepted is not emailed; the notice in the app is for everyone, the person who acted included.
+    expect(await whoGot("target_met_info")).toEqual(ids(cast.clientColleague, cast.coordinator, cast.coordinatorColleague, ...fynixPeople()));
+    expect((await mails("target_met_info"))[0]?.params).toMatchObject({ scope: "month", reached: 2, target: 2 });
+    expect(String((await mails("target_met_info"))[0]?.params.period)).toMatch(/^[A-Z][a-z]+ \d{4}$/);
+    expect(await whoGot("share_met_info")).toEqual([]);
+    const monthly = await notices("% reached its target for %");
+    expect(monthly.map((row) => row.userId)).toEqual(everyone());
+    expect(monthly[0]?.body).toMatch(/^2 leads now count for [A-Z][a-z]+ \d{4}\. The target is 2\. Lead LD-[0-9A-Z]{4} completed it\.$/);
+
+    await clearMail();
+    await accepted();
+    // Three count: the total. The month's target is not said a second time.
+    const total = await mails("target_met_info");
+    expect(total.every((row) => row.params.scope === "total" && row.params.reached === 3 && row.params.target === 3)).toBe(true);
+    expect(total).toHaveLength(5);
+    expect(await notices("% reached its target for %")).toHaveLength(6);
+    expect((await notices("% reached its total target")).map((row) => row.userId)).toEqual(everyone());
+    expect([...monthly, ...(await notices("% reached its total target"))].map((row) => `${row.title} ${row.body}`).join(" ")).not.toMatch(/[\u2013\u2014!]/);
+  });
+
+  it("counts a client no-show, and says a target once even when the count falls after a contest and is met again", async () => {
+    emailsOn();
+    await numbers(1, 0, 0);
+    const one = await booked();
+    await clearMail();
+    await recordMeetingOutcome(agencyDb(), rig.deps(), cast.coordinator, { meetingId: one.meetingId, outcome: "client_no_show" });
+    expect(await whoGot("target_met_info")).toEqual(ids(cast.clientActor, cast.clientColleague, cast.coordinatorColleague, ...fynixPeople()));
+    // The client contests and Fynix finds the prospect did not come: the lead counts zero again.
+    await contestOutcome(clientDb(), rig.deps(), cast.clientActor, { meetingId: one.meetingId, note: "We did join the call" });
+    await fynixDecideContest(rig.deps(), rig.actor, one.leadId, "prospect_no_show", "The room record shows the client alone");
+    await clearMail();
+    await accepted();
+    expect(await mails("target_met_info")).toEqual([]);
+    expect(await notices("% reached its target for %")).toHaveLength(6);
+  });
+
+  it("never meets a target or a share of zero, and with the switch off still writes the notice and no email", async () => {
+    await numbers(0, 0, 0);
+    await accepted();
+    expect(await notices("% reached its %")).toEqual([]);
+    expect(await notices("You reached your share for %")).toEqual([]);
+    await numbers(2, 0, 0);
+    await accepted();
+    expect((await notices("% reached its target for %")).map((row) => row.userId)).toEqual(everyone());
+    expect(await mails()).toEqual([]);
+  });
+
+  it("says the target an automatic acceptance completes, from the sweep, to everyone", async () => {
+    emailsOn();
+    await numbers(1, 0, 0);
+    const one = await booked();
+    await recordMeetingOutcome(agencyDb(), rig.deps(), cast.coordinator, { meetingId: one.meetingId, outcome: "held" });
+    await clearMail();
+    const at = (await ownerDb().select({ at: lead.outcomeRecordedAt }).from(lead).where(eq(lead.id, one.leadId)))[0]?.at ?? new Date();
+    await sweepLeadsWithEmails(authDb(), hours(at, 49), on());
+    expect(await whoGot("target_met_info")).toEqual(everyone());
+    expect((await sweepLeadsWithEmails(authDb(), hours(at, 50), on())).length).toBe(0);
+    expect(await mails("target_met_info")).toHaveLength(6);
+  });
+
+  it("counts a lead in the month of its meeting read in the campaign's zone, and a mistyped zone stops nothing", async () => {
+    await numbers(2, 0, 0);
+    const first = await booked();
+    const second = await booked();
+    // 30 November 10:00 and 12:00 UTC are 30 November 23:00 and 1 December 01:00 in Auckland: two months there, one month in London.
+    await ownerDb().update(lead).set({ stage: "accepted", scheduledMeetingTime: new Date("2026-11-30T10:00:00.000Z") }).where(eq(lead.id, first.leadId));
+    await ownerDb().update(lead).set({ stage: "accepted", scheduledMeetingTime: new Date("2026-11-30T12:00:00.000Z") }).where(eq(lead.id, second.leadId));
+    const claim = async () => (await authDb().execute<{ scope: string; period: string; reached: number }>(sql`select scope, period, reached from public.app_claim_target_notices_system(${second.leadId}::uuid)`)).rows;
+    await ownerDb().update(campaign).set({ timeZone: "Pacific/Auckland" }).where(eq(campaign.id, cast.campaignId));
+    expect(await claim()).toEqual([]);
+    await ownerDb().update(campaign).set({ timeZone: "Not/AZone" }).where(eq(campaign.id, cast.campaignId));
+    expect(await claim()).toEqual([{ scope: "campaign_month", period: "November 2026", reached: 2 }]);
+    expect(await claim()).toEqual([]);
+  });
+
+  it("tells Fynix alone, in the app and by email, when a lead takes its sender past its share", async () => {
+    emailsOn();
+    await numbers(12, 72, 1);
+    await sent();
+    expect(await mails("over_share_info")).toEqual([]);
+    await clearMail();
+    const over = await sent();
+    expect(await whoGot("over_share_info")).toEqual(ids(...fynixPeople()));
+    expect((await mails("over_share_info"))[0]?.link).toBe(`${ORIGIN}/fynix/leads/${over.publicRef}`);
+    expect((await notices("Lead % is beyond its sender's share")).map((row) => row.userId)).toEqual(ids(...fynixPeople()));
+  });
+
+  it("emails a new agreement version to the managers of the client and of the coordinator, each with the link to the agreement, and not to Fynix or to people who are not managers", async () => {
+    emailsOn();
+    await clearMail();
+    const published = await publishAgreement(rig.deps(), rig.actor, { campaignId: cast.campaignId, monthlyTarget: 10, totalTarget: 60 });
+    expect(await whoGot("agreement_published_info")).toEqual(ids(cast.clientActor, cast.coordinator));
+    const rows = await mails("agreement_published_info");
+    expect(rows.map((row) => row.link).sort()).toEqual([`${ORIGIN}/client/agreement`, `${ORIGIN}/coordinator/agreement`]);
+    expect(rows[0]?.params).toMatchObject({ version: published.version });
+    expect(rows[0]?.subject).toMatch(new RegExp(`^Agreement version ${published.version} for .+ needs your acceptance$`));
+    const transport = new FakeTransport();
+    expect((await drain(transport)).failed).toBe(0);
+    expect(transport.sent.find((mail) => /needs your acceptance/.test(mail.subject))?.html).toContain("Open the agreement");
+  });
+
+  it("queues no agreement email while the switch is off, and no tenant can queue one", async () => {
+    await publishAgreement(rig.deps(), rig.actor, { campaignId: cast.campaignId, monthlyTarget: 10, totalTarget: 60 });
+    expect(await mails()).toEqual([]);
+    for (const [db, actor] of [[clientDb(), cast.clientActor], [agencyDb(), cast.coordinator]] as const) {
+      await denied(asTenant(db, actor, (tx) => tx.execute(sql`select public.app_enqueue_campaign_email(${cast.campaignId}::uuid, '{client_managers}'::text[], 'agreement_published_info', '{}'::jsonb, 's', 'b', ${ORIGIN})`)), /permission denied for function app_enqueue_campaign_email/);
+    }
+  });
+
+  describe("leads left waiting for a time", () => {
+    /** Noon UTC two days from now: more than 24 hours after any lead sent in the test, and past 9 am in London, summer or winter. */
+    const noonInTwoDays = (): Date => {
+      const date = new Date(Date.now() + 2 * 86_400_000);
+      date.setUTCHours(12, 0, 0, 0);
+      return date;
+    };
+    const earlyInTwoDays = (): Date => new Date(noonInTwoDays().getTime() - 5 * 3_600_000);
+    const clientName = async (): Promise<string> => (await ownerDb().select({ name: organisation.name }).from(organisation).where(eq(organisation.id, cast.clientActor.orgId)))[0]?.name ?? "";
+
+    it("reminds the client once a day from 9 am there, in the app and by email, and sends Fynix one summary", async () => {
+      emailsOn();
+      await ownerDb().update(organisation).set({ timeZone: "Europe/London" }).where(eq(organisation.id, cast.clientActor.orgId));
+      const first = await sent();
+      // The second lead changed a second later, so the first is the one that has waited longest.
+      const second = await sent();
+      await ownerDb().execute(sql`update lead set updated_at = updated_at + interval '1 second' where id = ${second.leadId}::uuid`);
+      await clearMail();
+      // Seven in the morning in London: too early for anyone.
+      expect(await sendWaitingReminders(authDb(), earlyInTwoDays(), on())).toEqual({ clients: 0, summary: 0 });
+      expect(await sendWaitingReminders(authDb(), noonInTwoDays(), on())).toEqual({ clients: 1, summary: 1 });
+      expect(await whoGot("leads_waiting_daily")).toEqual(ids(cast.clientActor, cast.clientColleague));
+      const [daily] = await mails("leads_waiting_daily");
+      expect(daily?.params).toMatchObject({ waiting: 2, ref: first.publicRef });
+      expect(daily?.link).toBe(`${ORIGIN}/client/leads/${first.publicRef}`);
+      expect(await whoGot("leads_waiting_summary")).toEqual(ids(...fynixPeople()));
+      expect((await mails("leads_waiting_summary"))[0]?.params).toMatchObject({ clients: [{ name: await clientName(), waiting: 2 }], ref: first.publicRef });
+      const bell = await notices("2 leads are waiting for a time");
+      expect(bell.map((row) => row.userId)).toEqual(ids(cast.clientActor, cast.clientColleague));
+      expect(bell[0]?.link).toBe(`/client/leads/${first.publicRef}`);
+      // A second run the same day sends nothing; the next day it does again.
+      await clearMail();
+      expect(await sendWaitingReminders(authDb(), hours(noonInTwoDays(), 1), on())).toEqual({ clients: 0, summary: 0 });
+      expect(await mails()).toEqual([]);
+      expect(await sendWaitingReminders(authDb(), hours(noonInTwoDays(), 24), on())).toEqual({ clients: 1, summary: 1 });
+    });
+
+    it("leaves out a lead that waits less than 24 hours, and one that waits for accept or reject", async () => {
+      emailsOn();
+      await sent();
+      const held = await booked();
+      await recordMeetingOutcome(agencyDb(), rig.deps(), cast.coordinator, { meetingId: held.meetingId, outcome: "held" });
+      await clearMail();
+      const tomorrowNoon = new Date(noonInTwoDays().getTime() - 86_400_000);
+      // Less than 24 hours after the lead was sent, unless the test runs before noon UTC: then it is more, and the reminder is due.
+      const due = tomorrowNoon.getTime() - Date.now() >= 24 * 3_600_000;
+      expect((await sendWaitingReminders(authDb(), tomorrowNoon, on())).clients).toBe(due ? 1 : 0);
+      await clearMail();
+      await ownerDb().execute(sql`delete from once_stamp`);
+      expect(await sendWaitingReminders(authDb(), noonInTwoDays(), on())).toEqual({ clients: 1, summary: 1 });
+      expect((await mails("leads_waiting_daily"))[0]?.params).toMatchObject({ waiting: 1 });
+    });
+
+    it("does not chase a client that has asked for other times: the next move is not its own", async () => {
+      emailsOn();
+      const asked = await sent();
+      await clientReviewLead(clientDb(), rig.deps(), cast.clientActor, { leadId: asked.leadId, action: "propose_times", proposedTimes: [nextWeekdayAt(11, 8), nextWeekdayAt(15, 9)] });
+      await clearMail();
+      expect(await sendWaitingReminders(authDb(), noonInTwoDays(), on())).toEqual({ clients: 0, summary: 0 });
+      expect(await mails()).toEqual([]);
+      // A later step on the lead by someone else does not make it the client's turn again.
+      await ownerDb().execute(sql`insert into lead_history (lead_id, actor_role, action, from_stage, to_stage, note, created_at) values (${asked.leadId}::uuid, 'fynix', 'lead.correct', 'awaiting_client', 'awaiting_client', 'A detail corrected', now() + interval '1 minute')`);
+      expect(await sendWaitingReminders(authDb(), hours(noonInTwoDays(), 1), on())).toEqual({ clients: 0, summary: 0 });
+      // A second lead, which the client has simply not answered, is chased alone.
+      const quiet = await sent();
+      expect(await sendWaitingReminders(authDb(), hours(noonInTwoDays(), 24), on())).toEqual({ clients: 1, summary: 1 });
+      expect((await mails("leads_waiting_daily"))[0]?.params).toMatchObject({ waiting: 1, ref: quiet.publicRef });
+    });
+
+    it("does not send in the evening or at night: a lead that becomes due then waits for the next morning", async () => {
+      emailsOn();
+      await ownerDb().update(organisation).set({ timeZone: "Europe/London" }).where(eq(organisation.id, cast.clientActor.orgId));
+      await sent();
+      await clearMail();
+      // Nine in the evening UTC is nine or ten at night in London.
+      expect(await sendWaitingReminders(authDb(), hours(noonInTwoDays(), 9), on())).toEqual({ clients: 0, summary: 0 });
+      expect(await mails()).toEqual([]);
+      expect(await sendWaitingReminders(authDb(), hours(noonInTwoDays(), 22), on())).toEqual({ clients: 1, summary: 1 });
+    });
+
+    it("uses the campaign's zone when the client's is missing or mistyped, and with the switch off writes the notice and no email and no summary", async () => {
+      await ownerDb().update(organisation).set({ timeZone: "Not/AZone" }).where(eq(organisation.id, cast.clientActor.orgId));
+      await sent();
+      expect(await sendWaitingReminders(authDb(), noonInTwoDays(), { enabled: false })).toEqual({ clients: 1, summary: 0 });
+      expect(await mails()).toEqual([]);
+      expect((await notices("1 lead is waiting for a time")).map((row) => row.userId)).toEqual(ids(cast.clientActor, cast.clientColleague));
+      expect((await ownerDb().execute<{ key: string }>(sql`select key from once_stamp`)).rows.every((row) => row.key.startsWith("waiting:"))).toBe(true);
+    });
   });
 });
 

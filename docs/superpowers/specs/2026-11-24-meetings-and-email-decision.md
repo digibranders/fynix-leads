@@ -1,6 +1,6 @@
 # Meetings and email: rooms, sender domain and launch emails
 
-Owner decision, 2026-11-24. This confirms and narrows sections 9, 10, 15, 16, 18 and 19 of `2026-11-12-leadgen-portal-design-v2.md`, and replaces them where they differ. It follows the lead flow in `2026-11-24-lead-flow-decision.md`. It is a decision record, not yet built.
+Owner decision, 2026-11-24. This confirms and narrows sections 9, 10, 15, 16, 18 and 19 of `2026-11-12-leadgen-portal-design-v2.md`, and replaces them where they differ. It follows the lead flow in `2026-11-24-lead-flow-decision.md`. It is a decision record. The code for it was built on 2026-11-25 and is switched off until the sender domain and the room account are set up (`docs/owner-checklist.md`, section 2).
 
 ## Decisions
 
@@ -124,11 +124,11 @@ Gates G1 (second factor for Fynix) and G2 (terms) are unchanged. G3 and G4 are n
 
 - The sender domain's name (D37) and the sender address. Owner to give.
 - The exact Workspace plan, and whether it is enough. Settled by the room test.
-- Whether the "lead submitted" email is sent at once or as one email every 2 hours, as spec section 10 says.
-- Whether the client also gets an email when a lead is accepted for it after 48 hours, when Fynix changes its rejection to accepted, and when a client no-show is recorded against it. Suggestion: yes to all three, since each one counts toward the client's target.
 - When the outcome nudges go out. Spec section 10 says at the end of the meeting and again after 24 hours.
 - Which host is named in the prospect letter when several are invited (open decision 2 of `2026-11-23-calendar-design.md`).
 - How long the join record and a closed lead's prospect data are kept (spec section 19, question 4).
+
+Settled by the owner on 2026-11-25 and built (see `2026-11-25-pending-emails-design.md`): "lead submitted" is sent at once; the client is emailed when a lead is accepted for it after 48 hours, when Fynix changes its rejection and when a client no-show is recorded; the emails this note left for later (target met, over share, agreement changed, the daily reminder) and a per-campaign opening paragraph for the confirmation letter.
 
 Settled by the owner later on 2026-11-24: the client is reminded every 12 hours after the outcome until it answers, and the lead is accepted for it at 48 hours.
 

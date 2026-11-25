@@ -1,0 +1,2 @@
+ALTER TABLE "campaign" ADD COLUMN "prospect_letter_opening" text;--> statement-breakpoint
+ALTER TABLE "campaign" ADD CONSTRAINT "campaign_letter_opening_length" CHECK ("campaign"."prospect_letter_opening" IS NULL OR char_length(btrim("campaign"."prospect_letter_opening")) BETWEEN 1 AND 600);

@@ -275,6 +275,7 @@ export async function submitLead(
       createdAt: now,
     });
     await notify(tx, { type: "lead_submitted", leadId: created.id });
+    if (overShare) await notify(tx, { type: "lead_over_share", leadId: created.id });
 
     return created;
   });

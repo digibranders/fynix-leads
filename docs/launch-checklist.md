@@ -44,7 +44,7 @@ One day, in the existing Workspace, with the room account and three people on di
 1. The domain name is written into the decision note.
 2. The domain is added to Brevo and the records Brevo lists are in Cloudflare, with a DMARC record. Brevo shows the domain as authenticated.
 3. A test prospect letter reaches a Gmail inbox and an Outlook inbox, not the spam folder. (Make the test campaign's privacy link and switch, book a time for a lead whose prospect is one of your own addresses.)
-4. The full source of that letter is searched for "Fynix", the coordinator's name, the agency's name and the portal address. None may appear, in the headers or the body.
+4. The full source of that letter is searched for "Fynix", the coordinator's name, the agency's name and the portal address. None may appear, in the headers or the body. Do this twice: once with the default wording and once with an opening paragraph set on the campaign.
 5. A reply to the letter lands in the alias mailbox, and not with Fynix.
 6. Volume starts small: Fynix's own test mail first, then one campaign, then the rest.
 

@@ -151,6 +151,19 @@ const FIXTURES: Record<EmailTemplate, EmailContent> = {
   lead_auto_accepted_info: portal("lead_auto_accepted_info"),
   rejection_overturned_info: portal("rejection_overturned_info", { note: "The brief allowed it.", noteFrom: "Fynix" }),
   no_show_info: portal("no_show_info", { outcome: "client_no_show" }),
+  lead_auto_accepted_client: portal("lead_auto_accepted_client"),
+  rejection_overturned_client: portal("rejection_overturned_client", { note: "The brief allowed it.", noteFrom: "Fynix" }),
+  client_no_show_client: portal("client_no_show_client"),
+  postponement_proposed_info: portal("postponement_proposed_info", { proposedBy: "client" }),
+  outcome_contested_info: portal("outcome_contested_info", { note: "Two of us joined on time.", noteFrom: "Client" }),
+  contest_decided_info: portal("contest_decided_info", { decided: "client_no_show", note: "The room record shows nobody from the client.", noteFrom: "Fynix" }),
+  review_requested_info: portal("review_requested_info"),
+  agreement_published_info: { template: "agreement_published_info", params: { campaignName: "UK freight decision makers", version: 3 } } as EmailContent,
+  target_met_info: portal("target_met_info", { campaignName: "UK freight decision makers", scope: "month", period: "November 2026", reached: 12, target: 12 }),
+  share_met_info: portal("share_met_info", { campaignName: "UK freight decision makers", period: "November 2026", reached: 5, target: 5 }),
+  over_share_info: portal("over_share_info"),
+  leads_waiting_daily: portal("leads_waiting_daily", { waiting: 3 }),
+  leads_waiting_summary: portal("leads_waiting_summary", { clients: [{ name: "Kestrel Logistics", waiting: 3 }, { name: "Halden Foods", waiting: 1 }] }),
   prospect_confirmed: prospect("prospect_confirmed"),
   prospect_moved: prospect("prospect_moved"),
   prospect_cancelled: prospect("prospect_cancelled"),
@@ -211,9 +224,86 @@ describe("every template, rendered", () => {
     expect(final.text).toContain("This is the last reminder.");
   });
 
+  it("the client's no-show email says it counts as one and that the outcome can be contested", () => {
+    const mail = everyRendering(FIXTURES.client_no_show_client, PORTAL_LINK);
+    expect(mail.text).toContain("The lead counts as one.");
+    expect(mail.text).toContain("contest the outcome");
+  });
+
+  it("a proposal of new times is worded for the side that picks", () => {
+    expect(everyRendering(FIXTURES.postponement_proposed_info, PORTAL_LINK).subject).toBe("The client proposed new times for LD-4K7M");
+    expect(everyRendering(portal("postponement_proposed_info", { proposedBy: "supply" }), PORTAL_LINK).subject).toBe("New times proposed for LD-4K7M");
+  });
+
+  it("a contest and its decision carry the note with who wrote it, and the decision says what it means for the count", () => {
+    expect(everyRendering(FIXTURES.outcome_contested_info, PORTAL_LINK).text).toContain("Note from Client: Two of us joined on time.");
+    const decided = everyRendering(FIXTURES.contest_decided_info, PORTAL_LINK).text;
+    expect(decided).toContain("The client did not attend. It counts as one.");
+    expect(decided).toContain("Note from Fynix: The room record shows nobody from the client.");
+    expect(everyRendering(FIXTURES.rejection_overturned_client, PORTAL_LINK).text).toContain("Note from Fynix: The brief allowed it.");
+  });
+
+  it("a met target says how many count, for which month or in total, and against which number", () => {
+    const month = everyRendering(FIXTURES.target_met_info, PORTAL_LINK);
+    expect(month.subject).toBe("UK freight decision makers reached its target for November 2026");
+    expect(month.text).toContain("12 leads now count for November 2026. The target is 12.");
+    const total = everyRendering(portal("target_met_info", { campaignName: "UK freight decision makers", scope: "total", reached: 72, target: 72 }), PORTAL_LINK);
+    expect(total.subject).toBe("UK freight decision makers reached its total target");
+    expect(total.text).toContain("72 leads now count in total. The target is 72.");
+    const share = everyRendering(FIXTURES.share_met_info, PORTAL_LINK);
+    expect(share.subject).toBe("You reached your share for November 2026");
+    expect(share.text).toContain("5 of your leads for UK freight decision makers now count for November 2026. Your share is 5.");
+    expect(share.all).not.toContain("The target is");
+  });
+
+  it("the daily reminder counts the leads in words that fit one or many, and names the oldest", () => {
+    expect(everyRendering(FIXTURES.leads_waiting_daily, PORTAL_LINK).subject).toBe("3 leads are waiting for a time");
+    expect(everyRendering(FIXTURES.leads_waiting_daily, PORTAL_LINK).text).toContain("The oldest is LD-4K7M from Nordvik Cold Chain.");
+    expect(everyRendering(portal("leads_waiting_daily", { waiting: 1 }), PORTAL_LINK).subject).toBe("1 lead is waiting for a time");
+    const summary = everyRendering(FIXTURES.leads_waiting_summary, PORTAL_LINK).text;
+    expect(summary).toContain("Kestrel Logistics: 3 leads");
+    expect(summary).toContain("Halden Foods: 1 lead");
+  });
+
+  it("an email about an agreement or a waiting list names its own button, not the lead's", () => {
+    const agreement = everyRendering(FIXTURES.agreement_published_info, PORTAL_LINK);
+    expect(agreement.subject).toBe("Agreement version 3 for UK freight decision makers needs your acceptance");
+    expect(agreement.html).toContain("Open the agreement");
+    expect(agreement.all).not.toContain("Open the lead");
+    expect(everyRendering(FIXTURES.leads_waiting_daily, PORTAL_LINK).html).toContain("Open the oldest lead");
+  });
+
   it("the cancelled email gives the note, labelled with who wrote it", () => {
     expect(everyRendering(FIXTURES.meeting_cancelled, PORTAL_LINK).text).toContain("Note from Client: The timing does not suit us.");
     expect(everyRendering(portal("meeting_cancelled", { reason: "rejected" }), PORTAL_LINK).text).not.toContain("Note from");
+  });
+});
+
+describe("the opening paragraph a campaign may have", () => {
+  const OPENING = "We help cold chain teams cut spoilage, and I thought a short call would be useful.";
+  const withOpening = (letterOpening: string): EmailContent => ({ template: "prospect_confirmed", params: { ...PROSPECT_PARAMS, letterOpening } }) as EmailContent;
+
+  it("replaces the first sentence of the confirmation letter and leaves the time, the join link, the signature and the privacy line alone", () => {
+    const mail = everyRendering(withOpening(OPENING), null);
+    expect(mail.text).toContain(`Hello Marta Lindqvist,\n${OPENING}\nYour meeting is confirmed for Tuesday 8 December 2026, 14:30 Europe/London.`);
+    expect(mail.text).not.toContain("Thank you for agreeing to talk.");
+    expect(mail.text).toContain(`Join the meeting: ${MEET}`);
+    expect(mail.text).toContain("Best regards,\nLena Hartmann");
+    expect(mail.text).toContain(`Privacy policy: ${PRIVACY}`);
+    expect(mail.html).toContain(OPENING);
+    expect(checkEmailInvariants(withOpening(OPENING), INVARIANTS)).toEqual({ ok: true, problems: [] });
+  });
+
+  it.each(["A word from Fynix before we meet.", "Read more on https://elsewhere.example/page first.", "x".repeat(601)])("falls back to the default wording when the paragraph fails its check: %s", (bad) => {
+    const mail = everyRendering(withOpening(bad), null);
+    expect(mail.text).toContain("Thank you for agreeing to talk. Your meeting is confirmed for");
+    expect(mail.all).not.toContain(bad);
+    expect(checkEmailInvariants(withOpening(bad), INVARIANTS)).toEqual({ ok: true, problems: [] });
+  });
+
+  it("is used by the confirmation letter only", () => {
+    const moved = everyRendering({ template: "prospect_moved", params: { ...PROSPECT_PARAMS, letterOpening: OPENING } } as EmailContent, null);
+    expect(moved.all).not.toContain(OPENING);
   });
 });
 

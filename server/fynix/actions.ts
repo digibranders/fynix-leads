@@ -36,7 +36,8 @@ import {
 } from "@/server/domain/inputs";
 import { issueInvite, resendInvite, revokeInvite } from "@/server/domain/invites";
 import { reactivateMember, suspendMember, updateMemberDetails } from "@/server/domain/members";
-import { setCampaignPrivacy, setProspectEmail } from "@/server/domain/campaign-privacy";
+import { LETTER_OPENING_MAX, checkLetterOpening } from "@/lib/email/letter-opening";
+import { setCampaignPrivacy, setProspectEmail, setProspectLetterOpening } from "@/server/domain/campaign-privacy";
 import { closeCampaign, createCampaign, reopenCampaign, updateCampaign } from "@/server/domain/campaigns";
 import { removeCampaignShare, setCampaignShare } from "@/server/domain/shares";
 import { fynixOverturnRejection } from "@/server/domain/leads";
@@ -701,6 +702,44 @@ export async function removePrivacyLinkAction(_previous: FormState, formData: Fo
     labels: {},
     perform: async (deps, actor, input) => {
       await setCampaignPrivacy(deps, actor, campaignOnly.parse(input).campaignId, null);
+    },
+  });
+}
+
+const letterOpeningInput = z.object({ campaignId: uuidSchema, text: z.string().trim().min(1).max(LETTER_OPENING_MAX) }).strict();
+
+/** Sets or replaces the campaign's opening paragraph for the confirmation letter to prospects. */
+export async function setLetterOpeningAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runAction({
+    formData,
+    fieldNames: ["text"],
+    build: () => ({ campaignId: field(formData, "campaignId"), text: field(formData, "text") }),
+    schema: letterOpeningInput,
+    labels: { text: "Opening paragraph" },
+    // The rules of the paragraph, each in its own sentence, on the field. The names of the coordinator and the agencies are checked by the domain, which can read them.
+    precheck: (): Record<string, string> => {
+      const { problems } = checkLetterOpening(field(formData, "text"));
+      return problems.length === 0 ? {} : { text: problems.join(" ") };
+    },
+    errorFields: { "invalid-input": "text", "letter-names-supply-side": "text" },
+    ownMessages: ["invalid-input"],
+    perform: async (deps, actor, input) => {
+      const { campaignId, text } = letterOpeningInput.parse(input);
+      await setProspectLetterOpening(deps, actor, campaignId, text);
+    },
+  });
+}
+
+/** Removes the campaign's opening paragraph. The confirmation letter goes back to the default wording. */
+export async function removeLetterOpeningAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runAction({
+    formData,
+    fieldNames: [],
+    build: () => ({ campaignId: field(formData, "campaignId") }),
+    schema: campaignOnly,
+    labels: {},
+    perform: async (deps, actor, input) => {
+      await setProspectLetterOpening(deps, actor, campaignOnly.parse(input).campaignId, null);
     },
   });
 }

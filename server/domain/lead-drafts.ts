@@ -235,6 +235,7 @@ export async function submitDraft(db: Database, deps: Pick<DomainDeps, "now">, a
       createdAt: now,
     });
     await notify(tx, { type: "lead_submitted", leadId: draft.id });
+    if (checked.overShare) await notify(tx, { type: "lead_over_share", leadId: draft.id });
     return updated;
   });
 }

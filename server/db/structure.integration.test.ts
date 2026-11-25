@@ -190,6 +190,8 @@ const EXPECTED_ACCESS: Readonly<Record<string, readonly RuntimeRoleName[]>> = {
   // a meeting's room (written by a function for the sweep; the client, the agencies and Fynix read the rows of the meetings they can read).
   meeting_reminder: [],
   meeting_join: ["leads_fynix", "leads_client", "leads_agency"],
+  // Migration 0092: "this was sent" keys (a target notice, the daily reminders). Written by SECURITY DEFINER functions alone.
+  once_stamp: [],
 };
 /** The tables nobody but leads_auth touches. `user` is not one of them any more: Fynix reads four columns of it. */
 const AUTH_TABLES = ["session", "account", "verification", "two_factor"] as const;
@@ -690,6 +692,8 @@ describe("phase 1D: what a tenant role holds on the six set-up tables", () => {
     // Migration 0075: the client reads the privacy link of its campaigns and whether prospect email is on. An agency reads neither.
     const privacy = role === "leads_client" ? ["client_privacy_url", "prospect_email_enabled"] : [];
     expect([...campaignColumns].sort()).toEqual([...basics, ...brief, ...setUp, ...privacy].sort());
+    // Migration 0089: the opening paragraph of the prospect letter is Fynix's alone.
+    expect(campaignColumns).not.toContain("prospect_letter_opening");
     for (const hidden of ["time_zone", "meeting_minutes", "internal_notes", "primary_contact_id", ...(role === "leads_client" ? [] : ["client_privacy_url", "prospect_email_enabled"])]) expect(campaignColumns).not.toContain(hidden);
   });
 

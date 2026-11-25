@@ -354,7 +354,7 @@ describe("notices at every lead event", () => {
     expect(recipients(third, "outcome_recorded")).toEqual(ids(cast.clientActor, cast.clientColleague, cast.coordinator, cast.coordinatorColleague, cast.fynixStaff));
   });
 
-  it("tells the supply side and Fynix about an accept or a reject with the note, Fynix alone about a review, and the supply side when Fynix overturns", async () => {
+  it("tells the supply side and Fynix about an accept or a reject with the note, Fynix alone about a review, and the client and the supply side when Fynix overturns", async () => {
     const accepted = await booked();
     await recordMeetingOutcome(agencyDb(), rig.deps(), cast.coordinator, { meetingId: accepted.meetingId, outcome: "held" });
     await clearNotices();
@@ -372,8 +372,8 @@ describe("notices at every lead event", () => {
     await clearNotices();
     await fynixOverturnRejection(fynixDb(), rig.deps(), rig.actor, { leadId: rejected.leadId, note: "The brief says logistics" });
     map = await noticeMap(rejected.leadId);
-    expect(recipients(map, "rejection_overturned")).toEqual(ids(cast.coordinator, cast.coordinatorColleague));
-    expect(map.has(cast.clientActor.userId)).toBe(false);
+    // The client reads it too: the lead now counts toward its number (owner decision, 2026-11-25).
+    expect(recipients(map, "rejection_overturned")).toEqual(ids(cast.clientActor, cast.clientColleague, cast.coordinator, cast.coordinatorColleague));
   });
 
   it("tells everyone about a contest and its decision, and a client about Fynix answering for it", async () => {

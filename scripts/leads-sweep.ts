@@ -2,13 +2,14 @@ import { createDatabase } from "@/server/db/pool";
 import { sendLeadReminders } from "@/server/domain/lead-sweep";
 import { getEnv } from "@/server/env";
 import { loadEnvLocal } from "@/server/env-file";
-import { importJoinRecords, sendMeetingReminderEmails, sendReminderEmails, sweepLeadsWithEmails } from "@/server/mail/launch-sweep";
+import { importJoinRecords, sendMeetingReminderEmails, sendReminderEmails, sendWaitingReminders, sweepLeadsWithEmails } from "@/server/mail/launch-sweep";
 import { launchEmailsEnabled } from "@/server/mail/launch";
 import { meetProviderFromEnv } from "@/server/meet";
 import { runScript } from "@/server/run-script";
 
 // Runs the lead sweep once, as the leads_auth role: accepts every lead the client left unanswered for 48 hours after the meeting, and writes the
-// reminders that are due as notices in the app. It reads the clock and the database and nothing else, so it works with email off. A systemd timer runs it every five
+// reminders that are due as notices in the app, among them the daily one to a client with a lead still waiting for a time (once a day, from 9 am there) and
+// the notice of a target an automatic acceptance has just completed. It reads the clock and the database and nothing else, so it works with email off. A systemd timer runs it every five
 // minutes (docs/ops/leads-sweep.timer); running it again changes nothing.
 //
 // Phase 6 adds, behind switches that are off by default:
@@ -26,6 +27,15 @@ runScript(async () => {
     const swept = await sweepLeadsWithEmails(auth.db, now, enqueue);
     const reminders = await sendLeadReminders({ authDb: auth.db }, now);
     console.log(`Lead sweep: ${swept.length} accepted automatically${swept.length === 0 ? "" : ` (${swept.map((row) => row.publicRef).join(", ")})`}, ${reminders.length} reminders sent as notices.`);
+    // The daily reminder is the newest step and the least urgent: a fault in it is reported and the steps after it still run. Only the error's name is logged,
+    // because its message can carry an address.
+    try {
+      const waiting = await sendWaitingReminders(auth.db, now, enqueue);
+      console.log(`Leads waiting for a time: ${waiting.clients} clients reminded, ${waiting.summary} listed for Fynix.`);
+    } catch (error) {
+      console.error("The reminder of leads waiting for a time failed", error instanceof Error ? error.name : "unknown error");
+      process.exitCode = 1;
+    }
     if (emails) {
       const reminderEmails = await sendReminderEmails(auth.db, now, enqueue);
       const meeting = await sendMeetingReminderEmails(auth.db, now, enqueue);

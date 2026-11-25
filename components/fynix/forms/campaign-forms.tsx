@@ -1,6 +1,6 @@
 "use client";
 
-import { addHostAction, closeCampaignAction, publishAgreementAction, setPrivacyLinkAction, setShareAction, updateCampaignAction } from "@/server/fynix/actions";
+import { addHostAction, closeCampaignAction, publishAgreementAction, setLetterOpeningAction, setPrivacyLinkAction, setShareAction, updateCampaignAction } from "@/server/fynix/actions";
 import type { CampaignHeader } from "@/server/domain/campaign-overview";
 import { useId, useState } from "react";
 import { Choice } from "@/components/ui/choice";
@@ -188,6 +188,23 @@ export function CloseCampaignForm({ campaignId, name }: { campaignId: string; na
           {name} stops taking new leads and its shares and hosts become read only. Leads already submitted finish their course. You can reopen it later.
         </p>
         <TextAreaField name="note" label="Note (optional)" helper="Why it is closing. It goes on the campaign's activity." />
+      </FormGroup>
+    </ActionForm>
+  );
+}
+
+/** Writes or replaces the campaign's opening paragraph for the confirmation letter to prospects. The rest of the letter is fixed. */
+export function LetterOpeningForm({ campaignId, current }: { campaignId: string; current: string | null }) {
+  return (
+    <ActionForm action={setLetterOpeningAction} submitLabel="Save paragraph" pendingLabel="Saving" savedMessage="Paragraph saved">
+      <Hidden name="campaignId" value={campaignId} />
+      <FormGroup>
+        <TextAreaField
+          name="text"
+          label="Opening paragraph"
+          defaultValue={current ?? ""}
+          helper="One paragraph, up to 600 characters. No web or email address, and never the name of Fynix, the coordinator or an agency."
+        />
       </FormGroup>
     </ActionForm>
   );
