@@ -64,7 +64,7 @@ export function AgreementsView({ cards, canAccept, emptyText, otherLabel }: { re
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <h2 className="text-name font-semibold tracking-title text-balance">{card.campaignName}</h2>
-                <p className="mt-0.5 text-body text-ink-muted">{card.brand}</p>
+                <p className="mt-0.5 text-body text-ink-muted">{card.clientName}</p>
               </div>
               {card.closed ? <Badge variant="amber">Closed, read only</Badge> : null}
             </div>

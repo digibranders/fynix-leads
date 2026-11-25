@@ -29,8 +29,6 @@ export const createOrganisationSchema = z
   .object({
     kind: z.enum(["client", "agency"]),
     name: name(120),
-    /** Optional and for a client only: it defaults to the name (the brand and the client are one thing since phase 1). */
-    brandName: name(80).optional(),
     timeZone: timeZoneSchema.optional(),
     /** A client's profile, taken when it is added. */
     profile: clientProfileSchema.optional(),
@@ -38,13 +36,13 @@ export const createOrganisationSchema = z
     confirmDuplicate: z.boolean().optional(),
   })
   .strict()
-  .refine((input) => input.kind === "client" || (input.brandName === undefined && input.profile === undefined), { path: ["kind"], message: "a brand name and a profile are for a client only" });
+  .refine((input) => input.kind === "client" || input.profile === undefined, { path: ["kind"], message: "a profile is for a client only" });
 export type CreateOrganisationInput = z.infer<typeof createOrganisationSchema>;
 
 export const updateOrganisationSchema = z
-  .object({ name: name(120).optional(), brandName: name(80).optional(), timeZone: timeZoneSchema.nullable().optional() })
+  .object({ name: name(120).optional(), timeZone: timeZoneSchema.nullable().optional() })
   .strict()
-  .refine((input) => input.name !== undefined || input.brandName !== undefined || input.timeZone !== undefined, { message: "must change something" });
+  .refine((input) => input.name !== undefined || input.timeZone !== undefined, { message: "must change something" });
 export type UpdateOrganisationInput = z.infer<typeof updateOrganisationSchema>;
 
 export const updateClientProfileSchema = z.object({ clientOrgId: z.uuid(), ...profileFields }).strict();

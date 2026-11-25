@@ -5,8 +5,8 @@ import { member } from "./member";
 import { organisation } from "./organisation";
 
 /**
- * Client-brand alias identities for agency and supplier members (spec v2 section 9.3, D31, D32).
- * Each agency person keeps several identities: display name, title, alias email, and the client brand it
+ * Client alias identities for agency and supplier members (spec v2 section 9.3, D31, D32).
+ * Each agency person keeps several identities: display name, title, alias email, and the client it
  * belongs to. An alias email cannot be used until verified with a 6-digit code sent to that mailbox.
  */
 export const aliasIdentity = pgTable(
@@ -16,10 +16,11 @@ export const aliasIdentity = pgTable(
     publicRef: text("public_ref").notNull(),
     memberId: uuid("member_id").notNull(),
     memberOrgKind: organisationKind("member_org_kind").notNull().generatedAlwaysAs(sql`'agency'::organisation_kind`),
-    clientBrandName: text("client_brand_name").notNull(),
+    // Unused since release 1, dropped in release 2. A trigger (migration 0078) sets it to the client's name; the default only lets an insert leave it out.
+    clientBrandName: text("client_brand_name").notNull().default(""),
     /**
-     * The client the alias is for, picked from the clients of the campaigns the agency sees (phase 2). A trigger (migration 0064) checks that and
-     * copies the client's brand into `client_brand_name`. Null only on aliases made before phase 2.
+     * The client the alias is for, picked from the clients of the campaigns the agency sees (phase 2). A trigger (migration 0064) checks that.
+     * Release 1 (migration 0078) filled it for every alias that could be matched by name; an alias left null must be edited to pick its client.
      */
     clientOrgId: uuid("client_org_id").references(() => organisation.id, { onDelete: "restrict" }),
     displayName: text("display_name").notNull(),

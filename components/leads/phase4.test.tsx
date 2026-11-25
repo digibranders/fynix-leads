@@ -243,7 +243,7 @@ describe("drafts and the lead form", () => {
   });
   it("the source view opens a Drafts tab and links its count", () => {
     const view = (props: Partial<Parameters<typeof SourceLeadsView>[0]>) =>
-      renderToStaticMarkup(<SourceLeadsView leads={[]} basePath="/agency/leads" submitHref="/agency/leads/new" emptyText="x" group={null} q="" page={1} ownOrgId="o1" campaigns={{ c1: { name: "UK", brand: "Kestrel" } }} campaignChoices={[]} campaign={null} aliasNames={{}} {...props} />);
+      renderToStaticMarkup(<SourceLeadsView leads={[]} basePath="/agency/leads" submitHref="/agency/leads/new" emptyText="x" group={null} q="" page={1} ownOrgId="o1" campaigns={{ c1: { name: "UK", clientName: "Kestrel" } }} campaignChoices={[]} campaign={null} aliasNames={{}} {...props} />);
     const tabs = view({ drafts: [draft] });
     expect(tabs).toContain("Drafts");
     expect(tabs).toContain("?show=drafts");
@@ -251,7 +251,7 @@ describe("drafts and the lead form", () => {
     expect(view({})).not.toContain("?show=drafts");
   });
   it("the lead form has Save draft beside Submit, and a draft starts it filled in with the campaign locked", () => {
-    const base = { campaigns: [{ id: "c1", name: "UK", clientBrandName: "Kestrel" }], aliases: [], hosts: [{ id: "h1", campaignId: "c1", name: "Daniel Okafor", jobTitle: "Head of Sales" }], leadsHref: "/agency/leads" };
+    const base = { campaigns: [{ id: "c1", name: "UK", clientOrgId: "k1", clientName: "Kestrel" }], aliases: [], hosts: [{ id: "h1", campaignId: "c1", name: "Daniel Okafor", jobTitle: "Head of Sales" }], leadsHref: "/agency/leads" };
     const fresh = renderToStaticMarkup(<SubmitLeadForm {...base} />);
     expect(fresh).toContain("Save draft");
     expect(fresh).toContain("Submit lead");

@@ -1,10 +1,13 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { agreement, aliasIdentity, campaign, campaignHost, campaignShare, hostHours, lead, leadHistory, leadReminder, meeting, member, user } from "@/server/db/schema";
 import { withTenantScope } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import { getClientOverviewMetrics, getSupplierOverviewMetrics } from "@/server/domain/analytics";
 import { readAgreementsPage } from "@/server/domain/campaign-overview";
+import { listTenantCampaigns } from "@/server/domain/campaigns-tenant";
+import { exportMeetingsCsv } from "@/server/domain/export-reads";
+import { getLeadSubmissionOptions } from "@/server/domain/lead-reads";
 import { decideLead, clientReviewLead, fynixOverturnRejection, listClientLeads, submitLead } from "@/server/domain/leads";
 import { getLeadRecordForClient, getLeadRecordForFynix, getLeadRecordForSupply } from "@/server/domain/lead-record";
 import { dueReminders, sweepLeads } from "@/server/domain/lead-sweep";
@@ -78,12 +81,10 @@ beforeEach(async () => {
   if (admin === undefined) throw new Error("No Fynix admin");
   await owner.insert(agreement).values({ campaignId: target.id, party: "client", version: 1, monthlyTarget: 12, totalTarget: 72, createdBy: await memberOf(admin.id) });
   await owner.insert(campaignShare).values({ campaignId: target.id, agencyOrgId: world.brightpath.id, monthlyShare: 5 }).onConflictDoNothing();
-  const [brand] = await owner.select({ name: campaign.clientBrandName }).from(campaign).where(eq(campaign.id, target.id));
-  const brandName = brand?.name ?? "Brand";
   const verifiedAlias = async (memberId: string, displayName: string, email: string): Promise<string> => {
     const [row] = await owner
       .insert(aliasIdentity)
-      .values({ publicRef: `ALI-${displayName.length}M2K`.slice(0, 8).replace(/[^A-Z0-9-]/g, "7"), memberId, clientBrandName: brandName, displayName, jobTitle: "Business development", aliasEmail: email, verifiedAt: new Date(), status: "active" })
+      .values({ publicRef: `ALI-${displayName.length}M2K`.slice(0, 8).replace(/[^A-Z0-9-]/g, "7"), memberId, clientOrgId: target.client.id, displayName, jobTitle: "Business development", aliasEmail: email, verifiedAt: new Date(), status: "active" })
       .returning({ id: aliasIdentity.id });
     if (row === undefined) throw new Error("No alias");
     return row.id;
@@ -100,7 +101,7 @@ beforeEach(async () => {
   await owner.insert(campaignShare).values({ campaignId: target.id, agencyOrgId: partnerOrg.id, monthlyShare: 3 });
   const [partnerAliasRow] = await owner
     .insert(aliasIdentity)
-    .values({ publicRef: "ALI-9R4T", memberId: partnerMember.id, clientBrandName: brandName, displayName: "Piet Ridge", jobTitle: "Partnerships", aliasEmail: "piet@ridgeway-brand.example", verifiedAt: new Date(), status: "active" })
+    .values({ publicRef: "ALI-9R4T", memberId: partnerMember.id, clientOrgId: target.client.id, displayName: "Piet Ridge", jobTitle: "Partnerships", aliasEmail: "piet@ridgeway-brand.example", verifiedAt: new Date(), status: "active" })
     .returning({ id: aliasIdentity.id });
   if (partnerAliasRow === undefined) throw new Error("No partner alias");
 
@@ -555,5 +556,35 @@ describe("the month a lead counts in", () => {
     expect(byAgency.get("Brightpath Outreach") ?? {}).toEqual({});
     await ownerDb().update(campaign).set({ timeZone: "America/Los_Angeles" });
     expect((await readAgreementsPage(rig.deps(), rig.actor, cast.campaignId)).shares.find((share) => share.agencyName === cast.partnerName)?.countedByMonth).toEqual({ "2026-10": 1 });
+  });
+});
+
+describe("the client's name for the supply side (release 1 of retiring the brand columns)", () => {
+  it("shows the coordinator and the partner agency the client's name on the campaign, in the submission options and in the meetings file, and the client no extra column", async () => {
+    const world = rig.world();
+    const clientName = world.campaigns[0]?.client.name ?? "";
+    await booked("coordinator");
+    await booked("partner");
+    for (const actor of [cast.coordinator, cast.partner]) {
+      const options = await getLeadSubmissionOptions(agencyDb(), actor);
+      expect(options.campaigns.find((row) => row.id === cast.campaignId)?.clientName).toBe(clientName);
+      const campaigns = await listTenantCampaigns(agencyDb(), actor, actor === cast.coordinator ? "supplier" : "agency");
+      expect(campaigns.find((row) => row.id === cast.campaignId)?.clientName).toBe(clientName);
+      const csv = await exportMeetingsCsv(agencyDb(), actor);
+      expect(csv.split("\r\n")[0]).toContain("Campaign,Client,Start");
+      expect(csv).toContain(clientName);
+    }
+    expect((await getLeadSubmissionOptions(agencyDb(), cast.coordinator)).aliases.find((row) => row.id === cast.coordinatorAlias)?.clientName).toBe(clientName);
+    expect((await exportMeetingsCsv(clientDb(), cast.clientActor)).split("\r\n")[0]).not.toContain("Client,");
+  });
+
+  it("refuses a lead under an alias that never picked its client until the backfill matches it, then accepts it", async () => {
+    await ownerDb().execute(sql`update alias_identity set client_org_id = null where id = ${cast.coordinatorAlias}`);
+    const options = await getLeadSubmissionOptions(agencyDb(), cast.coordinator);
+    expect(options.aliases.find((row) => row.id === cast.coordinatorAlias)).toMatchObject({ clientOrgId: null, clientName: "" });
+    await expect(booked("coordinator")).rejects.toThrow(/no client yet/);
+    const left = (await ownerDb().execute<{ left: number }>(sql`select public.app_backfill_alias_clients() as left`)).rows[0]?.left;
+    expect(left).toBe(0);
+    await expect(booked("coordinator")).resolves.toMatchObject({ publicRef: expect.stringMatching(/^LD-/) });
   });
 });

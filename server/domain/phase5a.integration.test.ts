@@ -99,12 +99,10 @@ beforeEach(async () => {
   if (admin === undefined) throw new Error("No Fynix admin");
   await owner.insert(agreement).values({ campaignId: target.id, party: "client", version: 1, monthlyTarget: 12, totalTarget: 72, createdBy: await memberOf(admin.id) });
   await owner.insert(campaignShare).values({ campaignId: target.id, agencyOrgId: world.brightpath.id, monthlyShare: 5 }).onConflictDoNothing();
-  const [brand] = await owner.select({ name: campaign.clientBrandName }).from(campaign).where(eq(campaign.id, target.id));
-  const brandName = brand?.name ?? "Brand";
   const verifiedAlias = async (memberId: string, displayName: string, email: string, ref: string): Promise<string> => {
     const [row] = await owner
       .insert(aliasIdentity)
-      .values({ publicRef: ref, memberId, clientBrandName: brandName, displayName, jobTitle: "Business development", aliasEmail: email, verifiedAt: new Date(), status: "active" })
+      .values({ publicRef: ref, memberId, clientOrgId: target.client.id, displayName, jobTitle: "Business development", aliasEmail: email, verifiedAt: new Date(), status: "active" })
       .returning({ id: aliasIdentity.id });
     if (row === undefined) throw new Error("No alias");
     return row.id;
@@ -755,17 +753,17 @@ describe("search", () => {
     expect(fynix.people[0]).toMatchObject({ label: "Colin Kestrel", href: expect.stringMatching(/^\/fynix\/clients\/ORG-/) });
   });
 
-  it("shows each role the companies it may know: a client only its own, the supply side its own side and the brands it serves, Fynix all", async () => {
+  it("shows each role the companies it may know: a client only its own, the supply side its own side and the clients it serves, Fynix all", async () => {
     expect((await searchEverything(clientDb(), asMessaging(cast.clientActor), "Brightpath")).companies).toEqual([]);
     expect((await searchEverything(clientDb(), asMessaging(cast.clientActor), "Halden")).companies).toEqual([]);
     expect((await searchEverything(clientDb(), asMessaging(cast.clientActor), "Kestrel")).companies.map((row) => row.label)).toEqual(["Kestrel Logistics Ltd"]);
     expect((await searchEverything(agencyDb(), asMessaging(cast.coordinator), "Ridgeway")).companies.map((row) => [row.label, row.detail])).toEqual([["Ridgeway Partner Ltd", "Partner agency"]]);
     expect((await searchEverything(agencyDb(), asMessaging(cast.coordinator), "Northgate")).companies).toEqual([]);
-    // The coordinator serves two clients and knows both brands; the partner agency holds a share on one campaign only.
-    expect((await searchEverything(agencyDb(), asMessaging(cast.coordinator), "Halden")).companies.map((row) => row.label)).toEqual(["Halden"]);
+    // The coordinator serves two clients and knows both names; the partner agency holds a share on one campaign only.
+    expect((await searchEverything(agencyDb(), asMessaging(cast.coordinator), "Halden")).companies.map((row) => row.label)).toEqual(["Halden Foods Ltd"]);
     expect((await searchEverything(agencyDb(), asMessaging(cast.partner), "Halden")).companies).toEqual([]);
     expect((await searchEverything(agencyDb(), asMessaging(cast.partner), "Brightpath")).companies).toEqual([]);
-    expect((await searchEverything(agencyDb(), asMessaging(cast.coordinator), "Kestrel")).companies.map((row) => row.label)).toEqual(["Kestrel"]);
+    expect((await searchEverything(agencyDb(), asMessaging(cast.coordinator), "Kestrel")).companies.map((row) => row.label)).toEqual(["Kestrel Logistics Ltd"]);
     const all = await searchEverything(fynixDb(), fynixMessaging(cast.fynixAdmin), "Ltd");
     expect(all.companies.map((row) => row.label).sort()).toEqual(["Brightpath Media Pvt Ltd", "Halden Foods Ltd", "Kestrel Logistics Ltd", "Northgate Leads Ltd", "Ridgeway Partner Ltd"]);
   });

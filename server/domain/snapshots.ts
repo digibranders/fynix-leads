@@ -9,7 +9,6 @@ export interface OrganisationRow {
   readonly publicRef: string;
   readonly kind: string;
   readonly name: string;
-  readonly brandName: string | null;
   readonly timeZone: string | null;
   /** The supplier a partner agency works under, `null` for everyone else. */
   readonly parentOrgId: string | null;
@@ -17,7 +16,7 @@ export interface OrganisationRow {
 }
 
 export function snapshotOrganisation(row: OrganisationRow): JsonObject {
-  return { ref: row.publicRef, kind: row.kind, name: row.name, brandName: row.brandName, timeZone: row.timeZone, parentOrgId: row.parentOrgId, status: row.status };
+  return { ref: row.publicRef, kind: row.kind, name: row.name, timeZone: row.timeZone, parentOrgId: row.parentOrgId, status: row.status };
 }
 
 export interface ProfileRow {

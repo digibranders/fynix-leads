@@ -309,7 +309,7 @@ describe("Hosts", () => {
   });
 });
 
-const clientRow = (over: Partial<ClientRow> = {}): ClientRow => ({ id: "k1", publicRef: "ORG-K1AA", name: "Kestrel Ledger", brandName: "Kestrel", status: "active", peopleCount: 3, campaignCount: 3, campaignCounts: { setup: 1, active: 2, closed: 0 }, timeZone: null, ...over }) as ClientRow;
+const clientRow = (over: Partial<ClientRow> = {}): ClientRow => ({ id: "k1", publicRef: "ORG-K1AA", name: "Kestrel Ledger", status: "active", peopleCount: 3, campaignCount: 3, campaignCounts: { setup: 1, active: 2, closed: 0 }, timeZone: null, ...over }) as ClientRow;
 
 describe("Clients", () => {
   it("lists active clients with a link to each record and split campaign counts, and the Archived tab holds the rest", () => {

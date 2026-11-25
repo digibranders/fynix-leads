@@ -212,7 +212,7 @@ describe("who reads a client's profile", () => {
     await addCollateral(rig.deps(), rig.actor, { clientOrgId: created.id, kind: "link", title: "Cedar brochure", url: "https://example.com/cedar.pdf" });
     const [first] = await rig.dbs.owner.db.select().from(campaign).where(eq(campaign.agencyOrgId, rig.world().northgate.id));
     if (first === undefined) throw new Error("no campaign");
-    await rig.dbs.owner.db.insert(campaign).values({ ...first, id: randomUUID(), publicRef: "CMP-9C9C", name: "Cedar campaign", clientOrgId: created.id, clientBrandName: "Cedar" });
+    await rig.dbs.owner.db.insert(campaign).values({ ...first, id: randomUUID(), publicRef: "CMP-9C9C", name: "Cedar campaign", clientOrgId: created.id });
     return created;
   }
   const profilesSeenBy = async (db: Database, orgId: string): Promise<string[]> =>

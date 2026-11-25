@@ -54,7 +54,7 @@ describe("createCampaign", () => {
     expect(created).toMatchObject({ name: "Benelux cold chain", status: "draft" });
     expect(created.publicRef).toMatch(/^CMP-[0-9A-HJKMNP-TV-Z]{4}$/);
     const stored = await row(created.id);
-    expect(stored).toMatchObject({ clientBrandName: "Kestrel", industries: ["Logistics", "Food"], technologies: ["SAP", "Manhattan"], jobTitles: ["Head of Operations"], bantNeed: "Replacing a TMS", internalNotes: "INTERNAL margin is thin" });
+    expect(stored).toMatchObject({ industries: ["Logistics", "Food"], technologies: ["SAP", "Manhattan"], jobTitles: ["Head of Operations"], bantNeed: "Replacing a TMS", internalNotes: "INTERNAL margin is thin" });
     const [audit] = await auditRowsFor(rig, "campaign.create");
     expect(audit).toMatchObject({ subjectTable: "campaign", subjectId: created.id, subjectRef: created.publicRef, before: null, after: { ref: created.publicRef, status: "draft", geography: "Benelux", internalNotes: "INTERNAL margin is thin" } });
   });
@@ -92,9 +92,9 @@ describe("createCampaign", () => {
   });
 
   it("works for an organisation created through the service", async () => {
-    const client = await createOrganisation(rig.deps(), rig.actor, { kind: "client", name: "Orchard Foods Ltd", brandName: "Orchard" });
+    const client = await createOrganisation(rig.deps(), rig.actor, { kind: "client", name: "Orchard Foods Ltd" });
     const created = await createCampaign(rig.deps(), rig.actor, { ...input(), clientOrgId: client.id });
-    expect(await row(created.id)).toMatchObject({ clientBrandName: "Orchard" });
+    expect(await row(created.id)).toMatchObject({ clientOrgId: client.id });
   });
 });
 

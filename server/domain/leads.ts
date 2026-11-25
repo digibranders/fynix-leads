@@ -63,7 +63,6 @@ export async function checkSubmission(
       id: aliasIdentity.id,
       memberId: aliasIdentity.memberId,
       verifiedAt: aliasIdentity.verifiedAt,
-      clientBrandName: aliasIdentity.clientBrandName,
       clientOrgId: aliasIdentity.clientOrgId,
       status: aliasIdentity.status,
     })
@@ -91,7 +90,6 @@ export async function checkSubmission(
       agencyOrgId: campaign.agencyOrgId,
       status: campaign.status,
       monthlyTarget: campaign.monthlyTarget,
-      clientBrandName: campaign.clientBrandName,
     })
     .from(campaign)
     .where(eq(campaign.id, parsed.campaignId))
@@ -105,11 +103,13 @@ export async function checkSubmission(
     throw new DomainError("not-authorised", "Cannot submit leads to a campaign that is not active.");
   }
 
-  // An alias is a name used towards one client's brand: it cannot front a lead for another client's campaign.
-  // An alias made since phase 2 names its client; an older one is matched by brand.
-  const sameClient = aliasRow.clientOrgId !== null ? aliasRow.clientOrgId === campaignRow.clientOrgId : aliasRow.clientBrandName.trim().toLowerCase() === campaignRow.clientBrandName.trim().toLowerCase();
-  if (!sameClient) {
-    throw new DomainError("invalid-input", "That alias is for a different client brand than this campaign.");
+  // An alias is a name used towards one client: it cannot front a lead for another client's campaign. An alias left without a client by the
+  // phase 2 backfill (migration 0078) has to be edited to pick its client first.
+  if (aliasRow.clientOrgId === null) {
+    throw new DomainError("invalid-input", "That alias has no client yet. Edit it and choose the client first.");
+  }
+  if (aliasRow.clientOrgId !== campaignRow.clientOrgId) {
+    throw new DomainError("invalid-input", "That alias is for a different client than this campaign.");
   }
 
   // Check assignment: actor org is supplier itself, or has a campaign_share record

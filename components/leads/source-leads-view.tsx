@@ -51,8 +51,8 @@ export interface SourceLeadsViewProps {
   readonly q: string;
   readonly page: number;
   readonly ownOrgId: string;
-  /** Campaign name and the client's brand, by campaign id. */
-  readonly campaigns: Readonly<Record<string, { readonly name: string; readonly brand: string }>>;
+  /** Campaign name and the client name, by campaign id. */
+  readonly campaigns: Readonly<Record<string, { readonly name: string; readonly clientName: string }>>;
   /** The campaigns the viewer can filter by, with their status. */
   readonly campaignChoices: readonly CampaignChoice[];
   /** The campaign chosen in the filter, or null for all. */
@@ -182,7 +182,7 @@ export function SourceLeadsView(props: SourceLeadsViewProps) {
                           <span className="flex flex-wrap items-center gap-1.5 leading-tight">
                             <span>
                               {campaign.name}
-                              <span className="block text-caption text-ink-muted">{campaign.brand}</span>
+                              <span className="block text-caption text-ink-muted">{campaign.clientName}</span>
                             </span>
                             {closed.has(lead.campaignId) ? <ClosedTag /> : null}
                           </span>

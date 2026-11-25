@@ -24,13 +24,13 @@ const CAMPAIGN = { clientOrgId: UUID, agencyOrgId: UUID, name: "UK freight", sta
 
 describe("parseInput", () => {
   it("returns the parsed value", () => {
-    expect(parseInput(createOrganisationSchema, { kind: "client", name: "  Kestrel Logistics Ltd ", brandName: "Kestrel" })).toEqual({ kind: "client", name: "Kestrel Logistics Ltd", brandName: "Kestrel" });
+    expect(parseInput(createOrganisationSchema, { kind: "client", name: "  Kestrel Logistics Ltd " })).toEqual({ kind: "client", name: "Kestrel Logistics Ltd" });
   });
 
   it("throws an invalid-input DomainError naming the path and the rule, and never the value", () => {
     const thrown = (() => {
       try {
-        parseInput(createOrganisationSchema, { kind: "client", name: "", brandName: "Kestrel" });
+        parseInput(createOrganisationSchema, { kind: "client", name: "" });
       } catch (error) {
         return error;
       }
@@ -42,9 +42,11 @@ describe("parseInput", () => {
 });
 
 describe("organisation input", () => {
-  it("makes the brand name optional for a client and refuses one for an agency", () => {
+  it("takes one name for a client and no longer accepts a brand name on either kind or on an update", () => {
     expect(createOrganisationSchema.safeParse({ kind: "client", name: "A" }).success).toBe(true);
+    expect(createOrganisationSchema.safeParse({ kind: "client", name: "A", brandName: "B" }).success).toBe(false);
     expect(createOrganisationSchema.safeParse({ kind: "agency", name: "A", brandName: "B" }).success).toBe(false);
+    expect(updateOrganisationSchema.safeParse({ brandName: "B" }).success).toBe(false);
     expect(createOrganisationSchema.safeParse({ kind: "agency", name: "A" }).success).toBe(true);
   });
 

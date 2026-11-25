@@ -1,5 +1,6 @@
 import { and, desc, eq, ilike, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import { campaignClientName } from "@/server/db/client-name";
 import type { Database } from "@/server/db/pool";
 import { campaign, lead, member, organisation } from "@/server/db/schema";
 import type { ScopedTransaction } from "@/server/db/scope";
@@ -120,13 +121,14 @@ async function findCompanies(tx: ScopedTransaction, actor: MessagingActor, porta
     .orderBy(organisation.name)
     .limit(SEARCH_LIMIT_PER_TYPE);
   const own = rows.map((row) => ({ label: row.name, detail: row.parentOrgId === null || portal === "/agency" ? "Your company" : "Partner agency", href: row.parentOrgId === null || portal === "/agency" ? portal : `${portal}/agencies` }));
-  // The supply side may know the brand of the clients of the campaigns it serves, and no more of them.
+  // The supply side may know the name of the clients of the campaigns it serves, and no more of them.
+  const clientName = campaignClientName(campaign.id);
   const brands = await tx
-    .select({ brand: campaign.clientBrandName })
+    .select({ brand: clientName })
     .from(campaign)
-    .where(ilike(campaign.clientBrandName, pattern))
-    .groupBy(campaign.clientBrandName)
-    .orderBy(campaign.clientBrandName)
+    .where(ilike(clientName, pattern))
+    .groupBy(clientName)
+    .orderBy(clientName)
     .limit(SEARCH_LIMIT_PER_TYPE);
   return [...own, ...brands.map((row) => ({ label: row.brand, detail: "Client", href: `${portal}/campaigns` }))].slice(0, SEARCH_LIMIT_PER_TYPE);
 }

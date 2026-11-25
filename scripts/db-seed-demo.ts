@@ -126,7 +126,7 @@ runScript(async () => {
 
     await db
       .insert(aliasIdentity)
-      .values({ publicRef: "ALI-7M2K", memberId: agencyUser.memberId, clientBrandName: "Halden Foods", displayName: "Lena Hartmann", jobTitle: "Business Development Manager", aliasEmail: "lena.hartmann@halden-outreach.example", verifiedAt: new Date(), status: "active" })
+      .values({ publicRef: "ALI-7M2K", memberId: agencyUser.memberId, clientOrgId: clientOrg, displayName: "Lena Hartmann", jobTitle: "Business Development Manager", aliasEmail: "lena.hartmann@halden-outreach.example", verifiedAt: new Date(), status: "active" })
       .onConflictDoNothing();
     const alias = firstRow(await db.select({ id: aliasIdentity.id }).from(aliasIdentity).where(eq(aliasIdentity.publicRef, "ALI-7M2K")), "alias identity");
 

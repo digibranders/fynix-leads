@@ -12,6 +12,7 @@ import { recordMeetingOutcomeSchema, type RecordMeetingOutcomeInput } from "@/se
 import { parseInput } from "@/server/domain/parse";
 import { notify } from "@/server/domain/notices";
 import { insertWithPublicRef } from "@/server/domain/refs";
+import { campaignClientName } from "@/server/db/client-name";
 
 export interface CreateMeetingInput {
   readonly leadId: string;
@@ -243,7 +244,7 @@ export async function listAgencyMeetings(db: Database, actor: TenantActor) {
         leadStage: lead.stage,
         campaignName: campaign.name,
         campaignRef: campaign.publicRef,
-        clientBrandName: campaign.clientBrandName,
+        clientName: campaignClientName(campaign.id),
         openProposalBy: openProposalSide,
       })
       .from(meeting)
@@ -271,7 +272,7 @@ export async function listFynixMeetings(db: Database, _actor: FynixActor) {
       leadStage: lead.stage,
       campaignName: campaign.name,
       campaignRef: campaign.publicRef,
-      clientBrandName: campaign.clientBrandName,
+      clientName: campaignClientName(campaign.id),
       hostName: member.displayName,
       openProposalBy: openProposalSide,
     })

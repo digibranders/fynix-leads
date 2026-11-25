@@ -49,7 +49,7 @@ async function Leads({ searchParams }: { searchParams: PageProps<"/supplier/lead
         q={one(params.q) ?? ""}
         page={parsePage(params.page)}
         ownOrgId={view.actor.orgId}
-        campaigns={Object.fromEntries(campaigns.map((row) => [row.id, { name: row.name, brand: row.clientBrandName }]))}
+        campaigns={Object.fromEntries(campaigns.map((row) => [row.id, { name: row.name, clientName: row.clientName }]))}
         campaignChoices={campaigns}
         campaign={parseCampaignFilter(params.campaign, campaigns)}
         aliasNames={Object.fromEntries(aliases.map((alias) => [alias.id, alias.displayName]))}

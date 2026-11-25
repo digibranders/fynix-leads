@@ -18,7 +18,7 @@ describe("the forms render", () => {
   it("Add client asks for the name, time zone, the four profile fields and an optional link, and has no brand field", () => {
     const html = renderToStaticMarkup(<AddClientForm />);
     for (const name of ["name", "timeZone", "introduction", "services", "differentiator", "caseStudies", "collateralTitle", "collateralUrl"]) expect(html).toContain(`name="${name}"`);
-    expect(html).not.toContain('name="brandName"');
+    expect(html.toLowerCase()).not.toContain("brand");
     // The duplicate-name tick box appears only after the server has refused a duplicate.
     expect(html).not.toContain('name="confirmDuplicate"');
   });

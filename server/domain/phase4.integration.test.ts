@@ -87,12 +87,10 @@ beforeEach(async () => {
   if (admin === undefined) throw new Error("No Fynix admin");
   await owner.insert(agreement).values({ campaignId: target.id, party: "client", version: 1, monthlyTarget: 12, totalTarget: 72, createdBy: await memberOf(admin.id) });
   await owner.insert(campaignShare).values({ campaignId: target.id, agencyOrgId: world.brightpath.id, monthlyShare: 5 }).onConflictDoNothing();
-  const [brand] = await owner.select({ name: campaign.clientBrandName }).from(campaign).where(eq(campaign.id, target.id));
-  const brandName = brand?.name ?? "Brand";
   const verifiedAlias = async (memberId: string, displayName: string, email: string): Promise<string> => {
     const [row] = await owner
       .insert(aliasIdentity)
-      .values({ publicRef: `ALI-${displayName.length}M2K`.slice(0, 8).replace(/[^A-Z0-9-]/g, "7"), memberId, clientBrandName: brandName, displayName, jobTitle: "Business development", aliasEmail: email, verifiedAt: new Date(), status: "active" })
+      .values({ publicRef: `ALI-${displayName.length}M2K`.slice(0, 8).replace(/[^A-Z0-9-]/g, "7"), memberId, clientOrgId: target.client.id, displayName, jobTitle: "Business development", aliasEmail: email, verifiedAt: new Date(), status: "active" })
       .returning({ id: aliasIdentity.id });
     if (row === undefined) throw new Error("No alias");
     return row.id;
@@ -109,7 +107,7 @@ beforeEach(async () => {
   await owner.insert(campaignShare).values({ campaignId: target.id, agencyOrgId: partnerOrg.id, monthlyShare: 3 });
   const [partnerAliasRow] = await owner
     .insert(aliasIdentity)
-    .values({ publicRef: "ALI-9R4T", memberId: partnerMember.id, clientBrandName: brandName, displayName: "Piet Ridge", jobTitle: "Partnerships", aliasEmail: "piet@ridgeway-brand.example", verifiedAt: new Date(), status: "active" })
+    .values({ publicRef: "ALI-9R4T", memberId: partnerMember.id, clientOrgId: target.client.id, displayName: "Piet Ridge", jobTitle: "Partnerships", aliasEmail: "piet@ridgeway-brand.example", verifiedAt: new Date(), status: "active" })
     .returning({ id: aliasIdentity.id });
   if (partnerAliasRow === undefined) throw new Error("No partner alias");
 

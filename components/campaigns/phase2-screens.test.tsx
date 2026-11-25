@@ -41,7 +41,7 @@ const version = (over: Partial<TenantAgreementVersion>): TenantAgreementVersion 
   inForce: false,
   ...over,
 });
-const card = (over: Partial<TenantAgreementCard>): TenantAgreementCard => ({ campaignId: "c1", campaignName: "UK finance teams", brand: "Kestrel", closed: false, inForce: null, pending: null, history: [], ...over });
+const card = (over: Partial<TenantAgreementCard>): TenantAgreementCard => ({ campaignId: "c1", campaignName: "UK finance teams", clientName: "Kestrel", closed: false, inForce: null, pending: null, history: [], ...over });
 
 describe("Agreement page", () => {
   it("shows the version in force, a newer one waiting with Accept, and the history", () => {
@@ -79,7 +79,7 @@ const campaign = (over: Partial<TenantCampaign>): TenantCampaign => ({
   id: "c1",
   publicRef: "CMP-7Q2X",
   name: "UK finance teams",
-  clientBrandName: "Kestrel",
+  clientName: "Kestrel",
   status: "active",
   startDate: "2026-12-01",
   endDate: "2027-05-31",
@@ -161,7 +161,12 @@ describe("Hosts", () => {
 
 describe("Aliases", () => {
   const clients = [{ id: "k1", name: "Kestrel" }];
-  const alias = { publicRef: "ALI-AAAA", displayName: "Maya Hart", jobTitle: "Sales lead", clientBrandName: "Kestrel", aliasEmail: "maya@x.example", verified: true, clientOrgId: "k1", retired: false };
+  const alias = { publicRef: "ALI-AAAA", displayName: "Maya Hart", jobTitle: "Sales lead", clientName: "Kestrel", aliasEmail: "maya@x.example", verified: true, clientOrgId: "k1", retired: false };
+
+  it("says the client is not set on an alias that never picked one", () => {
+    const html = renderToStaticMarkup(<AliasesView aliases={[{ ...alias, clientName: "", clientOrgId: null }]} clients={clients} canWrite />);
+    expect(html).toContain("Sales lead, client not set");
+  });
 
   it("offers Edit and Retire on an active alias, and neither on a retired one", () => {
     const active = renderToStaticMarkup(<AliasesView aliases={[alias]} clients={clients} canWrite />);
@@ -199,7 +204,7 @@ describe("Campaign filter", () => {
 });
 
 describe("Closed tag on rows", () => {
-  const lead = { id: "l1", publicRef: "LD-1", campaignId: "c2", campaignName: "Old campaign", clientBrandName: "Kestrel", prospectName: "Dana", prospectCompany: "Acme Ltd", prospectDomain: "acme.example", stage: "delivered", scheduledMeetingTime: null, submittedAt: new Date("2026-11-01T10:00:00Z"), overShare: false };
+  const lead = { id: "l1", publicRef: "LD-1", campaignId: "c2", campaignName: "Old campaign", clientName: "Kestrel", prospectName: "Dana", prospectCompany: "Acme Ltd", prospectDomain: "acme.example", stage: "delivered", scheduledMeetingTime: null, submittedAt: new Date("2026-11-01T10:00:00Z"), overShare: false };
 
   it("tags a lead whose campaign is closed, and shows the campaign column", () => {
     const campaigns = [{ id: "c2", name: "Old campaign", status: "completed" as const }];

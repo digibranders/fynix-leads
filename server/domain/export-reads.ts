@@ -7,6 +7,7 @@ import { withTenantScope } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import { generateAgencyLeadsCsv, generateClientLeadsCsv, generateFynixLeadsCsv, generateMeetingsCsv, type MeetingExportRow } from "@/server/domain/exports";
 import type { FynixActor } from "@/server/domain/fynix-write";
+import { campaignClientName } from "@/server/db/client-name";
 
 /**
  * CSV exports of leads and meetings for each portal. What a file holds is what the same viewer's screens read: a client's file comes through the client's
@@ -49,7 +50,7 @@ export async function exportLeadsCsv(db: Database, actor: ExportActor, filter: E
       .select({
         publicRef: lead.publicRef,
         campaignName: campaign.name,
-        clientBrandName: campaign.clientBrandName,
+        clientName: campaignClientName(campaign.id),
         prospectName: lead.prospectName,
         prospectTitle: lead.prospectTitle,
         prospectCompany: lead.prospectCompany,
@@ -113,12 +114,12 @@ export async function exportMeetingsCsv(db: Database, actor: ExportActor, filter
     }
     // The meeting policy lets a partner agency read every meeting of a campaign it has a share in, so the agency's file names its own leads and the coordinator's campaigns.
     const rows = await tx
-      .select({ ...agencyMeetingColumns, ...prospect })
+      .select({ ...agencyMeetingColumns, ...prospect, clientName: campaignClientName(campaign.id) })
       .from(meeting)
       .innerJoin(lead, eq(lead.id, meeting.leadId))
       .innerJoin(campaign, eq(campaign.id, meeting.campaignId))
       .where(and(or(eq(lead.sourceOrgId, actor.orgId), eq(campaign.agencyOrgId, actor.orgId)), ...meetingConditions(filter)))
       .orderBy(desc(meeting.scheduledStartTime));
-    return generateMeetingsCsv(rows);
+    return generateMeetingsCsv(rows, { withClient: true });
   });
 }

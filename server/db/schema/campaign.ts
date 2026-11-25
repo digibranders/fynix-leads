@@ -9,8 +9,7 @@ import { organisation } from "./organisation";
  * - The client never gets a grant on `agency_org_id`, and the agency never gets one on `client_org_id`.
  * - `client_org_kind` and `agency_org_kind` are constants. The composite foreign keys below use them to make the
  *   database refuse a client id that points at an agency, or the other way round.
- * - `client_brand_name` is a copy of the client's brand, kept in step by triggers (migration 0004), so an agency can
- *   read the brand of its own campaigns without being able to read any client organisation row.
+ * - An agency reads the client's name through `app_campaign_client_name(campaign.id)` (migration 0078), which answers only for the campaigns it serves.
  */
 export const campaign = pgTable(
   "campaign",
@@ -23,7 +22,7 @@ export const campaign = pgTable(
     clientOrgKind: organisationKind("client_org_kind").notNull().generatedAlwaysAs(sql`'client'::organisation_kind`),
     agencyOrgId: uuid("agency_org_id").notNull(),
     agencyOrgKind: organisationKind("agency_org_kind").notNull().generatedAlwaysAs(sql`'agency'::organisation_kind`),
-    /** Set by a trigger from the client organisation. Callers do not pass it. */
+    // Unused since release 1, dropped in release 2. A trigger keeps it equal to the client's name for the process that still runs the old code.
     clientBrandName: text("client_brand_name").notNull().default(""),
     /** Fynix only. No tenant role has a grant on this column. */
     internalNotes: text("internal_notes"),

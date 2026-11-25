@@ -68,11 +68,9 @@ beforeEach(async () => {
   await owner.insert(agreement).values({ campaignId: target.id, party: "supplier", version: 1, monthlyTarget: 10, totalTarget: 60, createdBy: await memberOf(admin.id) });
   await owner.insert(agreement).values({ campaignId: target.id, party: "client", version: 1, monthlyTarget: 12, totalTarget: 72, createdBy: await memberOf(admin.id) });
   await owner.insert(campaignShare).values({ campaignId: target.id, agencyOrgId: world.brightpath.id, monthlyShare: 5 }).onConflictDoNothing();
-  const [brand] = await owner.select({ name: campaign.clientBrandName }).from(campaign).where(eq(campaign.id, target.id));
-  const brandOfTarget = brand?.name ?? "Brand";
   const [alias] = await owner
     .insert(aliasIdentity)
-    .values({ publicRef: "ALI-7M2K", memberId: agencyMember, clientBrandName: brandOfTarget, displayName: "Lena Hartmann", jobTitle: "BD", aliasEmail: "lena@brand.example", verifiedAt: new Date(), status: "active" })
+    .values({ publicRef: "ALI-7M2K", memberId: agencyMember, clientOrgId: target.client.id, displayName: "Lena Hartmann", jobTitle: "BD", aliasEmail: "lena@brand.example", verifiedAt: new Date(), status: "active" })
     .returning({ id: aliasIdentity.id });
   if (alias === undefined) throw new Error("No alias");
   cast = {
@@ -341,10 +339,10 @@ describe("campaigns for each portal", () => {
 });
 
 describe("the campaign rules around a lead", () => {
-  it("refuses an alias made for another client's brand", async () => {
+  it("refuses an alias made for another client", async () => {
     const owner = rig.dbs.owner.db;
-    await owner.update(aliasIdentity).set({ clientBrandName: "Some Other Brand" }).where(eq(aliasIdentity.id, cast.aliasId));
-    await expect(submitLead(rig.dbs.roles.leads_agency.db, rig.deps(), cast.agencyActor, leadInput([new Date(Date.now() + 3 * 86_400_000).toISOString()]))).rejects.toThrow(/different client brand/);
+    await owner.update(aliasIdentity).set({ clientOrgId: rig.world().halden.id }).where(eq(aliasIdentity.id, cast.aliasId));
+    await expect(submitLead(rig.dbs.roles.leads_agency.db, rig.deps(), cast.agencyActor, leadInput([new Date(Date.now() + 3 * 86_400_000).toISOString()]))).rejects.toThrow(/different client/);
   });
 
   it("refuses to assign an archived campaign", async () => {

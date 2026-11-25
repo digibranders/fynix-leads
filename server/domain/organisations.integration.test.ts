@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { RandomBytes } from "@/lib/domain/public-ref";
-import { campaign, clientCollateral, organisation } from "@/server/db/schema";
+import { clientCollateral, organisation } from "@/server/db/schema";
 import { auditRowsFor, scriptedBytes } from "@/server/domain/test-helpers";
 import { DomainError } from "@/server/domain/errors";
 import { addCollateral, createOrganisation, readClientProfile, removeCollateral, setOrganisationStatus, updateClientProfile, updateOrganisation } from "@/server/domain/organisations";
@@ -19,7 +19,7 @@ beforeEach(async () => {
 });
 
 const AGENCY = { kind: "agency", name: "Ridgeway Media Pvt Ltd" } as const;
-const CLIENT = { kind: "client", name: "Orchard Foods Ltd", brandName: "Orchard" } as const;
+const CLIENT = { kind: "client", name: "Orchard Foods Ltd" } as const;
 const refusal = async (work: Promise<unknown>): Promise<DomainError> => {
   try {
     await work;
@@ -33,18 +33,20 @@ const refusal = async (work: Promise<unknown>): Promise<DomainError> => {
 describe("createOrganisation", () => {
   it("creates an agency with a generated reference, and audits it", async () => {
     const created = await createOrganisation(rig.deps(), rig.actor, AGENCY);
-    expect(created).toMatchObject({ kind: "agency", name: "Ridgeway Media Pvt Ltd", brandName: null, status: "active" });
+    expect(created).toMatchObject({ kind: "agency", name: "Ridgeway Media Pvt Ltd", status: "active" });
     expect(created.publicRef).toMatch(/^ORG-[0-9A-HJKMNP-TV-Z]{4}$/);
     const [audit] = await auditRowsFor(rig, "organisation.create");
-    expect(audit).toMatchObject({ actorUserId: rig.actor.userId, subjectTable: "organisation", subjectId: created.id, subjectRef: created.publicRef, before: null, after: { ref: created.publicRef, kind: "agency", name: "Ridgeway Media Pvt Ltd", brandName: null, status: "active" } });
+    expect(audit).toMatchObject({ actorUserId: rig.actor.userId, subjectTable: "organisation", subjectId: created.id, subjectRef: created.publicRef, before: null, after: { ref: created.publicRef, kind: "agency", name: "Ridgeway Media Pvt Ltd", status: "active" } });
   });
 
-  it("creates a client with its brand name", async () => {
+  it("creates a client with its one name", async () => {
     const created = await createOrganisation(rig.deps(), rig.actor, CLIENT);
-    expect(created).toMatchObject({ kind: "client", brandName: "Orchard" });
+    expect(created).toMatchObject({ kind: "client", name: "Orchard Foods Ltd" });
+    expect(created).not.toHaveProperty("brandName");
   });
 
   it.each([
+    ["a brand name on a client", { kind: "client", name: "Brand Client Ltd", brandName: "Brand" }],
     ["a brand name on an agency", { kind: "agency", name: "Brand Agency Ltd", brandName: "Brand" }],
     ["a time zone that does not exist", { kind: "client", name: "Zone Ltd", timeZone: "Mars/Olympus" }],
     ["a second Fynix organisation", { kind: "fynix", name: "Another Fynix" }],
@@ -55,10 +57,10 @@ describe("createOrganisation", () => {
     expect(await auditRowsFor(rig)).toEqual([]);
   });
 
-  it("defaults a client's brand name to its name, and takes a time zone and a profile in the same transaction", async () => {
+  it("takes a time zone and a profile in the same transaction", async () => {
     const profile = { introduction: "A family grocer", services: "Fresh produce", differentiator: "Picked the same day", caseStudies: "Cut waste by 20 percent" };
     const created = await createOrganisation(rig.deps(), rig.actor, { kind: "client", name: "Orchard Foods Ltd", timeZone: "Europe/Dublin", profile });
-    expect(created).toMatchObject({ brandName: "Orchard Foods Ltd", timeZone: "Europe/Dublin" });
+    expect(created).toMatchObject({ name: "Orchard Foods Ltd", timeZone: "Europe/Dublin" });
     expect((await readClientProfile(rig.deps(), rig.staffActor, created.id)).profile).toEqual({ clientOrgId: created.id, ...profile });
     expect((await auditRowsFor(rig)).map((row) => row.action)).toEqual(["organisation.create", "client_profile.update"]);
   });
@@ -89,19 +91,18 @@ describe("createOrganisation", () => {
 });
 
 describe("updateOrganisation", () => {
-  it("renames an organisation, audits the before and after, and follows a brand change onto the client's campaigns", async () => {
+  it("renames an organisation and audits the before and after", async () => {
     const { kestrel } = rig.world();
-    const after = await updateOrganisation(rig.deps(), rig.actor, kestrel.id, { name: "Kestrel Freight Ltd", brandName: "Kestrel Freight" });
-    expect(after).toMatchObject({ name: "Kestrel Freight Ltd", brandName: "Kestrel Freight" });
+    const after = await updateOrganisation(rig.deps(), rig.actor, kestrel.id, { name: "Kestrel Freight Ltd" });
+    expect(after).toMatchObject({ name: "Kestrel Freight Ltd" });
     const [audit] = await auditRowsFor(rig, "organisation.update");
-    expect(audit).toMatchObject({ before: { ref: kestrel.publicRef, name: "Kestrel Logistics Ltd", brandName: "Kestrel" }, after: { ref: kestrel.publicRef, name: "Kestrel Freight Ltd", brandName: "Kestrel Freight" } });
-    const brands = await rig.dbs.owner.db.select({ brand: campaign.clientBrandName }).from(campaign).where(eq(campaign.clientOrgId, kestrel.id));
-    expect(brands.map((row) => row.brand)).toEqual(["Kestrel Freight", "Kestrel Freight"]);
+    expect(audit).toMatchObject({ before: { ref: kestrel.publicRef, name: "Kestrel Logistics Ltd" }, after: { ref: kestrel.publicRef, name: "Kestrel Freight Ltd" } });
   });
 
-  it("refuses a brand name for an agency, the Fynix organisation, an unknown id and an empty change", async () => {
+  it("refuses a brand name, the Fynix organisation, an unknown id and an empty change", async () => {
     const { brightpath, fynix } = rig.world();
     expect((await refusal(updateOrganisation(rig.deps(), rig.actor, brightpath.id, { brandName: "Brightpath" }))).code).toBe("invalid-input");
+    expect((await refusal(updateOrganisation(rig.deps(), rig.actor, rig.world().kestrel.id, { brandName: "Kestrel" }))).code).toBe("invalid-input");
     expect((await refusal(updateOrganisation(rig.deps(), rig.actor, fynix.id, { name: "New" }))).code).toBe("invalid-transition");
     expect((await refusal(updateOrganisation(rig.deps(), rig.actor, "99999999-9999-4999-8999-999999999999", { name: "New" }))).code).toBe("not-found");
     expect((await refusal(updateOrganisation(rig.deps(), rig.actor, brightpath.id, {}))).code).toBe("invalid-input");
@@ -136,12 +137,6 @@ describe("updateOrganisation, time zone and rename", () => {
 
   it("refuses a time zone that does not exist", async () => {
     expect((await refusal(updateOrganisation(rig.deps(), rig.actor, rig.world().kestrel.id, { timeZone: "Mars/Olympus" }))).code).toBe("invalid-input");
-  });
-
-  it("keeps a client's brand equal to its name when the name changes and they were equal", async () => {
-    const created = await createOrganisation(rig.deps(), rig.actor, { kind: "client", name: "Orchard Foods Ltd" });
-    expect(await updateOrganisation(rig.deps(), rig.actor, created.id, { name: "Orchard Fresh Ltd" })).toMatchObject({ name: "Orchard Fresh Ltd", brandName: "Orchard Fresh Ltd" });
-    expect(await updateOrganisation(rig.deps(), rig.actor, rig.world().kestrel.id, { name: "Kestrel Group Ltd" })).toMatchObject({ brandName: "Kestrel" });
   });
 
   it("refuses staff", async () => {
@@ -188,4 +183,3 @@ describe("the client profile and its collateral", () => {
     expect((await refusal(addCollateral(rig.deps(), rig.staffActor, { clientOrgId: id, kind: "link", title: "Deck", url: "https://example.com/a" }))).code).toBe("admin-required");
   });
 });
-

@@ -22,6 +22,7 @@ import type { TenantActor } from "@/server/domain/alias-identity";
 import { DomainError } from "@/server/domain/errors";
 import { type FynixActor } from "@/server/domain/fynix-write";
 import { listCampaignHostChoices } from "@/server/domain/host-availability";
+import { campaignClientName, clientNameOf } from "@/server/db/client-name";
 export interface LeadHistoryRecord {
   readonly id: string;
   readonly leadId: string;
@@ -207,7 +208,8 @@ export async function getLeadSubmissionOptions(
       .select({
         id: campaign.id,
         name: campaign.name,
-        clientBrandName: campaign.clientBrandName,
+        clientOrgId: campaign.clientOrgId,
+        clientName: campaignClientName(campaign.id),
       })
       .from(campaign)
       .where(and(eq(campaign.agencyOrgId, actor.orgId), eq(campaign.status, "active")));
@@ -216,13 +218,14 @@ export async function getLeadSubmissionOptions(
       .select({
         id: campaign.id,
         name: campaign.name,
-        clientBrandName: campaign.clientBrandName,
+        clientOrgId: campaign.clientOrgId,
+        clientName: campaignClientName(campaign.id),
       })
       .from(campaign)
       .innerJoin(campaignShare, eq(campaign.id, campaignShare.campaignId))
       .where(and(eq(campaignShare.agencyOrgId, actor.orgId), eq(campaign.status, "active")));
 
-    const campaignMap = new Map<string, { id: string; name: string; clientBrandName: string }>();
+    const campaignMap = new Map<string, { id: string; name: string; clientOrgId: string; clientName: string }>();
     for (const c of [...supplierCampaigns, ...shareCampaigns]) {
       campaignMap.set(c.id, c);
     }
@@ -232,7 +235,8 @@ export async function getLeadSubmissionOptions(
       .select({
         id: aliasIdentity.id,
         displayName: aliasIdentity.displayName,
-        clientBrandName: aliasIdentity.clientBrandName,
+        clientOrgId: aliasIdentity.clientOrgId,
+        clientName: clientNameOf(aliasIdentity.clientOrgId),
         aliasEmail: aliasIdentity.aliasEmail,
       })
       .from(aliasIdentity)
@@ -276,7 +280,7 @@ export async function listFynixLeads(
       publicRef: lead.publicRef,
       campaignId: lead.campaignId,
       campaignName: campaign.name,
-      clientBrandName: campaign.clientBrandName,
+      clientName: campaignClientName(campaign.id),
       prospectName: lead.prospectName,
       prospectTitle: lead.prospectTitle,
       prospectCompany: lead.prospectCompany,

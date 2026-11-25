@@ -8,7 +8,7 @@ import type { TenantActor } from "@/server/domain/alias-identity";
 export interface TenantAgreementCard extends AgreementCardModel<TenantAgreementVersion> {
   readonly campaignId: string;
   readonly campaignName: string;
-  readonly brand: string;
+  readonly clientName: string;
   /** A closed campaign's agreement is read only: nothing is accepted on it. */
   readonly closed: boolean;
 }
@@ -25,7 +25,7 @@ export async function loadAgreementCards(db: Database, actor: TenantActor & { re
       ...agreementCard(await listAgreementVersions(db, actor, row.campaignId)),
       campaignId: row.campaignId,
       campaignName: row.campaignName,
-      brand: row.clientBrandName,
+      clientName: row.clientName,
       closed: isClosed(status.get(row.campaignId) ?? "draft"),
     })),
   );

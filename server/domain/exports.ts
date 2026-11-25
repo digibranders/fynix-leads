@@ -59,7 +59,7 @@ export interface FynixLeadRow {
   readonly publicRef: string;
   readonly campaignId?: string;
   readonly campaignName?: string;
-  readonly clientBrandName?: string;
+  readonly clientName?: string;
   readonly prospectName: string;
   readonly prospectTitle: string;
   readonly prospectCompany: string;
@@ -195,7 +195,7 @@ export function generateFynixLeadsCsv(leads: readonly FynixLeadRow[]): string {
   const headers = [
     "Reference",
     "Campaign",
-    "Client Brand",
+    "Client",
     "Prospect Name",
     "Title",
     "Company",
@@ -212,7 +212,7 @@ export function generateFynixLeadsCsv(leads: readonly FynixLeadRow[]): string {
   const rows = leads.map((l) => [
     l.publicRef,
     l.campaignName ?? "",
-    l.clientBrandName ?? "",
+    l.clientName ?? "",
     l.prospectName,
     l.prospectTitle,
     l.prospectCompany,

@@ -547,6 +547,13 @@
       "when": 1795549123839,
       "tag": "0077_two_factor_grants",
       "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1795581432852,
+      "tag": "0078_client_name_release_1",
+      "breakpoints": true
     }
   ]
 }

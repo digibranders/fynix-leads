@@ -300,21 +300,21 @@ export const PROBES: readonly Probe[] = [
  * Every string in the world a viewer must not find, whether in a result or in an error message:
  * - every organisation id, the viewer's own included, because tenants never read an organisation id column (the one exception
  *   is the supplier's own id, which it reads as the parent_org_id of its partner agencies);
- * - the reference and name of every other organisation, and the brand of every other client, except that an agency
- *   may know the brand of the clients of its own campaigns (never their legal names);
+ * - the reference and name of every other organisation, except that an agency may know the name of the clients of the campaigns it serves
+ *   (a client has one name; nothing else of it);
  * - every campaign's internal notes, and the id, reference and name of every campaign that is not the viewer's.
  */
 export function forbiddenTokens(viewer: Viewer, world: SeedWorld): string[] {
   const own = ownCampaigns(viewer, world);
-  const brandVisibleFor = new Set(viewer.role === "leads_agency" ? own.map((row) => row.client.id) : []);
+  const nameVisibleFor = new Set(viewer.role === "leads_agency" ? own.map((row) => row.client.id) : []);
   const ownIdVisible = viewer.role === "leads_agency" && world.setup !== null && viewer.organisation.id === world.brightpath.id;
   const tokens: string[] = [];
   for (const org of [world.fynix, ...world.clients, ...world.agencies]) {
     // The supplier reads parent_org_id on its partner agencies (migration 0032), which is its own id; no tenant reads an organisation.id column.
     if (!(org.id === viewer.organisation.id && ownIdVisible)) tokens.push(org.id);
     if (org.id === viewer.organisation.id) continue;
-    tokens.push(org.publicRef, org.name);
-    if (org.brandName !== null && !brandVisibleFor.has(org.id)) tokens.push(org.brandName);
+    tokens.push(org.publicRef);
+    if (!nameVisibleFor.has(org.id)) tokens.push(org.name);
   }
   for (const row of world.campaigns) {
     tokens.push(row.internalNotes);

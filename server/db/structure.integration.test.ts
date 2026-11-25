@@ -621,7 +621,7 @@ describe("every role", () => {
 
 describe("denied writes", () => {
   const everything = (): string[] => [
-    ...[world.fynix, ...world.clients, ...world.agencies].flatMap((org) => [org.id, org.publicRef, org.name, org.brandName ?? ""]),
+    ...[world.fynix, ...world.clients, ...world.agencies].flatMap((org) => [org.id, org.publicRef, org.name]),
     ...world.campaigns.flatMap((row) => [row.id, row.publicRef, row.name, row.internalNotes]),
   ].filter((token) => token !== "");
 
@@ -677,6 +677,7 @@ describe("phase 1D: what a tenant role holds on the six set-up tables", () => {
   });
 
   it.each(TENANT_ROLES)("%s reads the organisation and campaign columns listed here: the settings and the internal columns stay hidden", async (role) => {
+    // brand_name and client_brand_name stay granted in release 1 of retiring them (nothing reads them; release 2 drops them), so the lists still name them.
     expect(await grantedColumns(dbs.owner.db, role, "organisation")).toEqual(role === "leads_agency" ? ["public_ref", "kind", "name", "brand_name", "parent_org_id"] : ["public_ref", "kind", "name", "brand_name", "time_zone"]);
     // client_org_id and agency_org_id are readable since migrations 0037 and 0039: the lead, meeting and message policies compare them.
     const campaignColumns = await grantedColumns(dbs.owner.db, role, "campaign");

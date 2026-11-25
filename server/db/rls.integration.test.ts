@@ -4,7 +4,6 @@ import { TENANT_COLUMNS, agencyCampaignBriefColumns, columnNames } from "@/serve
 import { TENANT_ROLES } from "@/server/db/roles";
 import { auditLog, campaign, organisation } from "@/server/db/schema";
 import { withScope } from "@/server/db/scope";
-import { selectCampaigns } from "@/server/db/tenant-reads";
 import { captureErrorText, openTestDatabases, queryAs, resetDatabase, type TestDatabases } from "@/server/db/testing";
 import { seedWorld, type SeedWorld } from "@/server/db/testing/seed";
 
@@ -80,39 +79,10 @@ describe("tenant column lists match the grants", () => {
     const policyColumns = ["agency_org_id", "client_org_id"];
     // Since migrations 0054 (agency) and 0064 (client) both roles read the campaign brief.
     const briefColumns = columnNames(agencyCampaignBriefColumns);
-    expect(await granted(role, "campaign")).toEqual([...columnNames(TENANT_COLUMNS[role].campaign), ...policyColumns, ...briefColumns].sort());
-    expect(await granted(role, "organisation")).toEqual(columnNames(TENANT_COLUMNS[role].organisation).sort());
-  });
-});
-
-describe("the client brand copy", () => {
-  const brandOf = async (publicRef: string): Promise<string | undefined> => {
-    const rows = await dbs.owner.db.select({ brand: campaign.clientBrandName }).from(campaign).where(eq(campaign.publicRef, publicRef));
-    return rows[0]?.brand;
-  };
-
-  it("is filled from the client when a campaign is created", async () => {
-    expect(await brandOf("CMP-7Q2X")).toBe("Kestrel");
-    expect(await brandOf("CMP-4M6R")).toBe("Halden");
-  });
-
-  it("follows a rename of the client's brand, and the agency sees the new name", async () => {
-    await asFynix((tx) => tx.update(organisation).set({ brandName: "Kestrel Freight" }).where(eq(organisation.publicRef, "ORG-4K9P")));
-    expect(await brandOf("CMP-7Q2X")).toBe("Kestrel Freight");
-    expect(await brandOf("CMP-8T3W")).toBe("Kestrel Freight");
-    expect(await brandOf("CMP-4M6R")).toBe("Halden");
-    const seen = await withScope(dbs.roles.leads_agency.db, { orgId: world.brightpath.id, userId: USER }, (tx) => selectCampaigns(tx, "leads_agency"));
-    expect(seen.map((row) => row.clientBrandName).sort()).toEqual(["Halden", "Kestrel Freight"]);
-  });
-
-  it("is filled again when a campaign moves to another client, and cannot be set by the caller", async () => {
-    await asFynix((tx) => tx.update(campaign).set({ clientOrgId: world.halden.id, clientBrandName: "Spoofed" }).where(eq(campaign.publicRef, "CMP-7Q2X")));
-    expect(await brandOf("CMP-7Q2X")).toBe("Halden");
-  });
-
-  it("is restored when only the brand column is written, so a direct edit cannot show the agency a wrong brand", async () => {
-    await asFynix((tx) => tx.update(campaign).set({ clientBrandName: "Typed by hand" }).where(eq(campaign.publicRef, "CMP-7Q2X")));
-    expect(await brandOf("CMP-7Q2X")).toBe("Kestrel");
+    // Release 1 of retiring the brand columns: nothing selects them, but the grants stay until release 2 drops the columns (the process that is still running reads them).
+    const retired = { campaign: ["client_brand_name"], organisation: ["brand_name"] };
+    expect(await granted(role, "campaign")).toEqual([...columnNames(TENANT_COLUMNS[role].campaign), ...policyColumns, ...briefColumns, ...retired.campaign].sort());
+    expect(await granted(role, "organisation")).toEqual([...columnNames(TENANT_COLUMNS[role].organisation), ...retired.organisation].sort());
   });
 });
 
@@ -151,11 +121,6 @@ describe("integrity the database enforces", () => {
   ])("refuses %s", async (_label, change, constraint) => {
     const message = await captureErrorText(asFynix((tx) => tx.insert(campaign).values({ ...baseCampaign(), ...change })));
     expect(message).toContain(constraint);
-  });
-
-  it("refuses a client organisation without a brand name", async () => {
-    const message = await captureErrorText(asFynix((tx) => tx.insert(organisation).values({ publicRef: "ORG-5E6F", kind: "client", name: "No Brand Ltd" })));
-    expect(message).toContain("organisation_client_has_brand");
   });
 });
 

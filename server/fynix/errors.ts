@@ -26,7 +26,7 @@ const MESSAGES: Readonly<Record<DomainErrorCode, string>> = {
   "exclusion-conflict": "That exclusion rule already exists for this client.",
   "prospect-excluded": "This prospect matches an exclusion rule on the client's exclusion list.",
   "prospect-duplicate": "A lead for this prospect has already been submitted for this client.",
-  "alias-not-verified": "The selected client-brand alias identity has not been verified yet.",
+  "alias-not-verified": "The selected client alias identity has not been verified yet.",
   "invalid-lead-stage": "This action cannot be performed on a lead in its current stage.",
   "duplicate-name": "A company with that name already exists. Check the list, or confirm to add it anyway.",
   "agreement-not-accepted": "The client and the coordinator must both accept the agreement before the campaign can go live.",
