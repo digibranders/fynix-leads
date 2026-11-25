@@ -84,7 +84,7 @@ async function findPeople(tx: ScopedTransaction, actor: MessagingActor, portal: 
     return rows.map((row) => ({
       label: row.name,
       detail: [row.title, row.orgName].filter((part): part is string => part !== null).join(", "),
-      href: row.kind === "client" ? `/fynix/clients/${row.orgRef}/people` : row.kind === "agency" ? `/fynix/suppliers/${row.parentRef ?? row.orgRef}/people` : "/fynix/settings",
+      href: row.kind === "client" ? `/fynix/clients/${row.orgRef}/people` : row.kind === "agency" ? (row.parentRef === null ? `/fynix/suppliers/${row.orgRef}/people` : `/fynix/agencies/${row.orgRef}/people`) : "/fynix/settings",
     }));
   }
   // The caller's own people, and for a coordinator its partner agencies': the same list the Team page shows, which never reaches the other side.
@@ -106,7 +106,7 @@ async function findCompanies(tx: ScopedTransaction, actor: MessagingActor, porta
       .limit(SEARCH_LIMIT_PER_TYPE);
     return rows
       .filter((row) => row.kind !== "fynix")
-      .map((row) => ({ label: row.name, detail: row.kind === "client" ? "Client" : row.parentRef === null ? "Coordinator" : "Agency", href: row.kind === "client" ? `/fynix/clients/${row.ref}` : `/fynix/suppliers/${row.parentRef ?? row.ref}` }));
+      .map((row) => ({ label: row.name, detail: row.kind === "client" ? "Client" : row.parentRef === null ? "Coordinator" : "Agency", href: row.kind === "client" ? `/fynix/clients/${row.ref}` : row.parentRef === null ? `/fynix/suppliers/${row.ref}` : `/fynix/agencies/${row.ref}` }));
   }
   // A tenant reads its own organisation row (a coordinator also its partner agencies', which it manages), and nothing of the other side. Only an agency
   // may read `parent_org_id`; a client's company is its own, so it needs no more than the name.

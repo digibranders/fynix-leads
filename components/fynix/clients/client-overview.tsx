@@ -5,6 +5,7 @@ import { Panel, PanelHeader } from "@/components/kit/panel";
 import { Button } from "@/components/ui/button";
 import type { ClientDetail } from "@/server/domain/client-overview";
 import { removeCollateralAction } from "@/server/fynix/actions";
+import { ContactPanel } from "../records/contact-panel";
 import { FormSheet } from "../forms/form-sheet";
 import { InlineAction } from "../forms/inline-action";
 import { AddCollateralForm, EditProfileForm } from "../forms/client-forms";
@@ -33,6 +34,8 @@ export function ClientOverview({ client, canWrite }: { client: ClientDetail; can
         ]}
         className="sm:grid-cols-3"
       />
+
+      <ContactPanel organisationId={client.id} contact={client.contact} canWrite={canWrite} />
 
       <Panel aria-label="Client profile">
         <PanelHeader

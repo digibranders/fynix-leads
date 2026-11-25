@@ -1,6 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { getDomain } from "@/server/domain";
+import { readAgencyDetail, type AgencyDetail } from "@/server/domain/agency-overview";
 import { readClientDetail, type ClientDetail } from "@/server/domain/client-overview";
 import { readSupplierDetail, type SupplierDetail } from "@/server/domain/supplier-overview";
 import { orNotFound } from "@/server/fynix/session";
@@ -10,3 +11,6 @@ export const loadClient = cache((reference: string, userId: string): Promise<Cli
 
 /** The coordinator a page is about, found the same way. */
 export const loadSupplier = cache((reference: string, userId: string): Promise<SupplierDetail> => orNotFound(readSupplierDetail(getDomain(), { userId }, reference)));
+
+/** The partner agency a page is about, found the same way. An unknown reference, or a coordinator's, is the not-found page. */
+export const loadAgency = cache((reference: string, userId: string): Promise<AgencyDetail> => orNotFound(readAgencyDetail(getDomain(), { userId }, reference)));

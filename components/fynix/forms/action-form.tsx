@@ -39,7 +39,8 @@ export function ActionForm({ action, submitLabel, pendingLabel, savedMessage = "
 
   useEffect(() => {
     if (state.status !== "done") return;
-    toast.success(savedMessage);
+    if (!state.notice) toast.success(savedMessage);
+    else toast.warning(state.notice, { duration: 12_000 });
     close();
     if (state.redirectTo !== null) router.push(state.redirectTo);
   }, [state, close, router, savedMessage]);

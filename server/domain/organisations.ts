@@ -5,7 +5,7 @@ import type { ScopedTransaction } from "@/server/db/scope";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
 import { fynixRead, fynixWrite, type FynixActor } from "@/server/domain/fynix-write";
-import { addCollateralSchema, createOrganisationSchema, updateClientProfileSchema, updateOrganisationSchema, uuidSchema } from "@/server/domain/inputs";
+import { addCollateralSchema, CONTACT_KEYS, createOrganisationSchema, updateClientProfileSchema, updateOrganisationSchema, uuidSchema } from "@/server/domain/inputs";
 import { parseInput } from "@/server/domain/parse";
 import { insertWithPublicRef } from "@/server/domain/refs";
 import { snapshotCollateral, snapshotOrganisation, snapshotProfile } from "@/server/domain/snapshots";
@@ -33,6 +33,37 @@ export const organisationColumns = {
   status: organisation.status,
 };
 
+/** The company contact details. Fynix reads and writes them; no tenant role may (migration 0080), so they are never part of `organisationColumns`, which tenant code also uses. */
+export interface OrganisationContact {
+  readonly contactName: string | null;
+  readonly contactEmail: string | null;
+  readonly contactPhone: string | null;
+  readonly website: string | null;
+  readonly address: string | null;
+  readonly notes: string | null;
+}
+
+export const contactColumns = {
+  contactName: organisation.contactName,
+  contactEmail: organisation.contactEmail,
+  contactPhone: organisation.contactPhone,
+  website: organisation.website,
+  address: organisation.address,
+  notes: organisation.notes,
+};
+
+/** The contact fields a create input carries, as columns (a field left out is null). */
+export function contactValues(input: { readonly [K in keyof OrganisationContact]?: string | undefined }): OrganisationContact {
+  return {
+    contactName: input.contactName ?? null,
+    contactEmail: input.contactEmail ?? null,
+    contactPhone: input.contactPhone ?? null,
+    website: input.website ?? null,
+    address: input.address ?? null,
+    notes: input.notes ?? null,
+  };
+}
+
 async function loadEditable(tx: ScopedTransaction, id: string): Promise<OrganisationRecord> {
   const [row] = await tx.select(organisationColumns).from(organisation).where(eq(organisation.id, id)).limit(1).for("update");
   if (row === undefined) throw new DomainError("not-found", "There is no such organisation.");
@@ -45,7 +76,7 @@ async function loadEditable(tx: ScopedTransaction, id: string): Promise<Organisa
 export function insertOrganisation(
   tx: ScopedTransaction,
   randomBytes: RandomBytes,
-  values: { readonly kind: "client" | "agency"; readonly name: string; readonly parentOrgId: string | null; readonly timeZone?: string | null },
+  values: { readonly kind: "client" | "agency"; readonly name: string; readonly parentOrgId: string | null; readonly timeZone?: string | null } & Partial<OrganisationContact>,
 ): Promise<OrganisationRecord> {
   return insertWithPublicRef(tx, { prefix: "ORG", constraint: "organisation_public_ref_unique", randomBytes }, async (attempt, publicRef) => {
     const [row] = await attempt.insert(organisation).values({ publicRef, ...values }).returning(organisationColumns);
@@ -124,13 +155,15 @@ export async function createOrganisation(deps: DomainDeps, actor: FynixActor, in
   const parsed = parseInput(createOrganisationSchema, input);
   return fynixWrite(deps.fynixDb, actor, async ({ tx, audit }) => {
     await refuseDuplicateName(tx, parsed.kind, parsed.name, parsed.confirmDuplicate);
+    const contact = contactValues(parsed);
     const created = await insertOrganisation(tx, deps.randomBytes, {
       kind: parsed.kind,
       name: parsed.name,
       parentOrgId: null,
       timeZone: parsed.timeZone ?? null,
+      ...contact,
     });
-    await audit({ action: "organisation.create", subject: { table: "organisation", id: created.id, ref: created.publicRef }, before: null, after: snapshotOrganisation(created) });
+    await audit({ action: "organisation.create", subject: { table: "organisation", id: created.id, ref: created.publicRef }, before: null, after: snapshotOrganisation(created, contact) });
     if (parsed.profile !== undefined) {
       const { after } = await upsertProfile(tx, created.id, parsed.profile, deps.now());
       await audit({ action: "client_profile.update", subject: { table: "client_profile", id: created.id, ref: created.publicRef }, before: null, after: snapshotProfile(after) });
@@ -140,24 +173,31 @@ export async function createOrganisation(deps: DomainDeps, actor: FynixActor, in
 }
 
 /**
- * Renames an organisation or sets the time zone of either (`null` clears it). A client has one name: everyone who may see it sees the new name.
+ * Renames an organisation, sets the time zone of either (`null` clears it) and changes its contact details (a field left out stays, `null` clears it).
+ * A client has one name: everyone who may see it sees the new name. The contact details are for Fynix only.
  */
 export async function updateOrganisation(deps: DomainDeps, actor: FynixActor, organisationId: string, input: unknown): Promise<OrganisationRecord> {
   const id = parseInput(uuidSchema, organisationId);
   const parsed = parseInput(updateOrganisationSchema, input);
   return fynixWrite(deps.fynixDb, actor, async ({ tx, audit }) => {
     const before = await loadEditable(tx, id);
-    const [after] = await tx
-      .update(organisation)
-      .set({
-        ...(parsed.name === undefined ? {} : { name: parsed.name }),
-        ...(parsed.timeZone === undefined ? {} : { timeZone: parsed.timeZone }),
-      })
-      .where(eq(organisation.id, id))
-      .returning(organisationColumns);
+    const [contactBefore] = await tx.select(contactColumns).from(organisation).where(eq(organisation.id, id)).limit(1);
+    if (contactBefore === undefined) throw new Error("The organisation contact read returned no row");
+    const changes = {
+      ...(parsed.name === undefined ? {} : { name: parsed.name }),
+      ...(parsed.timeZone === undefined ? {} : { timeZone: parsed.timeZone }),
+      ...Object.fromEntries(CONTACT_KEYS.flatMap((key) => (parsed[key] === undefined ? [] : [[key, parsed[key]]]))),
+    };
+    const [after] = await tx.update(organisation).set(changes).where(eq(organisation.id, id)).returning({ ...organisationColumns, ...contactColumns });
     if (after === undefined) throw new Error("The organisation update returned no row");
-    await audit({ action: "organisation.update", subject: { table: "organisation", id, ref: after.publicRef }, before: snapshotOrganisation(before), after: snapshotOrganisation(after) });
-    return after;
+    const { contactName, contactEmail, contactPhone, website, address, notes, ...record } = after;
+    await audit({
+      action: "organisation.update",
+      subject: { table: "organisation", id, ref: after.publicRef },
+      before: snapshotOrganisation(before, contactBefore),
+      after: snapshotOrganisation(record, { contactName, contactEmail, contactPhone, website, address, notes }),
+    });
+    return record;
   });
 }
 

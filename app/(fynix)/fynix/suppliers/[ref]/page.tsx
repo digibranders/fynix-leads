@@ -10,7 +10,7 @@ export const metadata: Metadata = { title: "Coordinator" };
 async function Overview({ params }: { params: PageProps<"/fynix/suppliers/[ref]">["params"] }) {
   const view = await requireFynix();
   const { ref } = await params;
-  return <SupplierOverview supplier={await loadSupplier(ref, view.actor.userId)} />;
+  return <SupplierOverview supplier={await loadSupplier(ref, view.actor.userId)} canWrite={view.canWrite} />;
 }
 
 export default function SupplierOverviewPage({ params }: PageProps<"/fynix/suppliers/[ref]">) {

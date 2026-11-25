@@ -3,25 +3,61 @@
 import type { FormState } from "@/lib/fynix/form-state";
 import { addAgencyAction, addSupplierAction, invitePersonAction, updateOrganisationAction } from "@/server/fynix/actions";
 import { ActionForm } from "./action-form";
-import { FormGroup, Hidden, SelectField, TextField } from "./form-parts";
+import { ContactFields } from "./contact-forms";
+import { ConfirmField, FormGroup, Hidden, SelectField, TextField, TimeZoneField } from "./form-parts";
 
+const FIRST_PERSON_ROLES = [
+  { value: "manager", label: "Manager" },
+  { value: "member", label: "Member" },
+] as const;
+
+/** The optional first person of a new coordinator or agency: invited in the same step. Left empty, nothing is sent. */
+function FirstPersonFields({ roleHelper }: { roleHelper: string }) {
+  return (
+    <FormGroup title="First person (optional)">
+      <p className="text-xs text-muted-foreground">Invite someone now, or leave this empty and invite people later. The invite link goes by email and works for 7 days.</p>
+      <TextField name="firstName" label="Full name" autoComplete="off" />
+      <TextField name="firstJobTitle" label="Job title" autoComplete="off" />
+      <TextField name="firstEmail" label="Email" type="email" inputMode="email" helper="The invite link goes here." />
+      <TextField name="firstPhone" label="Phone (optional)" />
+      <SelectField name="firstRole" label="Role" options={FIRST_PERSON_ROLES} defaultValue="manager" helper={roleHelper} />
+    </FormGroup>
+  );
+}
+
+/** Adds a coordinator and, if given, invites its first person. A coordinator of the same name needs a tick. */
 export function AddSupplierForm() {
   return (
     <ActionForm action={addSupplierAction} submitLabel="Add coordinator" pendingLabel="Adding">
       <FormGroup>
-        <TextField name="name" label="Coordinator name" helper="The company name. You can invite its people next." />
+        <TextField name="name" label="Coordinator name" helper="A coordinator is an agency that works with Fynix directly. Use the company name." />
+        <TimeZoneField helper="Where the coordinator works, for example Europe/London. Start typing to pick one. Used when showing times for them. Optional." />
+        <ConfirmField name="confirmDuplicate" label="Add it anyway" />
       </FormGroup>
+      <ContactFields />
+      <FirstPersonFields roleHelper="A manager can invite their own people and partner agencies. A member cannot." />
     </ActionForm>
   );
 }
 
-export function AddAgencyForm({ supplierId }: { supplierId: string }) {
+/**
+ * Adds a partner agency under a coordinator and, if given, invites its first person. Opened inside a coordinator it takes that coordinator
+ * (`supplierId`, hidden); opened from the Agencies page it asks for one from `coordinators`.
+ */
+export function AddAgencyForm({ supplierId, coordinators = [] }: { supplierId?: string; coordinators?: readonly { readonly id: string; readonly name: string }[] }) {
   return (
     <ActionForm action={addAgencyAction} submitLabel="Add agency" pendingLabel="Adding">
-      <Hidden name="supplierId" value={supplierId} />
+      {supplierId === undefined ? null : <Hidden name="supplierId" value={supplierId} />}
       <FormGroup>
-        <TextField name="name" label="Agency name" helper="The partner agency's company name." />
+        {supplierId === undefined ? (
+          <SelectField name="supplierId" label="Coordinator" options={coordinators.map((row) => ({ value: row.id, label: row.name }))} placeholder="Choose a coordinator" helper="The agency works under this coordinator." />
+        ) : null}
+        <TextField name="name" label="Agency name" helper={supplierId === undefined ? "The partner agency's company name." : "A partner agency works under this coordinator. Use the company name."} />
+        <TimeZoneField helper="Where the agency works, for example Europe/London. Start typing to pick one. Optional." />
+        <ConfirmField name="confirmDuplicate" label="Add it anyway" />
       </FormGroup>
+      <ContactFields />
+      <FirstPersonFields roleHelper="A manager can invite colleagues. A member cannot." />
     </ActionForm>
   );
 }
@@ -90,7 +126,7 @@ export function EditOrganisationForm({ organisationId, name, timeZone, label }: 
       <Hidden name="organisationId" value={organisationId} />
       <FormGroup>
         <TextField name="name" label={`${label} name`} defaultValue={name} />
-        <TextField name="timeZone" label="Time zone" defaultValue={timeZone ?? ""} helper="For example Europe/London. Leave it empty if not known." />
+        <TimeZoneField defaultValue={timeZone ?? ""} helper="For example Europe/London. Start typing to pick one. Leave it empty if not known." />
       </FormGroup>
     </ActionForm>
   );

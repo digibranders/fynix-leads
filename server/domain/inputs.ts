@@ -15,6 +15,40 @@ const count = z.number().int().min(0).max(1_000_000);
 /** An IANA zone such as `Europe/London`. Trimmed, then checked against the runtime's time zone database (lib/domain/campaign-settings.ts). */
 export const timeZoneSchema = z.string().trim().refine(isIanaTimeZone, "must be an IANA time zone such as Europe/London");
 
+/** A phone number as typed: digits, spaces and the usual punctuation. Not normalised, because Fynix and the client read it as written. */
+export const phoneSchema = z.string().trim().min(5, "must be at least 5 characters").max(40, "must be at most 40 characters").regex(/^[0-9+()\-. ]+$/, "may hold digits, spaces and + ( ) - . only");
+/**
+ * The company contact details Fynix keeps for a client, a coordinator or a partner agency. Every one is optional and trimmed. The website is https only.
+ * `notes` are internal to Fynix: no tenant reads them (migration 0080).
+ */
+const contactFields = {
+  contactName: name(120),
+  contactEmail: z.string().trim().max(254, "must be at most 254 characters").pipe(z.email("must be an email address")),
+  contactPhone: phoneSchema,
+  website: z.string().trim().max(2000, "must be at most 2000 characters").pipe(z.url({ protocol: /^https$/, error: "must be a web address starting with https://" })),
+  address: name(500),
+  notes: name(4000),
+};
+/** For a new company: each field may be left out. */
+export const contactCreateFields = {
+  contactName: contactFields.contactName.optional(),
+  contactEmail: contactFields.contactEmail.optional(),
+  contactPhone: contactFields.contactPhone.optional(),
+  website: contactFields.website.optional(),
+  address: contactFields.address.optional(),
+  notes: contactFields.notes.optional(),
+};
+/** For an existing company: a field left out stays, `null` clears it. */
+const contactUpdateFields = {
+  contactName: contactFields.contactName.nullable().optional(),
+  contactEmail: contactFields.contactEmail.nullable().optional(),
+  contactPhone: contactFields.contactPhone.nullable().optional(),
+  website: contactFields.website.nullable().optional(),
+  address: contactFields.address.nullable().optional(),
+  notes: contactFields.notes.nullable().optional(),
+};
+export const CONTACT_KEYS = ["contactName", "contactEmail", "contactPhone", "website", "address", "notes"] as const;
+
 /** The profile Fynix takes for a client: how it is introduced to prospects, what it offers, what sets it apart, and its case studies. */
 const profileFields = {
   introduction: name(2000),
@@ -30,6 +64,7 @@ export const createOrganisationSchema = z
     kind: z.enum(["client", "agency"]),
     name: name(120),
     timeZone: timeZoneSchema.optional(),
+    ...contactCreateFields,
     /** A client's profile, taken when it is added. */
     profile: clientProfileSchema.optional(),
     /** Set after the screen warned that a company of that name exists. */
@@ -40,9 +75,9 @@ export const createOrganisationSchema = z
 export type CreateOrganisationInput = z.infer<typeof createOrganisationSchema>;
 
 export const updateOrganisationSchema = z
-  .object({ name: name(120).optional(), timeZone: timeZoneSchema.nullable().optional() })
+  .object({ name: name(120).optional(), timeZone: timeZoneSchema.nullable().optional(), ...contactUpdateFields })
   .strict()
-  .refine((input) => input.name !== undefined || input.timeZone !== undefined, { message: "must change something" });
+  .refine((input) => input.name !== undefined || input.timeZone !== undefined || CONTACT_KEYS.some((key) => input[key] !== undefined), { message: "must change something" });
 export type UpdateOrganisationInput = z.infer<typeof updateOrganisationSchema>;
 
 export const updateClientProfileSchema = z.object({ clientOrgId: z.uuid(), ...profileFields }).strict();
@@ -102,8 +137,6 @@ export type CloseCampaignInput = z.input<typeof closeCampaignSchema>;
 export const publishTermsSchema = z.object({ party: z.enum(["client", "agency", "fynix"]), title: name(160), body: name(60_000) }).strict();
 export type PublishTermsInput = z.infer<typeof publishTermsSchema>;
 
-/** A phone number as typed: digits, spaces and the usual punctuation. Not normalised, because Fynix and the client read it as written. */
-export const phoneSchema = z.string().trim().min(5, "must be at least 5 characters").max(40, "must be at most 40 characters").regex(/^[0-9+()\-. ]+$/, "may hold digits, spaces and + ( ) - . only");
 /** Fynix people are invited as `admin` (can change set-up) or `staff` (read it and work leads); stored as `manager` and `member`. */
 const inviteRole = z.enum(["member", "manager", "admin", "staff"]).default("member").transform((role) => (role === "admin" ? "manager" : role === "staff" ? "member" : role));
 
@@ -133,10 +166,16 @@ export const aliasSchema = z.string().trim().min(2, "must be at least 2 characte
 export const displayNameSchema = name(120);
 export const uuidSchema = z.uuid();
 
-export const createSupplierSchema = z.object({ name: name(120) }).strict();
+/** A coordinator or partner agency: its name, an optional time zone, and the tick that confirms a same-name company on purpose. */
+const agencyFields = { name: name(120), timeZone: timeZoneSchema.optional(), ...contactCreateFields, confirmDuplicate: z.boolean().optional() };
+export const createSupplierSchema = z.object(agencyFields).strict();
 export type CreateSupplierInput = z.infer<typeof createSupplierSchema>;
 
-export const createPartnerAgencySchema = z.object({ supplierId: z.uuid(), name: name(120) }).strict();
+export const createPartnerAgencySchema = z.object({ supplierId: z.uuid(), ...agencyFields }).strict();
+
+/** The first person invited into a new coordinator or agency: the invite fields without an organisation (the new one) and without an alias (their own name). */
+export const firstPersonSchema = issueInviteSchema.omit({ organisationId: true, alias: true });
+export type FirstPersonInput = z.input<typeof firstPersonSchema>;
 export type CreatePartnerAgencyInput = z.infer<typeof createPartnerAgencySchema>;
 
 export const publishAgreementSchema = z

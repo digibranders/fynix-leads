@@ -3,7 +3,8 @@
 import { addClientAction, addCollateralAction, updateProfileAction } from "@/server/fynix/actions";
 import type { ClientProfileRecord } from "@/server/domain/organisations";
 import { ActionForm } from "./action-form";
-import { ConfirmField, FormGroup, Hidden, TextAreaField, TextField } from "./form-parts";
+import { ContactFields } from "./contact-forms";
+import { ConfirmField, FormGroup, Hidden, TextAreaField, TextField, TimeZoneField } from "./form-parts";
 
 const PROFILE_HELP = {
   introduction: "How the client is introduced to a prospect, in a few sentences.",
@@ -29,9 +30,10 @@ export function AddClientForm() {
     <ActionForm action={addClientAction} submitLabel="Add client" pendingLabel="Adding">
       <FormGroup>
         <TextField name="name" label="Client name" helper="The company name. Agencies see it only on campaigns they work on." />
-        <TextField name="timeZone" label="Time zone" helper="For example Europe/London. Optional." />
+        <TimeZoneField helper="Where the client works, for example Europe/London. Start typing to pick one. Optional." />
         <ConfirmField name="confirmDuplicate" label="Add it anyway" />
       </FormGroup>
+      <ContactFields />
       <ProfileFields profile={null} />
       <FormGroup title="Collateral (optional)">
         <TextField name="collateralTitle" label="Link title" helper="For example: Company brochure." />

@@ -4,6 +4,9 @@ import {
   clientReviewLeadSchema,
   createCampaignSchema,
   createOrganisationSchema,
+  createPartnerAgencySchema,
+  createSupplierSchema,
+  firstPersonSchema,
   forwardMessageSchema,
   getOrCreateConversationSchema,
   addCollateralSchema,
@@ -58,6 +61,22 @@ describe("organisation input", () => {
   it("an update must change something", () => {
     expect(updateOrganisationSchema.safeParse({}).success).toBe(false);
     expect(updateOrganisationSchema.safeParse({ name: "B" }).success).toBe(true);
+  });
+});
+
+describe("coordinator and agency input", () => {
+  it("takes a name, an optional IANA time zone and the duplicate confirmation, and nothing else", () => {
+    expect(parseInput(createSupplierSchema, { name: " Ridgeway ", timeZone: "Europe/London", confirmDuplicate: true })).toEqual({ name: "Ridgeway", timeZone: "Europe/London", confirmDuplicate: true });
+    expect(parseInput(createPartnerAgencySchema, { supplierId: UUID, name: "Calder Bay" })).toEqual({ supplierId: UUID, name: "Calder Bay" });
+    expect(() => parseInput(createSupplierSchema, { name: "Ridgeway", timeZone: "EST" })).toThrow(DomainError);
+    expect(() => parseInput(createSupplierSchema, { name: "Ridgeway", parentOrgId: UUID })).toThrow(DomainError);
+  });
+
+  it("takes the first person with a role that defaults to member, and refuses an alias or an organisation", () => {
+    expect(parseInput(firstPersonSchema, { name: "Asha", jobTitle: "Founder", email: "a@b.co", role: "manager" })).toMatchObject({ role: "manager" });
+    expect(parseInput(firstPersonSchema, { name: "Asha", jobTitle: "Founder", email: "a@b.co" })).toMatchObject({ role: "member" });
+    expect(() => parseInput(firstPersonSchema, { name: "Asha", jobTitle: "Founder", email: "a@b.co", alias: "Asha" })).toThrow(DomainError);
+    expect(() => parseInput(firstPersonSchema, { name: "Asha", jobTitle: "Founder", email: "a@b.co", organisationId: UUID })).toThrow(DomainError);
   });
 });
 
@@ -273,5 +292,24 @@ describe("phase 1 people and profile schemas", () => {
   it("needs a member detail change to change something", () => {
     expect(memberDetailsSchema.safeParse({}).success).toBe(false);
     expect(memberDetailsSchema.safeParse({ phone: null }).success).toBe(true);
+  });
+});
+
+describe("the company contact details", () => {
+  it("are optional on create, trimmed, and https only for the website", () => {
+    expect(createSupplierSchema.parse({ name: "X" })).toEqual({ name: "X" });
+    expect(createSupplierSchema.parse({ name: "X", contactEmail: " a@b.example ", website: " https://b.example " })).toMatchObject({ contactEmail: "a@b.example", website: "https://b.example" });
+    for (const website of ["http://b.example", "b.example", "ftp://b.example", "javascript:alert(1)"]) expect(createSupplierSchema.safeParse({ name: "X", website }).success, website).toBe(false);
+  });
+
+  it("refuse a bad email, a phone with letters and values over the length limits", () => {
+    for (const extra of [{ contactEmail: "nope" }, { contactPhone: "call me" }, { contactName: "x".repeat(121) }, { address: "x".repeat(501) }, { notes: "x".repeat(4001) }]) {
+      expect(createSupplierSchema.safeParse({ name: "X", ...extra }).success, JSON.stringify(extra).slice(0, 40)).toBe(false);
+    }
+  });
+
+  it("can be cleared with null on update, and a contact change alone counts as a change", () => {
+    expect(updateOrganisationSchema.safeParse({ notes: null }).success).toBe(true);
+    expect(updateOrganisationSchema.safeParse({}).success).toBe(false);
   });
 });

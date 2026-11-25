@@ -5,6 +5,7 @@ import { campaign, campaignShare, invite, member, organisation, user } from "@/s
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
 import { fynixRead, type FynixActor } from "@/server/domain/fynix-write";
+import { contactColumns, type OrganisationContact } from "@/server/domain/organisations";
 import { readActivity, readPeople, type ActivityRow, type PersonRow } from "@/server/domain/people-overview";
 
 /**
@@ -20,6 +21,7 @@ export interface SupplierRow {
   readonly name: string;
   readonly status: "active" | "archived";
   readonly createdAt: Date;
+  readonly contactEmail: string | null;
   /** Partner agencies working under the supplier. */
   readonly agencyCount: number;
   /** The partner agencies' names, by name, so the list can be searched by them. */
@@ -43,7 +45,7 @@ export async function listSupplierRows(deps: DomainDeps, actor: FynixActor): Pro
   const now = deps.now();
   return fynixRead(deps.fynixDb, actor, async (tx) => {
     const agencies = await tx
-      .select({ id: organisation.id, publicRef: organisation.publicRef, name: organisation.name, status: organisation.status, parentOrgId: organisation.parentOrgId, createdAt: organisation.createdAt })
+      .select({ id: organisation.id, publicRef: organisation.publicRef, name: organisation.name, status: organisation.status, parentOrgId: organisation.parentOrgId, createdAt: organisation.createdAt, contactEmail: organisation.contactEmail })
       .from(organisation)
       .where(eq(organisation.kind, "agency"))
       .orderBy(asc(organisation.name));
@@ -69,6 +71,7 @@ export async function listSupplierRows(deps: DomainDeps, actor: FynixActor): Pro
           name: supplier.name,
           status: supplier.status,
           createdAt: supplier.createdAt,
+          contactEmail: supplier.contactEmail,
           agencyCount: partners.length,
           agencyNames: partners.map((partner) => partner.name),
           peopleCount: own + partners.reduce((sum, partner) => sum + (people.get(partner.id) ?? 0), 0),
@@ -120,6 +123,7 @@ export interface SupplierDetail {
   readonly campaigns: readonly SupplierCampaignRow[];
   readonly campaignCounts: CampaignCounts;
   readonly timeZone: string | null;
+  readonly contact: OrganisationContact;
   /** Every person of the coordinator and of its partner agencies, each with the organisation they belong to, plus open invites. */
   readonly everyone: readonly PersonRow[];
   readonly activity: readonly ActivityRow[];
@@ -131,7 +135,7 @@ export async function readSupplierDetail(deps: DomainDeps, actor: FynixActor, pu
   const now = deps.now();
   return fynixRead(deps.fynixDb, actor, async (tx) => {
     const [found] = await tx
-      .select({ id: organisation.id, publicRef: organisation.publicRef, name: organisation.name, status: organisation.status, createdAt: organisation.createdAt, kind: organisation.kind, parentOrgId: organisation.parentOrgId, timeZone: organisation.timeZone })
+      .select({ id: organisation.id, publicRef: organisation.publicRef, name: organisation.name, status: organisation.status, createdAt: organisation.createdAt, kind: organisation.kind, parentOrgId: organisation.parentOrgId, timeZone: organisation.timeZone, ...contactColumns })
       .from(organisation)
       .where(eq(organisation.publicRef, publicRef))
       .limit(1);
@@ -183,6 +187,7 @@ export async function readSupplierDetail(deps: DomainDeps, actor: FynixActor, pu
       campaigns,
       campaignCounts: tallyCampaigns(campaigns.map((row) => row.status)),
       timeZone: found.timeZone,
+      contact: { contactName: found.contactName, contactEmail: found.contactEmail, contactPhone: found.contactPhone, website: found.website, address: found.address, notes: found.notes },
       everyone,
       activity,
     };

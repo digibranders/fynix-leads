@@ -1,4 +1,5 @@
 import type { JsonObject } from "@/server/domain/audit";
+import type { OrganisationContact } from "@/server/domain/organisations";
 
 /**
  * The state of a record as the audit log keeps it, built field by field. The audit log is read by Fynix only, but it is kept
@@ -15,8 +16,10 @@ export interface OrganisationRow {
   readonly status: string;
 }
 
-export function snapshotOrganisation(row: OrganisationRow): JsonObject {
-  return { ref: row.publicRef, kind: row.kind, name: row.name, timeZone: row.timeZone, parentOrgId: row.parentOrgId, status: row.status };
+/** The organisation, and its contact details when the caller read them (Fynix paths only: a tenant cannot read them). */
+export function snapshotOrganisation(row: OrganisationRow, contact?: OrganisationContact): JsonObject {
+  const base = { ref: row.publicRef, kind: row.kind, name: row.name, timeZone: row.timeZone, parentOrgId: row.parentOrgId, status: row.status };
+  return contact === undefined ? base : { ...base, ...contact };
 }
 
 export interface ProfileRow {

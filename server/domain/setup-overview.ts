@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, notExists } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull, notExists } from "drizzle-orm";
 import { agreement, agreementAcceptance, campaign, campaignHost, member, organisation } from "@/server/db/schema";
 import type { DomainDeps } from "@/server/domain/deps";
 import { fynixRead, type FynixActor } from "@/server/domain/fynix-write";
@@ -7,7 +7,7 @@ import type { SetupFindings } from "@/lib/fynix/setup-checklist";
 /** Clients and coordinators with no active manager, open campaigns with no active host, and campaign agreements a side has not accepted. Fynix read, open to staff. */
 export async function readSetupFindings(deps: DomainDeps, actor: FynixActor): Promise<SetupFindings> {
   return fynixRead(deps.fynixDb, actor, async (tx) => {
-    const noManager = (kind: "client" | "agency") =>
+    const noManager = (kind: "client" | "agency", partner = false) =>
       tx
         .select({ name: organisation.name, ref: organisation.publicRef })
         .from(organisation)
@@ -15,7 +15,7 @@ export async function readSetupFindings(deps: DomainDeps, actor: FynixActor): Pr
           and(
             eq(organisation.kind, kind),
             eq(organisation.status, "active"),
-            kind === "agency" ? isNull(organisation.parentOrgId) : undefined,
+            kind === "agency" ? (partner ? isNotNull(organisation.parentOrgId) : isNull(organisation.parentOrgId)) : undefined,
             notExists(tx.select({ one: member.id }).from(member).where(and(eq(member.orgId, organisation.id), eq(member.role, "manager"), eq(member.status, "active")))),
           ),
         )
@@ -36,9 +36,10 @@ export async function readSetupFindings(deps: DomainDeps, actor: FynixActor): Pr
           ),
         )
         .orderBy(asc(campaign.name));
-    const [clientsWithoutManager, coordinatorsWithoutManager, campaignsWithoutHost, clientWaiting, supplierWaiting] = await Promise.all([
+    const [clientsWithoutManager, coordinatorsWithoutManager, agenciesWithoutManager, campaignsWithoutHost, clientWaiting, supplierWaiting] = await Promise.all([
       noManager("client"),
       noManager("agency"),
+      noManager("agency", true),
       tx
         .select({ name: campaign.name, ref: campaign.publicRef })
         .from(campaign)
@@ -48,6 +49,6 @@ export async function readSetupFindings(deps: DomainDeps, actor: FynixActor): Pr
       notAccepted("supplier"),
     ]);
     const agreementsWaiting = [...clientWaiting.map((row) => ({ ...row, party: "client" as const })), ...supplierWaiting.map((row) => ({ ...row, party: "supplier" as const }))].sort((a, b) => a.campaignName.localeCompare(b.campaignName));
-    return { clientsWithoutManager, coordinatorsWithoutManager, campaignsWithoutHost, agreementsWaiting };
+    return { clientsWithoutManager, coordinatorsWithoutManager, agenciesWithoutManager, campaignsWithoutHost, agreementsWaiting };
   });
 }

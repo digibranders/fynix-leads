@@ -25,6 +25,16 @@ export const organisation = pgTable(
     parentOrgKind: organisationKind("parent_org_kind").generatedAlwaysAs(sql`CASE WHEN parent_org_id IS NULL THEN NULL ELSE 'agency'::organisation_kind END`),
     /** The IANA zone the company works in, shown to the people who book meetings with it. Null until Fynix sets it. */
     timeZone: text("time_zone"),
+    /**
+     * Company contact details, written by a Fynix admin and read by Fynix only (migration 0080). No tenant role holds a grant on any of them,
+     * and none is in a tenant column list in server/db/columns.ts. `notes` are internal.
+     */
+    contactName: text("contact_name"),
+    contactEmail: text("contact_email"),
+    contactPhone: text("contact_phone"),
+    website: text("website"),
+    address: text("address"),
+    notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -40,5 +50,11 @@ export const organisation = pgTable(
     check("organisation_parent_not_self", sql`${table.parentOrgId} IS NULL OR ${table.parentOrgId} <> ${table.id}`),
     check("organisation_parent_only_agency", sql`${table.parentOrgId} IS NULL OR ${table.kind} = 'agency'`),
     index("organisation_parent_idx").on(table.parentOrgId),
+    check("organisation_contact_name_length", sql`${table.contactName} IS NULL OR char_length(${table.contactName}) BETWEEN 1 AND 120`),
+    check("organisation_contact_email_length", sql`${table.contactEmail} IS NULL OR char_length(${table.contactEmail}) BETWEEN 3 AND 254`),
+    check("organisation_contact_phone_length", sql`${table.contactPhone} IS NULL OR char_length(${table.contactPhone}) BETWEEN 3 AND 40`),
+    check("organisation_website_https", sql`${table.website} IS NULL OR (${table.website} ~ '^https://' AND char_length(${table.website}) <= 2000)`),
+    check("organisation_address_length", sql`${table.address} IS NULL OR char_length(${table.address}) BETWEEN 1 AND 500`),
+    check("organisation_notes_length", sql`${table.notes} IS NULL OR char_length(${table.notes}) BETWEEN 1 AND 4000`),
   ],
 );

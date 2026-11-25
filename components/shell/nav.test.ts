@@ -111,6 +111,21 @@ describe("messages badge and notices page", () => {
   });
 });
 
+describe("the Fynix Agencies item", () => {
+  it("sits under Accounts between Coordinators and Campaigns, for staff too, and is in the More sheet", () => {
+    const accounts = PORTALS.fynix.groups.find((group) => group.label === "Accounts");
+    expect(accounts?.items.map((item) => item.label)).toEqual(["Clients", "Coordinators", "Agencies", "Campaigns"]);
+    expect(flatItems(forViewer(PORTALS.fynix, false)).map((item) => item.href)).toContain("/fynix/agencies");
+    expect(moreGroups(PORTALS.fynix).flatMap((group) => group.items.map((item) => item.href))).toContain("/fynix/agencies");
+  });
+
+  it("lights on an agency record and titles the breadcrumb", () => {
+    expect(currentItem(PORTALS.fynix, "/fynix/agencies/ORG-AAAA/people")?.label).toBe("Agencies");
+    expect(currentItem(PORTALS.fynix, "/fynix/suppliers/ORG-N7GT")?.label).toBe("Coordinators");
+    expect(breadcrumb(PORTALS.fynix, "/fynix/agencies/ORG-AAAA")).toEqual(["Agencies", "ORG-AAAA"]);
+  });
+});
+
 describe("admin only items", () => {
   const hrefs = (admin: boolean): string[] => flatItems(forViewer(PORTALS.fynix, admin)).map((item) => item.href);
 

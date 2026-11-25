@@ -1,4 +1,5 @@
 import { UsersThree } from "@phosphor-icons/react/dist/ssr";
+import Link from "next/link";
 import { EmptyState } from "@/components/kit/empty-state";
 import { Panel, PanelHeader } from "@/components/kit/panel";
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +34,9 @@ export function AgenciesPanel({ supplier, canWrite }: { supplier: SupplierDetail
                   <TableCell className="font-mono text-caption text-ink-2 max-md:hidden">{row.publicRef}</TableCell>
                   <TableCell>
                     <span className="flex items-center gap-2">
-                      <span className="text-row font-semibold">{row.name}</span>
+                      <Link href={`/fynix/agencies/${row.publicRef}`} className="rounded-xs text-row font-semibold hover:underline">
+                        {row.name}
+                      </Link>
                       {row.status === "archived" ? (
                         <Badge variant="quiet" size="sm">
                           Archived

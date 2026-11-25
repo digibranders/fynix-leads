@@ -42,8 +42,10 @@ import { removeCampaignShare, setCampaignShare } from "@/server/domain/shares";
 import { fynixOverturnRejection } from "@/server/domain/leads";
 import { fynixRecordMeetingOutcome } from "@/server/domain/meetings";
 import { addCollateral, createOrganisation, removeCollateral, setOrganisationStatus, updateClientProfile, updateOrganisation } from "@/server/domain/organisations";
-import { createPartnerAgency, createSupplier } from "@/server/domain/suppliers";
+import { createPartnerAgencyWithFirstPerson, createSupplierWithFirstPerson } from "@/server/domain/suppliers";
 import { publishTerms } from "@/server/domain/terms";
+import { CONTACT_FIELDS, CONTACT_LABELS, contactCreateBody, contactUpdateBody } from "@/server/fynix/contact-fields";
+import { firstInviteNotice, firstPersonBody, firstPersonProblems, FIRST_PERSON_FIELDS } from "@/server/fynix/first-person";
 import { field, numberField, runAction } from "@/server/fynix/run-action";
 
 /**
@@ -178,16 +180,32 @@ export async function reopenCampaignAction(_previous: FormState, formData: FormD
   });
 }
 
+/** The name, time zone and duplicate tick of a coordinator or agency form. A blank time zone is left out. */
+function agencyBody(formData: FormData) {
+  const timeZone = field(formData, "timeZone").trim();
+  return { name: field(formData, "name"), ...(timeZone === "" ? {} : { timeZone }), ...contactCreateBody((name) => field(formData, name)), confirmDuplicate: field(formData, "confirmDuplicate") === "on" };
+}
+
+const AGENCY_FIELDS = ["name", "timeZone", ...CONTACT_FIELDS, ...FIRST_PERSON_FIELDS] as const;
+const AGENCY_LABELS = { name: "Name", timeZone: "Time zone", supplierId: "Coordinator", ...CONTACT_LABELS } as const;
+
+/** Adds a coordinator, and invites its first person in the same step when one is given. If the invite is refused the coordinator is still added and the notice says why. */
 export async function addSupplierAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  const get = (name: string) => field(formData, name);
   return runAction({
     formData,
-    fieldNames: ["name"],
-    build: () => ({ name: field(formData, "name") }),
+    fieldNames: AGENCY_FIELDS,
+    precheck: () => firstPersonProblems(get),
+    build: () => agencyBody(formData),
     schema: createSupplierSchema,
-    labels: { name: "Name" },
+    labels: AGENCY_LABELS,
+    errorFields: { "duplicate-name": "confirmDuplicate" },
+    messages: { "duplicate-name": "A coordinator with that name already exists." },
     perform: async (deps, actor, input) => {
-      const created = await createSupplier(deps, actor, input);
-      return { redirectTo: `/fynix/suppliers/${created.publicRef}` };
+      const { organisation, firstInvite } = await createSupplierWithFirstPerson(deps, actor, input, firstPersonBody(get));
+      if (firstInvite.status === "sent") sendMailAfterResponse();
+      const notice = firstInviteNotice("coordinator", firstInvite);
+      return { redirectTo: `/fynix/suppliers/${organisation.publicRef}`, ...(notice === undefined ? {} : { notice }) };
     },
   });
 }
@@ -217,11 +235,11 @@ export async function addClientAction(_previous: FormState, formData: FormData):
   const profileProblems = clientProfileSchema.safeParse(profileBody(formData));
   return runAction({
     formData,
-    fieldNames: ["name", "timeZone", ...PROFILE_FIELDS, "collateralTitle", "collateralUrl"],
+    fieldNames: ["name", "timeZone", ...CONTACT_FIELDS, ...PROFILE_FIELDS, "collateralTitle", "collateralUrl"],
     precheck: () => ({ ...(profileProblems.success ? {} : fieldErrors(profileProblems.error, PROFILE_LABELS)), ...collateralProblems(formData) }),
-    build: () => ({ kind: "client", name: field(formData, "name"), ...(timeZone === "" ? {} : { timeZone }), profile: profileBody(formData), confirmDuplicate: field(formData, "confirmDuplicate") === "on" }),
+    build: () => ({ kind: "client", name: field(formData, "name"), ...(timeZone === "" ? {} : { timeZone }), ...contactCreateBody((name) => field(formData, name)), profile: profileBody(formData), confirmDuplicate: field(formData, "confirmDuplicate") === "on" }),
     schema: createOrganisationSchema,
-    labels: { name: "Name", timeZone: "Time zone" },
+    labels: { name: "Name", timeZone: "Time zone", ...CONTACT_LABELS },
     errorFields: { "duplicate-name": "confirmDuplicate" },
     messages: { "duplicate-name": "A client with that name already exists." },
     perform: async (deps, actor, input) => {
@@ -243,6 +261,21 @@ export async function updateOrganisationAction(_previous: FormState, formData: F
     build: () => ({ name: field(formData, "name"), timeZone: timeZone === "" ? null : timeZone }),
     schema: updateOrganisationSchema,
     labels: { name: "Name", timeZone: "Time zone" },
+    perform: async (deps, actor, input) => {
+      await updateOrganisation(deps, actor, organisationId, input);
+    },
+  });
+}
+
+/** Changes a client's, coordinator's or agency's contact details. A blank field clears it. */
+export async function updateContactAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  const organisationId = field(formData, "organisationId");
+  return runAction({
+    formData,
+    fieldNames: CONTACT_FIELDS,
+    build: () => contactUpdateBody((name) => field(formData, name)),
+    schema: updateOrganisationSchema,
+    labels: CONTACT_LABELS,
     perform: async (deps, actor, input) => {
       await updateOrganisation(deps, actor, organisationId, input);
     },
@@ -416,15 +449,23 @@ export async function fynixRecordOutcomeAction(_previous: FormState, formData: F
   });
 }
 
+/** Adds a partner agency under a coordinator, and invites its first person into it when one is given. If the invite is refused the agency is still added and the notice says why. */
 export async function addAgencyAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  const get = (name: string) => field(formData, name);
   return runAction({
     formData,
-    fieldNames: ["name"],
-    build: () => ({ supplierId: field(formData, "supplierId"), name: field(formData, "name") }),
+    fieldNames: [...AGENCY_FIELDS, "supplierId"],
+    precheck: () => firstPersonProblems(get),
+    build: () => ({ supplierId: field(formData, "supplierId"), ...agencyBody(formData) }),
     schema: createPartnerAgencySchema,
-    labels: { name: "Name", supplierId: "Coordinator" },
+    labels: AGENCY_LABELS,
+    errorFields: { "duplicate-name": "confirmDuplicate" },
+    messages: { "duplicate-name": "This coordinator already has an agency with that name." },
     perform: async (deps, actor, input) => {
-      await createPartnerAgency(deps, actor, input);
+      const { firstInvite } = await createPartnerAgencyWithFirstPerson(deps, actor, input, firstPersonBody(get));
+      if (firstInvite.status === "sent") sendMailAfterResponse();
+      const notice = firstInviteNotice("agency", firstInvite);
+      return notice === undefined ? undefined : { notice };
     },
   });
 }

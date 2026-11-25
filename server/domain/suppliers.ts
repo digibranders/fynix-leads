@@ -1,12 +1,13 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import type { Database } from "@/server/db/pool";
 import { organisation } from "@/server/db/schema";
-import { withTenantScope } from "@/server/db/scope";
+import { withTenantScope, type ScopedTransaction } from "@/server/db/scope";
 import type { DomainDeps } from "@/server/domain/deps";
-import { DomainError } from "@/server/domain/errors";
+import { DomainError, type DomainErrorCode } from "@/server/domain/errors";
 import { fynixRead, fynixWrite, type FynixActor } from "@/server/domain/fynix-write";
-import { createPartnerAgencySchema, createSupplierPartnerAgencySchema, createSupplierSchema } from "@/server/domain/inputs";
-import { insertOrganisation, organisationColumns, type OrganisationRecord } from "@/server/domain/organisations";
+import { createPartnerAgencySchema, createSupplierPartnerAgencySchema, createSupplierSchema, firstPersonSchema } from "@/server/domain/inputs";
+import { issueInvite } from "@/server/domain/invites";
+import { contactValues, insertOrganisation, organisationColumns, type OrganisationRecord } from "@/server/domain/organisations";
 import { parseInput } from "@/server/domain/parse";
 import { snapshotOrganisation } from "@/server/domain/snapshots";
 
@@ -22,12 +23,25 @@ export interface SupplierRecord {
   readonly agencies: readonly OrganisationRecord[];
 }
 
-/** Creates a supplier: an agency with no parent. A supplier who works alone has no partner agencies and its own users submit the leads. */
+/** Refuses a second agency of the same level (all coordinators, or the partner agencies of one coordinator) with the same name, ignoring case and surrounding spaces, until the caller says it is on purpose. */
+async function refuseDuplicateAgency(tx: ScopedTransaction, parentOrgId: string | null, companyName: string, confirmed: boolean | undefined): Promise<void> {
+  if (confirmed === true) return;
+  const [same] = await tx
+    .select({ id: organisation.id })
+    .from(organisation)
+    .where(and(eq(organisation.kind, "agency"), parentOrgId === null ? isNull(organisation.parentOrgId) : eq(organisation.parentOrgId, parentOrgId), sql`lower(btrim(${organisation.name})) = lower(${companyName})`))
+    .limit(1);
+  if (same !== undefined) throw new DomainError("duplicate-name", parentOrgId === null ? "A coordinator with that name already exists." : "That coordinator already has an agency with that name.");
+}
+
+/** Creates a supplier: an agency with no parent. A supplier who works alone has no partner agencies and its own users submit the leads. A coordinator of the same name (any case) is refused with `duplicate-name` unless `confirmDuplicate` is true. */
 export async function createSupplier(deps: DomainDeps, actor: FynixActor, input: unknown): Promise<OrganisationRecord> {
   const parsed = parseInput(createSupplierSchema, input);
   return fynixWrite(deps.fynixDb, actor, async ({ tx, audit }) => {
-    const created = await insertOrganisation(tx, deps.randomBytes, { kind: "agency", name: parsed.name, parentOrgId: null });
-    await audit({ action: "organisation.create", subject: { table: "organisation", id: created.id, ref: created.publicRef }, before: null, after: snapshotOrganisation(created) });
+    await refuseDuplicateAgency(tx, null, parsed.name, parsed.confirmDuplicate);
+    const contact = contactValues(parsed);
+    const created = await insertOrganisation(tx, deps.randomBytes, { kind: "agency", name: parsed.name, parentOrgId: null, timeZone: parsed.timeZone ?? null, ...contact });
+    await audit({ action: "organisation.create", subject: { table: "organisation", id: created.id, ref: created.publicRef }, before: null, after: snapshotOrganisation(created, contact) });
     return created;
   });
 }
@@ -43,10 +57,50 @@ export async function createPartnerAgency(deps: DomainDeps, actor: FynixActor, i
     if (supplier === undefined) throw new DomainError("not-found", "There is no such coordinator.");
     if (supplier.kind !== "agency" || supplier.parentOrgId !== null) throw new DomainError("not-a-supplier", "A partner agency works under a coordinator: an agency with no parent.");
     if (supplier.status !== "active") throw new DomainError("organisation-archived", "The coordinator is archived.");
-    const created = await insertOrganisation(tx, deps.randomBytes, { kind: "agency", name: parsed.name, parentOrgId: supplier.id });
-    await audit({ action: "organisation.create", subject: { table: "organisation", id: created.id, ref: created.publicRef }, before: null, after: snapshotOrganisation(created) });
+    await refuseDuplicateAgency(tx, supplier.id, parsed.name, parsed.confirmDuplicate);
+    const contact = contactValues(parsed);
+    const created = await insertOrganisation(tx, deps.randomBytes, { kind: "agency", name: parsed.name, parentOrgId: supplier.id, timeZone: parsed.timeZone ?? null, ...contact });
+    await audit({ action: "organisation.create", subject: { table: "organisation", id: created.id, ref: created.publicRef }, before: null, after: snapshotOrganisation(created, contact) });
     return created;
   });
+}
+
+/** What became of the first person's invite: not asked for, queued, or refused (`code` is the reason, `null` for a fault). */
+export type FirstInvite = { readonly status: "none" } | { readonly status: "sent" } | { readonly status: "failed"; readonly code: DomainErrorCode | null };
+
+/** A new coordinator or agency and what became of its first person's invite. */
+export interface CreatedWithFirstPerson {
+  readonly organisation: OrganisationRecord;
+  readonly firstInvite: FirstInvite;
+}
+
+/**
+ * The invite goes in its own transaction after the organisation is saved, so a refusal (no terms published, an address that already has an
+ * account) leaves the organisation in place and says why. The person's details are checked before anything is written.
+ */
+async function inviteFirstPerson(deps: DomainDeps, actor: FynixActor, organisationId: string, firstPerson: unknown): Promise<FirstInvite> {
+  try {
+    await issueInvite(deps, actor, { ...parseInput(firstPersonSchema, firstPerson), organisationId });
+    return { status: "sent" };
+  } catch (error) {
+    if (error instanceof DomainError) return { status: "failed", code: error.code };
+    // A domain file never logs (server/domain/boundaries.test.ts); a fault is reported to the caller as a failure with no reason.
+    return { status: "failed", code: null };
+  }
+}
+
+/** `createSupplier`, then (when `firstPerson` is given) the invite of its first manager or member. */
+export async function createSupplierWithFirstPerson(deps: DomainDeps, actor: FynixActor, input: unknown, firstPerson?: unknown): Promise<CreatedWithFirstPerson> {
+  if (firstPerson !== undefined) parseInput(firstPersonSchema, firstPerson);
+  const organisation = await createSupplier(deps, actor, input);
+  return { organisation, firstInvite: firstPerson === undefined ? { status: "none" } : await inviteFirstPerson(deps, actor, organisation.id, firstPerson) };
+}
+
+/** `createPartnerAgency`, then (when `firstPerson` is given) the invite of its first person into the new agency. */
+export async function createPartnerAgencyWithFirstPerson(deps: DomainDeps, actor: FynixActor, input: unknown, firstPerson?: unknown): Promise<CreatedWithFirstPerson> {
+  if (firstPerson !== undefined) parseInput(firstPersonSchema, firstPerson);
+  const organisation = await createPartnerAgency(deps, actor, input);
+  return { organisation, firstInvite: firstPerson === undefined ? { status: "none" } : await inviteFirstPerson(deps, actor, organisation.id, firstPerson) };
 }
 
 /** Every supplier by name, archived ones included (their status says so), each with its partner agencies by name. Open to Fynix staff. */
