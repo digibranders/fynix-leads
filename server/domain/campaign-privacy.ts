@@ -1,6 +1,7 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray, or } from "drizzle-orm";
 import { z } from "zod";
-import { campaign } from "@/server/db/schema";
+import { checkLetterOpening, tidyLetterOpening } from "@/lib/email/letter-opening";
+import { campaign, campaignShare, organisation } from "@/server/db/schema";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
 import { fynixRead, fynixWrite, type FynixActor } from "@/server/domain/fynix-write";
@@ -32,9 +33,17 @@ export interface CampaignPrivacy {
   readonly publicRef: string;
   readonly clientPrivacyUrl: string | null;
   readonly prospectEmailEnabled: boolean;
+  /** The campaign's own opening paragraph for the confirmation letter to prospects, or null for the default wording. */
+  readonly prospectLetterOpening: string | null;
 }
 
-const columns = { id: campaign.id, publicRef: campaign.publicRef, clientPrivacyUrl: campaign.clientPrivacyUrl, prospectEmailEnabled: campaign.prospectEmailEnabled } as const;
+const columns = {
+  id: campaign.id,
+  publicRef: campaign.publicRef,
+  clientPrivacyUrl: campaign.clientPrivacyUrl,
+  prospectEmailEnabled: campaign.prospectEmailEnabled,
+  prospectLetterOpening: campaign.prospectLetterOpening,
+} as const;
 
 /** What the audit row keeps of a link: whether there is one and on which site, never the address itself. */
 const linkSummary = (url: string | null): { readonly privacyLink: boolean; readonly privacyHost: string | null } => ({ privacyLink: url !== null, privacyHost: url === null ? null : new URL(url).hostname });
@@ -77,6 +86,41 @@ export async function setProspectEmail(deps: DomainDeps, actor: FynixActor, camp
       subject: { table: "campaign", id, ref: after.publicRef },
       before: { prospectEmail: before.prospectEmailEnabled },
       after: { prospectEmail: after.prospectEmailEnabled },
+    });
+    return after;
+  });
+}
+
+/**
+ * Sets, replaces or (with null) removes the campaign's opening paragraph for the confirmation letter to prospects. The rules are `checkLetterOpening`: the
+ * paragraph is tidied into one, may hold no address and no name of Fynix, and may not name the campaign's coordinator or an agency holding a share of it. The
+ * database checks the names again when a letter is queued (`app_prospect_letter_opening`), because an agency can join later.
+ */
+export async function setProspectLetterOpening(deps: DomainDeps, actor: FynixActor, campaignId: string, text: string | null): Promise<CampaignPrivacy> {
+  const id = parseInput(uuidSchema, campaignId);
+  const raw = parseInput(z.string().max(5000).nullable(), text);
+  const opening = raw === null ? null : tidyLetterOpening(raw);
+  if (opening !== null) {
+    const rules = checkLetterOpening(opening);
+    if (!rules.ok) throw new DomainError("invalid-input", rules.problems.join(" "));
+  }
+  return fynixWrite(deps.fynixDb, actor, async ({ tx, audit }) => {
+    const [before] = await tx.select({ ...columns, coordinatorOrgId: campaign.agencyOrgId }).from(campaign).where(eq(campaign.id, id)).limit(1).for("update");
+    if (before === undefined) throw new DomainError("not-found", "There is no such campaign.");
+    if (opening !== null) {
+      const sharing = tx.select({ id: campaignShare.agencyOrgId }).from(campaignShare).where(eq(campaignShare.campaignId, id));
+      const names = await tx.select({ name: organisation.name }).from(organisation).where(or(eq(organisation.id, before.coordinatorOrgId), inArray(organisation.id, sharing)));
+      if (!checkLetterOpening(opening, names.map((row) => row.name)).ok) {
+        throw new DomainError("letter-names-supply-side", "The paragraph names the coordinator or an agency of this campaign. A prospect must never read it.");
+      }
+    }
+    const [after] = await tx.update(campaign).set({ prospectLetterOpening: opening }).where(eq(campaign.id, id)).returning(columns);
+    if (after === undefined) throw new Error("The campaign update returned no row");
+    await audit({
+      action: "campaign.set_letter_opening",
+      subject: { table: "campaign", id, ref: after.publicRef },
+      before: { letterOpening: before.prospectLetterOpening },
+      after: { letterOpening: after.prospectLetterOpening },
     });
     return after;
   });

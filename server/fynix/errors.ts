@@ -38,6 +38,7 @@ const MESSAGES: Readonly<Record<DomainErrorCode, string>> = {
   "review-window-closed": "The 48 hours to ask for a review of this rejection are over.",
   "already-requested": "A review of this rejection has been asked for already.",
   "privacy-link-missing": "Add the client's privacy page link first. Prospect email stays off until it is set.",
+  "letter-names-supply-side": "Take out the name of the coordinator or agency. A prospect must never read it.",
 };
 
 export function domainMessage(code: DomainErrorCode, overrides: Partial<Record<DomainErrorCode, string>> = {}): string {

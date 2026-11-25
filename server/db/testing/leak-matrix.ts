@@ -287,6 +287,10 @@ export const PROBES: readonly Probe[] = [
   { name: "campaign: whether prospect email is on, as an agency", statement: "select prospect_email_enabled from campaign", expectedError: DENIED_TABLE, roles: ["leads_agency"] },
   { name: "write: set the privacy link", statement: "update campaign set client_privacy_url = 'https://privacy.example/policy'", expectedError: DENIED_TABLE },
   { name: "write: switch prospect email on", statement: "update campaign set prospect_email_enabled = true", expectedError: DENIED_TABLE },
+  // Migration 0089: the opening paragraph of the prospect letter is Fynix's alone, to read and to write.
+  { name: "campaign: the letter's opening paragraph", statement: "select prospect_letter_opening from campaign", expectedError: DENIED_TABLE },
+  { name: "write: set the letter's opening paragraph", statement: "update campaign set prospect_letter_opening = 'x'", expectedError: DENIED_TABLE },
+  { name: "the letter's opening paragraph through its function, as a tenant", statement: "select app_prospect_letter_opening(gen_random_uuid(), 'prospect_confirmed')", expectedError: /permission denied for function app_prospect_letter_opening/ },
   { name: "meeting: the room behind the link", statement: "select google_space_id from meeting", expectedError: DENIED_TABLE },
   { name: "meeting: the calendar file's sequence", statement: "select ics_sequence from meeting", expectedError: DENIED_TABLE },
   { name: "meeting: whether the join record was read", statement: "select join_imported_at from meeting", expectedError: DENIED_TABLE },

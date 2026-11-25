@@ -5,7 +5,7 @@ import { clientCampaignColumns, meetingJoinColumns } from "@/server/db/columns";
 import type { Database } from "@/server/db/pool";
 import { withTenantScope } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
-import { setCampaignPrivacy, setProspectEmail } from "@/server/domain/campaign-privacy";
+import { readCampaignPrivacy, setCampaignPrivacy, setProspectEmail, setProspectLetterOpening } from "@/server/domain/campaign-privacy";
 import { contestOutcome, fynixDecideContest } from "@/server/domain/contests";
 import { fynixAnswerForClient, fynixMarkLost } from "@/server/domain/fynix-lead-actions";
 import { sendLeadReminders } from "@/server/domain/lead-sweep";
@@ -831,6 +831,80 @@ describe("the privacy link and the prospect email switch", () => {
     expect(Object.keys(context.rows[0] ?? {}).sort()).toEqual(["company", "duration_minutes", "ics_sequence", "lead_ref", "meet_url", "meeting_id", "meeting_outcome", "meeting_ref", "prospect_ready", "starts_at", "time_zone"]);
     expect(JSON.stringify(context.rows)).not.toMatch(/privacy|marta|lena@/);
     expect(context.rows[0]).toMatchObject({ prospect_ready: true });
+  });
+});
+
+describe("the opening paragraph of a campaign's letter", () => {
+  const OPENING = "We help cold chain teams cut spoilage, and I thought a short call would be useful.";
+  const paramsOf = async (template: string) => (await mails(template))[0]?.params ?? {};
+
+  it("is a Fynix admin's to write and remove: tidied into one paragraph, audited, and read back for the campaign page", async () => {
+    expect(await setProspectLetterOpening(rig.deps(), rig.actor, cast.campaignId, "  We help   cold chain teams.\n\nA short call would be useful.  ")).toMatchObject({ prospectLetterOpening: "We help cold chain teams. A short call would be useful." });
+    const [{ ref } = { ref: "" }] = await ownerDb().select({ ref: campaign.publicRef }).from(campaign).where(eq(campaign.id, cast.campaignId));
+    expect(await readCampaignPrivacy(rig.deps(), rig.actor, ref)).toMatchObject({ prospectLetterOpening: "We help cold chain teams. A short call would be useful." });
+    expect(await setProspectLetterOpening(rig.deps(), rig.actor, cast.campaignId, null)).toMatchObject({ prospectLetterOpening: null });
+    const rows = await ownerDb().select({ action: auditLog.action, before: auditLog.before, after: auditLog.after }).from(auditLog).where(eq(auditLog.action, "campaign.set_letter_opening"));
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.after).toEqual({ letterOpening: "We help cold chain teams. A short call would be useful." });
+    expect(rows[1]).toMatchObject({ before: { letterOpening: "We help cold chain teams. A short call would be useful." }, after: { letterOpening: null } });
+  });
+
+  it("refuses a paragraph that breaks a rule of the letter, and one that names the coordinator or an agency of the campaign", async () => {
+    for (const bad of ["", "   ", "A word from Fynix.", "See https://elsewhere.example/page first.", "Write to me at anna@elsewhere.example.", "x".repeat(601)]) {
+      expect((await refusal(setProspectLetterOpening(rig.deps(), rig.actor, cast.campaignId, bad))).code, bad.slice(0, 30)).toBe("invalid-input");
+    }
+    const [{ name: coordinatorName } = { name: "" }] = await ownerDb().execute<{ name: string }>(sql`select name from organisation where id = ${cast.coordinator.orgId}::uuid`).then((result) => result.rows);
+    expect((await refusal(setProspectLetterOpening(rig.deps(), rig.actor, cast.campaignId, `Sent for you by ${coordinatorName.toUpperCase()}.`))).code).toBe("letter-names-supply-side");
+    expect((await refusal(setProspectLetterOpening(rig.deps(), rig.actor, cast.campaignId, "Our friends at ridgeway partner ltd suggested we talk."))).code).toBe("letter-names-supply-side");
+    expect(await ownerDb().select({ id: auditLog.id }).from(auditLog).where(eq(auditLog.action, "campaign.set_letter_opening"))).toEqual([]);
+  });
+
+  it("is refused to Fynix staff, and no client or agency reads or writes it", async () => {
+    const staff = { userId: cast.fynixStaff, orgKind: "fynix" as const, role: "member" as const };
+    expect((await refusal(setProspectLetterOpening(rig.deps(), staff as never, cast.campaignId, OPENING))).code).toBe("admin-required");
+    await denied(ownerDb().execute(sql`update campaign set prospect_letter_opening = ${"x".repeat(601)} where id = ${cast.campaignId}::uuid`), /campaign_letter_opening_length/);
+    for (const [db, actor] of [[clientDb(), cast.clientActor], [agencyDb(), cast.coordinator]] as const) {
+      await denied(asTenant(db, actor, (tx) => tx.execute(sql`select prospect_letter_opening from campaign`)), /permission denied for table campaign/);
+      await denied(asTenant(db, actor, (tx) => tx.execute(sql`update campaign set prospect_letter_opening = 'x' where id = ${cast.campaignId}::uuid`)), /permission denied for table campaign/);
+      await denied(asTenant(db, actor, (tx) => tx.execute(sql`select public.app_prospect_letter_opening(gen_random_uuid(), 'prospect_confirmed')`)), /permission denied for function app_prospect_letter_opening/);
+    }
+  });
+
+  it("goes into the confirmation letter and no other letter, and the prospect reads it in place of the default first sentence", async () => {
+    emailsOn();
+    await prospectEmailOn();
+    await setProspectLetterOpening(rig.deps(), rig.actor, cast.campaignId, OPENING);
+    const one = await booked();
+    expect(await paramsOf("prospect_confirmed")).toMatchObject({ letterOpening: OPENING });
+    const transport = new FakeTransport();
+    expect((await drain(transport)).failed).toBe(0);
+    const letter = transport.sent.find((mail) => mail.to === "marta1@nordvik-cold.example");
+    expect(letter?.text).toContain(OPENING);
+    expect(letter?.text).not.toContain("Thank you for agreeing to talk.");
+    expect(letter?.text).toContain("Your meeting is confirmed for");
+    await clearMail();
+    await proposePostponement(agencyDb(), rig.deps(), cast.coordinator, { meetingId: one.meetingId, proposedTimes: [nextWeekdayAt(11, 6)] });
+    const [proposal] = await asTenant(clientDb(), cast.clientActor, (tx) => tx.execute<{ id: string }>(sql`select id from meeting_reschedule where meeting_id = ${one.meetingId}::uuid`)).then((result) => result.rows);
+    await pickPostponement(clientDb(), rig.deps(), cast.clientActor, { rescheduleId: proposal?.id, pickedTime: nextWeekdayAt(11, 6) });
+    expect(await paramsOf("prospect_moved")).not.toHaveProperty("letterOpening");
+  });
+
+  it("is left out, and the default letter goes, when it names an agency that joined the campaign after it was written", async () => {
+    emailsOn();
+    await prospectEmailOn();
+    const text = "Larkfield Outreach and others told us you are the person to ask.";
+    await setProspectLetterOpening(rig.deps(), rig.actor, cast.campaignId, text);
+    await booked();
+    expect(await paramsOf("prospect_confirmed")).toMatchObject({ letterOpening: text });
+    await clearMail();
+    // A new partner agency of that name takes a share: its name is now one a prospect must never read.
+    const late = await createPartnerAgency(rig.deps(), rig.actor, { coordinatorId: cast.coordinator.orgId, name: "Larkfield Outreach" });
+    await ownerDb().insert(campaignShare).values({ campaignId: cast.campaignId, agencyOrgId: late.id, monthlyShare: 1 });
+    await booked();
+    expect(await paramsOf("prospect_confirmed")).not.toHaveProperty("letterOpening");
+    const transport = new FakeTransport();
+    expect((await drain(transport)).failed).toBe(0);
+    expect(transport.sent.find((mail) => /is confirmed/.test(mail.subject) && mail.to.startsWith("marta"))?.text).toContain("Thank you for agreeing to talk.");
   });
 });
 

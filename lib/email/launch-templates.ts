@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { buttonHtml, linesHtml, LINK_REMOVED_TEXT, paragraphHtml, shellHtml } from "./design";
 import type { CalendarMethod } from "./ics";
+import { LETTER_OPENING_MAX, checkLetterOpening, tidyLetterOpening } from "./letter-opening";
 
 /**
  * The launch emails (phase 6, "Emails at launch" in the Meet note): one template per audience and event. Pure functions from content to text and HTML, like
@@ -88,6 +89,8 @@ const paramsSchema = z.object({
   privacyUrl: z.string().max(500).refine((value) => /^https:\/\/\S+$/.test(value), "must be an https link").optional(),
   signerName: text.optional(),
   signerTitle: text.optional(),
+  /** The campaign's own opening paragraph for the confirmation letter, when Fynix wrote one. Checked again when the letter is rendered. */
+  letterOpening: z.string().max(LETTER_OPENING_MAX * 2).optional(),
 });
 export type LaunchParams = z.infer<typeof paramsSchema>;
 export type LaunchContent = { readonly template: LaunchTemplate; readonly params: LaunchParams };
@@ -251,8 +254,16 @@ function prospectLayout(content: LaunchContent): Layout {
   const brand = need(params.clientBrand);
   const hello = `Hello ${need(params.prospectName)},`;
   switch (content.template) {
-    case "prospect_confirmed":
-      return { subject: `Your meeting with ${brand} is confirmed`, paragraphs: [hello, `Thank you for agreeing to talk. Your meeting is confirmed for ${need(params.when)}.`, "A calendar invitation is attached."], join: true };
+    case "prospect_confirmed": {
+      // A paragraph that no longer passes its check is left out, and the default wording goes out: this field never holds a letter back.
+      const opening = params.letterOpening !== undefined && checkLetterOpening(params.letterOpening).ok ? tidyLetterOpening(params.letterOpening) : null;
+      const confirmed = `Your meeting is confirmed for ${need(params.when)}.`;
+      return {
+        subject: `Your meeting with ${brand} is confirmed`,
+        paragraphs: opening === null ? [hello, `Thank you for agreeing to talk. ${confirmed}`, "A calendar invitation is attached."] : [hello, opening, confirmed, "A calendar invitation is attached."],
+        join: true,
+      };
+    }
     case "prospect_moved":
       return { subject: `Your meeting with ${brand} has a new time`, paragraphs: [hello, `Your meeting moved to ${need(params.when)}. The link to join stays the same.`, "A calendar update is attached."], join: true };
     case "prospect_cancelled":

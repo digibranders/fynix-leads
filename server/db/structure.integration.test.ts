@@ -690,6 +690,8 @@ describe("phase 1D: what a tenant role holds on the six set-up tables", () => {
     // Migration 0075: the client reads the privacy link of its campaigns and whether prospect email is on. An agency reads neither.
     const privacy = role === "leads_client" ? ["client_privacy_url", "prospect_email_enabled"] : [];
     expect([...campaignColumns].sort()).toEqual([...basics, ...brief, ...setUp, ...privacy].sort());
+    // Migration 0089: the opening paragraph of the prospect letter is Fynix's alone.
+    expect(campaignColumns).not.toContain("prospect_letter_opening");
     for (const hidden of ["time_zone", "meeting_minutes", "internal_notes", "primary_contact_id", ...(role === "leads_client" ? [] : ["client_privacy_url", "prospect_email_enabled"])]) expect(campaignColumns).not.toContain(hidden);
   });
 

@@ -62,6 +62,11 @@ export const campaign = pgTable(
     clientPrivacyUrl: text("client_privacy_url"),
     prospectEmailEnabled: boolean("prospect_email_enabled").notNull().default(false),
     /**
+     * The campaign's own opening paragraph for the confirmation letter to prospects (rules in lib/email/letter-opening.ts). Null means the default wording.
+     * Fynix alone reads and writes it; the letter takes it from the database when it is queued (`app_prospect_letter_opening`).
+     */
+    prospectLetterOpening: text("prospect_letter_opening"),
+    /**
      * What Fynix takes when it sets a campaign up (migration 0083): how the client introduces itself to prospects, what it sells, what sets it
      * apart, its collaterals and case studies, the questions the sales team asks to qualify a prospect, and the two emails sent to prospects.
      * All free text. Fynix only: no tenant role has a grant on any of them yet.
@@ -105,6 +110,7 @@ export const campaign = pgTable(
     check("campaign_targets_not_negative", sql`${table.monthlyTarget} >= 0 AND ${table.totalTarget} >= 0`),
     check("campaign_meeting_minutes_range", sql`${table.meetingMinutes} BETWEEN 15 AND 240`),
     check("campaign_privacy_url_https", sql`${table.clientPrivacyUrl} IS NULL OR (${table.clientPrivacyUrl} ~ '^https://[^[:space:]]+$' AND char_length(${table.clientPrivacyUrl}) <= 500)`),
+    check("campaign_letter_opening_length", sql`${table.prospectLetterOpening} IS NULL OR char_length(btrim(${table.prospectLetterOpening})) BETWEEN 1 AND 600`),
     check("campaign_prospect_email_needs_privacy_url", sql`NOT ${table.prospectEmailEnabled} OR ${table.clientPrivacyUrl} IS NOT NULL`),
     check("campaign_time_zone_length", sql`char_length(btrim(${table.timeZone})) BETWEEN 1 AND 64`),
   ],

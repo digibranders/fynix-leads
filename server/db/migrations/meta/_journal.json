@@ -624,6 +624,20 @@
       "when": 1795625636044,
       "tag": "0088_email_enqueue_checks_enum",
       "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1795625957658,
+      "tag": "0089_campaign_letter_opening",
+      "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "7",
+      "when": 1795625958192,
+      "tag": "0090_prospect_letter_opening_enqueue",
+      "breakpoints": true
     }
   ]
 }

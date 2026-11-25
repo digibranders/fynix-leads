@@ -243,6 +243,34 @@ describe("every template, rendered", () => {
   });
 });
 
+describe("the opening paragraph a campaign may have", () => {
+  const OPENING = "We help cold chain teams cut spoilage, and I thought a short call would be useful.";
+  const withOpening = (letterOpening: string): EmailContent => ({ template: "prospect_confirmed", params: { ...PROSPECT_PARAMS, letterOpening } }) as EmailContent;
+
+  it("replaces the first sentence of the confirmation letter and leaves the time, the join link, the signature and the privacy line alone", () => {
+    const mail = everyRendering(withOpening(OPENING), null);
+    expect(mail.text).toContain(`Hello Marta Lindqvist,\n${OPENING}\nYour meeting is confirmed for Tuesday 8 December 2026, 14:30 Europe/London.`);
+    expect(mail.text).not.toContain("Thank you for agreeing to talk.");
+    expect(mail.text).toContain(`Join the meeting: ${MEET}`);
+    expect(mail.text).toContain("Best regards,\nLena Hartmann");
+    expect(mail.text).toContain(`Privacy policy: ${PRIVACY}`);
+    expect(mail.html).toContain(OPENING);
+    expect(checkEmailInvariants(withOpening(OPENING), INVARIANTS)).toEqual({ ok: true, problems: [] });
+  });
+
+  it.each(["A word from Fynix before we meet.", "Read more on https://elsewhere.example/page first.", "x".repeat(601)])("falls back to the default wording when the paragraph fails its check: %s", (bad) => {
+    const mail = everyRendering(withOpening(bad), null);
+    expect(mail.text).toContain("Thank you for agreeing to talk. Your meeting is confirmed for");
+    expect(mail.all).not.toContain(bad);
+    expect(checkEmailInvariants(withOpening(bad), INVARIANTS)).toEqual({ ok: true, problems: [] });
+  });
+
+  it("is used by the confirmation letter only", () => {
+    const moved = everyRendering({ template: "prospect_moved", params: { ...PROSPECT_PARAMS, letterOpening: OPENING } } as EmailContent, null);
+    expect(moved.all).not.toContain(OPENING);
+  });
+});
+
 describe("prospect letters", () => {
   const LETTERS = LAUNCH_TEMPLATES.filter(isProspectTemplate);
   const FORBIDDEN = [/fynix/i, new RegExp(COORDINATOR, "i"), new RegExp(AGENCY, "i"), /Open the lead/, /leads\.fynix\.digital/, /\/client\/leads/];

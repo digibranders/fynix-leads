@@ -17,7 +17,7 @@ async function Brief({ params }: { params: PageProps<"/fynix/campaigns/[ref]">["
   return (
     <div className="flex flex-col gap-4">
       <BriefView campaign={campaign} />
-      <ProspectEmailPanel campaignId={campaign.id} privacyUrl={privacy.clientPrivacyUrl} prospectEmailEnabled={privacy.prospectEmailEnabled} launchEmailsOn={launchEmailsOn} canWrite={view.canWrite} />
+      <ProspectEmailPanel campaignId={campaign.id} privacyUrl={privacy.clientPrivacyUrl} prospectEmailEnabled={privacy.prospectEmailEnabled} letterOpening={privacy.prospectLetterOpening} launchEmailsOn={launchEmailsOn} canWrite={view.canWrite} />
     </div>
   );
 }
