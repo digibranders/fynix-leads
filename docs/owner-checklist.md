@@ -2,33 +2,15 @@
 
 Written 2026-11-25, after phases 0 to 7 of the build roadmap were merged. The app is live at `leads.fynix.digital` and holds test data only. Everything below is a step the code cannot do for you. Do them in this order. Steps 1 and 2 are about the server and mail, steps 3 to 5 are decisions and texts, step 6 is the second sign-in step.
 
-## 1. Install the automatic acceptance timer (about 10 minutes)
+## 1. The automatic acceptance timer: done
 
-Without this, no lead is accepted after 48 hours of silence and the client's 12 hour reminders never arrive. The app can run without it, but those two things will not happen.
-
-1. In the `vps-setup` repository, folder `fynix/leads/systemd/`, add two files copied from `docs/ops/` in this repository:
-   - `leads-sweep.service` saved as `fynix-leads-sweep.service`
-   - `leads-sweep.timer` saved as `fynix-leads-sweep.timer`
-2. In the same repository, add both file names to the `for f in ...` list in `fynix/leads/install-leads.sh` (line 102), next to the outbox and purge units, and add the line `systemctl enable --now fynix-leads-sweep.timer` to the commands it prints at the end.
-3. On the server, run the install script the way you ran it for the outbox timer, then:
+Installed on the Firstfold VPS on 2026-11-25. `fynix-leads-sweep.timer` runs every five minutes as `fynixleads`, from the live release. It accepts every lead a client left unanswered for 48 hours after the meeting and writes the 12, 24 and 36 hour reminders as notices. Check it any time:
 
 ```bash
-systemctl enable --now fynix-leads-sweep.timer
+ssh firstfold-vps 'systemctl list-timers fynix-leads-sweep.timer --no-pager; journalctl -u fynix-leads-sweep -n 10 --no-pager -o cat'
 ```
 
-4. Check that it runs every five minutes:
-
-```bash
-systemctl list-timers fynix-leads-sweep.timer
-```
-
-```bash
-tail -n 20 /var/log/fynix-leads/leads-sweep.log
-```
-
-The log shows how many leads were accepted and how many reminders were sent. Running it twice changes nothing, so a repeat is safe.
-
-Note: the template service file says `User=fynix-leads` and `WorkingDirectory=/srv/fynix-leads`. Compare both with `fynix-leads-outbox.service` in the same folder and copy whatever that file uses, because the real paths may differ.
+The unit files are in the `vps-setup` repository (`fynix/leads/systemd/`) and the install script lists them, so a rebuilt server gets them. That repository has local commits that are not pushed yet.
 
 ## 2. Meeting rooms and email to prospects
 
