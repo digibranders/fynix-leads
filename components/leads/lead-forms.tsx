@@ -147,7 +147,7 @@ export function OverturnRejectionForm({ leadId }: { leadId: string }) {
     <ActionForm action={overturnRejectionAction} submitLabel="Change to accepted" pendingLabel="Saving" savedMessage="Rejection changed to accepted">
       <Hidden name="leadId" value={leadId} />
       <FormGroup>
-        <p className="text-body text-ink-muted">The lead counts as one, in the month of its meeting. The client&apos;s note stays in the history.</p>
+        <p className="text-body text-ink-muted">The lead counts as one, in the month of its meeting. The client&apos;s note stays in the history. The client, the agency and the coordinator read your note.</p>
         <TextAreaField name="note" label="Note" helper={NOTE_HELPER} />
       </FormGroup>
     </ActionForm>

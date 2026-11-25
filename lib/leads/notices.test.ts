@@ -60,6 +60,13 @@ describe("the notice catalogue", () => {
     }
   });
 
+  it("tells the client too when Fynix changes its rejection to accepted, with Fynix's note", () => {
+    const overturned = leadNotices({ type: "rejection_overturned", note: "The prospect qualifies" });
+    expect(overturned).toHaveLength(1);
+    expect(overturned[0]?.audience).toEqual(["client", "source", "coordinator"]);
+    expect(overturned[0]?.body).toContain("Note from Fynix: The prospect qualifies");
+  });
+
   it("takes contact details out of a note before it is stored", () => {
     const deliveries = leadNotices({ type: "lead_rejected", by: "client", note: "Call Marta on +44 7911 123456 or write to marta@nordvik.example" });
     for (const delivery of deliveries) {

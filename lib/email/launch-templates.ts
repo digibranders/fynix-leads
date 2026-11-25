@@ -29,6 +29,13 @@ export const LAUNCH_TEMPLATES = [
   "lead_auto_accepted_info",
   "rejection_overturned_info",
   "no_show_info",
+  "lead_auto_accepted_client",
+  "rejection_overturned_client",
+  "client_no_show_client",
+  "postponement_proposed_info",
+  "outcome_contested_info",
+  "contest_decided_info",
+  "review_requested_info",
   "prospect_confirmed",
   "prospect_moved",
   "prospect_cancelled",
@@ -69,6 +76,10 @@ const paramsSchema = z.object({
   hoursLeft: z.number().int().min(0).max(48).optional(),
   outcome: z.enum(["client_no_show", "prospect_no_show"]).optional(),
   reason: z.enum(["rejected", "withdrawn", "closed"]).optional(),
+  /** Which side asked to move the meeting. The other side is the one that picks. */
+  proposedBy: z.enum(["client", "supply"]).optional(),
+  /** The outcome Fynix settled a contest on. */
+  decided: z.enum(["held", "client_no_show", "prospect_no_show"]).optional(),
   /** What the calendar file is built from. The recipient and the sender are added when the message is sent. */
   calendar: z.object({ meetingRef: z.string().regex(/^MTG-[0-9A-HJKMNP-TV-Z]{4}$/), startsAt: z.iso.datetime(), endsAt: z.iso.datetime(), sequence: z.number().int().min(0) }).optional(),
   // Added by the database for a prospect letter:
@@ -100,6 +111,13 @@ const REQUIRED: Readonly<Record<LaunchTemplate, readonly Field[]>> = {
   lead_auto_accepted_info: PORTAL_BASE,
   rejection_overturned_info: PORTAL_BASE,
   no_show_info: [...PORTAL_BASE, "outcome"],
+  lead_auto_accepted_client: PORTAL_BASE,
+  rejection_overturned_client: PORTAL_BASE,
+  client_no_show_client: PORTAL_BASE,
+  postponement_proposed_info: [...PORTAL_BASE, "proposedBy"],
+  outcome_contested_info: [...PORTAL_BASE, "note", "noteFrom"],
+  contest_decided_info: [...PORTAL_BASE, "decided"],
+  review_requested_info: PORTAL_BASE,
   prospect_confirmed: [...PROSPECT_BASE, "when", "calendar"],
   prospect_moved: [...PROSPECT_BASE, "when", "calendar"],
   prospect_cancelled: [...PROSPECT_BASE, "calendar"],
@@ -133,6 +151,13 @@ interface Layout {
   /** A line giving the Meet link, or saying it will follow. */
   readonly join: boolean;
 }
+
+/** The same three lines as the notices in the app (`lib/leads/notices.ts`). */
+const DECIDED_LINE: Readonly<Record<"held" | "client_no_show" | "prospect_no_show", string>> = {
+  held: "The meeting was held.",
+  client_no_show: "The client did not attend. It counts as one.",
+  prospect_no_show: "The prospect did not attend. The lead is closed and counts as zero.",
+};
 
 const need = <T,>(value: T | undefined): T => {
   if (value === undefined) throw new Error("A launch email was rendered without a field its template requires.");
@@ -196,6 +221,26 @@ function portalLayout(content: LaunchContent): Layout {
       return need(params.outcome) === "client_no_show"
         ? { subject: `The client did not attend the meeting for ${ref}`, paragraphs: [`The client did not attend the meeting with ${company}. The lead counts as one.`], join: false }
         : { subject: `The prospect did not attend the meeting for ${ref}`, paragraphs: [`The prospect from ${company} did not attend the meeting. The lead is closed and counts as zero.`], join: false };
+    case "lead_auto_accepted_client":
+      return { subject: `Lead ${ref} was accepted automatically`, paragraphs: [`No answer was recorded within 48 hours of the meeting with ${company}, so lead ${ref} was accepted. It counts as one.`], join: false };
+    case "rejection_overturned_client":
+      return { subject: `Fynix changed your rejection of ${ref} to accepted`, paragraphs: [`Fynix looked again at your rejection of lead ${ref} from ${company} and changed it to accepted. It counts as one.`, ...note], join: false };
+    case "client_no_show_client":
+      return {
+        subject: `Your team did not attend the meeting for ${ref}`,
+        paragraphs: [`The meeting with ${company} was recorded as a client no-show: nobody from your team attended. The lead counts as one.`, "If this is wrong, open the lead and contest the outcome. Fynix then decides."],
+        join: false,
+      };
+    case "postponement_proposed_info":
+      return need(params.proposedBy) === "client"
+        ? { subject: `The client proposed new times for ${ref}`, paragraphs: [`The client asks to move the meeting with ${company}.`, "Pick one of the new times."], join: false }
+        : { subject: `New times proposed for ${ref}`, paragraphs: [`The meeting with ${company} needs a new time.`, "Pick one of the proposed times."], join: false };
+    case "outcome_contested_info":
+      return { subject: `The outcome of ${ref} is contested`, paragraphs: [`The recorded outcome of the meeting with ${company} is contested.`, ...note, "Fynix decides."], join: false };
+    case "contest_decided_info":
+      return { subject: `Fynix decided the contest on ${ref}`, paragraphs: [`Fynix decided the contested outcome of the meeting with ${company}.`, DECIDED_LINE[need(params.decided)], ...note], join: false };
+    case "review_requested_info":
+      return { subject: `A review of the rejection of ${ref} was asked for`, paragraphs: [`The coordinator asks Fynix to look again at the rejection of lead ${ref} from ${company}.`], join: false };
     default:
       throw new Error(`${content.template} is not a portal email.`);
   }

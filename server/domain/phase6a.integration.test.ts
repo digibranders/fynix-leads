@@ -6,6 +6,7 @@ import type { Database } from "@/server/db/pool";
 import { withTenantScope } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import { setCampaignPrivacy, setProspectEmail } from "@/server/domain/campaign-privacy";
+import { contestOutcome, fynixDecideContest } from "@/server/domain/contests";
 import { fynixAnswerForClient, fynixMarkLost } from "@/server/domain/fynix-lead-actions";
 import { sendLeadReminders } from "@/server/domain/lead-sweep";
 import { withdrawLead } from "@/server/domain/lead-drafts";
@@ -14,6 +15,7 @@ import { fynixRecordMeetingOutcome, listClientMeetings, recordMeetingOutcome } f
 import { listMeetingJoins, listMeetingJoinsForFynix } from "@/server/domain/meeting-joins";
 import { pickPostponement, proposePostponement } from "@/server/domain/postponement";
 import { createPartnerAgency } from "@/server/domain/coordinators";
+import { requestRejectionReview } from "@/server/domain/rejection-reviews";
 import { refusal } from "@/server/domain/test-helpers";
 import { openDomainRig } from "@/server/domain/testing";
 import { importJoinRecords, sendMeetingReminderEmails, sendReminderEmails, sweepLeadsWithEmails } from "@/server/mail/launch-sweep";
@@ -474,7 +476,9 @@ describe("postponing and cancelling", () => {
     await clearMail();
     const later = nextWeekdayAt(11, 6);
     await proposePostponement(agencyDb(), rig.deps(), cast.coordinator, { meetingId: one.meetingId, proposedTimes: [later] });
-    expect(await mails()).toEqual([]);
+    // A proposal tells the side that picks, and nothing goes to the prospect until a new time is picked.
+    expect((await mails()).map((row) => row.template).filter((template) => template !== "postponement_proposed_info")).toEqual([]);
+    await clearMail();
     const [proposal] = await asTenant(clientDb(), cast.clientActor, (tx) => tx.execute<{ id: string }>(sql`select id from meeting_reschedule where meeting_id = ${one.meetingId}::uuid`)).then((result) => result.rows);
     await pickPostponement(clientDb(), rig.deps(), cast.clientActor, { rescheduleId: proposal?.id, pickedTime: later });
     expect((await meetingRow(one.meetingId)).icsSequence).toBe(1);
@@ -565,18 +569,20 @@ describe("the outcome and the decision", () => {
     expect(await whoGot("outcome_held_info")).toEqual(ids(cast.coordinatorColleague, ...fynixPeople()));
   });
 
-  it("tells the supply side and Fynix of a no-show, with no question to the client", async () => {
+  it("tells the supply side and Fynix of a no-show, with no question to the client, and tells the client's people when the no-show is theirs", async () => {
     emailsOn();
     const one = await booked();
     await clearMail();
     await fynixRecordMeetingOutcome(fynixDb(), rig.deps(), rig.actor, { meetingId: one.meetingId, outcome: "client_no_show" });
     expect(await whoGot("no_show_info")).toEqual(ids(cast.coordinator, cast.coordinatorColleague, cast.fynixStaff));
     expect(await whoGot("outcome_held_client")).toEqual([]);
+    expect(await whoGot("client_no_show_client")).toEqual(ids(cast.clientActor, cast.clientColleague));
     await clearMail();
     const two = await booked();
     await clearMail();
     await recordMeetingOutcome(clientDb(), rig.deps(), cast.clientActor, { meetingId: two.meetingId, outcome: "prospect_no_show" });
     expect((await mails("no_show_info")).map((row) => row.params.outcome)).toEqual(["prospect_no_show", "prospect_no_show", "prospect_no_show", "prospect_no_show"]);
+    expect(await whoGot("client_no_show_client")).toEqual([]);
   });
 
   it("tells the supply side and Fynix of an acceptance, of a rejection with the client's note scrubbed, and tells the coordinators of a rejection Fynix changed", async () => {
@@ -599,6 +605,65 @@ describe("the outcome and the decision", () => {
     await clearMail();
     await fynixOverturnRejection(fynixDb(), rig.deps(), rig.actor, { leadId: rejected.leadId, note: "The brief says logistics" });
     expect(await whoGot("rejection_overturned_info")).toEqual(ids(cast.coordinator, cast.coordinatorColleague));
+    // The client's people read Fynix's note too: the lead now counts toward their number.
+    expect(await whoGot("rejection_overturned_client")).toEqual(ids(cast.clientActor, cast.clientColleague));
+    expect((await mails("rejection_overturned_client"))[0]?.params).toMatchObject({ note: "The brief says logistics", noteFrom: "Fynix" });
+  });
+});
+
+describe("new times, contests and reviews", () => {
+  it("emails a proposal of new times to the side that picks and to Fynix, never to the side that proposed", async () => {
+    emailsOn();
+    const one = await booked();
+    await clearMail();
+    await proposePostponement(agencyDb(), rig.deps(), cast.coordinator, { meetingId: one.meetingId, proposedTimes: [nextWeekdayAt(11, 6)] });
+    expect(await whoGot("postponement_proposed_info")).toEqual(ids(cast.clientActor, cast.clientColleague, ...fynixPeople()));
+    expect((await mails("postponement_proposed_info")).every((row) => row.params.proposedBy === "supply")).toBe(true);
+
+    const two = await booked();
+    await clearMail();
+    await proposePostponement(clientDb(), rig.deps(), cast.clientActor, { meetingId: two.meetingId, proposedTimes: [nextWeekdayAt(11, 7)] });
+    expect(await whoGot("postponement_proposed_info")).toEqual(ids(cast.coordinator, cast.coordinatorColleague, ...fynixPeople()));
+    expect((await mails("postponement_proposed_info")).every((row) => row.params.proposedBy === "client")).toBe(true);
+  });
+
+  it("emails a contested outcome and Fynix's decision to all four sides, the note scrubbed and labelled, and never to the person who acted", async () => {
+    emailsOn();
+    const one = await booked();
+    await recordMeetingOutcome(agencyDb(), rig.deps(), cast.coordinator, { meetingId: one.meetingId, outcome: "client_no_show" });
+    await clearMail();
+    await contestOutcome(clientDb(), rig.deps(), cast.clientActor, { meetingId: one.meetingId, note: `We did join, call me on ${PROSPECT_PHONE}` });
+    expect(await whoGot("outcome_contested_info")).toEqual(ids(cast.clientColleague, cast.coordinator, cast.coordinatorColleague, ...fynixPeople()));
+    const [contested] = await mails("outcome_contested_info");
+    expect(contested?.params).toMatchObject({ noteFrom: "Client" });
+    expect(String(contested?.params.note)).toContain("We did join");
+    expect(JSON.stringify(contested?.params)).not.toContain("7911");
+
+    await clearMail();
+    await fynixDecideContest(rig.deps(), rig.actor, one.leadId, "held", "The room record shows the client joined");
+    expect(await whoGot("contest_decided_info")).toEqual(ids(cast.clientActor, cast.clientColleague, cast.coordinator, cast.coordinatorColleague, cast.fynixStaff));
+    expect((await mails("contest_decided_info"))[0]?.params).toMatchObject({ decided: "held", noteFrom: "Fynix", note: "The room record shows the client joined" });
+  });
+
+  it("emails Fynix alone when the coordinator asks for a review of a rejection", async () => {
+    emailsOn();
+    const one = await booked();
+    await recordMeetingOutcome(agencyDb(), rig.deps(), cast.coordinator, { meetingId: one.meetingId, outcome: "held" });
+    await decideLead(clientDb(), rig.deps(), cast.clientActor, { leadId: one.leadId, decision: "reject", note: "Wrong industry" });
+    await clearMail();
+    await requestRejectionReview(agencyDb(), rig.deps(), cast.coordinator, { leadId: one.leadId, note: "They fit the brief" });
+    expect(await whoGot("review_requested_info")).toEqual(ids(...fynixPeople()));
+  });
+
+  it("is accepted by the queue for every launch template of the enum, and the three account emails are still refused", async () => {
+    emailsOn();
+    const one = await sent();
+    await clearMail();
+    const call = (template: string) => asTenant(agencyDb(), cast.coordinator, (tx) => tx.execute(sql`select public.app_enqueue_lead_email(${one.leadId}::uuid, '{fynix}'::text[], ${template}, '{}'::jsonb, 's', 'b', ${ORIGIN})`));
+    await call("review_requested_info");
+    expect(await whoGot("review_requested_info")).toEqual(ids(...fynixPeople()));
+    await denied(call("alias_code"), /domain:invalid-input/);
+    await denied(call("not_a_template"), /domain:invalid-input/);
   });
 });
 
@@ -656,6 +721,7 @@ describe("the sweep: reminders, nudges and the 48 hours", () => {
     const swept = await sweepLeadsWithEmails(authDb(), hours(at, 49), enqueue());
     expect(swept.map((row) => row.publicRef)).toEqual([one.publicRef]);
     expect(await whoGot("lead_auto_accepted_info")).toEqual(ids(cast.coordinator, cast.coordinatorColleague, ...fynixPeople()));
+    expect(await whoGot("lead_auto_accepted_client")).toEqual(ids(cast.clientActor, cast.clientColleague));
     expect((await sweepLeadsWithEmails(authDb(), hours(at, 50), enqueue())).length).toBe(0);
   });
 

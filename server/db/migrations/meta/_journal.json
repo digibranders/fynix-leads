@@ -610,6 +610,20 @@
       "when": 1795613360587,
       "tag": "0086_group_labels_coordinator",
       "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1795625621656,
+      "tag": "0087_email_template_slice_1",
+      "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1795625636044,
+      "tag": "0088_email_enqueue_checks_enum",
+      "breakpoints": true
     }
   ]
 }

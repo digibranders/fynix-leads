@@ -115,7 +115,8 @@ export function leadNotices(event: LeadNoticeEvent): readonly NoticeDelivery[] {
         ? [lead(SUPPLY_AND_FYNIX, "lead_rejected", "Lead {ref} was rejected", `The lead counts as zero. Note from Client: ${noteOf(event.note)}`)]
         : [lead(EVERYONE, "lead_rejected", "Lead {ref} was rejected", `Fynix rejected this lead for the client. It counts as zero. Note from Fynix: ${noteOf(event.note)}`)];
     case "rejection_overturned":
-      return [lead(["source", "coordinator"], "rejection_overturned", "The rejection of {ref} was changed to accepted", `Fynix changed it. The lead counts as one. Note from Fynix: ${noteOf(event.note)}`)];
+      // The client reads it too: the lead now counts toward its number (owner decision, 2026-11-25).
+      return [lead(["client", "source", "coordinator"], "rejection_overturned", "The rejection of {ref} was changed to accepted", `Fynix changed it. The lead counts as one. Note from Fynix: ${noteOf(event.note)}`)];
     case "review_requested":
       return [lead(["fynix"], "review_requested", "A review of the rejection of {ref} was asked for", "The coordinator asks Fynix to look at this rejection again.")];
   }

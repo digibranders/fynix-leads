@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { CATALOG } from "@/lib/email/samples";
+import { CATALOG, SAMPLES } from "@/lib/email/samples";
 import type { AuditPage } from "@/server/domain/audit-overview";
 
 // The second step panel calls server actions, which need a running app. Only the markup is checked here.
@@ -57,10 +57,12 @@ describe("Email templates screen", () => {
 
   it("lists every template in its group with a sandboxed preview, its subject and an invariants line of OK", () => {
     const entries = CATALOG.flatMap((group) => group.entries);
-    expect(entries).toHaveLength(23);
-    expect(html.match(/<iframe /g)).toHaveLength(23);
-    expect(html.match(/sandbox=""/g)).toHaveLength(23);
-    expect(html.match(/Invariants: (<!-- -->)?OK/g)).toHaveLength(23);
+    // One per template, however many there are: a template added without a catalogue entry fails samples.test.ts.
+    const count = Object.keys(SAMPLES).length;
+    expect(entries).toHaveLength(count);
+    expect(html.match(/<iframe /g)).toHaveLength(count);
+    expect(html.match(/sandbox=""/g)).toHaveLength(count);
+    expect(html.match(/Invariants: (<!-- -->)?OK/g)).toHaveLength(count);
     expect(html).not.toContain("not OK");
     expect(html).toContain("Subject: </span>You are invited to Fynix Leads");
     for (const group of CATALOG) expect(html.replaceAll("&#x27;", "'")).toContain(group.audience);

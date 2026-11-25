@@ -46,7 +46,7 @@ describe("who gets which email", () => {
 
   it("the outcome: the client is asked to answer, the others are told; a no-show closes the story with no question", () => {
     expect(shape({ type: "outcome_recorded", outcome: "held", by: "agency" })).toEqual(["outcome_held_client:client", "outcome_held_info:source+coordinator+fynix"]);
-    expect(shape({ type: "outcome_recorded", outcome: "client_no_show", by: "agency" })).toEqual(["no_show_info:source+coordinator+fynix"]);
+    expect(shape({ type: "outcome_recorded", outcome: "client_no_show", by: "agency" })).toEqual(["no_show_info:source+coordinator+fynix", "client_no_show_client:client"]);
     expect(shape({ type: "outcome_recorded", outcome: "prospect_no_show", by: "client" })).toEqual(["no_show_info:source+coordinator+fynix"]);
   });
 
@@ -54,8 +54,15 @@ describe("who gets which email", () => {
     expect(shape({ type: "lead_accepted", by: "client", note: "n" })).toEqual(["lead_accepted_info:source+coordinator+fynix"]);
     expect(shape({ type: "lead_rejected", by: "client", note: "n" })).toEqual(["lead_rejected_info:source+coordinator+fynix"]);
     expect(leadEmailDeliveries({ type: "lead_rejected", by: "client", note: NOTE }, CONTEXT)[0]?.params).toMatchObject({ noteFrom: "Client" });
-    expect(shape({ type: "lead_auto_accepted" })).toEqual(["lead_auto_accepted_info:source+coordinator+fynix"]);
-    expect(shape({ type: "rejection_overturned", note: "n" })).toEqual(["rejection_overturned_info:source+coordinator"]);
+    expect(shape({ type: "lead_auto_accepted" })).toEqual(["lead_auto_accepted_info:source+coordinator+fynix", "lead_auto_accepted_client:client"]);
+    expect(shape({ type: "rejection_overturned", note: "n" })).toEqual(["rejection_overturned_info:source+coordinator", "rejection_overturned_client:client"]);
+  });
+
+  it("a rejection Fynix changed: the client reads Fynix's note too, with contact details taken out", () => {
+    const [, toClient] = leadEmailDeliveries({ type: "rejection_overturned", note: NOTE }, CONTEXT);
+    expect(toClient?.params.noteFrom).toBe("Fynix");
+    expect(toClient?.params.note).toContain("Not a fit");
+    expect(toClient?.params.note).not.toMatch(/@|7911/);
   });
 
   it("the sweep's emails: the client's reminder with the hours left, the prospect's two reminders, and the nudge", () => {
@@ -69,10 +76,23 @@ describe("who gets which email", () => {
     expect(shape({ type: "prospect_reminder", kind: "1h" }, CANCELLED)).toEqual([]);
   });
 
-  it("events with no email in the table of the Meet note send nothing", () => {
-    expect(shape({ type: "postponement_proposed", by: "client" })).toEqual([]);
-    expect(shape({ type: "review_requested" })).toEqual([]);
-    expect(shape({ type: "outcome_contested", by: "agency", note: "n" })).toEqual([]);
+  it("a proposal of new times goes to the side that must pick, and to Fynix", () => {
+    expect(shape({ type: "postponement_proposed", by: "client" })).toEqual(["postponement_proposed_info:source+coordinator+fynix"]);
+    expect(shape({ type: "postponement_proposed", by: "supply" })).toEqual(["postponement_proposed_info:client+fynix"]);
+    expect(leadEmailDeliveries({ type: "postponement_proposed", by: "supply" }, CONTEXT)[0]?.params.proposedBy).toBe("supply");
+  });
+
+  it("a contested outcome and Fynix's decision go to all four sides, the note labelled by the side that wrote it", () => {
+    expect(shape({ type: "outcome_contested", by: "agency", note: "n" })).toEqual(["outcome_contested_info:client+source+coordinator+fynix"]);
+    const [contested] = leadEmailDeliveries({ type: "outcome_contested", by: "coordinator", note: NOTE }, CONTEXT);
+    expect(contested?.params.noteFrom).toBe("Coordinator");
+    expect(contested?.params.note).not.toMatch(/@|7911/);
+    expect(shape({ type: "contest_decided", outcome: "client_no_show", note: "n" })).toEqual(["contest_decided_info:client+source+coordinator+fynix"]);
+    expect(leadEmailDeliveries({ type: "contest_decided", outcome: "held", note: "n" }, CONTEXT)[0]?.params).toMatchObject({ decided: "held", noteFrom: "Fynix" });
+  });
+
+  it("a request to review a rejection goes to Fynix alone", () => {
+    expect(shape({ type: "review_requested" })).toEqual(["review_requested_info:fynix"]);
   });
 
   it("every delivery builds content its own template accepts, and a prospect letter goes to the prospect alone", () => {
@@ -84,6 +104,12 @@ describe("who gets which email", () => {
       { type: "rejected_before_meeting", by: "client", note: NOTE },
       { type: "outcome_recorded", outcome: "held", by: "client" },
       { type: "outcome_recorded", outcome: "prospect_no_show", by: "client" },
+      { type: "outcome_recorded", outcome: "client_no_show", by: "agency" },
+      { type: "postponement_proposed", by: "client" },
+      { type: "postponement_proposed", by: "supply" },
+      { type: "outcome_contested", by: "client", note: NOTE },
+      { type: "contest_decided", outcome: "held", note: "n" },
+      { type: "review_requested" },
       { type: "lead_accepted", by: "fynix", note: "n" },
       { type: "lead_rejected", by: "fynix", note: "n" },
       { type: "rejection_overturned", note: "n" },

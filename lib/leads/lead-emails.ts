@@ -43,6 +43,8 @@ export interface EmailDelivery {
 }
 
 const SUPPLY_AND_FYNIX = ["source", "coordinator", "fynix"] as const;
+const EVERYONE = ["client", "source", "coordinator", "fynix"] as const;
+const SIDE_LABEL = { client: "Client", agency: "Agency", coordinator: "Coordinator" } as const;
 const MEETING_PEOPLE = ["client_meeting", "source", "coordinator", "fynix"] as const;
 
 /** A note typed by a person, with contact details taken out and cut to the length an email holds. */
@@ -109,23 +111,39 @@ export function leadEmailDeliveries(event: LeadEmailEvent, context: LeadEmailCon
             { template: "outcome_held_client", audience: ["client"], params: base },
             { template: "outcome_held_info", audience: SUPPLY_AND_FYNIX, params: base },
           ]
-        : [{ template: "no_show_info", audience: SUPPLY_AND_FYNIX, params: { ...base, outcome: event.outcome } }];
+        : [
+            { template: "no_show_info", audience: SUPPLY_AND_FYNIX, params: { ...base, outcome: event.outcome } },
+            // A client no-show counts as one against the client, so its people are told and can contest it.
+            ...(event.outcome === "client_no_show" ? [{ template: "client_no_show_client", audience: ["client"], params: base } as const] : []),
+          ];
     case "lead_accepted":
       return [{ template: "lead_accepted_info", audience: SUPPLY_AND_FYNIX, params: base }];
     case "lead_rejected":
       return [{ template: "lead_rejected_info", audience: SUPPLY_AND_FYNIX, params: { ...base, note: noteOf(event.note), noteFrom: event.by === "fynix" ? "Fynix" : "Client" } }];
     case "rejection_overturned":
-      return [{ template: "rejection_overturned_info", audience: ["source", "coordinator"], params: { ...base, note: noteOf(event.note), noteFrom: "Fynix" } }];
+      return [
+        { template: "rejection_overturned_info", audience: ["source", "coordinator"], params: { ...base, note: noteOf(event.note), noteFrom: "Fynix" } },
+        { template: "rejection_overturned_client", audience: ["client"], params: { ...base, note: noteOf(event.note), noteFrom: "Fynix" } },
+      ];
     case "lead_auto_accepted":
-      return [{ template: "lead_auto_accepted_info", audience: SUPPLY_AND_FYNIX, params: base }];
+      return [
+        { template: "lead_auto_accepted_info", audience: SUPPLY_AND_FYNIX, params: base },
+        { template: "lead_auto_accepted_client", audience: ["client"], params: base },
+      ];
+    case "postponement_proposed":
+      // The side that did not propose is the one that picks, as on the notice.
+      return [{ template: "postponement_proposed_info", audience: event.by === "client" ? SUPPLY_AND_FYNIX : ["client", "fynix"], params: { ...base, proposedBy: event.by } }];
+    case "outcome_contested":
+      return [{ template: "outcome_contested_info", audience: EVERYONE, params: { ...base, note: noteOf(event.note), noteFrom: SIDE_LABEL[event.by] } }];
+    case "contest_decided":
+      return [{ template: "contest_decided_info", audience: EVERYONE, params: { ...base, decided: event.outcome, note: noteOf(event.note), noteFrom: "Fynix" } }];
+    case "review_requested":
+      return [{ template: "review_requested_info", audience: ["fynix"], params: base }];
     case "decision_reminder":
       return [{ template: "decision_reminder", audience: ["client"], params: { ...base, hoursLeft: event.hoursLeft } }];
     case "prospect_reminder":
       return meeting === null || context.meeting?.outcome !== "scheduled" ? [] : prospect(event.kind === "24h" ? "prospect_reminder_24h" : "prospect_reminder_1h", { when: meeting.when, meetUrl: meeting.meetUrl });
     case "outcome_nudge":
       return [{ template: "outcome_nudge", audience: SUPPLY_AND_FYNIX, params: base }];
-    default:
-      // postponement proposals, contests, review requests and the rest have notices in the app and no email: the table of the Meet note does not list them.
-      return [];
   }
 }

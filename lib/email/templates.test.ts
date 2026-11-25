@@ -151,6 +151,13 @@ const FIXTURES: Record<EmailTemplate, EmailContent> = {
   lead_auto_accepted_info: portal("lead_auto_accepted_info"),
   rejection_overturned_info: portal("rejection_overturned_info", { note: "The brief allowed it.", noteFrom: "Fynix" }),
   no_show_info: portal("no_show_info", { outcome: "client_no_show" }),
+  lead_auto_accepted_client: portal("lead_auto_accepted_client"),
+  rejection_overturned_client: portal("rejection_overturned_client", { note: "The brief allowed it.", noteFrom: "Fynix" }),
+  client_no_show_client: portal("client_no_show_client"),
+  postponement_proposed_info: portal("postponement_proposed_info", { proposedBy: "client" }),
+  outcome_contested_info: portal("outcome_contested_info", { note: "Two of us joined on time.", noteFrom: "Client" }),
+  contest_decided_info: portal("contest_decided_info", { decided: "client_no_show", note: "The room record shows nobody from the client.", noteFrom: "Fynix" }),
+  review_requested_info: portal("review_requested_info"),
   prospect_confirmed: prospect("prospect_confirmed"),
   prospect_moved: prospect("prospect_moved"),
   prospect_cancelled: prospect("prospect_cancelled"),
@@ -209,6 +216,25 @@ describe("every template, rendered", () => {
     const final = everyRendering(portal("decision_reminder", { hoursLeft: 12 }), PORTAL_LINK);
     expect(final.subject).toBe("Final reminder: lead LD-4K7M is accepted automatically in 12 hours");
     expect(final.text).toContain("This is the last reminder.");
+  });
+
+  it("the client's no-show email says it counts as one and that the outcome can be contested", () => {
+    const mail = everyRendering(FIXTURES.client_no_show_client, PORTAL_LINK);
+    expect(mail.text).toContain("The lead counts as one.");
+    expect(mail.text).toContain("contest the outcome");
+  });
+
+  it("a proposal of new times is worded for the side that picks", () => {
+    expect(everyRendering(FIXTURES.postponement_proposed_info, PORTAL_LINK).subject).toBe("The client proposed new times for LD-4K7M");
+    expect(everyRendering(portal("postponement_proposed_info", { proposedBy: "supply" }), PORTAL_LINK).subject).toBe("New times proposed for LD-4K7M");
+  });
+
+  it("a contest and its decision carry the note with who wrote it, and the decision says what it means for the count", () => {
+    expect(everyRendering(FIXTURES.outcome_contested_info, PORTAL_LINK).text).toContain("Note from Client: Two of us joined on time.");
+    const decided = everyRendering(FIXTURES.contest_decided_info, PORTAL_LINK).text;
+    expect(decided).toContain("The client did not attend. It counts as one.");
+    expect(decided).toContain("Note from Fynix: The room record shows nobody from the client.");
+    expect(everyRendering(FIXTURES.rejection_overturned_client, PORTAL_LINK).text).toContain("Note from Fynix: The brief allowed it.");
   });
 
   it("the cancelled email gives the note, labelled with who wrote it", () => {
