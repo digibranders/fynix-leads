@@ -50,7 +50,7 @@ export const clientCampaignColumns = { ...tenantCampaignColumns, clientPrivacyUr
 export const agencyCampaignColumns = { ...tenantCampaignColumns } as const;
 
 /**
- * The brief of a campaign: who to reach, how a lead is qualified and the instructions. Migration 0054 granted it to the agency role (suppliers and
+ * The brief of a campaign: who to reach, how a lead is qualified and the instructions. Migration 0054 granted it to the agency role (coordinators and
  * partner agencies), who need it to find and qualify prospects. A client wrote it with Fynix and has had the same grant since migration 0064. It is apart from
  * `agencyCampaignColumns` because only the campaign screens select it; the structure test adds it for the agency role when it compares the grants.
  */
@@ -67,6 +67,14 @@ export const agencyCampaignBriefColumns = {
   bantNeed: campaign.bantNeed,
   bantTimeline: campaign.bantTimeline,
   instructions: campaign.instructions,
+  pitchIntroduction: campaign.pitchIntroduction,
+  pitchServices: campaign.pitchServices,
+  pitchDifferentiator: campaign.pitchDifferentiator,
+  pitchCollaterals: campaign.pitchCollaterals,
+  pitchCaseStudies: campaign.pitchCaseStudies,
+  qualifyingQuestions: campaign.qualifyingQuestions,
+  firstEmail: campaign.firstEmail,
+  secondEmail: campaign.secondEmail,
 } as const;
 
 /** Since migration 0064 a client reads the brief of its own campaigns too: it wrote it with Fynix. Same columns as the agency's. */
@@ -199,7 +207,7 @@ export const agencyConversationColumns = {
   campaignId: conversation.campaignId,
   leadId: conversation.leadId,
   side: conversation.side,
-  supplierOrgId: conversation.supplierOrgId,
+  coordinatorOrgId: conversation.coordinatorOrgId,
   agencyOrgId: conversation.agencyOrgId,
   subject: conversation.subject,
   createdAt: conversation.createdAt,

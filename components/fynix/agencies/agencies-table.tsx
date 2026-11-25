@@ -8,13 +8,13 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { agenciesHref, agencySubtitle, filterAgencies } from "@/lib/fynix/agencies";
 import { campaignCountsText } from "@/lib/fynix/campaign-counts";
-import { filterCounts, type SupplierFilter } from "@/lib/fynix/suppliers";
+import { filterCounts, type CoordinatorFilter } from "@/lib/fynix/coordinators";
 import type { AgencyRow } from "@/server/domain/agency-overview";
-import { AddAgencyButton } from "../suppliers/supplier-actions";
+import { AddAgencyButton } from "../coordinators/coordinator-actions";
 
 type Props = {
   rows: readonly AgencyRow[];
-  filter: SupplierFilter;
+  filter: CoordinatorFilter;
   query: string;
   canWrite: boolean;
   /** The active coordinators an admin can add an agency under. */
@@ -85,7 +85,7 @@ export function AgenciesTable({ rows, filter, query, canWrite, coordinators }: P
                     {row.inviteWaiting ? <span className="block text-caption text-ink-muted max-md:hidden">Invite sent, not accepted yet</span> : null}
                   </TableCell>
                   <TableCell className="max-md:hidden">
-                    <Link href={`/fynix/suppliers/${row.coordinator.publicRef}`} className="relative z-10 rounded-xs text-row hover:underline">
+                    <Link href={`/fynix/coordinators/${row.coordinator.publicRef}`} className="relative z-10 rounded-xs text-row hover:underline">
                       {row.coordinator.name}
                     </Link>
                   </TableCell>

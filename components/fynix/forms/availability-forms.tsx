@@ -126,7 +126,7 @@ function BlockFields({ timeZone }: { timeZone: string }) {
         <p className="text-caption text-ink-muted">Times are in {timeZone}, the zone of this host&apos;s hours.</p>
       </FormGroup>
       <FormGroup title="Why">
-        <TextAreaField name="note" label="Note" rows={2} helper="For Fynix only. Agencies see the time as busy, never this note." />
+        <TextAreaField name="note" label="Note" helper="For Fynix only. Agencies see the time as busy, never this note." />
       </FormGroup>
     </>
   );

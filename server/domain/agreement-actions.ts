@@ -32,7 +32,7 @@ export async function acceptAgreementAction(_previous: AgreementActionResult, fo
       clientAddressFrom(await headers()),
     );
     revalidatePath("/client/agreement");
-    revalidatePath("/supplier/agreement");
+    revalidatePath("/coordinator/agreement");
     return { status: "success", message: "Accepted. Your acceptance is on record." };
   } catch (error) {
     if (error instanceof DomainError) return { status: "error", message: error.message };

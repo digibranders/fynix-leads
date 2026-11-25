@@ -1,5 +1,6 @@
 import { ClockCounterClockwise, Handshake } from "@phosphor-icons/react/dist/ssr";
 import { Badge } from "@/components/ui/badge";
+import { DEFAULT_COUNTING_RULES } from "@/lib/fynix/campaign-terms";
 import { countOf, formatDayMonth, formatWeekdayDate } from "@/lib/fynix/format";
 import type { AgreementSideView } from "@/server/domain/campaign-overview";
 import { EmptyState } from "@/components/kit/empty-state";
@@ -16,6 +17,8 @@ type Props = {
   canWrite: boolean;
   /** A closed campaign takes no new version. */
   closed?: boolean;
+  /** What a first version starts from: the campaign's own numbers. */
+  suggested: { readonly monthlyTarget: number; readonly totalTarget: number };
 };
 
 function Tile({ label, value, unit }: { label: string; value: number; unit: string }) {
@@ -34,7 +37,7 @@ function monthsLine(monthly: number, total: number): string {
 }
 
 /** One party's agreement: the version in force, who accepted it, the three numbers, the counting rules in words and the history line. */
-export function AgreementCard({ side, withName, campaignId, timeZone, canWrite, closed = false }: Props) {
+export function AgreementCard({ side, withName, campaignId, timeZone, canWrite, closed = false, suggested }: Props) {
   const title = "Agreement";
   const { current, previous } = side;
 
@@ -42,7 +45,7 @@ export function AgreementCard({ side, withName, campaignId, timeZone, canWrite, 
     return (
       <Panel aria-label={title}>
         <PanelHeader title={title} />
-        <EmptyState icon={Handshake} title="No agreement yet" action={canWrite && !closed ? <NewVersionButton campaignId={campaignId} defaults={null} /> : undefined}>
+        <EmptyState icon={Handshake} title="No agreement yet" action={canWrite && !closed ? <NewVersionButton campaignId={campaignId} first defaults={{ ...suggested, rules: DEFAULT_COUNTING_RULES, notes: "" }} /> : undefined}>
           {canWrite ? `Write down what Fynix has agreed with ${withName}.` : "A Fynix admin writes the agreement."}
         </EmptyState>
       </Panel>
@@ -71,10 +74,9 @@ export function AgreementCard({ side, withName, campaignId, timeZone, canWrite, 
         <p>{sideLine("Coordinator", coordinatorAcceptance)}</p>
         {side.inForceVersion !== null ? <p>Version {side.inForceVersion} stays in force until both sides accept this one.</p> : null}
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <Tile label="Per month" value={current.monthlyTarget} unit="meetings" />
         <Tile label="In total" value={current.totalTarget} unit={monthsLine(current.monthlyTarget, current.totalTarget)} />
-        <Tile label="Dispute window" value={current.disputeWindowHours} unit="hours" />
       </div>
       <div>
         <p className="text-body whitespace-pre-line text-ink-2">{current.rules === "" ? "No counting rules are written for this version." : current.rules}</p>
@@ -90,7 +92,7 @@ export function AgreementCard({ side, withName, campaignId, timeZone, canWrite, 
         {canWrite && !closed && (
           <NewVersionButton
             campaignId={campaignId}
-            defaults={{ monthlyTarget: current.monthlyTarget, totalTarget: current.totalTarget, disputeWindowHours: current.disputeWindowHours, rules: current.rules, notes: current.notes }}
+            defaults={{ monthlyTarget: current.monthlyTarget, totalTarget: current.totalTarget, rules: current.rules, notes: current.notes }}
           />
         )}
       </div>

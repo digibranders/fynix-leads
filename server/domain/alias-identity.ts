@@ -72,7 +72,7 @@ async function assertClientServed(tx: ScopedTransaction, clientOrgId: string): P
 }
 
 /**
- * Creates an alias identity for an agency or supplier member (spec v2 section 9.3). The client is picked from the clients of the campaigns the
+ * Creates an alias identity for an agency or coordinator member (spec v2 section 9.3). The client is picked from the clients of the campaigns the
  * organisation sees (`listAliasClients`); the database refuses any other (trigger `alias_identity_set_client`, migration 0064). Generates an unguessable public reference and an initial 6-digit
  * verification code, and persists the record.
  */

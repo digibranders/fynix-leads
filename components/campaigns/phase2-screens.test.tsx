@@ -89,7 +89,7 @@ const campaign = (over: Partial<TenantCampaign>): TenantCampaign => ({
   inProgress: 2,
   share: 12,
   agencies: [{ agencyOrgId: "ag1", name: "Calder Bay", monthlyShare: 4, delivered: 1 }],
-  brief: { geography: "UK", industries: [], companySize: "", icp: "", jobTitles: [], seniority: "", technologies: [], bantBudget: "", bantAuthority: "", bantNeed: "", bantTimeline: "", instructions: "" },
+  brief: { geography: "UK", industries: [], companySize: "", icp: "", jobTitles: [], seniority: "", technologies: [], bantBudget: "", bantAuthority: "", bantNeed: "", bantTimeline: "", instructions: "", pitchIntroduction: "", pitchServices: "", pitchDifferentiator: "", pitchCollaterals: "", pitchCaseStudies: "", qualifyingQuestions: "", firstEmail: "", secondEmail: "" },
   ...over,
 });
 const assign = { ownOrgId: "o1", agencies: [{ id: "ag1", name: "Calder Bay" }], canManage: true };
@@ -98,18 +98,18 @@ describe("Campaign cards", () => {
   const campaigns = [campaign({}), campaign({ id: "c2", name: "Old campaign", status: "completed" }), campaign({ id: "c3", name: "New campaign", status: "draft" })];
 
   it("open on Active with counts on the tabs, and hide closed and setting up campaigns", () => {
-    const html = renderToStaticMarkup(<CampaignsView campaigns={campaigns} portal="supplier" basePath="/supplier/campaigns" submitHref="/supplier/leads/new" assign={assign} />);
+    const html = renderToStaticMarkup(<CampaignsView campaigns={campaigns} portal="coordinator" basePath="/coordinator/campaigns" submitHref="/coordinator/leads/new" assign={assign} />);
     for (const label of ["Active", "Setting up", "Closed", "All"]) expect(html).toContain(label);
     expect(html).toContain("UK finance teams");
     expect(html).not.toContain("Old campaign");
-    expect(html).toContain("/supplier/campaigns?status=closed");
+    expect(html).toContain("/coordinator/campaigns?status=closed");
   });
 
   it("shows a closed campaign read only: no assign, no take back, no submit", () => {
-    const active = renderToStaticMarkup(<CampaignsView campaigns={campaigns} portal="supplier" basePath="/supplier/campaigns" submitHref="/supplier/leads/new" assign={assign} />);
+    const active = renderToStaticMarkup(<CampaignsView campaigns={campaigns} portal="coordinator" basePath="/coordinator/campaigns" submitHref="/coordinator/leads/new" assign={assign} />);
     expect(active).toContain("Assign to an agency");
     expect(active).toContain("Submit a lead");
-    const closed = renderToStaticMarkup(<CampaignsView campaigns={[campaign({ status: "completed" })]} tab="closed" portal="supplier" basePath="/supplier/campaigns" submitHref="/supplier/leads/new" assign={assign} />);
+    const closed = renderToStaticMarkup(<CampaignsView campaigns={[campaign({ status: "completed" })]} tab="closed" portal="coordinator" basePath="/coordinator/campaigns" submitHref="/coordinator/leads/new" assign={assign} />);
     expect(closed).toContain("Closed");
     expect(closed).toContain("read only");
     expect(closed).not.toContain("Assign to an agency");

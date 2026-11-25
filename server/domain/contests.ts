@@ -41,14 +41,14 @@ export async function contestOutcome(db: Database, deps: Pick<DomainDeps, "now">
         // A client holds no grant on the source organisation: it is read for the supply side only.
         sourceOrgId: actor.orgKind === "client" ? sql<string | null>`null::uuid` : lead.sourceOrgId,
         clientOrgId: campaign.clientOrgId,
-        supplierOrgId: campaign.agencyOrgId,
+        coordinatorOrgId: campaign.agencyOrgId,
       })
       .from(meeting)
       .innerJoin(lead, eq(lead.id, meeting.leadId))
       .innerJoin(campaign, eq(campaign.id, meeting.campaignId))
       .where(eq(meeting.id, parsed.meetingId))
       .limit(1);
-    const mine = row !== undefined && (actor.orgKind === "client" ? row.clientOrgId === actor.orgId : row.sourceOrgId === actor.orgId || row.supplierOrgId === actor.orgId);
+    const mine = row !== undefined && (actor.orgKind === "client" ? row.clientOrgId === actor.orgId : row.sourceOrgId === actor.orgId || row.coordinatorOrgId === actor.orgId);
     if (row === undefined || !mine) throw new DomainError("not-found", "There is no such meeting.");
     if (row.recordedAt === null || row.recordedByRole === null) throw new DomainError("invalid-lead-stage", "No outcome has been recorded for this meeting.");
     if (row.recordedByRole === "fynix") throw new DomainError("not-authorised", "An outcome recorded by Fynix cannot be contested.");
@@ -60,7 +60,7 @@ export async function contestOutcome(db: Database, deps: Pick<DomainDeps, "now">
     const now = deps.now();
     if (now.getTime() - row.recordedAt.getTime() > CONTEST_WINDOW_HOURS * 3_600_000) throw new DomainError("contest-window-closed", "The 48 hours to contest this outcome are over.");
 
-    const role = actor.orgKind === "client" ? "client" : row.supplierOrgId === actor.orgId ? "coordinator" : "agency";
+    const role = actor.orgKind === "client" ? "client" : row.coordinatorOrgId === actor.orgId ? "coordinator" : "agency";
     const [updated] = await tx
       .update(meeting)
       .set({ contestedAt: now, contestNote: parsed.note, contestedByRole: role, updatedAt: now })

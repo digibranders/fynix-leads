@@ -1,6 +1,6 @@
 import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import type { RandomBytes } from "@/lib/domain/public-ref";
-import { clientCollateral, clientProfile, organisation } from "@/server/db/schema";
+import { clientCollateral, clientContact, clientProfile, organisation } from "@/server/db/schema";
 import type { ScopedTransaction } from "@/server/db/scope";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
@@ -8,7 +8,7 @@ import { fynixRead, fynixWrite, type FynixActor } from "@/server/domain/fynix-wr
 import { addCollateralSchema, CONTACT_KEYS, createOrganisationSchema, updateClientProfileSchema, updateOrganisationSchema, uuidSchema } from "@/server/domain/inputs";
 import { parseInput } from "@/server/domain/parse";
 import { insertWithPublicRef } from "@/server/domain/refs";
-import { snapshotCollateral, snapshotOrganisation, snapshotProfile } from "@/server/domain/snapshots";
+import { snapshotCollateral, snapshotContactPerson, snapshotOrganisation, snapshotProfile } from "@/server/domain/snapshots";
 
 /** What a service returns about an organisation: the reference that is safe to show, and the id the admin screens address it by. */
 export interface OrganisationRecord {
@@ -18,7 +18,7 @@ export interface OrganisationRecord {
   readonly name: string;
   /** The IANA zone the company works in; `null` until Fynix sets it. */
   readonly timeZone: string | null;
-  /** The supplier a partner agency works under. `null` for a client, a supplier and Fynix. */
+  /** The coordinator a partner agency works under. `null` for a client, a coordinator and Fynix. */
   readonly parentOrgId: string | null;
   readonly status: "active" | "archived";
 }
@@ -148,7 +148,7 @@ async function upsertProfile(
 }
 
 /**
- * Creates a client or an agency with no parent (an agency with no parent is a supplier). The reference is generated here and retried when it is
+ * Creates a client or an agency with no parent (an agency with no parent is a coordinator). The reference is generated here and retried when it is
  * taken. A client has one name; its time zone and profile can be given here. A company with the same name (same kind, any case) is refused with `duplicate-name` unless `confirmDuplicate` is true.
  */
 export async function createOrganisation(deps: DomainDeps, actor: FynixActor, input: unknown): Promise<OrganisationRecord> {
@@ -167,6 +167,16 @@ export async function createOrganisation(deps: DomainDeps, actor: FynixActor, in
     if (parsed.profile !== undefined) {
       const { after } = await upsertProfile(tx, created.id, parsed.profile, deps.now());
       await audit({ action: "client_profile.update", subject: { table: "client_profile", id: created.id, ref: created.publicRef }, before: null, after: snapshotProfile(after) });
+    }
+    for (const [position, person] of (parsed.contacts ?? []).entries()) {
+      // One timestamp per person, a millisecond apart, so the list keeps the order they were entered in.
+      const addedAt = new Date(deps.now().getTime() + position);
+      const [added] = await tx
+        .insert(clientContact)
+        .values({ clientOrgId: created.id, name: person.name, email: person.email ?? null, phone: person.phone ?? null, jobTitle: person.jobTitle ?? null, createdAt: addedAt, updatedAt: addedAt })
+        .returning({ id: clientContact.id, name: clientContact.name, email: clientContact.email, phone: clientContact.phone, jobTitle: clientContact.jobTitle });
+      if (added === undefined) throw new Error("The contact insert returned no row");
+      await audit({ action: "client_contact.add", subject: { table: "client_contact", id: added.id, ref: created.publicRef }, before: null, after: snapshotContactPerson(added) });
     }
     return created;
   });
@@ -206,6 +216,9 @@ async function requireClient(tx: ScopedTransaction, clientOrgId: string): Promis
   if (row.kind !== "client") throw new DomainError("invalid-input", "Only a client has a profile.");
   return row;
 }
+
+/** For the contact people of a client: the client, or `invalid-input` when the organisation is not one. */
+export const loadClientForContacts = requireClient;
 
 /** Sets a client's profile, creating it the first time. Only a Fynix admin. */
 export async function updateClientProfile(deps: DomainDeps, actor: FynixActor, input: unknown): Promise<ClientProfileRecord> {

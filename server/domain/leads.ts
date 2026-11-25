@@ -112,15 +112,15 @@ export async function checkSubmission(
     throw new DomainError("invalid-input", "That alias is for a different client than this campaign.");
   }
 
-  // Check assignment: actor org is supplier itself, or has a campaign_share record
-  const isSupplier = campaignRow.agencyOrgId === actor.orgId;
+  // Check assignment: actor org is coordinator itself, or has a campaign_share record
+  const isCoordinator = campaignRow.agencyOrgId === actor.orgId;
   const [shareRow] = await tx
     .select({ id: campaignShare.id, monthlyShare: campaignShare.monthlyShare })
     .from(campaignShare)
     .where(and(eq(campaignShare.campaignId, parsed.campaignId), eq(campaignShare.agencyOrgId, actor.orgId)))
     .limit(1);
 
-  if (!isSupplier && shareRow === undefined) {
+  if (!isCoordinator && shareRow === undefined) {
     throw new DomainError("not-authorised", "Your organisation is not assigned to this campaign.");
   }
 

@@ -22,7 +22,7 @@ function getField(formData: FormData, name: string): string {
 }
 
 /**
- * Server action for agency/supplier submitting a lead.
+ * Server action for agency/coordinator submitting a lead.
  */
 export async function submitLeadAction(
   _previous: TenantActionResult,
@@ -80,7 +80,7 @@ export async function submitLeadAction(
       await submitDraft(db, deps, actor, { leadId: draftId });
     }
     revalidatePath("/agency/leads");
-    revalidatePath("/supplier/leads");
+    revalidatePath("/coordinator/leads");
     return { status: "success", message: "Lead submitted successfully." };
   } catch (error) {
     if (editsSaved && error instanceof DomainError) {

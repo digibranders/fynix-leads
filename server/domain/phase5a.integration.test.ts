@@ -18,7 +18,7 @@ import { countUnreadMessages, countUnreadNotices, listNotices, loadShellCounts, 
 import { pickPostponement, proposePostponement } from "@/server/domain/postponement";
 import { requestRejectionReview } from "@/server/domain/rejection-reviews";
 import { searchEverything } from "@/server/domain/search";
-import { createPartnerAgency } from "@/server/domain/suppliers";
+import { createPartnerAgency } from "@/server/domain/coordinators";
 import { agreeNumbers, refusal } from "@/server/domain/test-helpers";
 import { openDomainRig } from "@/server/domain/testing";
 
@@ -109,7 +109,7 @@ beforeEach(async () => {
   };
   const coordinatorAlias = await verifiedAlias(coordinatorMember, "Lena Hartmann", "lena@brand.example", "ALI-3M2K");
 
-  const partnerOrg = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: world.brightpath.id, name: "Ridgeway Partner Ltd" });
+  const partnerOrg = await createPartnerAgency(rig.deps(), rig.actor, { coordinatorId: world.brightpath.id, name: "Ridgeway Partner Ltd" });
   const partnerPerson = await addPerson(partnerOrg.id, "agency", "Pia Ridgeway", "pia@ridgeway.example", "manager");
   await owner.insert(campaignShare).values({ campaignId: target.id, agencyOrgId: partnerOrg.id, monthlyShare: 3 });
   const partnerAlias = await verifiedAlias(partnerPerson.memberId, "Piet Ridge", "piet@ridgeway-brand.example", "ALI-9R4T");
@@ -275,7 +275,7 @@ describe("notices at every lead event", () => {
     }
     const linkOf = (userId: string) => rows.find((row) => row.userId === userId)?.link;
     expect(linkOf(cast.clientActor.userId)).toBe(`/client/leads/${one.publicRef}`);
-    expect(linkOf(cast.coordinator.userId)).toBe(`/supplier/leads/${one.publicRef}`);
+    expect(linkOf(cast.coordinator.userId)).toBe(`/coordinator/leads/${one.publicRef}`);
     expect(linkOf(cast.partner.userId)).toBe(`/agency/leads/${one.publicRef}`);
     expect(linkOf(cast.fynixAdmin)).toBe(`/fynix/leads/${one.publicRef}`);
     const fynixRow = rows.find((row) => row.userId === cast.fynixAdmin);
@@ -415,7 +415,7 @@ describe("notices at every lead event", () => {
     await publishAgreement(rig.deps(), rig.actor, { campaignId: cast.campaignId, monthlyTarget: 14, totalTarget: 84 });
     const published = await ownerDb().select({ userId: notification.userId, link: notification.link }).from(notification).where(eq(notification.kind, "agreement_published"));
     expect(published.map((row) => row.userId).sort()).toEqual(ids(cast.clientActor, cast.coordinator));
-    expect(published.find((row) => row.userId === cast.coordinator.userId)?.link).toBe("/supplier/agreement");
+    expect(published.find((row) => row.userId === cast.coordinator.userId)?.link).toBe("/coordinator/agreement");
   });
 
   it("lets a person read and mark read only their own notices, Fynix too", async () => {
@@ -598,7 +598,7 @@ describe("chat groups of one side", () => {
     expect(afterClient.map((row) => row.roleLabel).filter((label) => label !== "Fynix")).toEqual(["Client", "Client"]);
     expect(afterClient.some((row) => row.userId === cast.otherClient.userId)).toBe(false);
     const afterPartner = await listGroupCandidates(fynixDb(), fynixMessaging(cast.fynixAdmin), { chosen: [cast.partner.userId] });
-    expect(afterPartner.map((row) => row.roleLabel).filter((label) => label !== "Fynix").sort()).toEqual(["Agency", "Supplier", "Supplier"]);
+    expect(afterPartner.map((row) => row.roleLabel).filter((label) => label !== "Fynix").sort()).toEqual(["Agency", "Coordinator", "Coordinator"]);
     expect(afterPartner.some((row) => row.userId === cast.clientActor.userId || row.userId === cast.otherAgency.userId)).toBe(false);
     await create([cast.fynixStaff, cast.clientActor.userId], "Kestrel");
     const [group] = await ownerDb().select({ id: chatGroup.id }).from(chatGroup);
@@ -713,7 +713,7 @@ describe("search", () => {
     expect(byCompany.leads).toHaveLength(5);
     expect(byCompany.leads[0]?.href).toMatch(/^\/client\/leads\/LD-/);
     expect((await searchEverything(clientDb(), asMessaging(cast.clientActor), first.publicRef.toLowerCase())).leads.map((row) => row.href)).toEqual([`/client/leads/${first.publicRef}`]);
-    expect((await searchEverything(agencyDb(), asMessaging(cast.coordinator), "Marta Lindqvist 1")).leads[0]?.href).toBe(`/supplier/leads/${first.publicRef}`);
+    expect((await searchEverything(agencyDb(), asMessaging(cast.coordinator), "Marta Lindqvist 1")).leads[0]?.href).toBe(`/coordinator/leads/${first.publicRef}`);
     expect((await searchEverything(fynixDb(), fynixMessaging(cast.fynixAdmin), "Lindqvist 3")).leads[0]?.href).toMatch(/^\/fynix\/leads\/LD-/);
     expect((await searchEverything(clientDb(), asMessaging(cast.clientActor), "nordvik-cold.example")).leads).toEqual([]);
     expect((await searchEverything(clientDb(), asMessaging(cast.clientActor), PROSPECT_PHONE)).leads).toEqual([]);

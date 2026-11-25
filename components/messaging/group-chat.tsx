@@ -33,8 +33,8 @@ export interface GroupInfoView {
 
 /** A person's role as a small tinted chip: it, not a company name, is how people are told apart inside a group. */
 function RoleChip({ label }: { readonly label: string }) {
-  // The database still calls this role "Supplier"; people see "Coordinator".
-  const shown = label === "Supplier" ? "Coordinator" : label;
+  // The database still calls this role "Coordinator"; people see "Coordinator".
+  const shown = label === "Coordinator" ? "Coordinator" : label;
   const tone = shown === "Fynix" ? "bg-navy text-offwhite" : shown === "Client" ? "bg-blue-soft text-blue-text" : shown === "Coordinator" ? "bg-green-soft text-green-text" : "bg-amber-soft text-amber-text";
   return <span className={`inline-flex h-5 items-center rounded-xs px-2 text-[11px] font-semibold ${tone}`}>{shown}</span>;
 }

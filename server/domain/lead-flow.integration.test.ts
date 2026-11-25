@@ -3,7 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { agreement, aliasIdentity, campaign, campaignHost, campaignShare, hostHours, lead, leadHistory, leadReminder, meeting, member, user } from "@/server/db/schema";
 import { withTenantScope } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
-import { getClientOverviewMetrics, getSupplierOverviewMetrics } from "@/server/domain/analytics";
+import { getClientOverviewMetrics, getCoordinatorOverviewMetrics } from "@/server/domain/analytics";
 import { readAgreementsPage } from "@/server/domain/campaign-overview";
 import { listTenantCampaigns } from "@/server/domain/campaigns-tenant";
 import { exportMeetingsCsv } from "@/server/domain/export-reads";
@@ -13,7 +13,7 @@ import { getLeadRecordForClient, getLeadRecordForFynix, getLeadRecordForSupply }
 import { dueReminders, sweepLeads } from "@/server/domain/lead-sweep";
 import { fynixRecordMeetingOutcome, listClientMeetings, recordMeetingOutcome } from "@/server/domain/meetings";
 import { listRejections } from "@/server/domain/rejection-overview";
-import { createPartnerAgency } from "@/server/domain/suppliers";
+import { createPartnerAgency } from "@/server/domain/coordinators";
 import { refusal } from "@/server/domain/test-helpers";
 import { openDomainRig } from "@/server/domain/testing";
 
@@ -93,7 +93,7 @@ beforeEach(async () => {
 
   // A partner agency under Brightpath with one manager and a share, so a lead can come from an agency that is not the coordinator.
   const partnerName = "Ridgeway Partner Ltd";
-  const partnerOrg = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: world.brightpath.id, name: partnerName });
+  const partnerOrg = await createPartnerAgency(rig.deps(), rig.actor, { coordinatorId: world.brightpath.id, name: partnerName });
   const [partnerUser] = await owner.insert(user).values({ email: "pia@ridgeway.example", name: "Pia Ridgeway" }).returning({ id: user.id });
   if (partnerUser === undefined) throw new Error("No partner user");
   const [partnerMember] = await owner.insert(member).values({ userId: partnerUser.id, orgId: partnerOrg.id, orgKind: "agency", role: "manager", displayName: "Pia Ridgeway" }).returning({ id: member.id });
@@ -291,7 +291,7 @@ describe("recording the outcome", () => {
     expect(closed.closedAt?.toISOString()).toBe("2026-12-02T09:00:00.000Z");
     expect(closed.deliveredAt).toBeNull();
     expect(await clientCount()).toBe(1);
-    expect((await getSupplierOverviewMetrics(agencyDb(), cast.coordinator)).deliveredCount).toBe(1);
+    expect((await getCoordinatorOverviewMetrics(agencyDb(), cast.coordinator)).deliveredCount).toBe(1);
   });
 });
 
@@ -568,7 +568,7 @@ describe("the client's name for the supply side", () => {
     for (const actor of [cast.coordinator, cast.partner]) {
       const options = await getLeadSubmissionOptions(agencyDb(), actor);
       expect(options.campaigns.find((row) => row.id === cast.campaignId)?.clientName).toBe(clientName);
-      const campaigns = await listTenantCampaigns(agencyDb(), actor, actor === cast.coordinator ? "supplier" : "agency");
+      const campaigns = await listTenantCampaigns(agencyDb(), actor, actor === cast.coordinator ? "coordinator" : "agency");
       expect(campaigns.find((row) => row.id === cast.campaignId)?.clientName).toBe(clientName);
       const csv = await exportMeetingsCsv(agencyDb(), actor);
       expect(csv.split("\r\n")[0]).toContain("Campaign,Client,Start");

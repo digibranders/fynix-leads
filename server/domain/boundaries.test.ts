@@ -32,7 +32,7 @@ describe("every Fynix write goes through one helper", () => {
   });
 
   it("the services that change data as Fynix call fynixWrite", () => {
-    for (const path of ["organisations", "campaigns", "invites", "members", "terms", "suppliers", "agreements", "shares", "hosts", "availability"]) expect(read(`server/domain/${path}.ts`), path).toContain("fynixWrite(");
+    for (const path of ["organisations", "campaigns", "invites", "members", "terms", "coordinators", "agreements", "shares", "hosts", "availability"]) expect(read(`server/domain/${path}.ts`), path).toContain("fynixWrite(");
   });
 
   it("no service writes the audit table directly: only appendAudit does", () => {

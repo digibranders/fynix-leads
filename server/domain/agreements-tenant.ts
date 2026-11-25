@@ -7,7 +7,7 @@ import { parseInput } from "@/server/domain/parse";
 import { uuidSchema } from "@/server/domain/inputs";
 import { campaignClientName } from "@/server/db/client-name";
 
-/** A tenant manager's side of the one campaign agreement: a client's is `client`, a coordinator's is `supplier`. */
+/** A tenant manager's side of the one campaign agreement: a client's is `client`, a coordinator's is `coordinator`. */
 export type TenantAgreementActor = { readonly userId: string; readonly orgId: string; readonly orgKind?: "client" | "agency" };
 
 export interface TenantAgreement {
@@ -25,17 +25,17 @@ export interface TenantAgreement {
   readonly acceptedAt: Date | null;
   /** When the client side first accepted this version, and when the coordinator side did. Null while waiting. */
   readonly clientAcceptedAt: Date | null;
-  readonly supplierAcceptedAt: Date | null;
+  readonly coordinatorAcceptedAt: Date | null;
 }
 
 /** When each side first accepted one agreement version: the side and the time, never a person (`app_agreement_acceptance_times`). */
-async function acceptanceTimes(tx: ScopedTransaction, agreementId: string): Promise<{ readonly client: Date | null; readonly supplier: Date | null }> {
+async function acceptanceTimes(tx: ScopedTransaction, agreementId: string): Promise<{ readonly client: Date | null; readonly coordinator: Date | null }> {
   const result = await tx.execute<{ side: string; accepted_at: Date | string }>(sql`select side, accepted_at from public.app_agreement_acceptance_times(${agreementId}::uuid)`);
   const at = (side: string): Date | null => {
     const row = result.rows.find((entry) => entry.side === side);
     return row === undefined ? null : new Date(row.accepted_at);
   };
-  return { client: at("client"), supplier: at("supplier") };
+  return { client: at("client"), coordinator: at("supplier") };
 }
 
 /**
@@ -71,7 +71,7 @@ export async function listCurrentAgreements(db: Database, actor: TenantAgreement
     const result: TenantAgreement[] = [];
     for (const row of rows) {
       const times = await acceptanceTimes(tx, row.id);
-      result.push({ ...row, acceptedAt: mine.get(row.id) ?? null, clientAcceptedAt: times.client, supplierAcceptedAt: times.supplier });
+      result.push({ ...row, acceptedAt: mine.get(row.id) ?? null, clientAcceptedAt: times.client, coordinatorAcceptedAt: times.coordinator });
     }
     return result;
   });
@@ -134,11 +134,11 @@ export async function listAgreementVersions(db: Database, actor: TenantAgreement
     for (const row of rows) {
       const times = await acceptanceTimes(tx, row.id);
       const first = ownRows.find((entry) => entry.agreementId === row.id);
-      const bothAccepted = times.client !== null && times.supplier !== null;
+      const bothAccepted = times.client !== null && times.coordinator !== null;
       versions.push({
         ...row,
         ownSide: first === undefined ? null : { by: names.get(first.userId) ?? "A manager", at: first.acceptedAt },
-        otherSideAcceptedAt: own === "client" ? times.supplier : times.client,
+        otherSideAcceptedAt: own === "client" ? times.coordinator : times.client,
         inForce: bothAccepted && !inForceFound,
       });
       if (bothAccepted) inForceFound = true;

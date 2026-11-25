@@ -39,7 +39,7 @@ const campaignValues = (agencyOrgId: string) =>
   ({ publicRef: "CMP-3C4D", name: "Partner campaign", clientOrgId: world.kestrel.id, agencyOrgId, startDate: "2027-01-04", endDate: "2027-06-30", monthlyTarget: 5, totalTarget: 30 }) as const;
 
 describe("organisation.parent_org_id", () => {
-  it("lets a partner agency point at a supplier, and fills in the parent's kind itself", async () => {
+  it("lets a partner agency point at a coordinator, and fills in the parent's kind itself", async () => {
     const partner = await insertAgency("ORG-3C4D", world.brightpath.id);
     expect(partner.parentOrgKind).toBe("agency");
     const [client] = await dbs.owner.db.select({ parentOrgId: organisation.parentOrgId, parentOrgKind: organisation.parentOrgKind }).from(organisation).where(eq(organisation.id, world.kestrel.id));
@@ -72,7 +72,7 @@ describe("organisation.parent_org_id", () => {
     expect(await failure(dbs.owner.db.update(organisation).set({ parentOrgId: world.northgate.id }).where(eq(organisation.id, world.brightpath.id)))).toContain("organisation_has_partner_agencies");
   });
 
-  it("refuses to give a parent to an organisation that is the supplier of a campaign", async () => {
+  it("refuses to give a parent to an organisation that is the coordinator of a campaign", async () => {
     expect(await failure(dbs.owner.db.update(organisation).set({ parentOrgId: world.brightpath.id }).where(eq(organisation.id, world.northgate.id)))).toContain("organisation_is_a_campaign_supplier");
   });
 
@@ -84,7 +84,7 @@ describe("organisation.parent_org_id", () => {
   });
 });
 
-describe("campaign.agency_org_id is a supplier", () => {
+describe("campaign.agency_org_id is a coordinator", () => {
   it("refuses a campaign whose agency is a partner agency, on insert", async () => {
     const partner = await insertAgency("ORG-3C4D", world.brightpath.id);
     expect(await failure(dbs.owner.db.insert(campaign).values(campaignValues(partner.id)))).toContain("campaign_supplier_has_parent");
@@ -97,14 +97,14 @@ describe("campaign.agency_org_id is a supplier", () => {
     expect(await failure(dbs.owner.db.update(campaign).set({ agencyOrgId: partner.id }).where(eq(campaign.id, target.id)))).toContain("campaign_supplier_has_parent");
   });
 
-  it("accepts a campaign for a supplier", async () => {
+  it("accepts a campaign for a coordinator", async () => {
     await dbs.owner.db.insert(campaign).values(campaignValues(world.northgate.id));
     const [row] = await dbs.owner.db.select({ agencyOrgId: campaign.agencyOrgId }).from(campaign).where(eq(campaign.publicRef, "CMP-3C4D"));
     expect(row?.agencyOrgId).toBe(world.northgate.id);
   });
 });
 
-describe("a campaign's supplier is fixed once it has shares or a supplier agreement", () => {
+describe("a campaign's coordinator is fixed once it has shares or a coordinator agreement", () => {
   let createdBy: string;
   beforeEach(async () => {
     await resetDatabase(dbs.owner);
@@ -118,39 +118,39 @@ describe("a campaign's supplier is fixed once it has shares or a supplier agreem
     if (row === undefined) throw new Error("no campaign");
     return { id: row.id, agencyOrgId: row.agency.id };
   };
-  const supplierOf = async (): Promise<string | undefined> => (await dbs.owner.db.select({ agencyOrgId: campaign.agencyOrgId }).from(campaign).where(eq(campaign.id, target().id)))[0]?.agencyOrgId;
-  const moveToOtherSupplier = () => dbs.owner.db.update(campaign).set({ agencyOrgId: world.northgate.id }).where(eq(campaign.id, target().id));
+  const coordinatorOf = async (): Promise<string | undefined> => (await dbs.owner.db.select({ agencyOrgId: campaign.agencyOrgId }).from(campaign).where(eq(campaign.id, target().id)))[0]?.agencyOrgId;
+  const moveToOtherCoordinator = () => dbs.owner.db.update(campaign).set({ agencyOrgId: world.northgate.id }).where(eq(campaign.id, target().id));
 
-  it("lets the supplier change while the campaign has no share and no supplier agreement", async () => {
-    await moveToOtherSupplier();
-    expect(await supplierOf()).toBe(world.northgate.id);
+  it("lets the coordinator change while the campaign has no share and no coordinator agreement", async () => {
+    await moveToOtherCoordinator();
+    expect(await coordinatorOf()).toBe(world.northgate.id);
   });
 
   it("refuses the change once the campaign has a share, and names no row values", async () => {
     await dbs.owner.db.insert(campaignShare).values({ campaignId: target().id, agencyOrgId: target().agencyOrgId, monthlyShare: 5 });
-    const databaseMessage = await moveToOtherSupplier().then(
+    const databaseMessage = await moveToOtherCoordinator().then(
       () => "no error",
       (error: unknown) => (error instanceof Error && error.cause instanceof Error ? error.cause.message : "no database error"),
     );
     expect(databaseMessage).toBe("campaign_supplier_in_use: a campaign with shares or a supplier agreement keeps its supplier");
-    expect(await supplierOf()).toBe(target().agencyOrgId);
+    expect(await coordinatorOf()).toBe(target().agencyOrgId);
   });
 
-  it("refuses the change once the campaign has a supplier agreement", async () => {
+  it("refuses the change once the campaign has a coordinator agreement", async () => {
     await dbs.owner.db.insert(agreement).values({ campaignId: target().id, party: "supplier", version: 1, monthlyTarget: 5, totalTarget: 30, createdBy });
-    expect(await failure(moveToOtherSupplier())).toContain("campaign_supplier_in_use");
+    expect(await failure(moveToOtherCoordinator())).toContain("campaign_supplier_in_use");
   });
 
   it("allows the change when only a client agreement exists", async () => {
     await dbs.owner.db.insert(agreement).values({ campaignId: target().id, party: "client", version: 1, monthlyTarget: 5, totalTarget: 30, createdBy });
-    await moveToOtherSupplier();
-    expect(await supplierOf()).toBe(world.northgate.id);
+    await moveToOtherCoordinator();
+    expect(await coordinatorOf()).toBe(world.northgate.id);
   });
 
-  it("allows an update that sets the same supplier, even with shares", async () => {
+  it("allows an update that sets the same coordinator, even with shares", async () => {
     await dbs.owner.db.insert(campaignShare).values({ campaignId: target().id, agencyOrgId: target().agencyOrgId, monthlyShare: 5 });
     await dbs.owner.db.update(campaign).set({ agencyOrgId: target().agencyOrgId }).where(eq(campaign.id, target().id));
-    expect(await supplierOf()).toBe(target().agencyOrgId);
+    expect(await coordinatorOf()).toBe(target().agencyOrgId);
   });
 });
 

@@ -16,9 +16,9 @@ export async function loadInvitePage(token: string | undefined): Promise<InviteP
 }
 
 /**
- * Where a signed-in agency person starts: the partner-agency portal for a partner agency, the supplier portal for a supplier. Both are
+ * Where a signed-in agency person starts: the partner-agency portal for a partner agency, the coordinator portal for a coordinator. Both are
  * `agency` organisations; the page asks here so it never touches the database itself.
  */
-export async function agencyHomePath(person: { readonly userId: string; readonly orgId: string }): Promise<"/agency" | "/supplier"> {
-  return (await isPartnerAgency(getDatabase("leads_agency").db, person)) ? "/agency" : "/supplier";
+export async function agencyHomePath(person: { readonly userId: string; readonly orgId: string }): Promise<"/agency" | "/coordinator"> {
+  return (await isPartnerAgency(getDatabase("leads_agency").db, person)) ? "/agency" : "/coordinator";
 }

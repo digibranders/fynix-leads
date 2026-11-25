@@ -36,7 +36,7 @@ export async function readSetupFindings(deps: DomainDeps, actor: FynixActor): Pr
           ),
         )
         .orderBy(asc(campaign.name));
-    const [clientsWithoutManager, coordinatorsWithoutManager, agenciesWithoutManager, campaignsWithoutHost, clientWaiting, supplierWaiting] = await Promise.all([
+    const [clientsWithoutManager, coordinatorsWithoutManager, agenciesWithoutManager, campaignsWithoutHost, clientWaiting, coordinatorWaiting] = await Promise.all([
       noManager("client"),
       noManager("agency"),
       noManager("agency", true),
@@ -48,7 +48,7 @@ export async function readSetupFindings(deps: DomainDeps, actor: FynixActor): Pr
       notAccepted("client"),
       notAccepted("supplier"),
     ]);
-    const agreementsWaiting = [...clientWaiting.map((row) => ({ ...row, party: "client" as const })), ...supplierWaiting.map((row) => ({ ...row, party: "supplier" as const }))].sort((a, b) => a.campaignName.localeCompare(b.campaignName));
+    const agreementsWaiting = [...clientWaiting.map((row) => ({ ...row, party: "client" as const })), ...coordinatorWaiting.map((row) => ({ ...row, party: "supplier" as const }))].sort((a, b) => a.campaignName.localeCompare(b.campaignName));
     return { clientsWithoutManager, coordinatorsWithoutManager, agenciesWithoutManager, campaignsWithoutHost, agreementsWaiting };
   });
 }

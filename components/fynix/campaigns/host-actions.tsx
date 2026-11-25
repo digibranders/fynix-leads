@@ -7,7 +7,7 @@ import { BlockForm, HoursForm } from "../forms/availability-forms";
 import { FormSheet } from "../forms/form-sheet";
 import { InlineAction } from "../forms/inline-action";
 
-export function AddHostButton({ campaignId, candidates, clientName }: { campaignId: string; candidates: readonly { memberId: string; displayName: string }[]; clientName: string }) {
+export function AddHostButton({ campaignId, candidates, clientName }: { campaignId: string; candidates: readonly { memberId: string; displayName: string; jobTitle: string | null }[]; clientName: string }) {
   return (
     <FormSheet
       trigger={

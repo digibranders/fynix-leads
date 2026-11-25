@@ -10,7 +10,7 @@ describe("checklistItems", () => {
       campaignsWithoutHost: [{ name: "UK finance", ref: "CMP-7Q2X" }],
       agreementsWaiting: [{ campaignName: "UK finance", ref: "CMP-7Q2X", party: "supplier" }],
     });
-    expect(items.map((item) => item.href)).toEqual(["/fynix/clients/ORG-K1AA/people", "/fynix/suppliers/ORG-N7GT/people", "/fynix/agencies/ORG-R1DG/people", "/fynix/campaigns/CMP-7Q2X/hosts", "/fynix/campaigns/CMP-7Q2X/agreements"]);
+    expect(items.map((item) => item.href)).toEqual(["/fynix/clients/ORG-K1AA/people", "/fynix/coordinators/ORG-N7GT/people", "/fynix/agencies/ORG-R1DG/people", "/fynix/campaigns/CMP-7Q2X/hosts", "/fynix/campaigns/CMP-7Q2X/agreements"]);
     expect(items[4]?.label).toContain("coordinator has not accepted");
     expect(new Set(items.map((item) => item.key)).size).toBe(5);
     expect(checklistTitle(items)).toBe("5 things to set up");

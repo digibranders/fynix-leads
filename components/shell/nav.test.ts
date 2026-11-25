@@ -27,7 +27,7 @@ describe("phone tab bar", () => {
   });
 
   it("keeps Team in the More sheet of the client, coordinator and agency, never on the bar", () => {
-    for (const kind of ["client", "supplier", "agency"] as const) {
+    for (const kind of ["client", "coordinator", "agency"] as const) {
       const portal = PORTALS[kind];
       expect(moreGroups(portal).flatMap((group) => group.items.map((item) => item.href)), kind).toContain(`${portal.homeHref}/team`);
       expect(portal.mobileTabs, kind).not.toContain(`${portal.homeHref}/team`);
@@ -69,7 +69,7 @@ describe("portal navigation", () => {
   });
 
   it("matches nothing for a path outside the portal or no path", () => {
-    expect(currentItem(PORTALS.client, "/supplier/leads")).toBeNull();
+    expect(currentItem(PORTALS.client, "/coordinator/leads")).toBeNull();
     expect(currentItem(PORTALS.client, null)).toBeNull();
   });
 
@@ -89,7 +89,7 @@ describe("breadcrumb", () => {
   });
 
   it("names the profile page", () => {
-    expect(breadcrumb(PORTALS.supplier, "/supplier/profile")).toEqual(["Profile"]);
+    expect(breadcrumb(PORTALS.coordinator, "/coordinator/profile")).toEqual(["Profile"]);
   });
 
   it("falls back to the portal name outside any section", () => {
@@ -121,7 +121,7 @@ describe("the Fynix Agencies item", () => {
 
   it("lights on an agency record and titles the breadcrumb", () => {
     expect(currentItem(PORTALS.fynix, "/fynix/agencies/ORG-AAAA/people")?.label).toBe("Agencies");
-    expect(currentItem(PORTALS.fynix, "/fynix/suppliers/ORG-N7GT")?.label).toBe("Coordinators");
+    expect(currentItem(PORTALS.fynix, "/fynix/coordinators/ORG-N7GT")?.label).toBe("Coordinators");
     expect(breadcrumb(PORTALS.fynix, "/fynix/agencies/ORG-AAAA")).toEqual(["Agencies", "ORG-AAAA"]);
   });
 });
@@ -144,6 +144,6 @@ describe("admin only items", () => {
   });
 
   it("only the Fynix portal has any", () => {
-    for (const portal of [PORTALS.client, PORTALS.supplier, PORTALS.agency]) expect(forViewer(portal, false)).toEqual(portal);
+    for (const portal of [PORTALS.client, PORTALS.coordinator, PORTALS.agency]) expect(forViewer(portal, false)).toEqual(portal);
   });
 });

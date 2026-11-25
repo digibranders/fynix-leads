@@ -161,7 +161,7 @@ export async function recordMeetingOutcome(
     let side: OutcomeSide = "client";
     if (actor.orgKind === "agency") {
       const [row] = await tx
-        .select({ sourceOrgId: lead.sourceOrgId, supplierOrgId: campaign.agencyOrgId })
+        .select({ sourceOrgId: lead.sourceOrgId, coordinatorOrgId: campaign.agencyOrgId })
         .from(meeting)
         .innerJoin(lead, eq(lead.id, meeting.leadId))
         .innerJoin(campaign, eq(campaign.id, meeting.campaignId))
@@ -169,7 +169,7 @@ export async function recordMeetingOutcome(
         .limit(1);
       // A lead the agency may not read leaves no row: the same answer as a meeting that does not exist.
       if (row === undefined) throw new DomainError("not-found", "There is no such meeting.");
-      side = row.supplierOrgId === actor.orgId ? "coordinator" : "agency";
+      side = row.coordinatorOrgId === actor.orgId ? "coordinator" : "agency";
     }
     return applyOutcome(tx, deps.now(), { userId: actor.userId, side }, parsed);
   });
@@ -227,7 +227,7 @@ export async function listClientMeetings(db: Database, actor: TenantActor) {
 }
 
 /**
- * Lists all meetings accessible to an agency or supplier organisation.
+ * Lists all meetings accessible to an agency or coordinator organisation.
  */
 export async function listAgencyMeetings(db: Database, actor: TenantActor) {
   if (actor.orgKind !== "agency") {

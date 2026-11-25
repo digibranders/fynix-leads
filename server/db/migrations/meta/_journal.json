@@ -568,6 +568,48 @@
       "when": 1795585957596,
       "tag": "0080_organisation_contact",
       "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1795605744486,
+      "tag": "0081_client_contact",
+      "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1795605745186,
+      "tag": "0082_client_contact_grants",
+      "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1795608639536,
+      "tag": "0083_campaign_set_up_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1795609687725,
+      "tag": "0084_campaign_set_up_tenant_read",
+      "breakpoints": true
+    },
+    {
+      "idx": 85,
+      "version": "7",
+      "when": 1795612834703,
+      "tag": "0085_notice_links_coordinator",
+      "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "7",
+      "when": 1795613360587,
+      "tag": "0086_group_labels_coordinator",
+      "breakpoints": true
     }
   ]
 }

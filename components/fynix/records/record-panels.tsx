@@ -1,9 +1,10 @@
-import { ClockCounterClockwise, Megaphone } from "@phosphor-icons/react/dist/ssr";
+import { ClockCounterClockwise, Megaphone, Plus } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { EmptyState } from "@/components/kit/empty-state";
 import { ListRow } from "@/components/kit/list";
 import { Panel, PanelHeader } from "@/components/kit/panel";
 import { StatusChip } from "@/components/kit/status-chip";
+import { buttonVariants } from "@/components/ui/button";
 import { When } from "@/components/kit/when";
 import type { CampaignStatus } from "@/lib/domain/campaign-status";
 import { auditSentence } from "@/lib/fynix/audit-text";
@@ -19,13 +20,25 @@ export interface CampaignLine {
 }
 
 /** A record's campaigns, each linking to the campaign with its status. */
-export function CampaignsPanel({ rows }: { rows: readonly CampaignLine[] }) {
+/** `newHref` is the New campaign page with this record chosen; it is given only to an admin. */
+export function CampaignsPanel({ rows, newHref }: { rows: readonly CampaignLine[]; newHref?: string }) {
   return (
     <Panel aria-label="Campaigns">
-      <PanelHeader title="Campaigns" count={rows.length} />
+      <PanelHeader
+        title="Campaigns"
+        count={rows.length}
+        action={
+          newHref === undefined ? null : (
+            <Link href={newHref} className={buttonVariants({ variant: "secondary", size: "sm" })}>
+              <Plus aria-hidden />
+              New campaign
+            </Link>
+          )
+        }
+      />
       {rows.length === 0 ? (
         <EmptyState icon={Megaphone} title="No campaigns yet">
-          Campaigns are created from the Campaigns page.
+          {newHref === undefined ? "Campaigns are created from the Campaigns page." : "Use New campaign to set up the first one."}
         </EmptyState>
       ) : (
         <ul className="flex flex-col pb-3">

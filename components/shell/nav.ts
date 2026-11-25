@@ -38,7 +38,7 @@ export interface NavGroup {
   readonly items: readonly NavItem[];
 }
 
-export type PortalKind = "client" | "supplier" | "agency" | "fynix";
+export type PortalKind = "client" | "coordinator" | "agency" | "fynix";
 
 export interface PortalConfig {
   readonly kind: PortalKind;
@@ -79,29 +79,29 @@ export const PORTALS: Record<PortalKind, PortalConfig> = {
       },
     ],
   },
-  supplier: {
-    kind: "supplier",
+  coordinator: {
+    kind: "coordinator",
     label: "Coordinator portal",
-    homeHref: "/supplier",
-    mobileTabs: ["/supplier", "/supplier/leads", "/supplier/meetings", "/supplier/messages"],
+    homeHref: "/coordinator",
+    mobileTabs: ["/coordinator", "/coordinator/leads", "/coordinator/meetings", "/coordinator/messages"],
     groups: [
       {
         label: "Work",
         items: [
-          { label: "Overview", icon: "house", href: "/supplier" },
-          { label: "Leads", icon: "table", href: "/supplier/leads" },
-          { label: "Meetings", icon: "calendar", href: "/supplier/meetings" },
-          { label: "Messages", icon: "chats", href: "/supplier/messages", countKey: "messages", countKind: "unread" },
+          { label: "Overview", icon: "house", href: "/coordinator" },
+          { label: "Leads", icon: "table", href: "/coordinator/leads" },
+          { label: "Meetings", icon: "calendar", href: "/coordinator/meetings" },
+          { label: "Messages", icon: "chats", href: "/coordinator/messages", countKey: "messages", countKind: "unread" },
         ],
       },
       {
         label: "Delivery",
         items: [
-          { label: "Campaigns", icon: "megaphone", href: "/supplier/campaigns" },
-          { label: "Partner agencies", icon: "users", href: "/supplier/agencies" },
-          { label: "Team", icon: "team", href: "/supplier/team" },
-          { label: "Aliases", icon: "badge", href: "/supplier/aliases" },
-          { label: "Agreement", icon: "handshake", href: "/supplier/agreement" },
+          { label: "Campaigns", icon: "megaphone", href: "/coordinator/campaigns" },
+          { label: "Partner agencies", icon: "users", href: "/coordinator/agencies" },
+          { label: "Team", icon: "team", href: "/coordinator/team" },
+          { label: "Aliases", icon: "badge", href: "/coordinator/aliases" },
+          { label: "Agreement", icon: "handshake", href: "/coordinator/agreement" },
         ],
       },
     ],
@@ -151,7 +151,7 @@ export const PORTALS: Record<PortalKind, PortalConfig> = {
         label: "Accounts",
         items: [
           { label: "Clients", icon: "buildings", href: "/fynix/clients" },
-          { label: "Coordinators", icon: "users", href: "/fynix/suppliers" },
+          { label: "Coordinators", icon: "users", href: "/fynix/coordinators" },
           { label: "Agencies", icon: "handshake", href: "/fynix/agencies" },
           { label: "Campaigns", icon: "megaphone", href: "/fynix/campaigns" },
         ],

@@ -1,10 +1,11 @@
 import { sql } from "drizzle-orm";
 import { boolean, check, date, foreignKey, index, integer, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { clientContact } from "./client-contact";
 import { campaignStatus, organisationKind } from "./enums";
 import { organisation } from "./organisation";
 
 /**
- * One client, served by one supplier (an agency with no parent; `agency_org_id` is the supplier since phase 1D). Both organisation ids live here so a policy can compare one column per role.
+ * One client, served by one coordinator (an agency with no parent; `agency_org_id` is the coordinator since phase 1D). Both organisation ids live here so a policy can compare one column per role.
  *
  * - The client never gets a grant on `agency_org_id`, and the agency never gets one on `client_org_id`.
  * - `client_org_kind` and `agency_org_kind` are constants. The composite foreign keys below use them to make the
@@ -60,6 +61,21 @@ export const campaign = pgTable(
      */
     clientPrivacyUrl: text("client_privacy_url"),
     prospectEmailEnabled: boolean("prospect_email_enabled").notNull().default(false),
+    /**
+     * What Fynix takes when it sets a campaign up (migration 0083): how the client introduces itself to prospects, what it sells, what sets it
+     * apart, its collaterals and case studies, the questions the sales team asks to qualify a prospect, and the two emails sent to prospects.
+     * All free text. Fynix only: no tenant role has a grant on any of them yet.
+     */
+    pitchIntroduction: text("pitch_introduction").notNull().default(""),
+    pitchServices: text("pitch_services").notNull().default(""),
+    pitchDifferentiator: text("pitch_differentiator").notNull().default(""),
+    pitchCollaterals: text("pitch_collaterals").notNull().default(""),
+    pitchCaseStudies: text("pitch_case_studies").notNull().default(""),
+    qualifyingQuestions: text("qualifying_questions").notNull().default(""),
+    firstEmail: text("first_email").notNull().default(""),
+    secondEmail: text("second_email").notNull().default(""),
+    /** The person at the client who approves leads and gives feedback for this campaign: one of the client's contact people. Null until chosen. */
+    primaryContactId: uuid("primary_contact_id"),
     /** When the campaign last moved into a closed status (paused, completed or archived); null while it is not closed. */
     closedAt: timestamp("closed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -81,6 +97,7 @@ export const campaign = pgTable(
       columns: [table.agencyOrgId, table.agencyOrgKind],
       foreignColumns: [organisation.id, organisation.kind],
     }),
+    foreignKey({ name: "campaign_primary_contact_fk", columns: [table.primaryContactId, table.clientOrgId], foreignColumns: [clientContact.id, clientContact.clientOrgId] }),
     index("campaign_client_org_idx").on(table.clientOrgId),
     index("campaign_agency_org_idx").on(table.agencyOrgId),
     check("campaign_public_ref_format", sql`${table.publicRef} ~ '^CMP-[0-9A-HJKMNP-TV-Z]{4}$'`),

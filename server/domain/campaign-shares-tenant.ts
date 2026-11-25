@@ -9,9 +9,9 @@ import { removeCampaignShareSchema, setCampaignShareSchema } from "@/server/doma
 import { parseInput } from "@/server/domain/parse";
 
 /**
- * A supplier splits a campaign Fynix gave it between itself and its partner agencies. The database decides who may: row-level
- * security lets only a manager of the campaign's supplier write a share, and a trigger (migration 0024) refuses an agency that is
- * neither the supplier nor one of its partners. Here the refusals are put into plain words.
+ * A coordinator splits a campaign Fynix gave it between itself and its partner agencies. The database decides who may: row-level
+ * security lets only a manager of the campaign's coordinator write a share, and a trigger (migration 0024) refuses an agency that is
+ * neither the coordinator nor one of its partners. Here the refusals are put into plain words.
  */
 export interface AssignableAgency {
   readonly id: string;
@@ -26,7 +26,7 @@ function refusal(error: unknown): never {
   throw error;
 }
 
-/** The agencies a supplier may assign a campaign to: its active partner agencies. */
+/** The agencies a coordinator may assign a campaign to: its active partner agencies. */
 export async function listAssignableAgencies(db: Database, actor: TenantActor): Promise<readonly AssignableAgency[]> {
   return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
     const result = await tx.execute<{ id: string; name: string; status: string }>(sql`select id, name, status from public.app_my_partner_agencies() order by name`);

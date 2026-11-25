@@ -9,6 +9,13 @@ const nextConfig: NextConfig = {
   // A message may carry up to five files of 10 MB each, and they travel in the form post.
   experimental: { serverActions: { bodySizeLimit: "52mb" } },
   partialPrefetching: true,
+  // The screens were named supplier before they were named coordinator, so an old bookmark or link still lands.
+  async redirects() {
+    return [
+      { source: "/fynix/suppliers/:path*", destination: "/fynix/coordinators/:path*", permanent: true },
+      { source: "/supplier/:path*", destination: "/coordinator/:path*", permanent: true },
+    ];
+  },
   async headers() {
     return [
       // First, so the page rules below override a header they also set.

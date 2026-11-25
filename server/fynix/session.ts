@@ -31,7 +31,7 @@ export async function requireFynix(options: { readonly allowWithoutSecondFactor?
   return { actor: { userId: context.userId }, name: context.name, canWrite: context.memberRole === "manager", twoFactorEnabled: context.twoFactorEnabled === true };
 }
 
-/** Awaits a domain read and turns "there is no such supplier, campaign or reference" into the not-found page. Anything else is a fault and goes on. */
+/** Awaits a domain read and turns "there is no such coordinator, campaign or reference" into the not-found page. Anything else is a fault and goes on. */
 export async function orNotFound<T>(read: Promise<T>): Promise<T> {
   try {
     return await read;

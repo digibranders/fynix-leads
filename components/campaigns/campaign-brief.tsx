@@ -31,7 +31,10 @@ function Section({ title, children }: { readonly title: string; readonly childre
 export function CampaignBriefButton({ name, brief }: { readonly name: string; readonly brief: CampaignBrief }) {
   const [open, setOpen] = useState(false);
   const empty =
-    [brief.geography, brief.companySize, brief.icp, brief.seniority, brief.bantBudget, brief.bantAuthority, brief.bantNeed, brief.bantTimeline, brief.instructions].every((value) => value.trim() === "") &&
+    [
+      brief.geography, brief.companySize, brief.icp, brief.seniority, brief.bantBudget, brief.bantAuthority, brief.bantNeed, brief.bantTimeline, brief.instructions,
+      brief.pitchIntroduction, brief.pitchServices, brief.pitchDifferentiator, brief.pitchCollaterals, brief.pitchCaseStudies, brief.qualifyingQuestions, brief.firstEmail, brief.secondEmail,
+    ].every((value) => value.trim() === "") &&
     brief.industries.length + brief.jobTitles.length + brief.technologies.length === 0;
   return (
     <>
@@ -65,6 +68,20 @@ export function CampaignBriefButton({ name, brief }: { readonly name: string; re
                 <Line label="Authority" value={brief.bantAuthority} />
                 <Line label="Need" value={brief.bantNeed} />
                 <Line label="Timeline" value={brief.bantTimeline} />
+              </Section>
+              <Section title="Brand and service information">
+                <Line label="How the client is introduced" value={brief.pitchIntroduction} />
+                <Line label="Services" value={brief.pitchServices} />
+                <Line label="What sets them apart" value={brief.pitchDifferentiator} />
+                <Line label="Marketing collaterals" value={brief.pitchCollaterals} />
+                <Line label="Case studies" value={brief.pitchCaseStudies} />
+              </Section>
+              <Section title="Critical qualifying questions">
+                <Line label="Ask a prospect" value={brief.qualifyingQuestions} />
+              </Section>
+              <Section title="Email copies">
+                <Line label="First email" value={brief.firstEmail} />
+                <Line label="Second email" value={brief.secondEmail} />
               </Section>
               <Section title="Instructions">
                 <Line label="From Fynix" value={brief.instructions} />

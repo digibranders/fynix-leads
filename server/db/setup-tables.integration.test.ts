@@ -180,12 +180,12 @@ describe("campaign_share", () => {
     await expectOthersHold("campaign_share");
   });
 
-  it("accepts the campaign's supplier and a partner agency of that supplier", async () => {
+  it("accepts the campaign's coordinator and a partner agency of that coordinator", async () => {
     await newShare(world.brightpath.id);
     await newShare(await newAgency("ORG-3C4D", world.brightpath.id), 7);
   });
 
-  it("refuses another supplier, a partner agency of another supplier and a client", async () => {
+  it("refuses another coordinator, a partner agency of another coordinator and a client", async () => {
     expect(await failure(newShare(world.northgate.id))).toContain("campaign_share_agency_not_in_supplier_tree");
     const strangers = await newAgency("ORG-5E6F", world.northgate.id);
     expect(await failure(newShare(strangers))).toContain("campaign_share_agency_not_in_supplier_tree");
@@ -199,14 +199,14 @@ describe("campaign_share", () => {
     expect(await failure(newShare(partner, -1))).toContain("campaign_share_not_negative");
   });
 
-  it("refuses to change the parent of an organisation that holds a share: it would stop being the supplier's partner", async () => {
+  it("refuses to change the parent of an organisation that holds a share: it would stop being the coordinator's partner", async () => {
     const partner = await newAgency("ORG-3C4D", world.brightpath.id);
     await newShare(partner);
     expect(await failure(dbs.owner.db.update(organisation).set({ parentOrgId: world.northgate.id }).where(eq(organisation.id, partner)))).toContain("organisation_has_shares");
     expect(await failure(dbs.owner.db.update(organisation).set({ parentOrgId: null }).where(eq(organisation.id, partner)))).toContain("organisation_has_shares");
   });
 
-  it("refuses to point an existing share at an organisation outside the supplier's tree", async () => {
+  it("refuses to point an existing share at an organisation outside the coordinator's tree", async () => {
     const id = await newShare(world.brightpath.id);
     expect(await failure(dbs.owner.db.update(campaignShare).set({ agencyOrgId: world.northgate.id }).where(eq(campaignShare.id, id)))).toContain("campaign_share_agency_not_in_supplier_tree");
   });

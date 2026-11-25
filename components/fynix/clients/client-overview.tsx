@@ -1,14 +1,10 @@
-import { ArrowSquareOut, Plus, PencilSimple, Trash } from "@phosphor-icons/react/dist/ssr";
+import { ArrowSquareOut } from "@phosphor-icons/react/dist/ssr";
 import { Facts } from "@/components/kit/facts";
 import { ListRow } from "@/components/kit/list";
 import { Panel, PanelHeader } from "@/components/kit/panel";
-import { Button } from "@/components/ui/button";
 import type { ClientDetail } from "@/server/domain/client-overview";
-import { removeCollateralAction } from "@/server/fynix/actions";
 import { ContactPanel } from "../records/contact-panel";
-import { FormSheet } from "../forms/form-sheet";
-import { InlineAction } from "../forms/inline-action";
-import { AddCollateralForm, EditProfileForm } from "../forms/client-forms";
+import { ContactsPanel } from "./contacts-panel";
 
 const NOT_SET = "Not set";
 
@@ -21,74 +17,44 @@ function Block({ label, text }: { label: string; text: string | null }) {
   );
 }
 
-/** The Overview tab: the company facts, the profile the coordinator and agencies read, and the collateral links. Staff see it with no edit buttons. */
+/** True when a profile has any answer in it. */
+const hasProfile = (profile: ClientDetail["profile"]): boolean => profile !== null && [profile.introduction, profile.services, profile.differentiator, profile.caseStudies ?? ""].some((text) => text.trim() !== "");
+
+/**
+ * The Overview tab: the company facts, the contact details, and, for a client that already has them, the profile and collateral links taken
+ * before they were asked for with each campaign. Those two are read only now: new answers are given when a campaign is set up.
+ */
 export function ClientOverview({ client, canWrite }: { client: ClientDetail; canWrite: boolean }) {
   const { profile } = client;
   return (
     <div className="flex flex-col gap-4">
       <Facts
         items={[
-          ["Company name", client.name],
-          ["Time zone", client.timeZone ?? NOT_SET],
+          ["Name", client.name],
           ["Status", client.status === "archived" ? "Archived" : "Active"],
         ]}
-        className="sm:grid-cols-3"
+        className="sm:grid-cols-2"
       />
 
-      <ContactPanel organisationId={client.id} contact={client.contact} canWrite={canWrite} />
+      <ContactsPanel clientOrgId={client.id} contacts={client.contacts} canWrite={canWrite} />
 
-      <Panel aria-label="Client profile">
-        <PanelHeader
-          title="Profile"
-          action={
-            canWrite ? (
-              <FormSheet
-                trigger={
-                  <Button variant="secondary" size="sm">
-                    <PencilSimple aria-hidden />
-                    Edit profile
-                  </Button>
-                }
-                title="Edit profile"
-                description="How the client is introduced to prospects. Its coordinator and agencies read it."
-              >
-                <EditProfileForm clientOrgId={client.id} profile={profile} />
-              </FormSheet>
-            ) : null
-          }
-        />
-        <div className="flex flex-col gap-4 px-5 pb-5">
-          <Block label="Introduction" text={profile?.introduction ?? null} />
-          <Block label="Services" text={profile?.services ?? null} />
-          <Block label="What sets them apart" text={profile?.differentiator ?? null} />
-          <Block label="Case studies" text={profile?.caseStudies ?? null} />
-        </div>
-      </Panel>
+      <ContactPanel organisationId={client.id} contact={client.contact} canWrite={canWrite} mode="client" />
 
-      <Panel aria-label="Collateral">
-        <PanelHeader
-          title="Collateral"
-          count={client.collateral.length}
-          action={
-            canWrite ? (
-              <FormSheet
-                trigger={
-                  <Button variant="secondary" size="sm">
-                    <Plus aria-hidden />
-                    Add link
-                  </Button>
-                }
-                title="Add collateral link"
-                description="A brochure, a deck or a page agencies can use when they talk about the client."
-              >
-                <AddCollateralForm clientOrgId={client.id} />
-              </FormSheet>
-            ) : null
-          }
-        />
-        {client.collateral.length === 0 ? (
-          <p className="px-5 pb-5 text-body text-ink-muted">No collateral yet.</p>
-        ) : (
+      {hasProfile(profile) ? (
+        <Panel aria-label="Earlier profile">
+          <PanelHeader title="Earlier profile" />
+          <div className="flex flex-col gap-4 px-5 pb-5">
+            <Block label="Introduction" text={profile?.introduction ?? null} />
+            <Block label="Services" text={profile?.services ?? null} />
+            <Block label="What sets them apart" text={profile?.differentiator ?? null} />
+            <Block label="Case studies" text={profile?.caseStudies ?? null} />
+          </div>
+        </Panel>
+      ) : null}
+
+      {client.collateral.length > 0 ? (
+        <Panel aria-label="Earlier collateral">
+          <PanelHeader title="Earlier collateral" count={client.collateral.length} />
           <ul className="flex flex-col pb-3">
             {client.collateral.map((item) => (
               <ListRow
@@ -104,19 +70,11 @@ export function ClientOverview({ client, canWrite }: { client: ClientDetail; can
                   )
                 }
                 sub={item.url ?? undefined}
-                trailing={
-                  canWrite ? (
-                    <InlineAction action={removeCollateralAction} fields={{ collateralId: item.id }} label={`Remove ${item.title}`} variant="ghost">
-                      <Trash aria-hidden />
-                      Remove
-                    </InlineAction>
-                  ) : null
-                }
               />
             ))}
           </ul>
-        )}
-      </Panel>
+        </Panel>
+      ) : null}
     </div>
   );
 }

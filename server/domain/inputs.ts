@@ -49,6 +49,18 @@ const contactUpdateFields = {
 };
 export const CONTACT_KEYS = ["contactName", "contactEmail", "contactPhone", "website", "address", "notes"] as const;
 
+/** One contact person at a client: a name, and an email, a phone number and a job title if known. Not a login, so nobody is invited. */
+const contactPersonFields = {
+  name: name(120),
+  email: contactFields.contactEmail.optional(),
+  phone: contactFields.contactPhone.optional(),
+  jobTitle: name(120).optional(),
+};
+export const contactPersonSchema = z.object(contactPersonFields).strict();
+export type ContactPersonInput = z.infer<typeof contactPersonSchema>;
+/** The most contact people a client is added with at once. */
+export const MAX_NEW_CONTACTS = 10;
+
 /** The profile Fynix takes for a client: how it is introduced to prospects, what it offers, what sets it apart, and its case studies. */
 const profileFields = {
   introduction: name(2000),
@@ -67,11 +79,13 @@ export const createOrganisationSchema = z
     ...contactCreateFields,
     /** A client's profile, taken when it is added. */
     profile: clientProfileSchema.optional(),
+    /** The contact people of a new client. */
+    contacts: z.array(contactPersonSchema).max(MAX_NEW_CONTACTS, `must have at most ${MAX_NEW_CONTACTS} people`).optional(),
     /** Set after the screen warned that a company of that name exists. */
     confirmDuplicate: z.boolean().optional(),
   })
   .strict()
-  .refine((input) => input.kind === "client" || input.profile === undefined, { path: ["kind"], message: "a profile is for a client only" });
+  .refine((input) => input.kind === "client" || (input.profile === undefined && input.contacts === undefined), { path: ["kind"], message: "a profile and contact people are for a client only" });
 export type CreateOrganisationInput = z.infer<typeof createOrganisationSchema>;
 
 export const updateOrganisationSchema = z
@@ -82,6 +96,14 @@ export type UpdateOrganisationInput = z.infer<typeof updateOrganisationSchema>;
 
 export const updateClientProfileSchema = z.object({ clientOrgId: z.uuid(), ...profileFields }).strict();
 export type UpdateClientProfileInput = z.infer<typeof updateClientProfileSchema>;
+
+export const addClientContactSchema = z.object({ clientOrgId: z.uuid(), ...contactPersonFields }).strict();
+export type AddClientContactInput = z.infer<typeof addClientContactSchema>;
+/** Changing a contact: a field left out stays, `null` clears an email, a phone number or a job title. */
+export const updateClientContactSchema = z
+  .object({ contactId: z.uuid(), name: contactPersonFields.name.optional(), email: contactPersonFields.email.nullable(), phone: contactPersonFields.phone.nullable(), jobTitle: contactPersonFields.jobTitle.nullable() })
+  .strict();
+export type UpdateClientContactInput = z.infer<typeof updateClientContactSchema>;
 
 /** A link now; an uploaded file needs the scanned upload route, which is not wired to this screen yet. */
 export const addCollateralSchema = z
@@ -113,6 +135,17 @@ const campaignOptional = {
   instructions: optionalText(4000),
   /** Fynix only: no tenant role can read it. */
   internalNotes: optionalText(4000).nullable(),
+  /** What is taken when the campaign is set up: free text, Fynix only (migration 0083). */
+  pitchIntroduction: optionalText(4000),
+  pitchServices: optionalText(4000),
+  pitchDifferentiator: optionalText(4000),
+  pitchCollaterals: optionalText(4000),
+  pitchCaseStudies: optionalText(4000),
+  qualifyingQuestions: optionalText(6000),
+  firstEmail: optionalText(10_000),
+  secondEmail: optionalText(10_000),
+  /** One of the client's contact people, who approves leads for this campaign. `null` clears it. */
+  primaryContactId: z.uuid().nullable(),
   /** The time zone counting uses, and the default meeting length. The database defaults are Europe/London and 30. */
   timeZone: timeZoneSchema,
   meetingMinutes,
@@ -168,10 +201,10 @@ export const uuidSchema = z.uuid();
 
 /** A coordinator or partner agency: its name, an optional time zone, and the tick that confirms a same-name company on purpose. */
 const agencyFields = { name: name(120), timeZone: timeZoneSchema.optional(), ...contactCreateFields, confirmDuplicate: z.boolean().optional() };
-export const createSupplierSchema = z.object(agencyFields).strict();
-export type CreateSupplierInput = z.infer<typeof createSupplierSchema>;
+export const createCoordinatorSchema = z.object(agencyFields).strict();
+export type CreateCoordinatorInput = z.infer<typeof createCoordinatorSchema>;
 
-export const createPartnerAgencySchema = z.object({ supplierId: z.uuid(), ...agencyFields }).strict();
+export const createPartnerAgencySchema = z.object({ coordinatorId: z.uuid(), ...agencyFields }).strict();
 
 /** The first person invited into a new coordinator or agency: the invite fields without an organisation (the new one) and without an alias (their own name). */
 export const firstPersonSchema = issueInviteSchema.omit({ organisationId: true, alias: true });
@@ -271,12 +304,12 @@ export const verifyAliasCodeSchema = z
   .strict();
 export type VerifyAliasCodeInput = z.infer<typeof verifyAliasCodeSchema>;
 
-export const createSupplierPartnerAgencySchema = z
+export const createCoordinatorPartnerAgencySchema = z
   .object({
     name: name(120),
   })
   .strict();
-export type CreateSupplierPartnerAgencyInput = z.infer<typeof createSupplierPartnerAgencySchema>;
+export type CreateCoordinatorPartnerAgencyInput = z.infer<typeof createCoordinatorPartnerAgencySchema>;
 
 export const acceptTenantAgreementSchema = z
   .object({
@@ -449,7 +482,7 @@ export const getOrCreateConversationSchema = z
     leadId: z.uuid().optional(),
     side: z.enum(["client_fynix", "supplier_fynix", "supplier_agency"]),
     clientOrgId: z.uuid().optional(),
-    supplierOrgId: z.uuid().optional(),
+    coordinatorOrgId: z.uuid().optional(),
     agencyOrgId: z.uuid().optional(),
     subject: optionalText(200).optional(),
   })

@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { AgenciesTable } from "@/components/fynix/agencies/agencies-table";
-import { AddAgencyButton } from "@/components/fynix/suppliers/supplier-actions";
+import { AddAgencyButton } from "@/components/fynix/coordinators/coordinator-actions";
 import { PageHeader } from "@/components/kit/page-header";
 import { PageSkeleton } from "@/components/kit/skeletons";
-import { parseSupplierFilter } from "@/lib/fynix/suppliers";
+import { parseCoordinatorFilter } from "@/lib/fynix/coordinators";
 import { getDomain } from "@/server/domain";
 import { listAgencyRows } from "@/server/domain/agency-overview";
 import { listCampaignChoices } from "@/server/domain/campaign-overview";
@@ -24,9 +24,9 @@ async function Agencies({ searchParams }: { searchParams: PageProps<"/fynix/agen
       <PageHeader
         title="Agencies"
         description="Partner agencies that send leads, each under a coordinator."
-        actions={view.canWrite && choices.suppliers.length > 0 ? <AddAgencyButton primary /> : null}
+        actions={view.canWrite && choices.coordinators.length > 0 ? <AddAgencyButton primary /> : null}
       />
-      <AgenciesTable rows={rows} filter={parseSupplierFilter(one(params.status))} query={one(params.q) ?? ""} canWrite={view.canWrite} coordinators={choices.suppliers} />
+      <AgenciesTable rows={rows} filter={parseCoordinatorFilter(one(params.status))} query={one(params.q) ?? ""} canWrite={view.canWrite} coordinators={choices.coordinators} />
     </div>
   );
 }

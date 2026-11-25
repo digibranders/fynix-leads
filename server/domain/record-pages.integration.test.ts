@@ -3,7 +3,7 @@ import { readClientDetail, listClientRows } from "@/server/domain/client-overvie
 import { setOrganisationStatus } from "@/server/domain/organisations";
 import { readSettings } from "@/server/domain/settings-overview";
 import { readSetupFindings } from "@/server/domain/setup-overview";
-import { readSupplierDetail } from "@/server/domain/supplier-overview";
+import { readCoordinatorDetail } from "@/server/domain/coordinator-overview";
 import { openDomainRig } from "@/server/domain/testing";
 
 const rig = openDomainRig();
@@ -38,7 +38,7 @@ describe("the client record read", () => {
 describe("the coordinator record read", () => {
   it("carries the people of the coordinator and its agencies, the time zone and the counts", async () => {
     const { brightpath } = rig.world();
-    const detail = await readSupplierDetail(rig.deps(), rig.staffActor, brightpath.publicRef);
+    const detail = await readCoordinatorDetail(rig.deps(), rig.staffActor, brightpath.publicRef);
     expect(detail.everyone.every((person) => person.orgName !== "")).toBe(true);
     expect(detail.campaignCounts.setup + detail.campaignCounts.active + detail.campaignCounts.closed).toBe(detail.campaigns.length);
   });

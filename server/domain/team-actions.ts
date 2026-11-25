@@ -8,7 +8,7 @@ import { getDatabase } from "@/server/db/client";
 import { getDomain } from "@/server/domain";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import { addClientHost, addOwnBlock, pauseClientHost, removeOwnBlock, setOwnHours } from "@/server/domain/hosts-tenant";
-import { createSupplierPartnerAgencySchema, issueInviteSchema, memberDetailsSchema, ownBlockSchema, ownHoursSchema, ownProfileSchema, tenantAddHostSchema, tenantHostSchema, uuidSchema } from "@/server/domain/inputs";
+import { createCoordinatorPartnerAgencySchema, issueInviteSchema, memberDetailsSchema, ownBlockSchema, ownHoursSchema, ownProfileSchema, tenantAddHostSchema, tenantHostSchema, uuidSchema } from "@/server/domain/inputs";
 import { issueTenantInvite } from "@/server/domain/invites";
 import { updateOwnMemberDetails } from "@/server/domain/members";
 import { field, runTenantForm } from "@/server/tenant/run-form";
@@ -22,9 +22,9 @@ import type { SessionContext } from "@/server/auth/session-context";
 
 const TENANTS = ["client", "agency"] as const;
 const EVERYONE = ["client", "agency", "fynix"] as const;
-const TEAM_PAGES = ["/client/team", "/supplier/team", "/agency/team", "/supplier/agencies", "/fynix"] as const;
+const TEAM_PAGES = ["/client/team", "/coordinator/team", "/agency/team", "/coordinator/agencies", "/fynix"] as const;
 const HOST_PAGES = ["/client/hosts"] as const;
-const PROFILE_PAGES = ["/client", "/supplier", "/agency", "/fynix"] as const;
+const PROFILE_PAGES = ["/client", "/coordinator", "/agency", "/fynix"] as const;
 
 function actorOf(context: SessionContext): TenantActor {
   if (context.kind === "fynix") throw new Error("A Fynix person is not a tenant");
@@ -106,7 +106,7 @@ export async function addPartnerAgencyAction(_previous: FormState, formData: For
     fieldNames: ["name"],
     kinds: ["agency"],
     build: () => ({ name: field(formData, "name") }),
-    schema: createSupplierPartnerAgencySchema,
+    schema: createCoordinatorPartnerAgencySchema,
     labels: { name: "Agency name" },
     messages: { "duplicate-name": "You already have a partner agency with that name.", "not-authorised": "Only a coordinator manager can add a partner agency." },
     errorFields: { "duplicate-name": "name" },

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { contactCreateBody, contactUpdateBody } from "@/server/fynix/contact-fields";
-import { createSupplierSchema, updateOrganisationSchema } from "@/server/domain/inputs";
+import { createCoordinatorSchema, updateOrganisationSchema } from "@/server/domain/inputs";
 
 const form = (values: Record<string, string>) => (name: string) => values[name] ?? "";
 
@@ -20,8 +20,8 @@ describe("contact form bodies", () => {
   });
 
   it("produce input the schema accepts, and one it refuses for a bad email or an http site", () => {
-    expect(createSupplierSchema.safeParse({ name: "X", ...contactCreateBody(form({ contactEmail: "a@b.example", website: "https://b.example" })) }).success).toBe(true);
-    expect(createSupplierSchema.safeParse({ name: "X", ...contactCreateBody(form({ contactEmail: "nope" })) }).success).toBe(false);
-    expect(createSupplierSchema.safeParse({ name: "X", ...contactCreateBody(form({ website: "http://b.example" })) }).success).toBe(false);
+    expect(createCoordinatorSchema.safeParse({ name: "X", ...contactCreateBody(form({ contactEmail: "a@b.example", website: "https://b.example" })) }).success).toBe(true);
+    expect(createCoordinatorSchema.safeParse({ name: "X", ...contactCreateBody(form({ contactEmail: "nope" })) }).success).toBe(false);
+    expect(createCoordinatorSchema.safeParse({ name: "X", ...contactCreateBody(form({ website: "http://b.example" })) }).success).toBe(false);
   });
 });

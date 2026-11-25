@@ -28,8 +28,8 @@ export interface AgencyBreakdownItem {
   readonly disputedCount: number;
 }
 
-export interface SupplierOverviewMetrics {
-  readonly supplierTarget: number;
+export interface CoordinatorOverviewMetrics {
+  readonly coordinatorTarget: number;
   readonly deliveredCount: number;
   readonly awaitingClientCount: number;
   readonly overShareCount: number;
@@ -131,12 +131,12 @@ export async function getClientOverviewMetrics(
 }
 
 /**
- * Calculates overview metrics and agency breakdown for a supplier organisation.
+ * Calculates overview metrics and agency breakdown for a coordinator organisation.
  */
-export async function getSupplierOverviewMetrics(
+export async function getCoordinatorOverviewMetrics(
   db: Database,
   actor: TenantActor,
-): Promise<SupplierOverviewMetrics> {
+): Promise<CoordinatorOverviewMetrics> {
   if (actor.orgKind !== "agency") {
     throw new DomainError("not-authorised", "Only coordinator or agency actors can retrieve coordinator overview metrics.");
   }
@@ -170,7 +170,7 @@ export async function getSupplierOverviewMetrics(
       })
       .from(lead);
     const { activeIds, totals } = activeScope(campaigns, allLeads);
-    const supplierTarget = totals.monthlyTarget;
+    const coordinatorTarget = totals.monthlyTarget;
     const shares = allShares.filter((s) => activeIds.has(s.campaignId));
     const leads = allLeads.filter((l) => activeIds.has(l.campaignId));
 
@@ -238,7 +238,7 @@ export async function getSupplierOverviewMetrics(
       agencyMap.set(l.sourceOrgId, existing);
     }
 
-    // The names come from a database function: a supplier holds no grant on `organisation` (migration 0043).
+    // The names come from a database function: a coordinator holds no grant on `organisation` (migration 0043).
     const partnerRows = await tx.execute<{ id: string; name: string }>(sql`select id, name from public.app_my_partner_agencies()`);
     const partnerNames = new Map(partnerRows.rows.map((row) => [row.id, row.name]));
     for (const partnerId of partnerNames.keys()) {
@@ -257,7 +257,7 @@ export async function getSupplierOverviewMetrics(
     }));
 
     return {
-      supplierTarget,
+      coordinatorTarget,
       deliveredCount,
       awaitingClientCount,
       overShareCount,

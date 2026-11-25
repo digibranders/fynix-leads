@@ -226,7 +226,7 @@ export async function issueTenantInvite(deps: DomainDeps, db: Database, actor: T
   if (parsed.organisationId !== actor.orgId && actor.orgKind !== "agency") throw new DomainError("not-authorised", "The invite was refused.");
   try {
     return await withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
-      // The name for the email: the caller's own organisation, or one of its partner agencies (a supplier holds no grant on organisation).
+      // The name for the email: the caller's own organisation, or one of its partner agencies (a coordinator holds no grant on organisation).
       const named =
         parsed.organisationId === actor.orgId
           ? await tx.select({ name: organisation.name }).from(organisation).limit(1)

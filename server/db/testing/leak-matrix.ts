@@ -186,7 +186,7 @@ export const PROBES: readonly Probe[] = [
   // Since migrations 0054 and 0064 both tenant roles read the campaign brief of the campaigns they see; internal notes and settings stay hidden (probes below).
   // Phase 1D: the organisation hierarchy, the campaign settings and the six set-up tables. Nothing here is granted to a tenant until 1E.
   // leads_agency reads organisation.parent_org_id (migration 0032); a client still may not, so the hierarchy probes by id are for clients only.
-  { name: "organisation: the supplier a partner agency works under", statement: "select parent_org_id from organisation", expectedError: DENIED_TABLE, roles: ["leads_client"] },
+  { name: "organisation: the coordinator a partner agency works under", statement: "select parent_org_id from organisation", expectedError: DENIED_TABLE, roles: ["leads_client"] },
   { name: "organisation: the status", statement: "select status from organisation", expectedError: DENIED_TABLE },
   { name: "organisation: the kind of the parent", statement: "select parent_org_kind from organisation", expectedError: DENIED_TABLE },
   { name: "organisation: probe the hierarchy by WHERE", statement: "select name from organisation where parent_org_id is not null", expectedError: DENIED_TABLE, roles: ["leads_client"] },
@@ -220,6 +220,10 @@ export const PROBES: readonly Probe[] = [
   { name: "collateral: when it was removed", statement: "select removed_at from client_collateral", expectedError: DENIED_TABLE },
   { name: "collateral: write", statement: "insert into client_collateral (client_org_id, kind, title, url) values (gen_random_uuid(), 'link', 'x', 'https://x.example')", expectedError: DENIED_TABLE },
   { name: "collateral: remove", statement: "update client_collateral set removed_at = now()", expectedError: DENIED_TABLE },
+  // Migration 0082: the contact people of a client are Fynix's alone, for a client and an agency alike.
+  { name: "client contacts: every column", statement: "select * from client_contact", expectedError: DENIED_TABLE },
+  { name: "client contacts: write", statement: "insert into client_contact (client_org_id, name) values (gen_random_uuid(), 'x')", expectedError: DENIED_TABLE },
+  { name: "client contacts: remove", statement: "update client_contact set removed_at = now()", expectedError: DENIED_TABLE },
   { name: "organisation: the time zone", statement: "select time_zone from organisation", expectedError: DENIED_TABLE, roles: ["leads_agency"] },
   // Migration 0080: the company contact details are Fynix's alone. No tenant role may read or change any of them, its own company's included.
   { name: "organisation: the contact name", statement: "select contact_name from organisation", expectedError: DENIED_TABLE },
@@ -310,7 +314,7 @@ export const PROBES: readonly Probe[] = [
 /**
  * Every string in the world a viewer must not find, whether in a result or in an error message:
  * - every organisation id, the viewer's own included, because tenants never read an organisation id column (the one exception
- *   is the supplier's own id, which it reads as the parent_org_id of its partner agencies);
+ *   is the coordinator's own id, which it reads as the parent_org_id of its partner agencies);
  * - the reference and name of every other organisation, except that an agency may know the name of the clients of the campaigns it serves
  *   (a client has one name; nothing else of it);
  * - every campaign's internal notes, and the id, reference and name of every campaign that is not the viewer's.
@@ -321,7 +325,7 @@ export function forbiddenTokens(viewer: Viewer, world: SeedWorld): string[] {
   const ownIdVisible = viewer.role === "leads_agency" && world.setup !== null && viewer.organisation.id === world.brightpath.id;
   const tokens: string[] = [];
   for (const org of [world.fynix, ...world.clients, ...world.agencies]) {
-    // The supplier reads parent_org_id on its partner agencies (migration 0032), which is its own id; no tenant reads an organisation.id column.
+    // The coordinator reads parent_org_id on its partner agencies (migration 0032), which is its own id; no tenant reads an organisation.id column.
     if (!(org.id === viewer.organisation.id && ownIdVisible)) tokens.push(org.id);
     if (org.id === viewer.organisation.id) continue;
     tokens.push(org.publicRef);
@@ -357,11 +361,11 @@ export function forbiddenTokens(viewer: Viewer, world: SeedWorld): string[] {
     for (const row of domain.invites) tokens.push(row.id, row.email, row.name, row.token, row.tokenHash);
     tokens.push(...domain.aliases, ...domain.acceptanceAddresses, ...domain.auditMarkers, domain.outboxRecipient, domain.outboxLink, ...Object.values(domain.termsDocumentIds));
   }
-  // Phase 1D/1E: each tenant reads rows that are its own (supplier reads partner agencies under it; other tenants do not).
+  // Phase 1D/1E: each tenant reads rows that are its own (coordinator reads partner agencies under it; other tenants do not).
   const { setup } = world;
   if (setup !== null) {
-    const isParentSupplier = viewer.organisation.id === world.brightpath.id;
-    if (!isParentSupplier && viewer.organisation.id !== setup.partner.id) {
+    const isParentCoordinator = viewer.organisation.id === world.brightpath.id;
+    if (!isParentCoordinator && viewer.organisation.id !== setup.partner.id) {
       tokens.push(setup.partner.id, setup.partner.publicRef, setup.partner.name);
     }
     tokens.push(...setup.markers);

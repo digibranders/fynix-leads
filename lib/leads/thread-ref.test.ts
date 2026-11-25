@@ -12,7 +12,7 @@ describe("leadRefFromSubject", () => {
 describe("threadHref", () => {
   it("opens a thread in the person's own portal", () => {
     expect(threadHref("client", "abc")).toBe("/client/messages?conv=abc");
-    expect(threadHref("agency", "abc")).toBe("/supplier/messages?conv=abc");
+    expect(threadHref("agency", "abc")).toBe("/coordinator/messages?conv=abc");
     expect(threadHref("fynix", "abc")).toBe("/fynix/inbox?conv=abc");
   });
 });

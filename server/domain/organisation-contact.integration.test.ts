@@ -3,8 +3,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { organisation } from "@/server/db/schema";
 import { readClientDetail } from "@/server/domain/client-overview";
 import { createOrganisation, updateOrganisation } from "@/server/domain/organisations";
-import { readSupplierDetail } from "@/server/domain/supplier-overview";
-import { createPartnerAgency, createSupplier } from "@/server/domain/suppliers";
+import { readCoordinatorDetail } from "@/server/domain/coordinator-overview";
+import { createPartnerAgency, createCoordinator } from "@/server/domain/coordinators";
 import { auditRowsFor, refusal } from "@/server/domain/test-helpers";
 import { openDomainRig } from "@/server/domain/testing";
 
@@ -34,16 +34,16 @@ const stored = async (id: string) => (await rig.dbs.owner.db.select().from(organ
 describe("company contact details on create", () => {
   it("are saved trimmed on a client, a coordinator and a partner agency, and audited", async () => {
     const client = await createOrganisation(rig.deps(), rig.actor, { kind: "client", name: "Ridgeway Client", ...CONTACT });
-    const supplier = await createSupplier(rig.deps(), rig.actor, { name: "Ridgeway Coordinator", ...CONTACT });
-    const agency = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: supplier.id, name: "Ridgeway Agency", ...CONTACT });
-    for (const created of [client, supplier, agency]) expect(await stored(created.id)).toMatchObject({ contactName: "Asha Rao", contactEmail: "asha@ridgeway.example", website: "https://ridgeway.example/about", address: CONTACT.address, notes: CONTACT.notes });
+    const coordinator = await createCoordinator(rig.deps(), rig.actor, { name: "Ridgeway Coordinator", ...CONTACT });
+    const agency = await createPartnerAgency(rig.deps(), rig.actor, { coordinatorId: coordinator.id, name: "Ridgeway Agency", ...CONTACT });
+    for (const created of [client, coordinator, agency]) expect(await stored(created.id)).toMatchObject({ contactName: "Asha Rao", contactEmail: "asha@ridgeway.example", website: "https://ridgeway.example/about", address: CONTACT.address, notes: CONTACT.notes });
     const rows = await auditRowsFor(rig, "organisation.create");
     expect(rows).toHaveLength(3);
     for (const row of rows) expect(row.after).toMatchObject(TRIMMED);
   });
 
   it("are all optional, and a company without them has them empty", async () => {
-    const created = await createSupplier(rig.deps(), rig.actor, { name: "Plain Coordinator" });
+    const created = await createCoordinator(rig.deps(), rig.actor, { name: "Plain Coordinator" });
     expect(await stored(created.id)).toMatchObject({ contactName: null, contactEmail: null, contactPhone: null, website: null, address: null, notes: null });
   });
 
@@ -58,7 +58,7 @@ describe("company contact details on create", () => {
     ["notes that are too long", { notes: "x".repeat(4001) }],
     ["a blank contact name", { contactName: "   " }],
   ])("refuses %s, and writes nothing", async (_label, extra) => {
-    expect((await refusal(createSupplier(rig.deps(), rig.actor, { name: "Refused Coordinator", ...extra }))).code).toBe("invalid-input");
+    expect((await refusal(createCoordinator(rig.deps(), rig.actor, { name: "Refused Coordinator", ...extra }))).code).toBe("invalid-input");
     expect(await auditRowsFor(rig)).toEqual([]);
   });
 });
@@ -76,10 +76,10 @@ describe("updateOrganisation and the contact details", () => {
 
   it("works on a coordinator and a partner agency, and shows on the record reads", async () => {
     const { brightpath } = rig.world();
-    const agency = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: brightpath.id, name: "Ridgeway Agency" });
+    const agency = await createPartnerAgency(rig.deps(), rig.actor, { coordinatorId: brightpath.id, name: "Ridgeway Agency" });
     await updateOrganisation(rig.deps(), rig.actor, brightpath.id, CONTACT);
     await updateOrganisation(rig.deps(), rig.actor, agency.id, { website: "https://agency.example" });
-    expect((await readSupplierDetail(rig.deps(), rig.staffActor, brightpath.publicRef)).contact).toEqual(TRIMMED);
+    expect((await readCoordinatorDetail(rig.deps(), rig.staffActor, brightpath.publicRef)).contact).toEqual(TRIMMED);
     expect((await readClientDetail(rig.deps(), rig.staffActor, rig.world().kestrel.publicRef)).contact.contactEmail).toBeNull();
   });
 

@@ -13,11 +13,11 @@ import type { TenantCampaign } from "@/server/domain/campaigns-tenant";
 import { CampaignBriefButton } from "./campaign-brief";
 import { AssignCampaignButton, TakeBackButton } from "./campaign-shares";
 
-type Portal = "client" | "supplier" | "agency";
+type Portal = "client" | "coordinator" | "agency";
 
 const EMPTY: Record<Portal, string> = {
   client: "Fynix sets your campaigns up with you. Once one exists it appears here with its target and how it is going.",
-  supplier: "Fynix assigns campaigns to your account. Once one is assigned it appears here with its target and the share each agency holds.",
+  coordinator: "Fynix assigns campaigns to your account. Once one is assigned it appears here with its target and the share each agency holds.",
   agency: "Fynix has not assigned you a campaign yet. Once it does, the campaign appears here and in the Campaign list when you submit a lead.",
 };
 
@@ -104,7 +104,7 @@ export function CampaignsView({ campaigns, portal, basePath, tab = DEFAULT_CAMPA
                   </div>
                 ) : null}
 
-                {portal === "supplier" ? (
+                {portal === "coordinator" ? (
                   <Tonal className="flex flex-col gap-1.5 text-table">
                     <h3 className="text-caption font-semibold text-ink-muted">Shares</h3>
                     {row.share !== null ? (

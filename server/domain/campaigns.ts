@@ -1,7 +1,7 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { isClosed } from "@/lib/campaign-status";
 import { campaignAuditAction, canMoveCampaign, type CampaignStatus } from "@/lib/domain/campaign-status";
-import { campaign, organisation } from "@/server/db/schema";
+import { campaign, clientContact, organisation } from "@/server/db/schema";
 import type { ScopedTransaction } from "@/server/db/scope";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
@@ -47,6 +47,15 @@ const campaignColumns = {
   bantNeed: campaign.bantNeed,
   bantTimeline: campaign.bantTimeline,
   instructions: campaign.instructions,
+  pitchIntroduction: campaign.pitchIntroduction,
+  pitchServices: campaign.pitchServices,
+  pitchDifferentiator: campaign.pitchDifferentiator,
+  pitchCollaterals: campaign.pitchCollaterals,
+  pitchCaseStudies: campaign.pitchCaseStudies,
+  qualifyingQuestions: campaign.qualifyingQuestions,
+  firstEmail: campaign.firstEmail,
+  secondEmail: campaign.secondEmail,
+  primaryContactId: campaign.primaryContactId,
   internalNotes: campaign.internalNotes,
   timeZone: campaign.timeZone,
   meetingMinutes: campaign.meetingMinutes,
@@ -65,14 +74,20 @@ const record = (row: CampaignRow & { readonly id: string; readonly status: Campa
 
 /**
  * The organisation must exist, be of the right kind and be active. A client id that is really an agency is refused here and
- * again by the database (`campaign_client_org_fk`). The campaign's agency is its supplier, so an agency that has a parent (a
- * partner agency) is refused with `not-a-supplier`; the database repeats it (`campaign_check_supplier`, migration 0020).
+ * again by the database (`campaign_client_org_fk`). The campaign's agency is its coordinator, so an agency that has a parent (a
+ * partner agency) is refused with `not-a-coordinator`; the database repeats it (`campaign_check_supplier`, migration 0020).
  */
 async function requireActiveOrganisation(tx: ScopedTransaction, id: string, kind: "client" | "agency"): Promise<void> {
   const [row] = await tx.select({ kind: organisation.kind, status: organisation.status, parentOrgId: organisation.parentOrgId }).from(organisation).where(eq(organisation.id, id)).limit(1);
   if (row === undefined || row.kind !== kind) throw new DomainError("not-found", `There is no such ${kind}.`);
   if (row.status !== "active") throw new DomainError("organisation-archived", `The ${kind} is archived.`);
-  if (kind === "agency" && row.parentOrgId !== null) throw new DomainError("not-a-supplier", "A campaign needs a coordinator. That agency is a partner agency of one.");
+  if (kind === "agency" && row.parentOrgId !== null) throw new DomainError("not-a-coordinator", "A campaign needs a coordinator. That agency is a partner agency of one.");
+}
+
+/** The primary contact must be a live contact person of the campaign's own client. The database repeats it (`campaign_primary_contact_fk`). */
+async function requireClientContact(tx: ScopedTransaction, contactId: string, clientOrgId: string): Promise<void> {
+  const [row] = await tx.select({ id: clientContact.id }).from(clientContact).where(and(eq(clientContact.id, contactId), eq(clientContact.clientOrgId, clientOrgId), isNull(clientContact.removedAt))).limit(1);
+  if (row === undefined) throw new DomainError("invalid-input", "That person is not one of the client's contact people.");
 }
 
 /**
@@ -85,6 +100,7 @@ export async function createCampaign(deps: DomainDeps, actor: FynixActor, input:
   return fynixWrite(deps.fynixDb, actor, async ({ tx, audit }) => {
     await requireActiveOrganisation(tx, parsed.clientOrgId, "client");
     await requireActiveOrganisation(tx, parsed.agencyOrgId, "agency");
+    if (parsed.primaryContactId !== undefined && parsed.primaryContactId !== null) await requireClientContact(tx, parsed.primaryContactId, parsed.clientOrgId);
     const created = await insertWithPublicRef(tx, { prefix: "CMP", constraint: "campaign_public_ref_unique", randomBytes: deps.randomBytes }, async (attempt, publicRef) => {
       const [row] = await attempt.insert(campaign).values({ ...parsed, publicRef }).returning(campaignColumns);
       if (row === undefined) throw new Error("The campaign insert returned no row");
@@ -117,6 +133,7 @@ export async function updateCampaign(deps: DomainDeps, actor: FynixActor, campai
     if (changesNumbers && (await readGoLiveState(tx, id)).agreed) {
       throw new DomainError("invalid-input", "The monthly and total numbers come from the agreement. Publish a new version of it to change them.");
     }
+    if (parsed.primaryContactId !== undefined && parsed.primaryContactId !== null) await requireClientContact(tx, parsed.primaryContactId, before.clientOrgId);
     const startDate = parsed.startDate ?? before.startDate;
     const endDate = parsed.endDate ?? before.endDate;
     if (endDate < startDate) throw new DomainError("invalid-input", "endDate must not be before the start date");

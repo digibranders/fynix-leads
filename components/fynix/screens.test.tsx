@@ -5,18 +5,18 @@ import type { AgencyDetail, AgencyRow } from "@/server/domain/agency-overview";
 import type { ClientDetail, ClientRow } from "@/server/domain/client-overview";
 import type { OrganisationContact } from "@/server/domain/organisations";
 import type { PersonRow } from "@/server/domain/people-overview";
-import type { SupplierDetail, SupplierRow } from "@/server/domain/supplier-overview";
+import type { CoordinatorDetail, CoordinatorRow } from "@/server/domain/coordinator-overview";
 
 // The forms call server actions, which need a running app. The screens only need their buttons to render.
 vi.mock("@/server/fynix/actions", () => {
   const action = async () => ({ status: "idle" as const });
-  return { addSupplierAction: action, addAgencyAction: action, invitePersonAction: action, publishAgreementAction: action, setShareAction: action, removeShareAction: action, closeCampaignAction: action, makeCampaignActiveAction: action, reopenCampaignAction: action, addHostAction: action, pauseHostAction: action, setHoursAction: action, addBlockAction: action, removeBlockAction: action, setOrganisationStatusAction: action, updateOrganisationAction: action, updateContactAction: action, removeCollateralAction: action, updateProfileAction: action, addCollateralAction: action, addClientAction: action, updatePersonAction: action, suspendPersonAction: action, reactivatePersonAction: action, resendInviteAction: action, revokeInviteAction: action };
+  return { addCoordinatorAction: action, addAgencyAction: action, invitePersonAction: action, publishAgreementAction: action, setShareAction: action, removeShareAction: action, closeCampaignAction: action, makeCampaignActiveAction: action, reopenCampaignAction: action, addHostAction: action, pauseHostAction: action, setHoursAction: action, addBlockAction: action, removeBlockAction: action, setOrganisationStatusAction: action, updateOrganisationAction: action, updateContactAction: action, addClientAction: action, updatePersonAction: action, suspendPersonAction: action, reactivatePersonAction: action, resendInviteAction: action, revokeInviteAction: action };
 });
 
-const { SuppliersTable } = await import("@/components/fynix/suppliers/suppliers-table");
-const { SupplierOverview } = await import("@/components/fynix/suppliers/supplier-overview");
-const { SupplierTitle } = await import("@/components/fynix/suppliers/supplier-title");
-const { AgenciesPanel } = await import("@/components/fynix/suppliers/agencies-panel");
+const { CoordinatorsTable } = await import("@/components/fynix/coordinators/coordinators-table");
+const { CoordinatorOverview } = await import("@/components/fynix/coordinators/coordinator-overview");
+const { CoordinatorTitle } = await import("@/components/fynix/coordinators/coordinator-title");
+const { AgenciesPanel } = await import("@/components/fynix/coordinators/agencies-panel");
 const { AgenciesTable } = await import("@/components/fynix/agencies/agencies-table");
 const { AgencyOverview } = await import("@/components/fynix/agencies/agency-overview");
 const { AgencyTitle } = await import("@/components/fynix/agencies/agency-title");
@@ -41,8 +41,8 @@ vi.mock("next/navigation", () => ({ useSelectedLayoutSegment: () => "hosts", use
 const NO_CONTACT: OrganisationContact = { contactName: null, contactEmail: null, contactPhone: null, website: null, address: null, notes: null };
 const FULL_CONTACT: OrganisationContact = { contactName: "Asha Rao", contactEmail: "asha@northgate.example", contactPhone: "+44 20 7946 0958", website: "https://northgate.example", address: "12 Mill Lane\nLeeds LS1 4AB", notes: "Prefers email." };
 const day = (text: string) => new Date(`${text}T12:00:00Z`);
-const supplierRow = (over: Partial<SupplierRow> = {}): SupplierRow => ({ id: "s1", publicRef: "ORG-N7GT", name: "Northgate Outreach", status: "active", createdAt: day("2026-10-02"), contactEmail: null, agencyCount: 2, agencyNames: ["Calder Bay Media"], peopleCount: 7, campaignCount: 2, inviteWaiting: false, campaignCounts: { setup: 0, active: 1, closed: 1 }, ...over });
-const detail: SupplierDetail = {
+const coordinatorRow = (over: Partial<CoordinatorRow> = {}): CoordinatorRow => ({ id: "s1", publicRef: "ORG-N7GT", name: "Northgate Outreach", status: "active", createdAt: day("2026-10-02"), contactEmail: null, agencyCount: 2, agencyNames: ["Calder Bay Media"], peopleCount: 7, campaignCount: 2, inviteWaiting: false, campaignCounts: { setup: 0, active: 1, closed: 1 }, ...over });
+const detail: CoordinatorDetail = {
   id: "s1",
   publicRef: "ORG-N7GT",
   name: "Northgate Outreach",
@@ -68,41 +68,41 @@ const detail: SupplierDetail = {
 
 describe("Coordinators", () => {
   it("renders the table with the filter, the selection and a row per coordinator", () => {
-    const html = renderToStaticMarkup(<SuppliersTable rows={[supplierRow(), supplierRow({ id: "s2", publicRef: "ORG-S2MD", name: "Saltmarsh Demand", agencyCount: 0, peopleCount: 0, campaignCount: 0, inviteWaiting: true }), supplierRow({ id: "s3", name: "Old One", status: "archived" })]} filter="active" query="" canWrite />);
+    const html = renderToStaticMarkup(<CoordinatorsTable rows={[coordinatorRow(), coordinatorRow({ id: "s2", publicRef: "ORG-S2MD", name: "Saltmarsh Demand", agencyCount: 0, peopleCount: 0, campaignCount: 0, inviteWaiting: true }), coordinatorRow({ id: "s3", name: "Old One", status: "archived" })]} filter="active" query="" canWrite />);
     expect(html).toContain("All coordinators");
     expect(html).toContain("Northgate Outreach");
     expect(html).toContain("Invite sent, not accepted yet");
-    expect(html).toContain("/fynix/suppliers/ORG-N7GT");
+    expect(html).toContain("/fynix/coordinators/ORG-N7GT");
     expect(html).toContain("1 active, 1 closed");
     expect(html).not.toContain("Old One");
   });
 
   it("says there are no coordinators, with the action for an admin and a plain line for staff", () => {
-    expect(renderToStaticMarkup(<SuppliersTable rows={[]} filter="active" query="" canWrite />)).toContain("Add coordinator");
-    const staff = renderToStaticMarkup(<SuppliersTable rows={[]} filter="active" query="" canWrite={false} />);
+    expect(renderToStaticMarkup(<CoordinatorsTable rows={[]} filter="active" query="" canWrite />)).toContain("Add coordinator");
+    const staff = renderToStaticMarkup(<CoordinatorsTable rows={[]} filter="active" query="" canWrite={false} />);
     expect(staff).toContain("No coordinators yet");
     expect(staff).not.toContain("Add coordinator");
   });
 
   it("says nothing matches a search", () => {
-    expect(renderToStaticMarkup(<SuppliersTable rows={[supplierRow()]} filter="active" query="zzz" canWrite />)).toContain("No coordinator matches");
+    expect(renderToStaticMarkup(<CoordinatorsTable rows={[coordinatorRow()]} filter="active" query="zzz" canWrite />)).toContain("No coordinator matches");
   });
 
   it("shows the overview with the counts, and the title's Edit and Archive only for an admin", () => {
-    expect(renderToStaticMarkup(<SupplierOverview supplier={detail} />)).toContain("1 active");
-    const admin = renderToStaticMarkup(<SupplierTitle supplier={detail} canWrite />);
+    expect(renderToStaticMarkup(<CoordinatorOverview coordinator={detail} />)).toContain("1 active");
+    const admin = renderToStaticMarkup(<CoordinatorTitle coordinator={detail} canWrite />);
     expect(admin).toContain("Edit");
     expect(admin).toContain("Archive");
-    expect(admin).toContain("/fynix/suppliers/ORG-N7GT/people");
-    const staff = renderToStaticMarkup(<SupplierTitle supplier={detail} canWrite={false} />);
+    expect(admin).toContain("/fynix/coordinators/ORG-N7GT/people");
+    const staff = renderToStaticMarkup(<CoordinatorTitle coordinator={detail} canWrite={false} />);
     expect(staff).not.toContain("Archive");
-    expect(renderToStaticMarkup(<SupplierTitle supplier={{ ...detail, status: "archived" }} canWrite />)).toContain("Restore");
+    expect(renderToStaticMarkup(<CoordinatorTitle coordinator={{ ...detail, status: "archived" }} canWrite />)).toContain("Restore");
   });
 
   it("lists the partner agencies, and Add agency only for an admin of an active coordinator", () => {
-    expect(renderToStaticMarkup(<AgenciesPanel supplier={detail} canWrite />)).toContain("Add agency");
-    expect(renderToStaticMarkup(<AgenciesPanel supplier={detail} canWrite={false} />)).not.toContain("Add agency");
-    expect(renderToStaticMarkup(<AgenciesPanel supplier={{ ...detail, status: "archived" }} canWrite />)).not.toContain("Add agency");
+    expect(renderToStaticMarkup(<AgenciesPanel coordinator={detail} canWrite />)).toContain("Add agency");
+    expect(renderToStaticMarkup(<AgenciesPanel coordinator={detail} canWrite={false} />)).not.toContain("Add agency");
+    expect(renderToStaticMarkup(<AgenciesPanel coordinator={{ ...detail, status: "archived" }} canWrite />)).not.toContain("Add agency");
   });
 });
 
@@ -142,6 +142,7 @@ const clientDetail: ClientDetail = {
   status: "active",
   createdAt: day("2026-10-02"),
   profile: { clientOrgId: "k1", introduction: "Accounts software for finance teams.", services: "Ledger and close tooling.", differentiator: "Closes the books in a day.", caseStudies: null },
+  contacts: [],
   collateral: [{ id: "x1", clientOrgId: "k1", kind: "link", title: "Company brochure", url: "https://kestrel.example/brochure", createdAt: day("2026-10-03") }],
   people: [person()],
   campaigns: [],
@@ -150,15 +151,24 @@ const clientDetail: ClientDetail = {
 };
 
 describe("Client record", () => {
-  it("shows the profile and collateral with add and remove for an admin", () => {
+  it("shows an earlier profile and earlier collateral read only, with no way to add or edit them", () => {
     const html = renderToStaticMarkup(<ClientOverview client={clientDetail} canWrite />);
+    expect(html).toContain("Earlier profile");
     expect(html).toContain("Accounts software for finance teams.");
     expect(html).toContain("Closes the books in a day.");
+    expect(html).toContain("Earlier collateral");
     expect(html).toContain("https://kestrel.example/brochure");
-    expect(html).toContain("Remove Company brochure");
-    expect(html).toContain("Edit profile");
-    expect(html).toContain("Add link");
-    expect(html).toContain("Not set");
+    expect(html).not.toContain("Remove Company brochure");
+    expect(html).not.toContain("Edit profile");
+    expect(html).not.toContain("Add link");
+    // The contact people are the way to add who Fynix speaks to.
+    expect(html).toContain("Add contact");
+  });
+
+  it("shows no profile or collateral panel when a client has none", () => {
+    const html = renderToStaticMarkup(<ClientOverview client={{ ...clientDetail, profile: null, collateral: [] }} canWrite />);
+    expect(html).not.toContain("Earlier profile");
+    expect(html).not.toContain("Earlier collateral");
   });
 
   it("is read only for staff", () => {
@@ -192,7 +202,7 @@ describe("Set-up checklist", () => {
   });
 });
 
-const campaignRow: CampaignRow = { id: "c1", publicRef: "CMP-7Q2X", name: "UK mid-market finance teams", status: "active", clientName: "Kestrel Ledger", supplierName: "Northgate Outreach" };
+const campaignRow: CampaignRow = { id: "c1", publicRef: "CMP-7Q2X", name: "UK mid-market finance teams", status: "active", clientName: "Kestrel Ledger", coordinatorName: "Northgate Outreach" };
 const header: CampaignHeader = {
   id: "c1",
   publicRef: "CMP-7Q2X",
@@ -200,13 +210,15 @@ const header: CampaignHeader = {
   status: "active",
   clientOrgId: "k",
   clientName: "Kestrel Ledger",
-  supplierOrgId: "s1",
-  supplierName: "Northgate Outreach",
+  clientRef: "ORG-K1AA",
+  coordinatorOrgId: "s1",
+  coordinatorName: "Northgate Outreach",
   timeZone: "Europe/London",
   meetingMinutes: 30,
+  clientContacts: [],
   activeHostCount: 3,
   closedAt: null,
-  brief: { startDate: "2026-12-01", endDate: "2027-05-31", monthlyTarget: 12, totalTarget: 72, geography: "", industries: [], companySize: "", icp: "", jobTitles: [], seniority: "", technologies: [], bantBudget: "", bantAuthority: "", bantNeed: "", bantTimeline: "", instructions: "", internalNotes: null },
+  brief: { startDate: "2026-12-01", endDate: "2027-05-31", monthlyTarget: 12, totalTarget: 72, geography: "", industries: [], companySize: "", icp: "", jobTitles: [], seniority: "", technologies: [], bantBudget: "", bantAuthority: "", bantNeed: "", bantTimeline: "", instructions: "", pitchIntroduction: "", pitchServices: "", pitchDifferentiator: "", pitchCollaterals: "", pitchCaseStudies: "", qualifyingQuestions: "", firstEmail: "", secondEmail: "", primaryContactId: null, internalNotes: null },
 };
 
 describe("Campaigns", () => {
@@ -234,14 +246,14 @@ const agreements: AgreementsPage = {
 
 describe("Agreements and shares", () => {
   it("shows the one agreement, who accepted it and the history line, and offers a new version only to an admin", () => {
-    const admin = renderToStaticMarkup(<AgreementCard side={agreements.agreement} withName="Kestrel Ledger and Northgate Outreach" campaignId="c1" timeZone="Europe/London" canWrite />);
+    const admin = renderToStaticMarkup(<AgreementCard side={agreements.agreement} withName="Kestrel Ledger and Northgate Outreach" campaignId="c1" timeZone="Europe/London" canWrite suggested={{ monthlyTarget: 12, totalTarget: 72 }} />);
     expect(admin).toContain("Client: accepted by Daniel Okafor on Wed 4 Nov");
     expect(admin).toContain("Coordinator: waiting");
     expect(admin).toContain("Version 1: 10 a month, 60 in total");
     expect(admin).toContain("over 6 months");
     expect(admin).toContain("Version 1 published 2 Oct, superseded 3 Nov");
     expect(admin).toContain("New version");
-    const staff = renderToStaticMarkup(<AgreementCard side={{ ...agreements.agreement, previous: null, history: [], current: agreements.agreement.current === null ? null : { ...agreements.agreement.current, accepted: [] } }} withName="Kestrel Ledger and Northgate Outreach" campaignId="c1" timeZone="Europe/London" canWrite={false} />);
+    const staff = renderToStaticMarkup(<AgreementCard side={{ ...agreements.agreement, previous: null, history: [], current: agreements.agreement.current === null ? null : { ...agreements.agreement.current, accepted: [] } }} withName="Kestrel Ledger and Northgate Outreach" campaignId="c1" timeZone="Europe/London" canWrite={false} suggested={{ monthlyTarget: 12, totalTarget: 72 }} />);
     expect(staff).toContain("Waiting");
     expect(staff).toContain("Client: waiting");
     expect(staff).toContain("No earlier versions");
@@ -249,11 +261,11 @@ describe("Agreements and shares", () => {
   });
 
   it("offers a first version when there is no agreement", () => {
-    expect(renderToStaticMarkup(<AgreementCard side={{ current: null, inForceVersion: null, previous: null, history: [] }} withName="Kestrel Ledger" campaignId="c1" timeZone="Europe/London" canWrite />)).toContain("First version");
+    expect(renderToStaticMarkup(<AgreementCard side={{ current: null, inForceVersion: null, previous: null, history: [] }} withName="Kestrel Ledger" campaignId="c1" timeZone="Europe/London" canWrite suggested={{ monthlyTarget: 12, totalTarget: 72 }} />)).toContain("First version");
   });
 
   it("shows the shares, the total against the target and the over-allocation notice", () => {
-    const html = renderToStaticMarkup(<SharesCard page={agreements} campaignId="c1" supplierName="Northgate Outreach" timeZone="Europe/London" now={day("2026-11-13")} canWrite />);
+    const html = renderToStaticMarkup(<SharesCard page={agreements} campaignId="c1" coordinatorName="Northgate Outreach" timeZone="Europe/London" now={day("2026-11-13")} campaignMonthly={14} canWrite />);
     expect(html).toContain("15 of 14");
     expect(html).toContain("Shares add up to 15 a month, 1 more than the campaign&#x27;s target of 14.");
     expect(html).toContain("Accepted in November");
@@ -264,10 +276,10 @@ describe("Agreements and shares", () => {
   });
 
   it("hides every write control from staff and says when there are no shares", () => {
-    const staff = renderToStaticMarkup(<SharesCard page={agreements} campaignId="c1" supplierName="Northgate Outreach" timeZone="Europe/London" now={day("2026-11-13")} canWrite={false} />);
+    const staff = renderToStaticMarkup(<SharesCard page={agreements} campaignId="c1" coordinatorName="Northgate Outreach" timeZone="Europe/London" now={day("2026-11-13")} campaignMonthly={14} canWrite={false} />);
     expect(staff).not.toContain("Add share");
     expect(staff).not.toContain("Edit the share");
-    const empty = renderToStaticMarkup(<SharesCard page={{ ...agreements, shares: [], summary: { totalShares: 0, campaignMonthlyTarget: null, overAllocated: false } }} campaignId="c1" supplierName="Northgate Outreach" timeZone="Europe/London" now={day("2026-11-13")} canWrite />);
+    const empty = renderToStaticMarkup(<SharesCard page={{ ...agreements, shares: [], summary: { totalShares: 0, campaignMonthlyTarget: null, overAllocated: false } }} campaignId="c1" coordinatorName="Northgate Outreach" timeZone="Europe/London" now={day("2026-11-13")} campaignMonthly={14} canWrite />);
     expect(empty).toContain("No shares yet");
   });
 });
@@ -285,7 +297,7 @@ const theo: HostView = { memberId: "m3", displayName: "Theo Lindqvist", jobTitle
 
 describe("Hosts", () => {
   it("shows the weekly hours summary, the next block and the status of each host", () => {
-    const html = renderToStaticMarkup(<HostsTable hosts={[imogen, theo]} candidates={[{ memberId: "m4", displayName: "Another Person" }]} campaignId="c1" reference="CMP-7Q2X" clientName="Kestrel Ledger" campaignZone="Europe/London" selectedId="m2" canWrite />);
+    const html = renderToStaticMarkup(<HostsTable hosts={[imogen, theo]} candidates={[{ memberId: "m4", displayName: "Another Person", jobTitle: null }]} campaignId="c1" reference="CMP-7Q2X" clientName="Kestrel Ledger" campaignZone="Europe/London" selectedId="m2" canWrite inviteHref="/fynix/clients/ORG-K1AA/people/new" />);
     expect(html).toContain("Mon to Fri");
     expect(html).toContain("Split on Wednesdays");
     expect(html).toContain("Mon 23 Nov");
@@ -298,8 +310,8 @@ describe("Hosts", () => {
   });
 
   it("says there are no hosts, and whether anyone could be one", () => {
-    expect(renderToStaticMarkup(<HostsTable hosts={[]} candidates={[{ memberId: "m4", displayName: "A" }]} campaignId="c1" reference="CMP-7Q2X" clientName="Kestrel Ledger" campaignZone="Europe/London" selectedId={undefined} canWrite />)).toContain("Add the people at Kestrel Ledger");
-    expect(renderToStaticMarkup(<HostsTable hosts={[]} candidates={[]} campaignId="c1" reference="CMP-7Q2X" clientName="Kestrel Ledger" campaignZone="Europe/London" selectedId={undefined} canWrite />)).toContain("Nobody at Kestrel Ledger can be a host yet");
+    expect(renderToStaticMarkup(<HostsTable hosts={[]} candidates={[{ memberId: "m4", displayName: "A", jobTitle: null }]} campaignId="c1" reference="CMP-7Q2X" clientName="Kestrel Ledger" campaignZone="Europe/London" selectedId={undefined} canWrite inviteHref="/fynix/clients/ORG-K1AA/people/new" />)).toContain("Add the people at Kestrel Ledger");
+    expect(renderToStaticMarkup(<HostsTable hosts={[]} candidates={[]} campaignId="c1" reference="CMP-7Q2X" clientName="Kestrel Ledger" campaignZone="Europe/London" selectedId={undefined} canWrite inviteHref="/fynix/clients/ORG-K1AA/people/new" />)).toContain("Nobody at Kestrel Ledger can be a host yet");
   });
 
   it("renders the panel with the week day by day, a split day in two ranges, the blocks and the admin's actions", () => {
@@ -393,9 +405,9 @@ describe("Campaign list tabs", () => {
 describe("copy", () => {
   it("has no em or en dashes in anything rendered", () => {
     const html = [
-      renderToStaticMarkup(<SuppliersTable rows={[supplierRow()]} filter="active" query="" canWrite />),
-      renderToStaticMarkup(<SupplierTitle supplier={detail} canWrite />),
-      renderToStaticMarkup(<SupplierOverview supplier={detail} />),
+      renderToStaticMarkup(<CoordinatorsTable rows={[coordinatorRow()]} filter="active" query="" canWrite />),
+      renderToStaticMarkup(<CoordinatorTitle coordinator={detail} canWrite />),
+      renderToStaticMarkup(<CoordinatorOverview coordinator={detail} />),
       renderToStaticMarkup(<PeopleTable people={[person()]} canWrite selfUserId="u9" />),
       renderToStaticMarkup(<ClientOverview client={clientDetail} canWrite />),
       renderToStaticMarkup(<CampaignsTable rows={[campaignRow]} />),
@@ -429,19 +441,19 @@ describe("Contact panel", () => {
 
   it("is on the client and coordinator overviews", () => {
     expect(renderToStaticMarkup(<ClientOverview client={{ ...clientDetail, contact: FULL_CONTACT }} canWrite={false} />)).toContain("mailto:asha@northgate.example");
-    expect(renderToStaticMarkup(<SupplierOverview supplier={{ ...detail, contact: FULL_CONTACT }} canWrite />)).toContain("Edit contact");
+    expect(renderToStaticMarkup(<CoordinatorOverview coordinator={{ ...detail, contact: FULL_CONTACT }} canWrite />)).toContain("Edit contact");
   });
 });
 
 describe("Contact email in the lists", () => {
   it("sits under the company name in the Coordinators and Clients tables", () => {
-    expect(renderToStaticMarkup(<SuppliersTable rows={[supplierRow({ contactEmail: "asha@northgate.example" })]} filter="active" query="" canWrite />)).toContain("asha@northgate.example");
+    expect(renderToStaticMarkup(<CoordinatorsTable rows={[coordinatorRow({ contactEmail: "asha@northgate.example" })]} filter="active" query="" canWrite />)).toContain("asha@northgate.example");
     expect(renderToStaticMarkup(<ClientsTable rows={[clientRow({ contactEmail: "imogen@kestrel.example" })]} query="" canWrite />)).toContain("imogen@kestrel.example");
     expect(renderToStaticMarkup(<ClientsTable rows={[clientRow()]} query="" canWrite />)).not.toContain("max-md:hidden\">null");
   });
 
   it("links a partner agency on the coordinator's Agencies tab to its page", () => {
-    expect(renderToStaticMarkup(<AgenciesPanel supplier={detail} canWrite />)).toContain('href="/fynix/agencies/ORG-AAAA"');
+    expect(renderToStaticMarkup(<AgenciesPanel coordinator={detail} canWrite />)).toContain('href="/fynix/agencies/ORG-AAAA"');
   });
 });
 
@@ -485,7 +497,7 @@ describe("Agencies", () => {
     expect(html).toContain("All agencies");
     expect(html).toContain("/fynix/agencies/ORG-AAAA");
     expect(html).toContain("hello@calder.example");
-    expect(html).toContain('href="/fynix/suppliers/ORG-N7GT"');
+    expect(html).toContain('href="/fynix/coordinators/ORG-N7GT"');
     expect(html).toContain("1 active, 1 closed");
     expect(html).toContain("Sent this month");
     expect(html).toContain("Accepted this month");
@@ -512,7 +524,7 @@ describe("Agencies", () => {
     expect(renderToStaticMarkup(<AgencyTitle agency={agencyDetail} canWrite={false} />)).not.toContain("Archive");
     expect(renderToStaticMarkup(<AgencyTitle agency={{ ...agencyDetail, status: "archived" }} canWrite />)).toContain("Restore");
     const overview = renderToStaticMarkup(<AgencyOverview agency={agencyDetail} canWrite />);
-    expect(overview).toContain('href="/fynix/suppliers/ORG-N7GT"');
+    expect(overview).toContain('href="/fynix/coordinators/ORG-N7GT"');
     expect(overview).toContain("5 a month across 1 campaign");
     expect(overview).toContain("9 sent, 4 accepted");
     expect(overview).toContain("Edit contact");

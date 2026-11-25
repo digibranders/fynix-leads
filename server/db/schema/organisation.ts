@@ -16,8 +16,8 @@ export const organisation = pgTable(
     name: text("name").notNull(),
     status: organisationStatus("status").notNull().default("active"),
     /**
-     * The supplier a partner agency works under. Null for Fynix, every client and every supplier. A supplier is an agency with
-     * no parent; a partner agency is an agency whose parent is a supplier; two levels at most (migration 0020 refuses a grandparent).
+     * The coordinator a partner agency works under. Null for Fynix, every client and every coordinator. A coordinator is an agency with
+     * no parent; a partner agency is an agency whose parent is a coordinator; two levels at most (migration 0020 refuses a grandparent).
      * Added in phase 1D, nullable, so existing rows stay valid. No tenant role has a grant on it until phase 1E.
      */
     parentOrgId: uuid("parent_org_id"),

@@ -1,6 +1,6 @@
-import type { SupplierFilter } from "@/lib/fynix/suppliers";
+import type { CoordinatorFilter } from "@/lib/fynix/coordinators";
 
-/** The filter, search and row text of the Fynix Agencies screen. The Active and Archived filter is the coordinators' (`parseSupplierFilter`). */
+/** The filter, search and row text of the Fynix Agencies screen. The Active and Archived filter is the coordinators' (`parseCoordinatorFilter`). */
 export interface FilterableAgency {
   readonly name: string;
   readonly status: "active" | "archived";
@@ -9,7 +9,7 @@ export interface FilterableAgency {
 }
 
 /** A search matches the agency's name, its contact email or its coordinator's name, ignoring case. */
-export function filterAgencies<T extends FilterableAgency>(rows: readonly T[], filter: SupplierFilter, query: string): T[] {
+export function filterAgencies<T extends FilterableAgency>(rows: readonly T[], filter: CoordinatorFilter, query: string): T[] {
   const needle = query.trim().toLowerCase();
   return rows.filter(
     (row) =>
@@ -19,7 +19,7 @@ export function filterAgencies<T extends FilterableAgency>(rows: readonly T[], f
 }
 
 /** The address of the Agencies screen with a filter and a search. A value that is the default is left out. */
-export function agenciesHref(options: { readonly status?: SupplierFilter; readonly q?: string }): string {
+export function agenciesHref(options: { readonly status?: CoordinatorFilter; readonly q?: string }): string {
   const query = new URLSearchParams();
   if (options.status === "archived") query.set("status", "archived");
   if (options.q !== undefined && options.q.trim() !== "") query.set("q", options.q.trim());

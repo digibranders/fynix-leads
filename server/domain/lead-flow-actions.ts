@@ -20,7 +20,7 @@ import { field, runTenantForm } from "@/server/tenant/run-form";
  * exports only actions.
  */
 
-const PAGES = ["/client", "/supplier", "/agency"] as const;
+const PAGES = ["/client", "/coordinator", "/agency"] as const;
 
 const STALE = { "invalid-lead-stage": "This lead has moved on since you opened it. Refresh the page.", "not-found": "That lead is no longer available. Refresh the page." } as const;
 

@@ -75,7 +75,7 @@ export async function getOrCreateConversationAction(
   const leadId = getField(formData, "leadId") || undefined;
   const side = getField(formData, "side") as "client_fynix" | "supplier_fynix" | "supplier_agency";
   const clientOrgId = getField(formData, "clientOrgId") || undefined;
-  const supplierOrgId = getField(formData, "supplierOrgId") || undefined;
+  const coordinatorOrgId = getField(formData, "coordinatorOrgId") || undefined;
   const agencyOrgId = getField(formData, "agencyOrgId") || undefined;
   const subject = getField(formData, "subject") || undefined;
 
@@ -91,7 +91,7 @@ export async function getOrCreateConversationAction(
         leadId,
         side,
         clientOrgId,
-        supplierOrgId,
+        coordinatorOrgId,
         agencyOrgId,
         subject,
       },
@@ -100,7 +100,7 @@ export async function getOrCreateConversationAction(
 
     revalidatePath("/client/messages");
     revalidatePath("/agency/messages");
-    revalidatePath("/supplier/messages");
+    revalidatePath("/coordinator/messages");
     revalidatePath("/fynix/messages");
 
     return { status: "success", data: conv };
@@ -193,7 +193,7 @@ export async function postMessageAction(
 }
 
 function revalidateMessagePaths(): void {
-  for (const path of ["/client/messages", "/agency/messages", "/supplier/messages", "/fynix/messages", "/fynix/inbox"]) revalidatePath(path);
+  for (const path of ["/client/messages", "/agency/messages", "/coordinator/messages", "/fynix/messages", "/fynix/inbox"]) revalidatePath(path);
 }
 
 /**
@@ -224,7 +224,7 @@ export async function forwardMessageAction(
 
     revalidatePath("/client/messages");
     revalidatePath("/agency/messages");
-    revalidatePath("/supplier/messages");
+    revalidatePath("/coordinator/messages");
     revalidatePath("/fynix/messages");
 
     return { status: "success", data: forwarded };
@@ -257,7 +257,7 @@ export async function markNotificationReadAction(
 
     revalidatePath("/client/notifications");
     revalidatePath("/agency/notifications");
-    revalidatePath("/supplier/notifications");
+    revalidatePath("/coordinator/notifications");
     revalidatePath("/fynix/notifications");
 
     return { status: "success", data: updated };
@@ -281,7 +281,7 @@ export async function markConversationReadAction(conversationId: string): Promis
     return;
   }
   // The Messages and Inbox badge lives in the shell, which a navigation does not render again.
-  for (const home of ["/client", "/supplier", "/agency", "/fynix"]) revalidatePath(home, "layout");
+  for (const home of ["/client", "/coordinator", "/agency", "/fynix"]) revalidatePath(home, "layout");
 }
 
 /** A client or a coordinator starts a thread with Fynix about one campaign (one thread per campaign: asking again opens it). */

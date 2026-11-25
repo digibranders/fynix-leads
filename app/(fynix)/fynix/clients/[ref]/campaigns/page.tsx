@@ -11,7 +11,7 @@ async function Campaigns({ params }: { params: PageProps<"/fynix/clients/[ref]/c
   const view = await requireFynix();
   const { ref } = await params;
   const client = await loadClient(ref, view.actor.userId);
-  return <CampaignsPanel rows={client.campaigns.map((row) => ({ ...row, other: `Served by ${row.supplierName}` }))} />;
+  return <CampaignsPanel rows={client.campaigns.map((row) => ({ ...row, other: `Served by ${row.coordinatorName}` }))} {...(view.canWrite && client.status === "active" ? { newHref: `/fynix/campaigns/new?client=${client.id}` } : {})} />;
 }
 
 export default function ClientCampaignsPage({ params }: PageProps<"/fynix/clients/[ref]/campaigns">) {

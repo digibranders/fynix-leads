@@ -58,14 +58,14 @@ export async function getOrCreateConversation(
     if (parsed.side === "client_fynix") {
       throw new DomainError("not-authorised", "Agencies cannot access client-fynix conversations.");
     }
-    if (parsed.side === "supplier_fynix" && parsed.supplierOrgId && parsed.supplierOrgId !== actor.orgId) {
+    if (parsed.side === "supplier_fynix" && parsed.coordinatorOrgId && parsed.coordinatorOrgId !== actor.orgId) {
       throw new DomainError("not-authorised", "Coordinator cannot create conversations for another coordinator.");
     }
     if (
       parsed.side === "supplier_agency" &&
-      parsed.supplierOrgId &&
+      parsed.coordinatorOrgId &&
       parsed.agencyOrgId &&
-      actor.orgId !== parsed.supplierOrgId &&
+      actor.orgId !== parsed.coordinatorOrgId &&
       actor.orgId !== parsed.agencyOrgId
     ) {
       throw new DomainError("not-authorised", "Agency cannot create conversations between organisations it does not belong to.");
@@ -73,15 +73,15 @@ export async function getOrCreateConversation(
   }
 
   const clientOrgId = parsed.side === "client_fynix" ? (parsed.clientOrgId ?? actor.orgId ?? null) : null;
-  const supplierOrgId =
+  const coordinatorOrgId =
     parsed.side === "supplier_fynix" || parsed.side === "supplier_agency"
-      ? (parsed.supplierOrgId ?? (actor.orgKind === "agency" && parsed.side === "supplier_fynix" ? (actor.orgId ?? null) : null))
+      ? (parsed.coordinatorOrgId ?? (actor.orgKind === "agency" && parsed.side === "supplier_fynix" ? (actor.orgId ?? null) : null))
       : null;
   const agencyOrgId = parsed.side === "supplier_agency" ? (parsed.agencyOrgId ?? null) : null;
 
   return withActorScope(db, actor, async (tx) => {
     if (actor.orgKind !== "fynix") await assertCampaignVisible(tx, parsed.campaignId, parsed.leadId);
-    return findOrCreateConversation(tx, actor, { campaignId: parsed.campaignId, leadId: parsed.leadId ?? null, side: parsed.side, clientOrgId, supplierOrgId, agencyOrgId, subject: parsed.subject ?? null }, randomBytes, now);
+    return findOrCreateConversation(tx, actor, { campaignId: parsed.campaignId, leadId: parsed.leadId ?? null, side: parsed.side, clientOrgId, coordinatorOrgId, agencyOrgId, subject: parsed.subject ?? null }, randomBytes, now);
   });
 }
 
@@ -90,7 +90,7 @@ interface ConversationKey {
   readonly leadId: string | null;
   readonly side: "client_fynix" | "supplier_fynix" | "supplier_agency";
   readonly clientOrgId: string | null;
-  readonly supplierOrgId: string | null;
+  readonly coordinatorOrgId: string | null;
   readonly agencyOrgId: string | null;
   readonly subject: string | null;
 }
@@ -111,7 +111,7 @@ async function findOrCreateConversation(tx: ScopedTransaction, actor: MessagingA
   const conditions = [eq(conversation.campaignId, key.campaignId), eq(conversation.side, key.side)];
   conditions.push(key.leadId === null ? isNull(conversation.leadId) : eq(conversation.leadId, key.leadId));
   if (key.clientOrgId) conditions.push(eq(conversation.clientOrgId, key.clientOrgId));
-  if (key.supplierOrgId) conditions.push(eq(conversation.supplierOrgId, key.supplierOrgId));
+  if (key.coordinatorOrgId) conditions.push(eq(conversation.coordinatorOrgId, key.coordinatorOrgId));
   if (key.agencyOrgId) conditions.push(eq(conversation.agencyOrgId, key.agencyOrgId));
 
   const [existing] = await tx.select(cols).from(conversation).where(and(...conditions)).limit(1);
@@ -120,7 +120,7 @@ async function findOrCreateConversation(tx: ScopedTransaction, actor: MessagingA
   const publicRef = generatePublicRef("MSG", randomBytes);
   const [created] = await tx
     .insert(conversation)
-    .values({ publicRef, campaignId: key.campaignId, leadId: key.leadId, side: key.side, clientOrgId: key.clientOrgId, supplierOrgId: key.supplierOrgId, agencyOrgId: key.agencyOrgId, subject: key.subject, createdAt: now, updatedAt: now })
+    .values({ publicRef, campaignId: key.campaignId, leadId: key.leadId, side: key.side, clientOrgId: key.clientOrgId, coordinatorOrgId: key.coordinatorOrgId, agencyOrgId: key.agencyOrgId, subject: key.subject, createdAt: now, updatedAt: now })
     .returning(cols);
   if (created === undefined) throw new Error("Insert of conversation returned no row");
 
@@ -139,8 +139,8 @@ export async function openThreadWithFynix(db: Database, actor: MessagingActor, i
   if (actor.orgKind === "client") return getOrCreateConversation(db, actor, { campaignId: parsed.campaignId, side: "client_fynix", subject: parsed.subject }, deps);
   if (actor.orgKind === "agency") {
     const coordinator = await withActorScope(db, actor, async (tx) => {
-      const [row] = await tx.select({ supplierOrgId: campaign.agencyOrgId }).from(campaign).where(eq(campaign.id, parsed.campaignId)).limit(1);
-      return row !== undefined && row.supplierOrgId === actor.orgId;
+      const [row] = await tx.select({ coordinatorOrgId: campaign.agencyOrgId }).from(campaign).where(eq(campaign.id, parsed.campaignId)).limit(1);
+      return row !== undefined && row.coordinatorOrgId === actor.orgId;
     });
     if (!coordinator) throw new DomainError("not-authorised", "Only the coordinator of a campaign has a thread with Fynix about it.");
     return getOrCreateConversation(db, actor, { campaignId: parsed.campaignId, side: "supplier_fynix", subject: parsed.subject }, deps);
@@ -159,7 +159,7 @@ export async function getOrCreateLeadConversation(db: Database, actor: Messaging
   const randomBytes = deps?.randomBytes ?? ((n: number) => randomFillSync(new Uint8Array(n)));
   return withActorScope(db, actor, async (tx) => {
     const [row] = await tx
-      .select({ id: lead.id, publicRef: lead.publicRef, campaignId: lead.campaignId, released: lead.released, clientOrgId: campaign.clientOrgId, supplierOrgId: campaign.agencyOrgId })
+      .select({ id: lead.id, publicRef: lead.publicRef, campaignId: lead.campaignId, released: lead.released, clientOrgId: campaign.clientOrgId, coordinatorOrgId: campaign.agencyOrgId })
       .from(lead)
       .innerJoin(campaign, eq(campaign.id, lead.campaignId))
       .where(eq(lead.id, parsed.leadId))
@@ -170,14 +170,14 @@ export async function getOrCreateLeadConversation(db: Database, actor: Messaging
     const base = { campaignId: row.campaignId, leadId: row.id, subject, agencyOrgId: null } as const;
     if (actor.orgKind === "client") {
       if (row.clientOrgId !== actor.orgId) throw new DomainError("not-found", "There is no such lead.");
-      return findOrCreateConversation(tx, actor, { ...base, side: "client_fynix", clientOrgId: actor.orgId, supplierOrgId: null }, randomBytes, now);
+      return findOrCreateConversation(tx, actor, { ...base, side: "client_fynix", clientOrgId: actor.orgId, coordinatorOrgId: null }, randomBytes, now);
     }
     if (actor.orgKind === "agency") {
-      if (row.supplierOrgId !== actor.orgId) return null;
-      return findOrCreateConversation(tx, actor, { ...base, side: "supplier_fynix", clientOrgId: null, supplierOrgId: actor.orgId }, randomBytes, now);
+      if (row.coordinatorOrgId !== actor.orgId) return null;
+      return findOrCreateConversation(tx, actor, { ...base, side: "supplier_fynix", clientOrgId: null, coordinatorOrgId: actor.orgId }, randomBytes, now);
     }
-    if (parsed.side === "supplier_fynix") return findOrCreateConversation(tx, actor, { ...base, side: "supplier_fynix", clientOrgId: null, supplierOrgId: row.supplierOrgId }, randomBytes, now);
-    return findOrCreateConversation(tx, actor, { ...base, side: "client_fynix", clientOrgId: row.clientOrgId, supplierOrgId: null }, randomBytes, now);
+    if (parsed.side === "supplier_fynix") return findOrCreateConversation(tx, actor, { ...base, side: "supplier_fynix", clientOrgId: null, coordinatorOrgId: row.coordinatorOrgId }, randomBytes, now);
+    return findOrCreateConversation(tx, actor, { ...base, side: "client_fynix", clientOrgId: row.clientOrgId, coordinatorOrgId: null }, randomBytes, now);
   });
 }
 
@@ -202,7 +202,7 @@ export async function postMessage(
         leadId: conversation.leadId,
         side: conversation.side,
         clientOrgId: conversation.clientOrgId,
-        supplierOrgId: conversation.supplierOrgId,
+        coordinatorOrgId: conversation.coordinatorOrgId,
         agencyOrgId: conversation.agencyOrgId,
         subject: conversation.subject,
       })
@@ -223,11 +223,11 @@ export async function postMessage(
     } else if (actor.orgKind === "client") {
       senderRole = "client";
     } else if (isGroup) {
-      // Both a supplier and a partner agency are `agency` organisations; the one with no supplier above it is the supplier.
+      // Both a coordinator and a partner agency are `agency` organisations; the one with no coordinator above it is the coordinator.
       const partner = await tx.execute<{ partner: boolean }>(sql`select public.app_org_is_partner() as partner`);
       senderRole = partner.rows[0]?.partner === true ? "agency" : "supplier";
     } else {
-      senderRole = conv.supplierOrgId === actor.orgId ? "supplier" : "agency";
+      senderRole = conv.coordinatorOrgId === actor.orgId ? "supplier" : "agency";
     }
 
     // In a group people see each other by first name and role only, and contact details are taken out of what is said, because a
@@ -286,7 +286,7 @@ export async function postMessage(
 
 /**
  * Forwards a message from one conversation to another, scrubbing contact details
- * when crossing the client vs supplier/agency boundary.
+ * when crossing the client vs coordinator/agency boundary.
  */
 export async function forwardMessage(
   db: Database,
@@ -322,7 +322,7 @@ export async function forwardMessage(
         publicRef: conversation.publicRef,
         side: conversation.side,
         clientOrgId: conversation.clientOrgId,
-        supplierOrgId: conversation.supplierOrgId,
+        coordinatorOrgId: conversation.coordinatorOrgId,
         agencyOrgId: conversation.agencyOrgId,
       })
       .from(conversation)
@@ -343,7 +343,7 @@ export async function forwardMessage(
         publicRef: conversation.publicRef,
         side: conversation.side,
         clientOrgId: conversation.clientOrgId,
-        supplierOrgId: conversation.supplierOrgId,
+        coordinatorOrgId: conversation.coordinatorOrgId,
         agencyOrgId: conversation.agencyOrgId,
       })
       .from(conversation)
@@ -359,10 +359,10 @@ export async function forwardMessage(
     assertConversationAccess(actor, targetConv);
 
     const isClientSide = (side: string) => side === "client_fynix";
-    const isSupplierAgencySide = (side: string) => side === "supplier_fynix" || side === "supplier_agency";
+    const isCoordinatorAgencySide = (side: string) => side === "supplier_fynix" || side === "supplier_agency";
     const crossesBoundary =
-      (isClientSide(sourceConv.side) && isSupplierAgencySide(targetConv.side)) ||
-      (isSupplierAgencySide(sourceConv.side) && isClientSide(targetConv.side));
+      (isClientSide(sourceConv.side) && isCoordinatorAgencySide(targetConv.side)) ||
+      (isCoordinatorAgencySide(sourceConv.side) && isClientSide(targetConv.side));
 
     let finalBody = orig.body;
     let scrubbedCount = 0;
@@ -378,7 +378,7 @@ export async function forwardMessage(
     } else if (actor.orgKind === "client") {
       senderRole = "client";
     } else {
-      senderRole = targetConv.supplierOrgId === actor.orgId ? "supplier" : "agency";
+      senderRole = targetConv.coordinatorOrgId === actor.orgId ? "supplier" : "agency";
     }
 
     const senderName =

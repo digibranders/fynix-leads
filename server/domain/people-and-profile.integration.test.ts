@@ -10,7 +10,7 @@ import { issueInvite, issueTenantInvite } from "@/server/domain/invites";
 import { updateMemberDetails, updateOwnMemberDetails } from "@/server/domain/members";
 import { addCollateral, createOrganisation, removeCollateral, updateClientProfile } from "@/server/domain/organisations";
 import { redeemInvite } from "@/server/domain/redeem-invite";
-import { createPartnerAgency } from "@/server/domain/suppliers";
+import { createPartnerAgency } from "@/server/domain/coordinators";
 import { latestInviteLink, publishApprovedTerms, refusal } from "@/server/domain/test-helpers";
 import { readCurrentTerms } from "@/server/domain/terms";
 import { openDomainRig } from "@/server/domain/testing";
@@ -160,7 +160,7 @@ describe("issueTenantInvite", () => {
 
   it("lets a coordinator manager invite into its own organisation and into a partner agency, and a partner agency manager into its own only", async () => {
     const coordinator = await managerOf(rig.world().brightpath.id);
-    const partner = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: coordinator.orgId, name: "Ridgeway Partner Media Ltd" });
+    const partner = await createPartnerAgency(rig.deps(), rig.actor, { coordinatorId: coordinator.orgId, name: "Ridgeway Partner Media Ltd" });
     const own = await issueTenantInvite(rig.deps(), agencyDb(), coordinator, { organisationId: coordinator.orgId, email: "own@brightpath.example", name: "Own Person", ...JOB });
     const child = await issueTenantInvite(rig.deps(), agencyDb(), coordinator, { organisationId: partner.id, email: "child@ridgeway.example", name: "Child Person", ...JOB });
     const rows = await rig.dbs.owner.db.select({ id: invite.id, orgId: invite.orgId, alias: invite.alias, createdBy: invite.createdBy }).from(invite);
@@ -236,7 +236,7 @@ describe("who reads a client's profile", () => {
 
   it("shows a partner agency the profile of a client only through a share, and hides removed collateral from everyone but Fynix", async () => {
     const created = await cedar();
-    const partner = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: rig.world().northgate.id, name: "Cedar Partner Ltd" });
+    const partner = await createPartnerAgency(rig.deps(), rig.actor, { coordinatorId: rig.world().northgate.id, name: "Cedar Partner Ltd" });
     expect(await profilesSeenBy(agencyDb(), partner.id)).toEqual([]);
     const [cedarCampaign] = await rig.dbs.owner.db.select({ id: campaign.id }).from(campaign).where(eq(campaign.clientOrgId, created.id));
     if (cedarCampaign === undefined) throw new Error("no campaign");

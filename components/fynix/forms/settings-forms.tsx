@@ -19,7 +19,7 @@ export function PublishTermsForm() {
       </FormGroup>
       <FormGroup title="The terms">
         <TextField name="title" label="Title" helper="For example: Terms for clients." />
-        <TextAreaField name="body" label="Text" rows={16} helper="Paste the full approved text. A published version cannot be edited. To change it, publish another." />
+        <TextAreaField name="body" label="Text" helper="Paste the full approved text. A published version cannot be edited. To change it, publish another." />
       </FormGroup>
     </ActionForm>
   );

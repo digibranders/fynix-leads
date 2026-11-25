@@ -5,9 +5,9 @@ import { organisationKind } from "./enums";
 import { organisation } from "./organisation";
 
 /**
- * How much of the supplier's monthly target one agency carries (spec 7.2, "Shares"). The agency is the campaign's supplier
- * itself (a supplier who works alone) or one of its partner agencies: a trigger (migration 0024) refuses any other agency.
- * A sum of shares above the supplier's target is allowed; the service reports it as a flag the screen shows.
+ * How much of the coordinator's monthly target one agency carries (spec 7.2, "Shares"). The agency is the campaign's coordinator
+ * itself (a coordinator who works alone) or one of its partner agencies: a trigger (migration 0024) refuses any other agency.
+ * A sum of shares above the coordinator's target is allowed; the service reports it as a flag the screen shows.
  *
  * `agency_org_kind` is a constant, so the composite foreign key makes the database refuse a client. No tenant role has a grant
  * until phase 1E (an agency will read its own share).

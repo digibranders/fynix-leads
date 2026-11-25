@@ -47,7 +47,7 @@ function failure(error: unknown, fallback: string): GroupActionResult {
 }
 
 function refresh(): void {
-  for (const path of ["/client/messages", "/agency/messages", "/supplier/messages", "/fynix/inbox"]) revalidatePath(path);
+  for (const path of ["/client/messages", "/agency/messages", "/coordinator/messages", "/fynix/inbox"]) revalidatePath(path);
 }
 
 export async function createGroupAction(_previous: GroupActionResult, formData: FormData): Promise<GroupActionResult> {

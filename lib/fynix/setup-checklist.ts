@@ -19,7 +19,7 @@ export interface ChecklistItem {
 export function checklistItems(findings: SetupFindings): readonly ChecklistItem[] {
   return [
     ...findings.clientsWithoutManager.map((row) => ({ key: `client-${row.ref}`, label: `${row.name} has no manager yet`, href: `/fynix/clients/${row.ref}/people` })),
-    ...findings.coordinatorsWithoutManager.map((row) => ({ key: `coordinator-${row.ref}`, label: `${row.name} has no manager yet`, href: `/fynix/suppliers/${row.ref}/people` })),
+    ...findings.coordinatorsWithoutManager.map((row) => ({ key: `coordinator-${row.ref}`, label: `${row.name} has no manager yet`, href: `/fynix/coordinators/${row.ref}/people` })),
     ...findings.agenciesWithoutManager.map((row) => ({ key: `agency-${row.ref}`, label: `${row.name} has no manager yet`, href: `/fynix/agencies/${row.ref}/people` })),
     ...findings.campaignsWithoutHost.map((row) => ({ key: `host-${row.ref}`, label: `${row.name} has no host`, href: `/fynix/campaigns/${row.ref}/hosts` })),
     ...findings.agreementsWaiting.map((row) => ({

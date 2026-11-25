@@ -14,7 +14,7 @@ import { ContestOutcomeModal, DownloadIcsButton, JoinMeetButton, RecordMeetingOu
 
 export interface MeetingRow extends MeetingItemData {
   readonly leadRef: string;
-  /** The client's name, shown to suppliers and agencies, who work for several clients. */
+  /** The client's name, shown to coordinators and agencies, who work for several clients. */
   readonly clientName?: string;
 }
 

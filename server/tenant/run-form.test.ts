@@ -25,7 +25,7 @@ const spec = (over: Partial<Parameters<typeof runTenantForm>[0]> = {}): Paramete
   schema,
   labels: { name: "Agency name" },
   perform: async () => undefined,
-  revalidate: ["/supplier/team"],
+  revalidate: ["/coordinator/team"],
   ...over,
 });
 
@@ -40,7 +40,7 @@ describe("runTenantForm", () => {
     const perform = vi.fn(async () => undefined);
     expect(await runTenantForm(spec({ perform }))).toEqual({ status: "done", redirectTo: null });
     expect(perform).toHaveBeenCalledWith(expect.objectContaining({ userId: "u1" }), { name: "Lakeside" });
-    expect(state.revalidate).toHaveBeenCalledWith("/supplier/team", "layout");
+    expect(state.revalidate).toHaveBeenCalledWith("/coordinator/team", "layout");
     expect(state.after).not.toHaveBeenCalled();
   });
 

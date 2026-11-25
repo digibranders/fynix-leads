@@ -4,7 +4,7 @@ import { campaignShare } from "@/server/db/schema";
 import { closeCampaign } from "@/server/domain/campaigns";
 import { removeCampaignShare, listCampaignShares, setCampaignShare } from "@/server/domain/shares";
 import { setOrganisationStatus } from "@/server/domain/organisations";
-import { createPartnerAgency } from "@/server/domain/suppliers";
+import { createPartnerAgency } from "@/server/domain/coordinators";
 import { agreeNumbers, auditRowsFor, firstCampaign, refusal } from "@/server/domain/test-helpers";
 import { openDomainRig } from "@/server/domain/testing";
 
@@ -20,7 +20,7 @@ beforeEach(async () => {
 });
 
 const UNKNOWN = "99999999-9999-4999-8999-999999999999";
-const partnerOf = (supplierId: string, name: string) => createPartnerAgency(rig.deps(), rig.actor, { supplierId, name });
+const partnerOf = (coordinatorId: string, name: string) => createPartnerAgency(rig.deps(), rig.actor, { coordinatorId, name });
 const shareInput = (agencyOrgId: string, monthlyShare: number) => ({ campaignId: firstCampaign(rig).id, agencyOrgId, monthlyShare });
 const stored = () => rig.dbs.owner.db.select().from(campaignShare).orderBy(asc(campaignShare.monthlyShare));
 /** Both sides agree the campaign's one number. */

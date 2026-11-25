@@ -1,14 +1,17 @@
 "use client";
 
-import { addHostAction, closeCampaignAction, createCampaignAction, publishAgreementAction, setPrivacyLinkAction, setShareAction, updateCampaignAction } from "@/server/fynix/actions";
-import type { CampaignChoices, CampaignHeader } from "@/server/domain/campaign-overview";
-import { ActionForm, type PageMode } from "./action-form";
-import { FormGroup, Hidden, NumberField, SelectField, TextAreaField, TextField } from "./form-parts";
+import { addHostAction, closeCampaignAction, publishAgreementAction, setPrivacyLinkAction, setShareAction, updateCampaignAction } from "@/server/fynix/actions";
+import type { CampaignHeader } from "@/server/domain/campaign-overview";
+import { useId, useState } from "react";
+import { Choice } from "@/components/ui/choice";
+import { Field } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { ActionForm, useFormState } from "./action-form";
+import { FormGroup, Hidden, NumberField, SelectField, TextAreaField, TextField, TimeZoneField } from "./form-parts";
 
 type Defaults = {
   readonly monthlyTarget: number;
   readonly totalTarget: number;
-  readonly disputeWindowHours: number;
   readonly rules: string;
   readonly notes: string;
 };
@@ -21,11 +24,10 @@ export function NewAgreementForm({ campaignId, defaults }: { campaignId: string;
       <FormGroup title="The numbers">
         <NumberField name="monthlyTarget" label="Meetings per month" defaultValue={defaults === null ? "" : String(defaults.monthlyTarget)} />
         <NumberField name="totalTarget" label="Meetings in total" defaultValue={defaults === null ? "" : String(defaults.totalTarget)} />
-        <NumberField name="disputeWindowHours" label="Dispute window, in hours" defaultValue={String(defaults?.disputeWindowHours ?? 48)} helper="How long after a meeting the client may dispute it." />
       </FormGroup>
       <FormGroup title="The words">
-        <TextAreaField name="rules" label="Counting rules" rows={4} defaultValue={defaults?.rules ?? ""} helper="When a meeting counts, including no-shows and late cancellations, in words." />
-        <TextAreaField name="notes" label="Notes" rows={3} defaultValue={defaults?.notes ?? ""} />
+        <TextAreaField name="rules" label="Counting rules" defaultValue={defaults?.rules ?? ""} helper="When a meeting counts, including no-shows, in words. It starts from the standard rules; change what this campaign needs." />
+        <TextAreaField name="notes" label="Notes" defaultValue={defaults?.notes ?? ""} />
       </FormGroup>
     </ActionForm>
   );
@@ -34,7 +36,7 @@ export function NewAgreementForm({ campaignId, defaults }: { campaignId: string;
 type Option = { readonly id: string; readonly name: string };
 
 /** Sets one agency's monthly share. Adding offers the agencies without a share; editing fixes the agency and starts from its current number. */
-export function ShareForm({ campaignId, options, agency }: { campaignId: string; options: readonly Option[]; agency?: { readonly id: string; readonly name: string; readonly monthlyShare: number } }) {
+export function ShareForm({ campaignId, options, agency, suggested }: { campaignId: string; options: readonly Option[]; agency?: { readonly id: string; readonly name: string; readonly monthlyShare: number }; suggested?: number }) {
   return (
     <ActionForm action={setShareAction} submitLabel={agency === undefined ? "Add share" : "Save share"} pendingLabel="Saving">
       <Hidden name="campaignId" value={campaignId} />
@@ -49,20 +51,45 @@ export function ShareForm({ campaignId, options, agency }: { campaignId: string;
             </p>
           </>
         )}
-        <NumberField name="monthlyShare" label="Meetings per month" defaultValue={agency === undefined ? "" : String(agency.monthlyShare)} />
+        <NumberField name="monthlyShare" label="Meetings per month" defaultValue={agency !== undefined ? String(agency.monthlyShare) : suggested === undefined || suggested === 0 ? "" : String(suggested)} />
       </FormGroup>
     </ActionForm>
   );
 }
 
-/** Adds a person at the client as a host of the campaign. A host who was paused comes back with the title given here. */
-export function AddHostForm({ campaignId, candidates, clientName }: { campaignId: string; candidates: readonly { readonly memberId: string; readonly displayName: string }[]; clientName: string }) {
+/**
+ * Adds a person at the client as a host of the campaign. Choosing the person fills in their job title (the one on their own record), which can
+ * still be changed. A host who was paused comes back with the title given here.
+ */
+export function AddHostForm({ campaignId, candidates, clientName }: { campaignId: string; candidates: readonly { readonly memberId: string; readonly displayName: string; readonly jobTitle: string | null }[]; clientName: string }) {
+  const state = useFormState();
+  const personId = useId();
+  const titleId = useId();
+  const [person, setPerson] = useState("");
+  const [title, setTitle] = useState("");
+  const error = (name: string) => (state.status === "error" ? state.fields[name] : undefined);
+
   return (
     <ActionForm action={addHostAction} submitLabel="Add host" pendingLabel="Adding">
       <Hidden name="campaignId" value={campaignId} />
       <FormGroup>
-        <SelectField name="memberId" label={`Person at ${clientName}`} options={candidates.map((row) => ({ value: row.memberId, label: row.displayName }))} placeholder="Choose a person" />
-        <TextField name="jobTitle" label="Job title" helper="What the coordinator is told this person does, for example Head of FP&A." />
+        <Field id={personId} label={`Person at ${clientName}`} error={error("memberId")}>
+          <Choice
+            id={personId}
+            name="memberId"
+            value={person}
+            onValueChange={(next) => {
+              setPerson(next);
+              setTitle(candidates.find((row) => row.memberId === next)?.jobTitle ?? "");
+            }}
+            options={candidates.map((row) => ({ value: row.memberId, label: row.displayName }))}
+            placeholder="Choose a person"
+            invalid={error("memberId") !== undefined}
+          />
+        </Field>
+        <Field id={titleId} label="Job title" helper="What the coordinator is told this person does. It starts from their own job title." error={error("jobTitle")}>
+          <Input id={titleId} name="jobTitle" value={title} autoComplete="off" onChange={(event) => setTitle(event.target.value)} aria-invalid={error("jobTitle") === undefined ? undefined : true} />
+        </Field>
       </FormGroup>
     </ActionForm>
   );
@@ -70,69 +97,83 @@ export function AddHostForm({ campaignId, candidates, clientName }: { campaignId
 
 type Brief = CampaignHeader["brief"];
 
-/** The fields a campaign has, whether it is being made or changed: dates and targets, who to reach, how a lead is qualified, and the settings. */
-function CampaignFields({ brief, name, timeZone, meetingMinutes }: { brief: Brief | null; name: string; timeZone: string; meetingMinutes: number }) {
+/** What the campaign looks for: who the decision-makers are, the industries and the markets. Job titles and industries are lists, separated with commas. */
+export function QualificationFields({ brief }: { brief: Brief | null }) {
   return (
-    <>
-      <FormGroup title="Name and dates">
-        <TextField name="name" label="Campaign name" defaultValue={name} />
-        <div className="grid grid-cols-2 gap-3">
-          <TextField name="startDate" label="Starts" type="date" defaultValue={brief?.startDate ?? ""} />
-          <TextField name="endDate" label="Ends" type="date" defaultValue={brief?.endDate ?? ""} />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <NumberField name="monthlyTarget" label="Meetings per month" defaultValue={brief === null ? "" : String(brief.monthlyTarget)} />
-          <NumberField name="totalTarget" label="Meetings in total" defaultValue={brief === null ? "" : String(brief.totalTarget)} />
-        </div>
-      </FormGroup>
-      <FormGroup title="Who to reach">
-        <TextField name="geography" label="Geography" defaultValue={brief?.geography ?? ""} />
-        <TextField name="industries" label="Industries" defaultValue={brief?.industries.join(", ") ?? ""} helper="Separate with commas." />
-        <TextField name="companySize" label="Company size" defaultValue={brief?.companySize ?? ""} />
-        <TextAreaField name="icp" label="Ideal customer" rows={3} defaultValue={brief?.icp ?? ""} />
-        <TextField name="jobTitles" label="Job titles" defaultValue={brief?.jobTitles.join(", ") ?? ""} helper="Separate with commas." />
-        <TextField name="seniority" label="Seniority" defaultValue={brief?.seniority ?? ""} />
-        <TextField name="technologies" label="Technologies" defaultValue={brief?.technologies.join(", ") ?? ""} helper="Separate with commas." />
-      </FormGroup>
-      <FormGroup title="How a lead is qualified">
-        <TextAreaField name="bantBudget" label="Budget" rows={2} defaultValue={brief?.bantBudget ?? ""} />
-        <TextAreaField name="bantAuthority" label="Authority" rows={2} defaultValue={brief?.bantAuthority ?? ""} />
-        <TextAreaField name="bantNeed" label="Need" rows={2} defaultValue={brief?.bantNeed ?? ""} />
-        <TextAreaField name="bantTimeline" label="Timeline" rows={2} defaultValue={brief?.bantTimeline ?? ""} />
-      </FormGroup>
-      <FormGroup title="For the coordinator">
-        <TextAreaField name="instructions" label="Instructions" rows={4} defaultValue={brief?.instructions ?? ""} helper="Shown to the coordinator and its agencies." />
-        <TextAreaField name="internalNotes" label="Internal notes" rows={3} defaultValue={brief?.internalNotes ?? ""} helper="For Fynix only. Nobody outside Fynix sees this." />
-      </FormGroup>
-      <FormGroup title="Settings">
-        <div className="grid grid-cols-2 gap-3">
-          <TextField name="timeZone" label="Time zone" defaultValue={timeZone} helper="For example Europe/London. Counting uses it." />
-          <NumberField name="meetingMinutes" label="Meeting length, minutes" defaultValue={String(meetingMinutes)} />
-        </div>
-      </FormGroup>
-    </>
+    <FormGroup title="Qualification criteria">
+      <TextField name="jobTitles" label="Target decision-makers" defaultValue={brief?.jobTitles.join(", ") ?? ""} helper="Job titles. Separate with commas." />
+      <TextField name="industries" label="Target industries" defaultValue={brief?.industries.join(", ") ?? ""} helper="Separate with commas." />
+      <TextField name="geography" label="Target geographical markets" defaultValue={brief?.geography ?? ""} />
+    </FormGroup>
   );
 }
 
-/** Makes a draft campaign for one client, served by one supplier. Neither can be changed afterwards. */
-export function CreateCampaignForm({ choices, page }: { choices: CampaignChoices; page?: PageMode }) {
+/** The answers about the client's brand and services, in the order of the set-up sheet. Free text. */
+export function BrandFields({ brief }: { brief: Brief | null }) {
   return (
-    <ActionForm action={createCampaignAction} submitLabel="Create campaign" pendingLabel="Creating" page={page}>
-      <FormGroup title="Who it is for">
-        <SelectField name="clientOrgId" label="Client" options={choices.clients.map((row) => ({ value: row.id, label: row.name }))} placeholder="Choose the client" />
-        <SelectField name="agencyOrgId" label="Coordinator" options={choices.suppliers.map((row) => ({ value: row.id, label: row.name }))} placeholder="Choose the coordinator" helper="The coordinator then gives the campaign to its own agencies." />
-      </FormGroup>
-      <CampaignFields brief={null} name="" timeZone="Europe/London" meetingMinutes={30} />
-    </ActionForm>
+    <FormGroup title="Brand and service information">
+      <TextAreaField name="pitchIntroduction" label="How do you introduce your brand to prospects?" defaultValue={brief?.pitchIntroduction ?? ""} />
+      <TextAreaField name="pitchServices" label="What services do you offer?" defaultValue={brief?.pitchServices ?? ""} />
+      <TextAreaField name="pitchDifferentiator" label="What is your key differentiating factor (USP)?" defaultValue={brief?.pitchDifferentiator ?? ""} />
+      <TextAreaField name="pitchCollaterals" label="What marketing collaterals are available?" defaultValue={brief?.pitchCollaterals ?? ""} helper="Paste links or describe them." />
+      <TextAreaField name="pitchCaseStudies" label="Are there any case studies or success stories?" defaultValue={brief?.pitchCaseStudies ?? ""} />
+    </FormGroup>
+  );
+}
+
+/** The questions the sales team asks a prospect to qualify them for a meeting. Free text. */
+export function QuestionsFields({ brief }: { brief: Brief | null }) {
+  return (
+    <FormGroup title="Critical qualifying questions">
+      <TextAreaField name="qualifyingQuestions" label="Questions to ask a prospect" defaultValue={brief?.qualifyingQuestions ?? ""} helper="The 5 to 6 key questions our sales team asks prospects to qualify them for a meeting. One per line." />
+    </FormGroup>
+  );
+}
+
+/** The two emails sent to prospects: the first introduction, and the follow-up. Free text. */
+export function EmailFields({ brief }: { brief: Brief | null }) {
+  return (
+    <FormGroup title="Email copies">
+      <TextAreaField name="firstEmail" label="First email" defaultValue={brief?.firstEmail ?? ""} helper="The initial introduction, highlighting the key offerings and value proposition." />
+      <TextAreaField name="secondEmail" label="Second email" defaultValue={brief?.secondEmail ?? ""} helper="The follow-up for prospects who do not respond to the first email." />
+    </FormGroup>
   );
 }
 
 /** Changes a campaign's details, brief and settings. Its status changes with Make active, Close and Reopen on the campaign page. */
 export function EditCampaignForm({ campaign }: { campaign: CampaignHeader }) {
+  const { brief } = campaign;
   return (
     <ActionForm action={updateCampaignAction} submitLabel="Save changes" pendingLabel="Saving">
       <Hidden name="campaignId" value={campaign.id} />
-      <CampaignFields brief={campaign.brief} name={campaign.name} timeZone={campaign.timeZone} meetingMinutes={campaign.meetingMinutes} />
+      <FormGroup title="Campaign">
+        <TextField name="name" label="Campaign name" defaultValue={campaign.name} />
+        <SelectField
+          name="primaryContactId"
+          label="Contact person"
+          options={campaign.clientContacts.map((person) => ({ value: person.id, label: person.jobTitle === null ? person.name : `${person.name}, ${person.jobTitle}` }))}
+          defaultValue={brief.primaryContactId ?? ""}
+          placeholder="No contact person chosen"
+          helper={campaign.clientContacts.length === 0 ? "This client has no contact people yet. Add them on the client page." : "Approves the leads and gives feedback for this campaign."}
+        />
+        <div className="grid grid-cols-2 gap-3">
+          <TextField name="startDate" label="Starts" type="date" defaultValue={brief.startDate} />
+          <TextField name="endDate" label="Ends" type="date" defaultValue={brief.endDate} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <NumberField name="monthlyTarget" label="Meetings per month" defaultValue={String(brief.monthlyTarget)} />
+          <NumberField name="totalTarget" label="Meetings in total" defaultValue={String(brief.totalTarget)} />
+        </div>
+        <TimeZoneField defaultValue={campaign.timeZone} helper="Counting uses it. Search, or type Area/City." />
+        <NumberField name="meetingMinutes" label="Meeting length, minutes" defaultValue={String(campaign.meetingMinutes)} />
+      </FormGroup>
+      <BrandFields brief={brief} />
+      <QualificationFields brief={brief} />
+      <QuestionsFields brief={brief} />
+      <EmailFields brief={brief} />
+      <FormGroup title="For Fynix">
+        <TextAreaField name="internalNotes" label="Internal notes" defaultValue={brief.internalNotes ?? ""} helper="For Fynix only. Nobody outside Fynix sees this." />
+      </FormGroup>
     </ActionForm>
   );
 }
@@ -146,7 +187,7 @@ export function CloseCampaignForm({ campaignId, name }: { campaignId: string; na
         <p className="text-body text-ink-2">
           {name} stops taking new leads and its shares and hosts become read only. Leads already submitted finish their course. You can reopen it later.
         </p>
-        <TextAreaField name="note" label="Note (optional)" rows={3} helper="Why it is closing. It goes on the campaign's activity." />
+        <TextAreaField name="note" label="Note (optional)" helper="Why it is closing. It goes on the campaign's activity." />
       </FormGroup>
     </ActionForm>
   );

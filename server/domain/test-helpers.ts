@@ -52,7 +52,7 @@ export async function refusal(work: Promise<unknown>): Promise<DomainError> {
   throw new Error("Expected a DomainError, but the call succeeded.");
 }
 
-/** The first seeded campaign: Kestrel (client) and Brightpath (supplier). */
+/** The first seeded campaign: Kestrel (client) and Brightpath (coordinator). */
 export function firstCampaign(rig: DomainRig): SeededCampaign {
   const row = rig.world().campaigns[0];
   if (row === undefined) throw new Error("The seed world has no campaign");
@@ -73,7 +73,7 @@ export async function memberIdFor(rig: DomainRig, userId: string): Promise<strin
   return row.id;
 }
 
-/** Changes a member's role as the owner, which is how a test makes a client or supplier user a manager. */
+/** Changes a member's role as the owner, which is how a test makes a client or coordinator user a manager. */
 export async function setMemberRole(rig: DomainRig, userId: string, role: "member" | "manager"): Promise<void> {
   await rig.dbs.owner.db.update(member).set({ role }).where(eq(member.userId, userId));
 }
@@ -87,13 +87,13 @@ export async function agreeNumbers(rig: DomainRig, campaignId: string, numbers: 
   if (row === undefined) throw new Error(`No campaign ${campaignId}`);
   const people = rig.world().users;
   const clientUser = people.find((person) => person.organisation.id === row.clientOrgId);
-  const supplierUser = people.find((person) => person.organisation.id === row.agencyOrgId);
-  if (clientUser === undefined || supplierUser === undefined) throw new Error("The seed has no user for the campaign's client or coordinator");
+  const coordinatorUser = people.find((person) => person.organisation.id === row.agencyOrgId);
+  if (clientUser === undefined || coordinatorUser === undefined) throw new Error("The seed has no user for the campaign's client or coordinator");
   await setMemberRole(rig, clientUser.id, "manager");
-  await setMemberRole(rig, supplierUser.id, "manager");
+  await setMemberRole(rig, coordinatorUser.id, "manager");
   const published = await publishAgreement(rig.deps(), rig.actor, { campaignId, ...numbers });
   await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: published.id, userId: clientUser.id });
-  await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: published.id, userId: supplierUser.id });
+  await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: published.id, userId: coordinatorUser.id });
   return published.id;
 }
 

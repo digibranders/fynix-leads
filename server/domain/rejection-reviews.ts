@@ -25,13 +25,13 @@ export async function requestRejectionReview(db: Database, deps: Pick<DomainDeps
   const parsed = parseInput(requestRejectionReviewSchema, input);
   return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
     const [row] = await tx
-      .select({ id: lead.id, stage: lead.stage, decisionAt: lead.decisionAt, decisionSource: lead.decisionSource, supplierOrgId: campaign.agencyOrgId })
+      .select({ id: lead.id, stage: lead.stage, decisionAt: lead.decisionAt, decisionSource: lead.decisionSource, coordinatorOrgId: campaign.agencyOrgId })
       .from(lead)
       .innerJoin(campaign, eq(campaign.id, lead.campaignId))
       .where(eq(lead.id, parsed.leadId))
       .limit(1);
     if (row === undefined) throw new DomainError("not-found", "There is no such lead.");
-    if (row.supplierOrgId !== actor.orgId) throw new DomainError("not-authorised", "Only the coordinator of the campaign can ask for a review of a rejection.");
+    if (row.coordinatorOrgId !== actor.orgId) throw new DomainError("not-authorised", "Only the coordinator of the campaign can ask for a review of a rejection.");
     if (row.stage !== "rejected" || row.decisionSource !== "client" || row.decisionAt === null) throw new DomainError("invalid-lead-stage", "A review can be asked for a rejection the client made after the meeting.");
     const now = deps.now();
     if (now.getTime() - row.decisionAt.getTime() > REVIEW_WINDOW_HOURS * 3_600_000) throw new DomainError("review-window-closed", "The 48 hours to ask for a review of this rejection are over.");
