@@ -745,6 +745,13 @@ describe("exports", () => {
     const fromCoordinator = await exportLeadsCsv(rig.dbs.roles.leads_fynix.db, rig.actor, { sourceOrgId: cast.coordinator.orgId });
     expect(fromCoordinator).toContain(hostile.publicRef);
     expect(fromCoordinator).not.toContain(clean.publicRef);
+    // The same narrowing for the meetings: the booked meeting belongs to the lead the partner agency sent.
+    const meetingsFromPartner = await exportMeetingsCsv(rig.dbs.roles.leads_fynix.db, rig.actor, { sourceOrgId: cast.partner.orgId });
+    expect(meetingsFromPartner).toContain(clean.publicRef);
+    expect(await exportMeetingsCsv(rig.dbs.roles.leads_fynix.db, rig.actor, { sourceOrgId: cast.coordinator.orgId })).not.toContain(clean.publicRef);
+    const listed = await listFynixMeetings(rig.dbs.roles.leads_fynix.db, rig.actor, { sourceOrgId: cast.partner.orgId });
+    expect(listed.map((row) => row.leadRef)).toContain(clean.publicRef);
+    expect(await listFynixMeetings(rig.dbs.roles.leads_fynix.db, rig.actor, { sourceOrgId: cast.coordinator.orgId })).toEqual([]);
   });
 });
 

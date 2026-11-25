@@ -54,6 +54,7 @@ export function PortalMeetings({
   viewer = "supply",
   showHost = false,
   exportCampaignId,
+  exportSourceOrgId,
 }: {
   readonly meetings: readonly (MeetingRow & { readonly campaignId?: string; readonly campaignName: string; readonly prospectCompany: string })[];
   readonly basePath: string;
@@ -76,6 +77,8 @@ export function PortalMeetings({
   readonly showHost?: boolean;
   /** Inside a campaign the export is that campaign's. */
   readonly exportCampaignId?: string;
+  /** On an agency's record, the export is the meetings of the leads that agency sent (Fynix only). */
+  readonly exportSourceOrgId?: string;
 }) {
   if (meetings.length === 0) {
     return (
@@ -135,7 +138,7 @@ export function PortalMeetings({
         trailing={
           <span className="flex items-center gap-3">
             {`${filtered.length} ${filtered.length === 1 ? "meeting" : "meetings"}`}
-            <ExportButton href={exportHref("meetings", campaign ?? exportCampaignId ?? null)} />
+            <ExportButton href={exportHref("meetings", campaign ?? exportCampaignId ?? null, exportSourceOrgId ?? null)} />
           </span>
         }
       >

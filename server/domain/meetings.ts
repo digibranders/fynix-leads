@@ -262,7 +262,7 @@ export async function listAgencyMeetings(db: Database, actor: TenantActor) {
 }
 
 /** Every meeting on every campaign, newest first. Fynix staff read all of them; the Fynix database role has no row filter on meetings. */
-export async function listFynixMeetings(db: Database, _actor: FynixActor) {
+export async function listFynixMeetings(db: Database, _actor: FynixActor, filter: { readonly sourceOrgId?: string } = {}) {
   return db
     .select({
       ...agencyMeetingColumns,
@@ -280,7 +280,7 @@ export async function listFynixMeetings(db: Database, _actor: FynixActor) {
     .innerJoin(lead, eq(meeting.leadId, lead.id))
     .innerJoin(campaign, eq(meeting.campaignId, campaign.id))
     .leftJoin(member, eq(member.id, meeting.hostMemberId))
-    .where(eq(lead.released, true))
+    .where(and(eq(lead.released, true), ...(filter.sourceOrgId === undefined ? [] : [eq(lead.sourceOrgId, filter.sourceOrgId)])))
     .orderBy(desc(meeting.scheduledStartTime));
 }
 

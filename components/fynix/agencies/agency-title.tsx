@@ -34,6 +34,7 @@ export function AgencyTitle({ agency, canWrite }: { agency: AgencyDetail; canWri
           { key: "people", label: "People", count: agency.people.length },
           { key: "campaigns", label: "Campaigns", count: agency.campaigns.length },
           { key: "leads", label: "Leads" },
+          { key: "meetings", label: "Meetings" },
           { key: "activity", label: "Activity" },
         ]}
       />

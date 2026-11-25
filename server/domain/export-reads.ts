@@ -99,7 +99,7 @@ export async function exportMeetingsCsv(db: Database, actor: ExportActor, filter
       .innerJoin(lead, eq(lead.id, meeting.leadId))
       .innerJoin(campaign, eq(campaign.id, meeting.campaignId))
       .innerJoin(organisation, eq(organisation.id, campaign.clientOrgId))
-      .where(and(...meetingConditions(filter)))
+      .where(and(...meetingConditions(filter), ...(filter.sourceOrgId === undefined ? [] : [eq(lead.sourceOrgId, filter.sourceOrgId)])))
       .orderBy(desc(meeting.scheduledStartTime));
     return generateMeetingsCsv(rows satisfies MeetingExportRow[], { withClient: true });
   }
