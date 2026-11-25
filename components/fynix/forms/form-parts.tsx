@@ -7,6 +7,7 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Tonal } from "@/components/kit/panel";
 import { Textarea } from "@/components/ui/textarea";
+import { COMMON_TIME_ZONES } from "@/lib/fynix/time-zones";
 import { useFormState } from "./action-form";
 
 /** What a field shows: after a failed attempt, what was typed; otherwise the starting value. */
@@ -43,7 +44,8 @@ export function TextField({
   inputMode,
   autoComplete = "off",
   placeholder,
-}: Common & { type?: "text" | "email" | "time" | "date"; inputMode?: "text" | "email" | "numeric"; autoComplete?: string; placeholder?: string }) {
+  suggestions,
+}: Common & { type?: "text" | "email" | "time" | "date"; inputMode?: "text" | "email" | "numeric"; autoComplete?: string; placeholder?: string; suggestions?: readonly string[] }) {
   const id = `${useId()}-${name}`;
   const { value, error } = useField(name, defaultValue);
   if (type === "date" || type === "time") return <PickerField id={id} name={name} label={label} helper={helper} error={error} type={type} initial={value} />;
@@ -59,10 +61,23 @@ export function TextField({
         spellCheck={false}
         placeholder={placeholder}
         defaultValue={value}
+        list={suggestions === undefined ? undefined : `${id}-list`}
         {...ariaFor(id, error, helper)}
       />
+      {suggestions === undefined ? null : (
+        <datalist id={`${id}-list`}>
+          {suggestions.map((suggestion) => (
+            <option key={suggestion} value={suggestion} />
+          ))}
+        </datalist>
+      )}
     </Field>
   );
+}
+
+/** A time zone box that suggests common zones as you type. Any IANA zone can be typed; the field posts as `timeZone`. */
+export function TimeZoneField({ defaultValue = "", helper }: { defaultValue?: string; helper: string }) {
+  return <TextField name="timeZone" label="Time zone" defaultValue={defaultValue} helper={helper} suggestions={COMMON_TIME_ZONES} />;
 }
 
 /** A whole number. A text box with a number keypad: no spinner, and a typo reaches the schema, which says so in words. */

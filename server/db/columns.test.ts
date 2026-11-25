@@ -4,7 +4,8 @@ import { TENANT_ROLES, type TenantRoleName } from "@/server/db/roles";
 
 /** Columns a tenant role must never be able to ask for, per table. */
 const FORBIDDEN: Record<"organisation" | "campaign", readonly string[]> = {
-  organisation: ["id", "status", "created_at"],
+  // Migration 0080: the contact details are Fynix's alone.
+  organisation: ["id", "status", "created_at", "contact_name", "contact_email", "contact_phone", "website", "address", "notes"],
   campaign: ["client_org_id", "client_org_kind", "agency_org_id", "agency_org_kind", "internal_notes", "created_at"],
 };
 

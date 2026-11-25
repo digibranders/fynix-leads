@@ -7,7 +7,7 @@ import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
 import { fynixRead, type FynixActor } from "@/server/domain/fynix-write";
 import { readActivity, readPeople, type ActivityRow, type PersonRow } from "@/server/domain/people-overview";
-import type { ClientProfileRecord, CollateralRecord } from "@/server/domain/organisations";
+import { contactColumns, type ClientProfileRecord, type CollateralRecord, type OrganisationContact } from "@/server/domain/organisations";
 
 /** One row of the Fynix Clients screen. Fynix read, open to staff. */
 export interface ClientRow {
@@ -20,13 +20,14 @@ export interface ClientRow {
   readonly campaignCount: number;
   readonly campaignCounts: CampaignCounts;
   readonly timeZone: string | null;
+  readonly contactEmail: string | null;
 }
 
 /** Every client by name, archived ones included (their status says so). */
 export async function listClientRows(deps: DomainDeps, actor: FynixActor): Promise<readonly ClientRow[]> {
   return fynixRead(deps.fynixDb, actor, async (tx) => {
     const clients = await tx
-      .select({ id: organisation.id, publicRef: organisation.publicRef, name: organisation.name, status: organisation.status, createdAt: organisation.createdAt, timeZone: organisation.timeZone })
+      .select({ id: organisation.id, publicRef: organisation.publicRef, name: organisation.name, status: organisation.status, createdAt: organisation.createdAt, timeZone: organisation.timeZone, contactEmail: organisation.contactEmail })
       .from(organisation)
       .where(eq(organisation.kind, "client"))
       .orderBy(asc(organisation.name));
@@ -56,6 +57,7 @@ export interface ClientDetail {
   readonly publicRef: string;
   readonly name: string;
   readonly timeZone: string | null;
+  readonly contact: OrganisationContact;
   readonly status: "active" | "archived";
   readonly createdAt: Date;
   readonly profile: ClientProfileRecord | null;
@@ -72,7 +74,7 @@ export async function readClientDetail(deps: DomainDeps, actor: FynixActor, publ
   const now = deps.now();
   return fynixRead(deps.fynixDb, actor, async (tx) => {
     const [found] = await tx
-      .select({ id: organisation.id, publicRef: organisation.publicRef, name: organisation.name, timeZone: organisation.timeZone, status: organisation.status, createdAt: organisation.createdAt })
+      .select({ id: organisation.id, publicRef: organisation.publicRef, name: organisation.name, timeZone: organisation.timeZone, status: organisation.status, createdAt: organisation.createdAt, ...contactColumns })
       .from(organisation)
       .where(and(eq(organisation.publicRef, publicRef), eq(organisation.kind, "client")))
       .limit(1);
@@ -95,6 +97,7 @@ export async function readClientDetail(deps: DomainDeps, actor: FynixActor, publ
       .orderBy(desc(campaign.createdAt), asc(campaign.name));
     const people = await readPeople(tx, [{ id: found.id, name: found.name }], now);
     const activity = await readActivity(tx, [found.id, ...people.filter((person) => person.kind === "member").map((person) => person.id)], found.publicRef);
-    return { ...found, profile: profile ?? null, collateral, people, campaigns, campaignCounts: tallyCampaigns(campaigns.map((row) => row.status)), activity };
+    const { contactName, contactEmail, contactPhone, website, address, notes, ...record } = found;
+    return { ...record, contact: { contactName, contactEmail, contactPhone, website, address, notes }, profile: profile ?? null, collateral, people, campaigns, campaignCounts: tallyCampaigns(campaigns.map((row) => row.status)), activity };
   });
 }

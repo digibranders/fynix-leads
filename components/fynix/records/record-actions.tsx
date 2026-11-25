@@ -6,7 +6,7 @@ import { InlineAction } from "../forms/inline-action";
 import { EditOrganisationForm } from "../forms/supplier-forms";
 
 /** Renames a client or a coordinator and sets its time zone. Shown only to an admin. */
-export function EditOrganisationButton({ organisationId, name, timeZone, label }: { organisationId: string; name: string; timeZone: string | null; label: "Client" | "Coordinator" }) {
+export function EditOrganisationButton({ organisationId, name, timeZone, label }: { organisationId: string; name: string; timeZone: string | null; label: "Client" | "Coordinator" | "Agency" }) {
   return (
     <FormSheet
       trigger={

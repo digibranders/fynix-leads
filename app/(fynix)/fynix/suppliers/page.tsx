@@ -19,7 +19,7 @@ async function Suppliers({ searchParams }: { searchParams: PageProps<"/fynix/sup
   const rows = await listSupplierRows(getDomain(), view.actor);
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title="Coordinators" description="Coordinators and the partner agencies they bring in." actions={view.canWrite ? <AddSupplierButton /> : null} />
+      <PageHeader title="Coordinators" description="Agencies that work with Fynix directly, and the partner agencies they bring in." actions={view.canWrite ? <AddSupplierButton /> : null} />
       <SuppliersTable rows={rows} filter={parseSupplierFilter(one(params.status))} query={one(params.q) ?? ""} canWrite={view.canWrite} />
     </div>
   );

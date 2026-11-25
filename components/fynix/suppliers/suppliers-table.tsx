@@ -76,6 +76,7 @@ export function SuppliersTable({ rows, filter, query, canWrite }: Props) {
                       >
                         {row.name}
                       </Link>
+                      {row.contactEmail === null ? null : <span className="block truncate text-caption text-ink-muted max-md:hidden">{row.contactEmail}</span>}
                       <span className="block truncate text-caption text-ink-muted md:hidden">{supplierSubtitle(row)}</span>
                       {row.inviteWaiting ? <span className="block text-caption text-ink-muted max-md:hidden">Invite sent, not accepted yet</span> : null}
                     </TableCell>

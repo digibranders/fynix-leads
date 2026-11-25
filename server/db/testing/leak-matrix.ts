@@ -221,6 +221,17 @@ export const PROBES: readonly Probe[] = [
   { name: "collateral: write", statement: "insert into client_collateral (client_org_id, kind, title, url) values (gen_random_uuid(), 'link', 'x', 'https://x.example')", expectedError: DENIED_TABLE },
   { name: "collateral: remove", statement: "update client_collateral set removed_at = now()", expectedError: DENIED_TABLE },
   { name: "organisation: the time zone", statement: "select time_zone from organisation", expectedError: DENIED_TABLE, roles: ["leads_agency"] },
+  // Migration 0080: the company contact details are Fynix's alone. No tenant role may read or change any of them, its own company's included.
+  { name: "organisation: the contact name", statement: "select contact_name from organisation", expectedError: DENIED_TABLE },
+  { name: "organisation: the contact email", statement: "select contact_email from organisation", expectedError: DENIED_TABLE },
+  { name: "organisation: the contact phone", statement: "select contact_phone from organisation", expectedError: DENIED_TABLE },
+  { name: "organisation: the website", statement: "select website from organisation", expectedError: DENIED_TABLE },
+  { name: "organisation: the address", statement: "select address from organisation", expectedError: DENIED_TABLE },
+  { name: "organisation: the internal notes", statement: "select notes from organisation", expectedError: DENIED_TABLE },
+  { name: "organisation: probe by the contact email in WHERE", statement: "select name from organisation where contact_email is not null", expectedError: DENIED_TABLE },
+  { name: "organisation: probe by the notes in WHERE", statement: "select name from organisation where notes like '%x%'", expectedError: DENIED_TABLE },
+  { name: "write: change the contact details of an organisation", statement: "update organisation set contact_name = 'x', contact_email = 'x@x.example', contact_phone = '12345', website = 'https://x.example', address = 'x', notes = 'x'", expectedError: DENIED_TABLE },
+  { name: "write: change only the notes of an organisation", statement: "update organisation set notes = 'x'", expectedError: DENIED_TABLE },
   { name: "write: change a person's phone or job title", statement: "update member set phone = 'x', job_title = 'x'", expectedError: DENIED_TABLE, roles: ["leads_agency"] },
   // Phase 1 chunk C: the meeting emails switch is read through app_my_team only, and only a client manager writes it.
   { name: "member: the meeting emails switch", statement: "select meeting_emails from member", expectedError: DENIED_TABLE },

@@ -71,6 +71,7 @@ export function ClientsTable({ rows, query, canWrite, filter = "active" }: { row
                       </Link>
                       {row.status === "archived" ? <Badge variant="quiet" size="sm">Archived</Badge> : null}
                     </span>
+                    {row.contactEmail === null ? null : <span className="block truncate text-caption text-ink-muted max-md:hidden">{row.contactEmail}</span>}
                     <span className="block text-caption text-ink-muted md:hidden">{countOf(row.peopleCount, "person", "people")}</span>
                   </TableCell>
                   <TableCell className="text-right max-md:hidden">{row.peopleCount}</TableCell>

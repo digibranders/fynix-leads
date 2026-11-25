@@ -35,7 +35,7 @@ export interface ActionSpec {
   /** Problems the form can see before the schema does (a grid of times, a date and a time zone), as sentences per field. */
   readonly precheck?: (formData: FormData) => FormValues;
   /** Calls the domain function. It may return a page to move to. */
-  readonly perform: (deps: DomainDeps, actor: FynixActor, input: unknown) => Promise<{ readonly redirectTo?: string } | void>;
+  readonly perform: (deps: DomainDeps, actor: FynixActor, input: unknown) => Promise<{ readonly redirectTo?: string; readonly notice?: string } | void>;
   /** A better sentence for a reason, when this form can say something more exact. */
   readonly messages?: Partial<Record<DomainErrorCode, string>>;
   /** A refusal that belongs to one field of the form (a duplicate name asks for a tick box), so its sentence lands there and not at the top. */
@@ -67,7 +67,7 @@ export async function runAction(spec: ActionSpec): Promise<FormState> {
   try {
     const result = await spec.perform(getDomain(), { userId: context.userId }, input);
     revalidatePath("/fynix", "layout");
-    return { status: "done", redirectTo: result?.redirectTo ?? null };
+    return { status: "done", redirectTo: result?.redirectTo ?? null, notice: result?.notice ?? null };
   } catch (error) {
     if (error instanceof DomainError) {
       const message = spec.ownMessages?.includes(error.code) === true ? error.message : domainMessage(error.code, spec.messages);

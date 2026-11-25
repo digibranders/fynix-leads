@@ -1,20 +1,27 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { AgreementsPage, CampaignHeader, CampaignRow, HostView } from "@/server/domain/campaign-overview";
+import type { AgencyDetail, AgencyRow } from "@/server/domain/agency-overview";
 import type { ClientDetail, ClientRow } from "@/server/domain/client-overview";
+import type { OrganisationContact } from "@/server/domain/organisations";
 import type { PersonRow } from "@/server/domain/people-overview";
 import type { SupplierDetail, SupplierRow } from "@/server/domain/supplier-overview";
 
 // The forms call server actions, which need a running app. The screens only need their buttons to render.
 vi.mock("@/server/fynix/actions", () => {
   const action = async () => ({ status: "idle" as const });
-  return { addSupplierAction: action, addAgencyAction: action, invitePersonAction: action, publishAgreementAction: action, setShareAction: action, removeShareAction: action, closeCampaignAction: action, makeCampaignActiveAction: action, reopenCampaignAction: action, addHostAction: action, pauseHostAction: action, setHoursAction: action, addBlockAction: action, removeBlockAction: action, setOrganisationStatusAction: action, updateOrganisationAction: action, removeCollateralAction: action, updateProfileAction: action, addCollateralAction: action, addClientAction: action, updatePersonAction: action, suspendPersonAction: action, reactivatePersonAction: action, resendInviteAction: action, revokeInviteAction: action };
+  return { addSupplierAction: action, addAgencyAction: action, invitePersonAction: action, publishAgreementAction: action, setShareAction: action, removeShareAction: action, closeCampaignAction: action, makeCampaignActiveAction: action, reopenCampaignAction: action, addHostAction: action, pauseHostAction: action, setHoursAction: action, addBlockAction: action, removeBlockAction: action, setOrganisationStatusAction: action, updateOrganisationAction: action, updateContactAction: action, removeCollateralAction: action, updateProfileAction: action, addCollateralAction: action, addClientAction: action, updatePersonAction: action, suspendPersonAction: action, reactivatePersonAction: action, resendInviteAction: action, revokeInviteAction: action };
 });
 
 const { SuppliersTable } = await import("@/components/fynix/suppliers/suppliers-table");
 const { SupplierOverview } = await import("@/components/fynix/suppliers/supplier-overview");
 const { SupplierTitle } = await import("@/components/fynix/suppliers/supplier-title");
 const { AgenciesPanel } = await import("@/components/fynix/suppliers/agencies-panel");
+const { AgenciesTable } = await import("@/components/fynix/agencies/agencies-table");
+const { AgencyOverview } = await import("@/components/fynix/agencies/agency-overview");
+const { AgencyTitle } = await import("@/components/fynix/agencies/agency-title");
+const { AgencyCampaignsPanel } = await import("@/components/fynix/agencies/agency-campaigns-panel");
+const { ContactPanel } = await import("@/components/fynix/records/contact-panel");
 const { PeopleTable } = await import("@/components/fynix/people/people-table");
 const { ClientOverview } = await import("@/components/fynix/clients/client-overview");
 const { ClientTitle } = await import("@/components/fynix/clients/client-title");
@@ -31,8 +38,10 @@ const { CampaignTitle } = await import("@/components/fynix/campaigns/campaign-he
 
 vi.mock("next/navigation", () => ({ useSelectedLayoutSegment: () => "hosts", useRouter: () => ({ push: () => undefined }) }));
 
+const NO_CONTACT: OrganisationContact = { contactName: null, contactEmail: null, contactPhone: null, website: null, address: null, notes: null };
+const FULL_CONTACT: OrganisationContact = { contactName: "Asha Rao", contactEmail: "asha@northgate.example", contactPhone: "+44 20 7946 0958", website: "https://northgate.example", address: "12 Mill Lane\nLeeds LS1 4AB", notes: "Prefers email." };
 const day = (text: string) => new Date(`${text}T12:00:00Z`);
-const supplierRow = (over: Partial<SupplierRow> = {}): SupplierRow => ({ id: "s1", publicRef: "ORG-N7GT", name: "Northgate Outreach", status: "active", createdAt: day("2026-10-02"), agencyCount: 2, agencyNames: ["Calder Bay Media"], peopleCount: 7, campaignCount: 2, inviteWaiting: false, campaignCounts: { setup: 0, active: 1, closed: 1 }, ...over });
+const supplierRow = (over: Partial<SupplierRow> = {}): SupplierRow => ({ id: "s1", publicRef: "ORG-N7GT", name: "Northgate Outreach", status: "active", createdAt: day("2026-10-02"), contactEmail: null, agencyCount: 2, agencyNames: ["Calder Bay Media"], peopleCount: 7, campaignCount: 2, inviteWaiting: false, campaignCounts: { setup: 0, active: 1, closed: 1 }, ...over });
 const detail: SupplierDetail = {
   id: "s1",
   publicRef: "ORG-N7GT",
@@ -48,6 +57,7 @@ const detail: SupplierDetail = {
   campaigns: [{ id: "c1", publicRef: "CMP-7Q2X", name: "UK mid-market finance teams", status: "active", clientName: "Kestrel Ledger" }],
   campaignCounts: { setup: 0, active: 1, closed: 0 },
   timeZone: "Europe/London",
+  contact: NO_CONTACT,
   everyone: [
     { kind: "member", id: "m1", userId: "u1", orgId: "s1", orgName: "Northgate Outreach", name: "Nikhil Oberoi", jobTitle: "Director", email: "nikhil@northgate.example", phone: "+44 20 7946 0000", role: "manager", state: "active" },
     { kind: "member", id: "m2", userId: "u2", orgId: "a1", orgName: "Calder Bay Media", name: "Ines Caetano", jobTitle: "Caller", email: "ines@calder.example", phone: null, role: "member", state: "suspended" },
@@ -128,6 +138,7 @@ const clientDetail: ClientDetail = {
   publicRef: "ORG-K1AA",
   name: "Kestrel Ledger",
   timeZone: "Europe/London",
+  contact: NO_CONTACT,
   status: "active",
   createdAt: day("2026-10-02"),
   profile: { clientOrgId: "k1", introduction: "Accounts software for finance teams.", services: "Ledger and close tooling.", differentiator: "Closes the books in a day.", caseStudies: null },
@@ -309,7 +320,7 @@ describe("Hosts", () => {
   });
 });
 
-const clientRow = (over: Partial<ClientRow> = {}): ClientRow => ({ id: "k1", publicRef: "ORG-K1AA", name: "Kestrel Ledger", status: "active", peopleCount: 3, campaignCount: 3, campaignCounts: { setup: 1, active: 2, closed: 0 }, timeZone: null, ...over }) as ClientRow;
+const clientRow = (over: Partial<ClientRow> = {}): ClientRow => ({ id: "k1", publicRef: "ORG-K1AA", name: "Kestrel Ledger", status: "active", peopleCount: 3, campaignCount: 3, campaignCounts: { setup: 1, active: 2, closed: 0 }, timeZone: null, contactEmail: null, ...over }) as ClientRow;
 
 describe("Clients", () => {
   it("lists active clients with a link to each record and split campaign counts, and the Archived tab holds the rest", () => {
@@ -392,5 +403,128 @@ describe("copy", () => {
       renderToStaticMarkup(<HostPanel host={imogen} reference="CMP-7Q2X" campaignId="c1" clientName="Kestrel Ledger" campaignZone="Europe/London" now={day("2026-11-13")} canWrite />),
     ].join("");
     expect(html).not.toMatch(/[\u2013\u2014]/);
+  });
+});
+
+describe("Contact panel", () => {
+  it("shows every contact detail, the email as a mailto link and the website as a link, for staff with no edit button", () => {
+    const html = renderToStaticMarkup(<ContactPanel organisationId="s1" contact={FULL_CONTACT} canWrite={false} />);
+    expect(html).toContain("Asha Rao");
+    expect(html).toContain('href="mailto:asha@northgate.example"');
+    expect(html).toContain("+44 20 7946 0958");
+    expect(html).toContain('href="https://northgate.example"');
+    expect(html).toContain('rel="noreferrer noopener"');
+    expect(html).toContain("12 Mill Lane");
+    expect(html).toContain("Prefers email.");
+    expect(html).toContain("internal, Fynix only");
+    expect(html).not.toContain("Edit contact");
+  });
+
+  it("gives an admin the Edit contact sheet and says Not set for what is empty", () => {
+    const html = renderToStaticMarkup(<ContactPanel organisationId="s1" contact={NO_CONTACT} canWrite />);
+    expect(html).toContain("Edit contact");
+    expect(html.match(/Not set/g)).toHaveLength(6);
+    expect(html).not.toContain("mailto:");
+  });
+
+  it("is on the client and coordinator overviews", () => {
+    expect(renderToStaticMarkup(<ClientOverview client={{ ...clientDetail, contact: FULL_CONTACT }} canWrite={false} />)).toContain("mailto:asha@northgate.example");
+    expect(renderToStaticMarkup(<SupplierOverview supplier={{ ...detail, contact: FULL_CONTACT }} canWrite />)).toContain("Edit contact");
+  });
+});
+
+describe("Contact email in the lists", () => {
+  it("sits under the company name in the Coordinators and Clients tables", () => {
+    expect(renderToStaticMarkup(<SuppliersTable rows={[supplierRow({ contactEmail: "asha@northgate.example" })]} filter="active" query="" canWrite />)).toContain("asha@northgate.example");
+    expect(renderToStaticMarkup(<ClientsTable rows={[clientRow({ contactEmail: "imogen@kestrel.example" })]} query="" canWrite />)).toContain("imogen@kestrel.example");
+    expect(renderToStaticMarkup(<ClientsTable rows={[clientRow()]} query="" canWrite />)).not.toContain("max-md:hidden\">null");
+  });
+
+  it("links a partner agency on the coordinator's Agencies tab to its page", () => {
+    expect(renderToStaticMarkup(<AgenciesPanel supplier={detail} canWrite />)).toContain('href="/fynix/agencies/ORG-AAAA"');
+  });
+});
+
+const agencyRow = (over: Partial<AgencyRow> = {}): AgencyRow => ({
+  id: "a1",
+  publicRef: "ORG-AAAA",
+  name: "Calder Bay Media",
+  contactEmail: "hello@calder.example",
+  status: "active",
+  createdAt: day("2026-10-02"),
+  coordinator: { id: "s1", publicRef: "ORG-N7GT", name: "Northgate Outreach", status: "active" },
+  peopleCount: 2,
+  inviteWaiting: false,
+  campaignCounts: { setup: 0, active: 1, closed: 1 },
+  campaignCount: 2,
+  submittedThisMonth: 9,
+  acceptedThisMonth: 4,
+  ...over,
+});
+
+const agencyDetail: AgencyDetail = {
+  id: "a1",
+  publicRef: "ORG-AAAA",
+  name: "Calder Bay Media",
+  status: "active",
+  createdAt: day("2026-10-02"),
+  timeZone: "Europe/London",
+  contact: FULL_CONTACT,
+  coordinator: { id: "s1", publicRef: "ORG-N7GT", name: "Northgate Outreach", status: "active" },
+  people: [person({ orgId: "a1", orgName: "Calder Bay Media" })],
+  campaigns: [{ id: "c1", publicRef: "CMP-7Q2X", name: "UK mid-market finance teams", status: "active", clientName: "Kestrel Ledger", monthlyShare: 5, delivered: 11 }],
+  campaignCounts: { setup: 0, active: 1, closed: 0 },
+  shares: { campaigns: 1, monthlyTotal: 5 },
+  tally: { submittedThisMonth: 9, acceptedThisMonth: 4, delivered: 11 },
+  activity: [],
+};
+
+describe("Agencies", () => {
+  it("renders a row per agency with its coordinator link, contact email, counts and status", () => {
+    const html = renderToStaticMarkup(<AgenciesTable rows={[agencyRow(), agencyRow({ id: "a2", name: "Old Agency", status: "archived" })]} filter="active" query="" canWrite coordinators={[{ id: "s1", name: "Northgate Outreach" }]} />);
+    expect(html).toContain("All agencies");
+    expect(html).toContain("/fynix/agencies/ORG-AAAA");
+    expect(html).toContain("hello@calder.example");
+    expect(html).toContain('href="/fynix/suppliers/ORG-N7GT"');
+    expect(html).toContain("1 active, 1 closed");
+    expect(html).toContain("Sent this month");
+    expect(html).toContain("Accepted this month");
+    expect(html).toContain("Active");
+    expect(html).toContain("Archived");
+    expect(html).not.toContain("Old Agency");
+    expect(renderToStaticMarkup(<AgenciesTable rows={[agencyRow({ name: "Old Agency", status: "archived" })]} filter="archived" query="" canWrite={false} coordinators={[]} />)).toContain("Old Agency");
+  });
+
+  it("shows Add agency to an admin only, and says what to do when there is nothing", () => {
+    expect(renderToStaticMarkup(<AgenciesTable rows={[]} filter="active" query="" canWrite coordinators={[{ id: "s1", name: "Northgate Outreach" }]} />)).toContain("Add agency");
+    const staff = renderToStaticMarkup(<AgenciesTable rows={[]} filter="active" query="" canWrite={false} coordinators={[]} />);
+    expect(staff).toContain("No agencies yet");
+    expect(staff).not.toContain("Add agency");
+    expect(renderToStaticMarkup(<AgenciesTable rows={[]} filter="active" query="" canWrite coordinators={[]} />)).toContain("Add a coordinator first");
+    expect(renderToStaticMarkup(<AgenciesTable rows={[agencyRow()]} filter="active" query="zzz" canWrite coordinators={[]} />)).toContain("No agency matches");
+  });
+
+  it("shows the title with its tabs, Edit and Archive for an admin only, and the Overview with the coordinator and contact", () => {
+    const admin = renderToStaticMarkup(<AgencyTitle agency={agencyDetail} canWrite />);
+    expect(admin).toContain("Archive");
+    expect(admin).toContain("/fynix/agencies/ORG-AAAA/leads");
+    expect(admin).toContain("/fynix/agencies/ORG-AAAA/people");
+    expect(renderToStaticMarkup(<AgencyTitle agency={agencyDetail} canWrite={false} />)).not.toContain("Archive");
+    expect(renderToStaticMarkup(<AgencyTitle agency={{ ...agencyDetail, status: "archived" }} canWrite />)).toContain("Restore");
+    const overview = renderToStaticMarkup(<AgencyOverview agency={agencyDetail} canWrite />);
+    expect(overview).toContain('href="/fynix/suppliers/ORG-N7GT"');
+    expect(overview).toContain("5 a month across 1 campaign");
+    expect(overview).toContain("9 sent, 4 accepted");
+    expect(overview).toContain("Edit contact");
+    expect(overview).toContain("mailto:asha@northgate.example");
+  });
+
+  it("lists the campaigns an agency has a share in, with the share and what was delivered", () => {
+    const html = renderToStaticMarkup(<AgencyCampaignsPanel rows={agencyDetail.campaigns} />);
+    expect(html).toContain("/fynix/campaigns/CMP-7Q2X");
+    expect(html).toContain("Kestrel Ledger");
+    expect(html).toContain(">5<");
+    expect(html).toContain(">11<");
+    expect(renderToStaticMarkup(<AgencyCampaignsPanel rows={[]} />)).toContain("No campaigns yet");
   });
 });

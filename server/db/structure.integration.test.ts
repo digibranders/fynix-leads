@@ -696,6 +696,20 @@ describe("phase 1D: what a tenant role holds on the six set-up tables", () => {
     }
   });
 
+  it("the company contact details (migration 0080) are Fynix's alone: Fynix reads and writes them, no tenant role holds any privilege on them", async () => {
+    const contact = ["contact_name", "contact_email", "contact_phone", "website", "address", "notes"];
+    for (const column of contact) {
+      for (const privilege of ["SELECT", "UPDATE", "INSERT"]) {
+        const fynix = await dbs.owner.db.execute<{ allowed: boolean }>(sql.raw(`select has_column_privilege('leads_fynix', 'public.organisation', '${column}', '${privilege}') as allowed`));
+        expect(fynix.rows, `leads_fynix ${privilege} ${column}`).toEqual([{ allowed: true }]);
+        for (const role of TENANT_ROLES) {
+          const tenant = await dbs.owner.db.execute<{ allowed: boolean }>(sql.raw(`select has_column_privilege('${role}', 'public.organisation', '${column}', '${privilege}') as allowed`));
+          expect(tenant.rows, `${role} ${privilege} ${column}`).toEqual([{ allowed: false }]);
+        }
+      }
+    }
+  });
+
   it("every phase 1D table is in the access matrix with Fynix and exactly the tenant roles that hold a grant on it", () => {
     for (const table of NEW_TABLES) {
       const tenants = TENANT_ROLES.filter((role) => SETUP_TENANT_GRANTS[role][table] !== undefined);

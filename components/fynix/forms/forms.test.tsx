@@ -4,11 +4,12 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => undefined }) }));
 vi.mock("@/server/fynix/actions", () => {
   const action = async () => ({ status: "idle" as const });
-  return { addSupplierAction: action, addAgencyAction: action, invitePersonAction: action, publishAgreementAction: action, publishTermsAction: action, setShareAction: action, removeShareAction: action, addHostAction: action, pauseHostAction: action, setHoursAction: action, addBlockAction: action, removeBlockAction: action, createCampaignAction: action, updateCampaignAction: action, addClientAction: action, updateProfileAction: action, addCollateralAction: action, updateOrganisationAction: action, updatePersonAction: action };
+  return { addSupplierAction: action, addAgencyAction: action, invitePersonAction: action, publishAgreementAction: action, publishTermsAction: action, setShareAction: action, removeShareAction: action, addHostAction: action, pauseHostAction: action, setHoursAction: action, addBlockAction: action, removeBlockAction: action, createCampaignAction: action, updateCampaignAction: action, addClientAction: action, updateProfileAction: action, addCollateralAction: action, updateOrganisationAction: action, updateContactAction: action, updatePersonAction: action };
 });
 
 const { AddAgencyForm, AddSupplierForm, EditOrganisationForm, FYNIX_ROLES, InvitePersonForm } = await import("@/components/fynix/forms/supplier-forms");
 const { AddClientForm, EditProfileForm } = await import("@/components/fynix/forms/client-forms");
+const { EditContactForm } = await import("@/components/fynix/forms/contact-forms");
 const { EditPersonForm } = await import("@/components/fynix/forms/people-forms");
 const { AddHostForm, CreateCampaignForm, EditCampaignForm, NewAgreementForm, ShareForm } = await import("@/components/fynix/forms/campaign-forms");
 const { BlockForm, HoursForm } = await import("@/components/fynix/forms/availability-forms");
@@ -21,6 +22,31 @@ describe("the forms render", () => {
     expect(html.toLowerCase()).not.toContain("brand");
     // The duplicate-name tick box appears only after the server has refused a duplicate.
     expect(html).not.toContain('name="confirmDuplicate"');
+  });
+
+  it("Add client, Add coordinator and Add agency carry the optional Contact group with the six fields and the internal notes line", () => {
+    const names = ["contactName", "contactEmail", "contactPhone", "website", "address", "notes"];
+    for (const html of [renderToStaticMarkup(<AddClientForm />), renderToStaticMarkup(<AddSupplierForm />), renderToStaticMarkup(<AddAgencyForm supplierId="s1" />)]) {
+      expect(html).toContain("Contact (optional)");
+      for (const name of names) expect(html).toContain(`name="${name}"`);
+      expect(html).toContain("Only the Fynix team reads these");
+      expect(html).toContain('type="email"');
+    }
+  });
+
+  it("Add agency opened from the Agencies page asks for the coordinator, and inside a coordinator keeps it hidden", () => {
+    const open = renderToStaticMarkup(<AddAgencyForm coordinators={[{ id: "s1", name: "Northgate Outreach" }]} />);
+    expect(open).toContain('name="supplierId"');
+    expect(open).not.toContain('type="hidden" name="supplierId"');
+    expect(open).toContain("Coordinator");
+    expect(renderToStaticMarkup(<AddAgencyForm supplierId="s1" />)).toContain('type="hidden" name="supplierId" value="s1"');
+  });
+
+  it("Edit contact starts from the saved details", () => {
+    const html = renderToStaticMarkup(<EditContactForm organisationId="s1" contact={{ contactName: "Asha Rao", contactEmail: "asha@x.example", contactPhone: null, website: "https://x.example", address: "1 Mill Lane", notes: "Prefers email." }} />);
+    expect(html).toContain('name="organisationId" value="s1"');
+    for (const text of ["Asha Rao", "asha@x.example", "https://x.example", "1 Mill Lane", "Prefers email."]) expect(html).toContain(text);
+    expect(html).toContain("Save contact");
   });
 
   it("Edit profile starts from the saved profile", () => {
@@ -53,12 +79,35 @@ describe("the forms render", () => {
     expect(markup).toContain("Publish terms");
   });
 
-  it("Add coordinator and Add agency have a name and the primary button", () => {
+  it("Add coordinator asks for the name, a time zone with suggestions, and an optional first person, and explains each", () => {
     const supplier = renderToStaticMarkup(<AddSupplierForm />);
-    expect(supplier).toContain('name="name"');
+    for (const name of ["name", "timeZone", "firstName", "firstJobTitle", "firstEmail", "firstPhone", "firstRole"]) expect(supplier).toContain(`name="${name}"`);
     expect(supplier).toContain("Add coordinator");
+    expect(supplier).toContain("First person (optional)");
+    expect(supplier).toContain("works with Fynix directly");
+    expect(supplier).toContain("invite their own people and partner agencies");
+    expect(supplier).toContain('<datalist id="');
+    expect(supplier).toContain('value="Europe/London"');
+    // The role defaults to Manager.
+    expect(supplier).toContain("Manager");
+    // The duplicate-name tick box appears only after the server has refused a duplicate.
+    expect(supplier).not.toContain('name="confirmDuplicate"');
+  });
+
+  it("Add agency has the same fields and says what a partner agency is", () => {
     const agency = renderToStaticMarkup(<AddAgencyForm supplierId="s1" />);
     expect(agency).toContain('name="supplierId" value="s1"');
+    for (const name of ["name", "timeZone", "firstName", "firstEmail", "firstRole"]) expect(agency).toContain(`name="${name}"`);
+    expect(agency).toContain("A partner agency works under this coordinator.");
+    expect(agency).not.toContain('name="confirmDuplicate"');
+  });
+
+  it("the time zone box on the client and the edit forms suggests zones and still posts as timeZone", () => {
+    for (const html of [renderToStaticMarkup(<AddClientForm />), renderToStaticMarkup(<EditOrganisationForm organisationId="s1" name="Northgate" timeZone={null} label="Client" />)]) {
+      expect(html).toContain('name="timeZone"');
+      expect(html).toContain("<datalist");
+      expect(html).toContain('value="Asia/Kolkata"');
+    }
   });
 
   it("Invite a person hides the organisation for a coordinator alone and offers a choice when it has agencies", () => {

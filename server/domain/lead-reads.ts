@@ -262,7 +262,7 @@ export async function getLeadSubmissionOptions(
 export async function listFynixLeads(
   db: Database,
   _actor: FynixActor,
-  filter?: { readonly campaignId?: string; readonly stage?: LeadStage },
+  filter?: { readonly campaignId?: string; readonly stage?: LeadStage; /** The coordinator or agency that sent the lead. */ readonly sourceOrgId?: string },
 ) {
   // A draft belongs to the agency until it is sent, so it is not listed as a lead.
   const conditions = [eq(lead.released, true)];
@@ -271,6 +271,9 @@ export async function listFynixLeads(
   }
   if (filter?.stage !== undefined) {
     conditions.push(eq(lead.stage, filter.stage));
+  }
+  if (filter?.sourceOrgId !== undefined) {
+    conditions.push(eq(lead.sourceOrgId, filter.sourceOrgId));
   }
   const sourceOrg = alias(organisation, "source_org");
 

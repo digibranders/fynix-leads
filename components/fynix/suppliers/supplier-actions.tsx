@@ -14,26 +14,27 @@ export function AddSupplierButton({ primary = true }: { primary?: boolean }) {
         </Button>
       }
       title="Add coordinator"
-      description="A coordinator is an agency that works with Fynix directly."
+      description="A coordinator is an agency that works with Fynix directly. Add it, and invite its first person if you have one."
     >
       <AddSupplierForm />
     </FormSheet>
   );
 }
 
-export function AddAgencyButton({ supplierId, supplierName }: { supplierId: string; supplierName: string }) {
+/** Inside a coordinator (`supplierId` and `supplierName`) or on the Agencies page (`coordinators`, to pick from). */
+export function AddAgencyButton({ supplierId, supplierName, coordinators, primary = false }: { supplierId?: string; supplierName?: string; coordinators?: readonly { readonly id: string; readonly name: string }[]; primary?: boolean }) {
   return (
     <FormSheet
       trigger={
-        <Button variant="secondary">
+        <Button variant={primary ? "default" : "secondary"}>
           <Plus aria-hidden />
           Add agency
         </Button>
       }
       title="Add agency"
-      description={`A partner agency that works under ${supplierName}.`}
+      description={supplierName === undefined ? "A partner agency works under a coordinator." : `A partner agency that works under ${supplierName}.`}
     >
-      <AddAgencyForm supplierId={supplierId} />
+      <AddAgencyForm supplierId={supplierId} coordinators={coordinators} />
     </FormSheet>
   );
 }

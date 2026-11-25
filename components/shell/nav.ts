@@ -152,6 +152,7 @@ export const PORTALS: Record<PortalKind, PortalConfig> = {
         items: [
           { label: "Clients", icon: "buildings", href: "/fynix/clients" },
           { label: "Coordinators", icon: "users", href: "/fynix/suppliers" },
+          { label: "Agencies", icon: "handshake", href: "/fynix/agencies" },
           { label: "Campaigns", icon: "megaphone", href: "/fynix/campaigns" },
         ],
       },
