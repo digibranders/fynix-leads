@@ -18,7 +18,7 @@ async function People({ params }: { params: PageProps<"/fynix/clients/[ref]/peop
       people={client.people}
       canWrite={view.canWrite}
       selfUserId={view.actor.userId}
-      action={canInvite ? <InvitePersonButton organisations={[{ id: client.id, name: client.name }]} description={`They get an email with a link to set a password. They join ${client.name}.`} /> : null}
+      action={canInvite ? <InvitePersonButton href={`/fynix/clients/${ref}/people/new`} organisations={[{ id: client.id, name: client.name }]} description={`They get an email with a link to set a password. They join ${client.name}.`} /> : null}
     />
   );
 }

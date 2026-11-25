@@ -21,7 +21,7 @@ async function People({ params }: { params: PageProps<"/fynix/suppliers/[ref]/pe
       showOrganisation
       action={
         view.canWrite && supplier.status === "active" ? (
-          <InvitePersonButton organisations={choices} kind="agencies" description={`They get an email with a link to set a password. They join ${supplier.name} or one of its agencies.`} />
+          <InvitePersonButton href={`/fynix/suppliers/${ref}/people/new`} organisations={choices} kind="agencies" description={`They get an email with a link to set a password. They join ${supplier.name} or one of its agencies.`} />
         ) : null
       }
     />

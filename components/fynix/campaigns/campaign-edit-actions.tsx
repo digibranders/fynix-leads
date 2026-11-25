@@ -1,24 +1,17 @@
 import { PencilSimple, Plus } from "@phosphor-icons/react/dist/ssr";
-import { Button } from "@/components/ui/button";
-import type { CampaignChoices, CampaignHeader } from "@/server/domain/campaign-overview";
-import { CreateCampaignForm, EditCampaignForm } from "../forms/campaign-forms";
+import Link from "next/link";
+import { Button, buttonVariants } from "@/components/ui/button";
+import type { CampaignHeader } from "@/server/domain/campaign-overview";
+import { EditCampaignForm } from "../forms/campaign-forms";
 import { FormSheet } from "../forms/form-sheet";
 
-/** The header button of the campaigns list. Shown only to an admin. */
-export function NewCampaignButton({ choices }: { choices: CampaignChoices }) {
+/** The header button of the campaigns list: opens the New campaign page. Shown only to an admin. */
+export function NewCampaignButton() {
   return (
-    <FormSheet
-      trigger={
-        <Button>
-          <Plus aria-hidden />
-          New campaign
-        </Button>
-      }
-      title="New campaign"
-      description="Choose the client and the coordinator, then set the dates, targets and brief. It starts as a draft."
-    >
-      <CreateCampaignForm choices={choices} />
-    </FormSheet>
+    <Link href="/fynix/campaigns/new" className={buttonVariants()}>
+      <Plus aria-hidden />
+      New campaign
+    </Link>
   );
 }
 

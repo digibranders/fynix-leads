@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Tonal } from "@/components/kit/panel";
 import { Textarea } from "@/components/ui/textarea";
 import { COMMON_TIME_ZONES } from "@/lib/fynix/time-zones";
-import { useFormState } from "./action-form";
+import { useFormState, useOnPage } from "./action-form";
 
 /** What a field shows: after a failed attempt, what was typed; otherwise the starting value. */
 function useField(name: string, initial: string): { readonly value: string; readonly error: string | undefined } {
@@ -120,8 +120,13 @@ export function Hidden({ name, value }: { name: string; value: string }) {
 
 /** A tonal block of related fields, with an optional title. A form is a stack of these. */
 export function FormGroup({ title, children }: { title?: string; children: React.ReactNode }) {
+  const onPage = useOnPage();
+  // On a page the fields sit two to a row from `md`. A title, a text area, a note or a warning, and a row that already pairs its own fields, take the whole width.
+  const layout = onPage
+    ? "grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2 [&>*:has(textarea)]:md:col-span-2 [&>[role=alert]]:md:col-span-2 [&>div.grid]:md:col-span-2 [&>h3]:md:col-span-2 [&>p]:md:col-span-2"
+    : "flex flex-col gap-4";
   return (
-    <Tonal className="flex flex-col gap-4">
+    <Tonal className={layout}>
       {title ? <h3 className="text-row font-semibold">{title}</h3> : null}
       {children}
     </Tonal>

@@ -2,7 +2,7 @@
 
 import type { FormState } from "@/lib/fynix/form-state";
 import { addAgencyAction, addSupplierAction, invitePersonAction, updateOrganisationAction } from "@/server/fynix/actions";
-import { ActionForm } from "./action-form";
+import { ActionForm, type PageMode } from "./action-form";
 import { ContactFields } from "./contact-forms";
 import { ConfirmField, FormGroup, Hidden, SelectField, TextField, TimeZoneField } from "./form-parts";
 
@@ -26,9 +26,9 @@ function FirstPersonFields({ roleHelper }: { roleHelper: string }) {
 }
 
 /** Adds a coordinator and, if given, invites its first person. A coordinator of the same name needs a tick. */
-export function AddSupplierForm() {
+export function AddSupplierForm({ page }: { page?: PageMode }) {
   return (
-    <ActionForm action={addSupplierAction} submitLabel="Add coordinator" pendingLabel="Adding">
+    <ActionForm action={addSupplierAction} submitLabel="Add coordinator" pendingLabel="Adding" page={page}>
       <FormGroup>
         <TextField name="name" label="Coordinator name" helper="A coordinator is an agency that works with Fynix directly. Use the company name." />
         <TimeZoneField helper="Where the coordinator works, for example Europe/London. Start typing to pick one. Used when showing times for them. Optional." />
@@ -44,9 +44,9 @@ export function AddSupplierForm() {
  * Adds a partner agency under a coordinator and, if given, invites its first person. Opened inside a coordinator it takes that coordinator
  * (`supplierId`, hidden); opened from the Agencies page it asks for one from `coordinators`.
  */
-export function AddAgencyForm({ supplierId, coordinators = [] }: { supplierId?: string; coordinators?: readonly { readonly id: string; readonly name: string }[] }) {
+export function AddAgencyForm({ supplierId, coordinators = [], page }: { supplierId?: string; coordinators?: readonly { readonly id: string; readonly name: string }[]; page?: PageMode }) {
   return (
-    <ActionForm action={addAgencyAction} submitLabel="Add agency" pendingLabel="Adding">
+    <ActionForm action={addAgencyAction} submitLabel="Add agency" pendingLabel="Adding" page={page}>
       {supplierId === undefined ? null : <Hidden name="supplierId" value={supplierId} />}
       <FormGroup>
         {supplierId === undefined ? (
@@ -85,6 +85,7 @@ export function InvitePersonForm({
   showAlias = true,
   roleHelper = "A manager can accept agreements and invite colleagues.",
   action = invitePersonAction,
+  page,
 }: {
   organisations: readonly { readonly id: string; readonly name: string }[];
   roles?: readonly RoleOption[];
@@ -92,10 +93,11 @@ export function InvitePersonForm({
   roleHelper?: string;
   /** The Fynix action unless a portal passes its own. */
   action?: (previous: FormState, formData: FormData) => Promise<FormState>;
+  page?: PageMode;
 }) {
   const [only] = organisations;
   return (
-    <ActionForm action={action} submitLabel="Send invite" pendingLabel="Sending">
+    <ActionForm action={action} submitLabel="Send invite" pendingLabel="Sending" page={page}>
       {organisations.length === 1 && only !== undefined ? (
         <Hidden name="organisationId" value={only.id} />
       ) : (

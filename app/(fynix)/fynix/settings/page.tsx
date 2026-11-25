@@ -37,7 +37,7 @@ async function Settings() {
         canWrite={view.canWrite}
         selfUserId={view.actor.userId}
         emptyHint="Invite a colleague to start."
-        action={view.canWrite && fynixOrg !== null ? <InvitePersonButton kind="fynix" organisations={[fynixOrg]} description="They get an email with a link to set a password. Fynix terms must be published first." /> : null}
+        action={view.canWrite && fynixOrg !== null ? <InvitePersonButton href="/fynix/settings/people/new" kind="fynix" organisations={[fynixOrg]} description="They get an email with a link to set a password. Fynix terms must be published first." /> : null}
       />
 
       <div className="grid items-start gap-4">

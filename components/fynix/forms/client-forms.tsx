@@ -2,7 +2,7 @@
 
 import { addClientAction, addCollateralAction, updateProfileAction } from "@/server/fynix/actions";
 import type { ClientProfileRecord } from "@/server/domain/organisations";
-import { ActionForm } from "./action-form";
+import { ActionForm, type PageMode } from "./action-form";
 import { ContactFields } from "./contact-forms";
 import { ConfirmField, FormGroup, Hidden, TextAreaField, TextField, TimeZoneField } from "./form-parts";
 
@@ -25,9 +25,9 @@ function ProfileFields({ profile }: { profile: ClientProfileRecord | null }) {
 }
 
 /** Adds a client with its time zone, profile and, if given, one collateral link. A second client of the same name needs a tick. */
-export function AddClientForm() {
+export function AddClientForm({ page }: { page?: PageMode }) {
   return (
-    <ActionForm action={addClientAction} submitLabel="Add client" pendingLabel="Adding">
+    <ActionForm action={addClientAction} submitLabel="Add client" pendingLabel="Adding" page={page}>
       <FormGroup>
         <TextField name="name" label="Client name" helper="The company name. Agencies see it only on campaigns they work on." />
         <TimeZoneField helper="Where the client works, for example Europe/London. Start typing to pick one. Optional." />
