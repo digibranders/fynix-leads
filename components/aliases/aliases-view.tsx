@@ -254,7 +254,7 @@ function AddAliasSheet({ clients, variant = "default" }: { readonly clients: rea
   );
 }
 
-/** The aliases of one agency or supplier organisation. Adding opens a drawer; a code check opens a dialog. */
+/** The aliases of one agency or coordinator organisation. Adding opens a drawer; a code check opens a dialog. */
 export function AliasesView({ aliases, clients, canWrite }: { readonly aliases: readonly AliasRow[]; readonly clients: readonly AliasClientOption[]; readonly canWrite: boolean }) {
   return (
     <Panel aria-label="Aliases">

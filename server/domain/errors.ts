@@ -18,7 +18,7 @@ export type DomainErrorCode =
   | "not-authorised"
   | "invite-conflict"
   | "admin-required"
-  | "not-a-supplier"
+  | "not-a-coordinator"
   | "share-not-allowed"
   | "not-a-client-member"
   | "agreement-superseded"

@@ -24,8 +24,11 @@ export function useOnPage(): boolean {
   return useContext(PageLayoutContext);
 }
 
-/** Set on a form that sits on a page of its own instead of in a drawer. */
-export type PageMode = { readonly cancelHref: string };
+/**
+ * Set on a form that sits on a page of its own instead of in a drawer. `footer` replaces the bar's Cancel and save button with the
+ * form's own (a form in steps has Continue on one step and Back and Create on the next); it is given whether the form is sending.
+ */
+export type PageMode = { readonly cancelHref: string; readonly footer?: (pending: boolean) => React.ReactNode };
 
 type Props = {
   action: (previous: FormState, formData: FormData) => Promise<FormState>;
@@ -71,12 +74,18 @@ export function ActionForm({ action, submitLabel, pendingLabel, savedMessage = "
             {state.status === "error" && state.message !== null && <Notice tone="red">{state.message}</Notice>}
             {children}
             <div className="sticky bottom-0 z-20 -mx-4 flex items-center justify-end gap-2 bg-canvas/90 px-4 py-3 backdrop-blur-md max-md:pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] md:-mx-7 md:px-7">
-              <Link href={page.cancelHref} className={buttonVariants({ variant: "secondary" })}>
-                Cancel
-              </Link>
-              <div className="w-full sm:w-56">
-                <SubmitButton pending={pending} label={submitLabel} pendingLabel={pendingLabel} />
-              </div>
+              {page.footer !== undefined ? (
+                page.footer(pending)
+              ) : (
+                <>
+                  <Link href={page.cancelHref} className={buttonVariants({ variant: "secondary" })}>
+                    Cancel
+                  </Link>
+                  <div className="w-full sm:w-56">
+                    <SubmitButton pending={pending} label={submitLabel} pendingLabel={pendingLabel} />
+                  </div>
+                </>
+              )}
             </div>
           </form>
         </PageLayoutContext.Provider>

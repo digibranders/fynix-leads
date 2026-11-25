@@ -8,7 +8,7 @@ import { updateCampaign } from "@/server/domain/campaigns";
 import { addCampaignHost, deactivateCampaignHost } from "@/server/domain/hosts";
 import { setOrganisationStatus } from "@/server/domain/organisations";
 import { setCampaignShare } from "@/server/domain/shares";
-import { createPartnerAgency } from "@/server/domain/suppliers";
+import { createPartnerAgency } from "@/server/domain/coordinators";
 import { agreeNumbers, firstCampaign, memberIdFor, refusal, setMemberRole, userIn } from "@/server/domain/test-helpers";
 import { openDomainRig } from "@/server/domain/testing";
 
@@ -41,7 +41,7 @@ describe("listCampaignRows", () => {
     const rows = await listCampaignRows(rig.deps(), rig.staffActor);
     expect(rows).toHaveLength(4);
     const first = rows.find((row) => row.id === campaignId());
-    expect(first).toMatchObject({ publicRef: firstCampaign(rig).publicRef, status: "draft", clientName: rig.world().kestrel.name, supplierName: rig.world().brightpath.name });
+    expect(first).toMatchObject({ publicRef: firstCampaign(rig).publicRef, status: "draft", clientName: rig.world().kestrel.name, coordinatorName: rig.world().brightpath.name });
   });
 });
 
@@ -59,8 +59,8 @@ describe("readCampaignHeader", () => {
       id: campaignId(),
       status: "active",
       clientName: rig.world().kestrel.name,
-      supplierName: rig.world().brightpath.name,
-      supplierOrgId: rig.world().brightpath.id,
+      coordinatorName: rig.world().brightpath.name,
+      coordinatorOrgId: rig.world().brightpath.id,
       timeZone: "Asia/Kolkata",
       meetingMinutes: 45,
       activeHostCount: 1,
@@ -89,7 +89,7 @@ describe("listCampaignHosts", () => {
     expect(hosts[0]).toMatchObject({ memberId: hostId, jobTitle: "Chief Operating Officer", active: true, timeZone: "Europe/London" });
     expect(hosts[0]?.hours).toEqual([{ weekday: 1, startMinute: 540, endMinute: 1020 }, { weekday: 3, startMinute: 780, endMinute: 1020 }]);
     expect(hosts[0]?.blocks.map((block) => block.note)).toEqual(["Board meeting"]);
-    expect(candidates).toEqual([{ memberId: other, displayName: "Alpha Person" }]);
+    expect(candidates).toEqual([{ memberId: other, displayName: "Alpha Person", jobTitle: null }]);
   });
 
   it("keeps a switched off host in the list, with no hours when none are set, and offers them as a candidate again", async () => {
@@ -118,7 +118,7 @@ describe("readAgreementsPage", () => {
     const second = await publishAgreement(rig.deps(), rig.actor, { campaignId: campaignId(), monthlyTarget: 14, totalTarget: 84, rules: "Counted when held." });
     await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: second.id, userId: userIn(rig, kestrel).id });
     await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: second.id, userId: userIn(rig, brightpath).id });
-    const partner = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: brightpath.id, name: "Ridgeway Partner Ltd" });
+    const partner = await createPartnerAgency(rig.deps(), rig.actor, { coordinatorId: brightpath.id, name: "Ridgeway Partner Ltd" });
     await setCampaignShare(rig.deps(), rig.actor, { campaignId: campaignId(), agencyOrgId: brightpath.id, monthlyShare: 4 });
     await setCampaignShare(rig.deps(), rig.actor, { campaignId: campaignId(), agencyOrgId: partner.id, monthlyShare: 11 });
 
@@ -151,9 +151,9 @@ describe("readAgreementsPage", () => {
 
   it("offers the coordinator and its partner agencies that have no share yet, and not an archived one or another coordinator's", async () => {
     const { brightpath, northgate } = rig.world();
-    const partner = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: brightpath.id, name: "Ridgeway Partner Ltd" });
-    const retired = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: brightpath.id, name: "Retired Partner Ltd" });
-    await createPartnerAgency(rig.deps(), rig.actor, { supplierId: northgate.id, name: "Elsewhere Partner Ltd" });
+    const partner = await createPartnerAgency(rig.deps(), rig.actor, { coordinatorId: brightpath.id, name: "Ridgeway Partner Ltd" });
+    const retired = await createPartnerAgency(rig.deps(), rig.actor, { coordinatorId: brightpath.id, name: "Retired Partner Ltd" });
+    await createPartnerAgency(rig.deps(), rig.actor, { coordinatorId: northgate.id, name: "Elsewhere Partner Ltd" });
     await setOrganisationStatus(rig.deps(), rig.actor, retired.id, "archived");
     const page = await readAgreementsPage(rig.deps(), rig.actor, campaignId());
     expect(page.options).toEqual([

@@ -12,7 +12,7 @@ export async function readGoLiveState(tx: ScopedTransaction, campaignId: string)
   );
   const row = result.rows[0];
   if (row === undefined) throw new Error("campaign_go_live_state returned no row");
-  return { agreed: row.agreed, clientAccepted: row.client_accepted, supplierAccepted: row.supplier_accepted, hasHost: row.has_host };
+  return { agreed: row.agreed, clientAccepted: row.client_accepted, coordinatorAccepted: row.supplier_accepted, hasHost: row.has_host };
 }
 
 /** Refuses with `agreement-not-accepted` (the message names the side that is missing) or `no-host` unless the campaign may go live. */

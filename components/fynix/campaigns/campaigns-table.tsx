@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { campaignTabLabel, countByTab, DEFAULT_CAMPAIGN_TAB, inCampaignTab, type CampaignTab } from "@/lib/campaign-status";
 import type { CampaignRow } from "@/server/domain/campaign-overview";
 
-/** Every campaign: reference, name, client, supplier and status, with a search. A row opens the campaign. Below `md` a row is two lines. */
+/** Every campaign: reference, name, client, coordinator and status, with a search. A row opens the campaign. Below `md` a row is two lines. */
 export function CampaignsTable({ rows, query = "", tab = DEFAULT_CAMPAIGN_TAB }: { rows: readonly CampaignRow[]; query?: string; tab?: CampaignTab }) {
   if (rows.length === 0) {
     return (
@@ -26,7 +26,7 @@ export function CampaignsTable({ rows, query = "", tab = DEFAULT_CAMPAIGN_TAB }:
   const shown =
     needle === ""
       ? inTab
-      : inTab.filter((row) => [row.name, row.publicRef, row.clientName, row.supplierName].some((text) => text.toLowerCase().includes(needle)));
+      : inTab.filter((row) => [row.name, row.publicRef, row.clientName, row.coordinatorName].some((text) => text.toLowerCase().includes(needle)));
 
   return (
     <Panel aria-label="Campaigns">
@@ -62,11 +62,11 @@ export function CampaignsTable({ rows, query = "", tab = DEFAULT_CAMPAIGN_TAB }:
                       {row.name}
                     </Link>
                     <span className="block truncate text-caption text-ink-muted md:hidden">
-                      {row.clientName}, served by {row.supplierName}
+                      {row.clientName}, served by {row.coordinatorName}
                     </span>
                   </TableCell>
                   <TableCell className="max-md:hidden">{row.clientName}</TableCell>
-                  <TableCell className="max-lg:hidden">{row.supplierName}</TableCell>
+                  <TableCell className="max-lg:hidden">{row.coordinatorName}</TableCell>
                   <TableCell>
                     <StatusChip kind="campaign" status={row.status} size="sm" />
                   </TableCell>

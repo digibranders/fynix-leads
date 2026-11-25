@@ -13,13 +13,13 @@ import { snapshotAcceptance, snapshotAgreement } from "@/server/domain/snapshots
 
 /**
  * The virtual agreement (spec 7.2, phase 2): ONE agreement per campaign, with one monthly and one total number, accepted by the client and by
- * the coordinator. It is stored as the `client` party row; rows with party `supplier` from before phase 2 are left alone and never read.
+ * the coordinator. It is stored as the `client` party row; rows with party `coordinator` from before phase 2 are left alone and never read.
  * Each change is a new version; a published version is never edited, only superseded; every version and every acceptance is kept. The old
  * version stays in force until both sides have accepted the new one: the database copies a version's numbers onto the campaign when its
  * second side accepts (migration 0064). `publishAgreement` and `recordAgreementAcceptance` are Fynix admin writes; `readAgreements` is open to staff.
  */
 
-/** Which side of the agreement a signer is on: the client, or the coordinator (the campaign's supplier). */
+/** Which side of the agreement a signer is on: the client, or the coordinator (the campaign's coordinator). */
 export type AgreementSide = "client" | "supplier";
 
 export interface AcceptanceRecord {
@@ -145,7 +145,7 @@ export async function readAgreements(deps: DomainDeps, actor: FynixActor, campai
 
 /**
  * Records that a user accepted the current version of the campaign agreement. A Fynix admin records it for the signer. The signer must be an
- * active manager of the campaign's client (the `client` side) or of its coordinator (the `supplier` side); the side comes from the signer's
+ * active manager of the campaign's client (the `client` side) or of its coordinator (the `coordinator` side); the side comes from the signer's
  * organisation, never from input. A superseded version cannot be accepted (the next version asks again), a closed campaign refuses with
  * `campaign-closed`, and nobody accepts the same version twice. The agreement row is read `FOR SHARE`, so a version cannot be superseded
  * in the middle of its own acceptance.
@@ -154,7 +154,7 @@ export async function recordAgreementAcceptance(deps: DomainDeps, actor: FynixAc
   const parsed = parseInput(recordAgreementAcceptanceSchema, input);
   return fynixWrite(deps.fynixDb, actor, async ({ tx, audit }) => {
     const [target] = await tx
-      .select({ id: agreement.id, party: agreement.party, version: agreement.version, status: agreement.status, clientOrgId: campaign.clientOrgId, supplierOrgId: campaign.agencyOrgId, campaignRef: campaign.publicRef, campaignStatus: campaign.status })
+      .select({ id: agreement.id, party: agreement.party, version: agreement.version, status: agreement.status, clientOrgId: campaign.clientOrgId, coordinatorOrgId: campaign.agencyOrgId, campaignRef: campaign.publicRef, campaignStatus: campaign.status })
       .from(agreement)
       .innerJoin(campaign, eq(campaign.id, agreement.campaignId))
       .where(eq(agreement.id, parsed.agreementId))
@@ -165,7 +165,7 @@ export async function recordAgreementAcceptance(deps: DomainDeps, actor: FynixAc
     assertCampaignOpen(target.campaignStatus);
     if (target.status !== "current") throw new DomainError("agreement-superseded", "That version has been replaced. The current version is the one to accept.");
     const [signer] = await tx.select({ orgId: member.orgId, role: member.role, status: member.status }).from(member).where(eq(member.userId, parsed.userId)).limit(1);
-    const side: AgreementSide | null = signer === undefined ? null : signer.orgId === target.clientOrgId ? "client" : signer.orgId === target.supplierOrgId ? "supplier" : null;
+    const side: AgreementSide | null = signer === undefined ? null : signer.orgId === target.clientOrgId ? "client" : signer.orgId === target.coordinatorOrgId ? "supplier" : null;
     if (signer === undefined || side === null || signer.role !== "manager" || signer.status !== "active") {
       throw new DomainError("not-an-agreement-signer", "An agreement is accepted by an active manager of the campaign's client or of its coordinator.");
     }
@@ -180,7 +180,7 @@ export async function recordAgreementAcceptance(deps: DomainDeps, actor: FynixAc
     if (created === undefined) throw new Error("The acceptance insert returned no row");
     await audit({
       action: "agreement.accept",
-      subject: { table: "agreement_acceptance", id: created.id, ref: `${target.campaignRef} ${side} v${target.version}` },
+      subject: { table: "agreement_acceptance", id: created.id, ref: `${target.campaignRef} ${side === "supplier" ? "coordinator" : side} v${target.version}` },
       before: null,
       after: { ...snapshotAcceptance({ agreementId: target.id, userId: parsed.userId, networkAddress: parsed.networkAddress }), side },
     });

@@ -12,7 +12,7 @@ import { assignCampaignShare, unassignCampaignShare } from "@/server/domain/camp
 import { addClientHost, addOwnBlock, pauseClientHost, removeOwnBlock, setOwnHours } from "@/server/domain/hosts-tenant";
 import { publishAgreement } from "@/server/domain/agreements";
 import { addCampaignHost } from "@/server/domain/hosts";
-import { createPartnerAgency } from "@/server/domain/suppliers";
+import { createPartnerAgency } from "@/server/domain/coordinators";
 import { setCampaignShare } from "@/server/domain/shares";
 import { agreeNumbers, auditRowsFor, firstCampaign, memberIdFor, refusal, setMemberRole, userIn } from "@/server/domain/test-helpers";
 import { openDomainRig } from "@/server/domain/testing";
@@ -31,7 +31,7 @@ afterAll(async () => {
 });
 
 let clientActor: TenantActor;
-let supplierActor: TenantActor;
+let coordinatorActor: TenantActor;
 let otherClientActor: TenantActor;
 let otherAgencyActor: TenantActor;
 let campaignId: string;
@@ -53,10 +53,10 @@ beforeEach(async () => {
   campaignId = firstCampaign(rig).id;
   const actor = (org: typeof world.kestrel, kind: "client" | "agency", role: "member" | "manager"): TenantActor => ({ userId: userIn(rig, org).id, orgId: org.id, orgKind: kind, role });
   clientActor = actor(world.kestrel, "client", "manager");
-  supplierActor = actor(world.brightpath, "agency", "manager");
+  coordinatorActor = actor(world.brightpath, "agency", "manager");
   otherClientActor = actor(world.halden, "client", "manager");
   otherAgencyActor = actor(world.northgate, "agency", "manager");
-  for (const person of [clientActor, supplierActor, otherClientActor, otherAgencyActor]) await setMemberRole(rig, person.userId, "manager");
+  for (const person of [clientActor, coordinatorActor, otherClientActor, otherAgencyActor]) await setMemberRole(rig, person.userId, "manager");
 });
 
 describe("the one agreement, accepted by both sides", () => {
@@ -66,19 +66,19 @@ describe("the one agreement, accepted by both sides", () => {
     if (version === undefined) throw new Error("no version");
     await acceptAgreementByTenant(clientDb(), rig.deps(), clientActor, { agreementId: version.id }, "203.0.113.1");
     expect((await rig.dbs.owner.db.select({ n: campaign.monthlyTarget }).from(campaign).where(eq(campaign.id, campaignId)))[0]?.n).not.toBe(33);
-    await acceptAgreementByTenant(agencyDb(), rig.deps(), supplierActor, { agreementId: version.id }, "203.0.113.2");
+    await acceptAgreementByTenant(agencyDb(), rig.deps(), coordinatorActor, { agreementId: version.id }, "203.0.113.2");
     expect((await rig.dbs.owner.db.select({ n: campaign.monthlyTarget, t: campaign.totalTarget }).from(campaign).where(eq(campaign.id, campaignId)))[0]).toEqual({ n: 33, t: 198 });
     const rows = await rig.dbs.owner.db.select({ side: agreementAcceptance.side }).from(agreementAcceptance);
     expect(rows.map((row) => row.side).sort()).toEqual(["client", "supplier"]);
     // The campaign the tenants read now carries the one number.
     expect((await listTenantCampaigns(clientDb(), clientActor, "client")).find((row) => row.id === campaignId)?.monthlyTarget).toBe(33);
-    expect((await listTenantCampaigns(agencyDb(), supplierActor, "supplier")).find((row) => row.id === campaignId)?.monthlyTarget).toBe(33);
+    expect((await listTenantCampaigns(agencyDb(), coordinatorActor, "coordinator")).find((row) => row.id === campaignId)?.monthlyTarget).toBe(33);
   });
 
   it("refuses an ordinary member, the other client, the other coordinator and a partner agency of the coordinator", async () => {
     await publishAgreement(rig.deps(), rig.actor, { campaignId, monthlyTarget: 10, totalTarget: 60 });
     const [version] = await listAgreementVersions(clientDb(), clientActor, campaignId);
-    const partner = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: rig.world().brightpath.id, name: "Ridgeway Partner Ltd" });
+    const partner = await createPartnerAgency(rig.deps(), rig.actor, { coordinatorId: rig.world().brightpath.id, name: "Ridgeway Partner Ltd" });
     if (version === undefined) throw new Error("no version");
     const input = { agreementId: version.id };
     expect((await refusal(acceptAgreementByTenant(clientDb(), rig.deps(), { ...clientActor, role: "member" }, input, "x"))).code).toBe("not-authorised");
@@ -86,7 +86,7 @@ describe("the one agreement, accepted by both sides", () => {
     expect((await refusal(acceptAgreementByTenant(clientDb(), rig.deps(), otherClientActor, input, "x"))).code).toBe("not-found");
     expect((await refusal(acceptAgreementByTenant(agencyDb(), rig.deps(), otherAgencyActor, input, "x"))).code).toBe("not-found");
     // A partner agency never sees the agreement of a campaign it only shares.
-    expect((await refusal(acceptAgreementByTenant(agencyDb(), rig.deps(), { userId: supplierActor.userId, orgId: partner.id, orgKind: "agency", role: "manager" }, input, "x"))).code).toBe("not-found");
+    expect((await refusal(acceptAgreementByTenant(agencyDb(), rig.deps(), { userId: coordinatorActor.userId, orgId: partner.id, orgKind: "agency", role: "manager" }, input, "x"))).code).toBe("not-found");
     expect(await rig.dbs.owner.db.select().from(agreementAcceptance)).toEqual([]);
   });
 
@@ -97,7 +97,7 @@ describe("the one agreement, accepted by both sides", () => {
     const attempt = (db: typeof clientDb extends () => infer D ? D : never, actor: TenantActor, side: "client" | "supplier") =>
       withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, (tx) => tx.insert(agreementAcceptance).values({ agreementId: version.id, userId: actor.userId, networkAddress: "x", side }));
     await expect(attempt(clientDb(), clientActor, "supplier")).rejects.toThrow();
-    await expect(attempt(agencyDb(), supplierActor, "client")).rejects.toThrow();
+    await expect(attempt(agencyDb(), coordinatorActor, "client")).rejects.toThrow();
     await expect(attempt(clientDb(), clientActor, "client")).resolves.toBeDefined();
   });
 
@@ -106,23 +106,23 @@ describe("the one agreement, accepted by both sides", () => {
     const [version] = await listAgreementVersions(clientDb(), clientActor, campaignId);
     if (version === undefined) throw new Error("no version");
     await acceptAgreementByTenant(clientDb(), rig.deps(), clientActor, { agreementId: version.id }, "203.0.113.1");
-    await acceptAgreementByTenant(agencyDb(), rig.deps(), supplierActor, { agreementId: version.id }, "203.0.113.2");
+    await acceptAgreementByTenant(agencyDb(), rig.deps(), coordinatorActor, { agreementId: version.id }, "203.0.113.2");
 
     const forClient = await listAgreementVersions(clientDb(), clientActor, campaignId);
-    const forSupplier = await listAgreementVersions(agencyDb(), supplierActor, campaignId);
+    const forCoordinator = await listAgreementVersions(agencyDb(), coordinatorActor, campaignId);
     expect(forClient[0]).toMatchObject({ version: 1, status: "current", inForce: true, ownSide: { by: userIn(rig, rig.world().kestrel).name } });
     expect(forClient[0]?.otherSideAcceptedAt).toBeInstanceOf(Date);
-    expect(forSupplier[0]).toMatchObject({ inForce: true, ownSide: { by: userIn(rig, rig.world().brightpath).name } });
+    expect(forCoordinator[0]).toMatchObject({ inForce: true, ownSide: { by: userIn(rig, rig.world().brightpath).name } });
     expect(JSON.stringify(forClient)).not.toContain(userIn(rig, rig.world().brightpath).name);
     expect(JSON.stringify(forClient)).not.toContain(userIn(rig, rig.world().brightpath).id);
-    expect(JSON.stringify(forSupplier)).not.toContain(userIn(rig, rig.world().kestrel).name);
-    expect(JSON.stringify(forSupplier)).not.toContain(userIn(rig, rig.world().kestrel).id);
+    expect(JSON.stringify(forCoordinator)).not.toContain(userIn(rig, rig.world().kestrel).name);
+    expect(JSON.stringify(forCoordinator)).not.toContain(userIn(rig, rig.world().kestrel).id);
 
     // Straight into the table: each role reads only its own side's rows.
     const seenByClient = await withTenantScope(clientDb(), { orgId: clientActor.orgId, userId: clientActor.userId }, (tx) => tx.select({ userId: agreementAcceptance.userId, side: agreementAcceptance.side }).from(agreementAcceptance));
     expect(seenByClient).toEqual([{ userId: clientActor.userId, side: "client" }]);
-    const seenBySupplier = await withTenantScope(agencyDb(), { orgId: supplierActor.orgId, userId: supplierActor.userId }, (tx) => tx.select({ userId: agreementAcceptance.userId, side: agreementAcceptance.side }).from(agreementAcceptance));
-    expect(seenBySupplier).toEqual([{ userId: supplierActor.userId, side: "supplier" }]);
+    const seenByCoordinator = await withTenantScope(agencyDb(), { orgId: coordinatorActor.orgId, userId: coordinatorActor.userId }, (tx) => tx.select({ userId: agreementAcceptance.userId, side: agreementAcceptance.side }).from(agreementAcceptance));
+    expect(seenByCoordinator).toEqual([{ userId: coordinatorActor.userId, side: "supplier" }]);
     // Another client and another coordinator read nothing.
     expect(await withTenantScope(clientDb(), { orgId: otherClientActor.orgId, userId: otherClientActor.userId }, (tx) => tx.select({ id: agreementAcceptance.id }).from(agreementAcceptance))).toEqual([]);
     expect(await withTenantScope(agencyDb(), { orgId: otherAgencyActor.orgId, userId: otherAgencyActor.userId }, (tx) => tx.select({ id: agreementAcceptance.id }).from(agreementAcceptance))).toEqual([]);
@@ -152,7 +152,7 @@ describe("the one agreement, accepted by both sides", () => {
 
 describe("why an agency's campaign is not live", () => {
   it("walks from no agreement, to no host, to waiting for Fynix, to live, to closed, and names nobody", async () => {
-    const reason = async () => (await listCampaignReadiness(agencyDb(), supplierActor)).find((row) => row.campaignId === campaignId);
+    const reason = async () => (await listCampaignReadiness(agencyDb(), coordinatorActor)).find((row) => row.campaignId === campaignId);
     expect(await reason()).toMatchObject({ bucket: "setting-up", notLiveReason: "Neither the client nor the coordinator has accepted the agreement yet." });
     await agreeNumbers(rig, campaignId);
     expect((await reason())?.notLiveReason).toBe("The campaign has no active host yet.");
@@ -162,13 +162,13 @@ describe("why an agency's campaign is not live", () => {
     expect(await reason()).toMatchObject({ bucket: "active", notLiveReason: null });
     await closeCampaign(rig.deps(), rig.actor, campaignId);
     expect(await reason()).toMatchObject({ bucket: "closed", notLiveReason: "The campaign is closed." });
-    expect(JSON.stringify(await listCampaignReadiness(agencyDb(), supplierActor))).not.toContain(rig.world().kestrel.name);
+    expect(JSON.stringify(await listCampaignReadiness(agencyDb(), coordinatorActor))).not.toContain(rig.world().kestrel.name);
   });
 
   it("names the side that has accepted nothing, to a partner agency as to the coordinator, and shows each only its own campaigns", async () => {
-    const partner = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: rig.world().brightpath.id, name: "Ridgeway Partner Ltd" });
+    const partner = await createPartnerAgency(rig.deps(), rig.actor, { coordinatorId: rig.world().brightpath.id, name: "Ridgeway Partner Ltd" });
     await setCampaignShare(rig.deps(), rig.actor, { campaignId, agencyOrgId: partner.id, monthlyShare: 3 });
-    const partnerActor: TenantActor = { userId: supplierActor.userId, orgId: partner.id, orgKind: "agency", role: "member" };
+    const partnerActor: TenantActor = { userId: coordinatorActor.userId, orgId: partner.id, orgKind: "agency", role: "member" };
     const seen = await listCampaignReadiness(agencyDb(), partnerActor);
     expect(seen.map((row) => row.campaignId)).toEqual([campaignId]);
     expect(seen[0]?.notLiveReason).toBe("Neither the client nor the coordinator has accepted the agreement yet.");
@@ -181,15 +181,17 @@ describe("why an agency's campaign is not live", () => {
 
 describe("the client's brief of its own campaign", () => {
   it("reads the brief, never the internal notes, and not another client's campaign", async () => {
-    await updateCampaign(rig.deps(), rig.actor, campaignId, { geography: "Benelux", icp: "Cold chain operators", jobTitles: ["Head of Operations"], instructions: "Lead with the case study", internalNotes: "INTERNAL margin is thin" });
+    await updateCampaign(rig.deps(), rig.actor, campaignId, { geography: "Benelux", icp: "Cold chain operators", jobTitles: ["Head of Operations"], instructions: "Lead with the case study", pitchIntroduction: "We move chilled goods.", qualifyingQuestions: "What do you ship?", firstEmail: "Hello", secondEmail: "Following up", internalNotes: "INTERNAL margin is thin" });
     const brief = await readCampaignBrief(clientDb(), clientActor, campaignId);
-    expect(brief).toMatchObject({ geography: "Benelux", icp: "Cold chain operators", jobTitles: ["Head of Operations"], instructions: "Lead with the case study" });
+    expect(brief).toMatchObject({ geography: "Benelux", icp: "Cold chain operators", jobTitles: ["Head of Operations"], instructions: "Lead with the case study", pitchIntroduction: "We move chilled goods.", qualifyingQuestions: "What do you ship?", firstEmail: "Hello", secondEmail: "Following up" });
     expect(JSON.stringify(brief)).not.toContain("INTERNAL");
     expect(Object.keys(brief)).not.toContain("internalNotes");
     expect((await refusal(readCampaignBrief(clientDb(), otherClientActor, campaignId))).code).toBe("not-found");
     // The column stays closed to the client role itself.
     await expect(withTenantScope(clientDb(), { orgId: clientActor.orgId, userId: clientActor.userId }, (tx) => tx.select({ n: campaign.internalNotes }).from(campaign))).rejects.toMatchObject({ cause: { code: "42501" } });
     await expect(withTenantScope(clientDb(), { orgId: clientActor.orgId, userId: clientActor.userId }, (tx) => tx.select({ n: campaign.timeZone }).from(campaign))).rejects.toMatchObject({ cause: { code: "42501" } });
+    // The contact person at the client is Fynix's own note: the client role has no grant on it.
+    await expect(withTenantScope(clientDb(), { orgId: clientActor.orgId, userId: clientActor.userId }, (tx) => tx.select({ n: campaign.primaryContactId }).from(campaign))).rejects.toMatchObject({ cause: { code: "42501" } });
   });
 });
 
@@ -215,14 +217,14 @@ describe("hosts, as the client", () => {
     const haldenPerson = await memberIdFor(rig, otherClientActor.userId);
     expect((await refusal(addClientHost(clientDb(), clientActor, { campaignId, memberId: haldenPerson, jobTitle: "x" }))).code).toBe("not-a-client-member");
     expect((await refusal(addClientHost(clientDb(), otherClientActor, { campaignId, memberId: haldenPerson, jobTitle: "x" }))).code).toBe("not-found");
-    expect((await refusal(addClientHost(agencyDb(), supplierActor, { campaignId, memberId: colleague.memberId, jobTitle: "x" }))).code).toBe("not-authorised");
+    expect((await refusal(addClientHost(agencyDb(), coordinatorActor, { campaignId, memberId: colleague.memberId, jobTitle: "x" }))).code).toBe("not-authorised");
     // Straight at the table, a plain member and an agency are stopped by the database.
     const asPlainMember = { orgId: clientActor.orgId, userId: colleague.userId };
     await expect(
       withTenantScope(clientDb(), asPlainMember, (tx) => tx.insert(campaignHost).values({ campaignId, clientOrgId: clientActor.orgId, memberId: colleague.memberId, jobTitle: "Sneaky" })),
     ).rejects.toThrow();
     await expect(
-      withTenantScope(agencyDb(), { orgId: supplierActor.orgId, userId: supplierActor.userId }, (tx) => tx.update(campaignHost).set({ active: false })),
+      withTenantScope(agencyDb(), { orgId: coordinatorActor.orgId, userId: coordinatorActor.userId }, (tx) => tx.update(campaignHost).set({ active: false })),
     ).rejects.toMatchObject({ cause: { code: "42501" } });
     expect(await rig.dbs.owner.db.select().from(campaignHost)).toEqual([]);
   });
@@ -289,12 +291,12 @@ describe("a host's own hours and blocked times", () => {
     const asOtherClient = { orgId: otherClientActor.orgId, userId: otherClientActor.userId };
     expect(await withTenantScope(clientDb(), asOtherClient, (tx) => tx.select({ id: hostHours.id }).from(hostHours))).toEqual([]);
     await expect(withTenantScope(clientDb(), asOtherClient, (tx) => tx.insert(hostHours).values({ memberId: colleague.memberId, timeZone: "Europe/London", weekday: 2, startMinute: 0, endMinute: 60 }))).rejects.toThrow();
-    await expect(withTenantScope(agencyDb(), { orgId: supplierActor.orgId, userId: supplierActor.userId }, (tx) => tx.delete(hostHours))).rejects.toMatchObject({ cause: { code: "42501" } });
+    await expect(withTenantScope(agencyDb(), { orgId: coordinatorActor.orgId, userId: coordinatorActor.userId }, (tx) => tx.delete(hostHours))).rejects.toMatchObject({ cause: { code: "42501" } });
     expect(await rig.dbs.owner.db.select().from(hostHours).where(and(eq(hostHours.memberId, colleague.memberId)))).toHaveLength(1);
   });
 
   it("is for clients only, and for an active person of the organisation", async () => {
-    expect((await refusal(setOwnHours(agencyDb(), supplierActor, { timeZone: "Europe/London", hours: [] }))).code).toBe("not-authorised");
+    expect((await refusal(setOwnHours(agencyDb(), coordinatorActor, { timeZone: "Europe/London", hours: [] }))).code).toBe("not-authorised");
     const colleague = await addKestrelPerson("Priya Rao");
     await rig.dbs.owner.db.update(member).set({ status: "suspended" }).where(eq(member.id, colleague.memberId));
     expect((await refusal(setOwnHours(clientDb(), { userId: colleague.userId, orgId: clientActor.orgId, orgKind: "client", role: "member" }, { timeZone: "Europe/London", hours: [] }))).code).toBe("not-authorised");
@@ -303,12 +305,12 @@ describe("a host's own hours and blocked times", () => {
 
 describe("a closed campaign is read only for the coordinator too", () => {
   it("refuses to assign, change and take back a share with campaign-closed, and leaves the share as it was", async () => {
-    const partner = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: rig.world().brightpath.id, name: "Ridgeway Partner Ltd" });
-    await assignCampaignShare(agencyDb(), supplierActor, { campaignId, agencyOrgId: partner.id, monthlyShare: 4 });
+    const partner = await createPartnerAgency(rig.deps(), rig.actor, { coordinatorId: rig.world().brightpath.id, name: "Ridgeway Partner Ltd" });
+    await assignCampaignShare(agencyDb(), coordinatorActor, { campaignId, agencyOrgId: partner.id, monthlyShare: 4 });
     for (const status of ["paused", "completed", "archived"] as const) {
       await rig.dbs.owner.db.update(campaign).set({ status }).where(eq(campaign.id, campaignId));
-      expect((await refusal(assignCampaignShare(agencyDb(), supplierActor, { campaignId, agencyOrgId: partner.id, monthlyShare: 9 }))).code, status).toBe("campaign-closed");
-      expect((await refusal(unassignCampaignShare(agencyDb(), supplierActor, { campaignId, agencyOrgId: partner.id }))).code, status).toBe("campaign-closed");
+      expect((await refusal(assignCampaignShare(agencyDb(), coordinatorActor, { campaignId, agencyOrgId: partner.id, monthlyShare: 9 }))).code, status).toBe("campaign-closed");
+      expect((await refusal(unassignCampaignShare(agencyDb(), coordinatorActor, { campaignId, agencyOrgId: partner.id }))).code, status).toBe("campaign-closed");
     }
     expect((await rig.dbs.owner.db.select({ n: campaignShare.monthlyShare }).from(campaignShare).where(eq(campaignShare.agencyOrgId, partner.id)))[0]?.n).toBe(4);
   });

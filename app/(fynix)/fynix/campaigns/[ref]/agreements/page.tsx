@@ -21,8 +21,8 @@ async function Agreements({ params }: { params: PageProps<"/fynix/campaigns/[ref
 
   return (
     <div className="flex flex-col gap-4">
-      <AgreementCard side={page.agreement} withName={`${campaign.clientName} and ${campaign.supplierName}`} campaignId={campaign.id} timeZone={campaign.timeZone} canWrite={view.canWrite} closed={closed} />
-      <SharesCard page={page} campaignId={campaign.id} supplierName={campaign.supplierName} timeZone={campaign.timeZone} now={deps.now()} canWrite={view.canWrite && !closed} />
+      <AgreementCard side={page.agreement} withName={`${campaign.clientName} and ${campaign.coordinatorName}`} campaignId={campaign.id} timeZone={campaign.timeZone} canWrite={view.canWrite} closed={closed} suggested={{ monthlyTarget: campaign.brief.monthlyTarget, totalTarget: campaign.brief.totalTarget }} />
+      <SharesCard page={page} campaignId={campaign.id} coordinatorName={campaign.coordinatorName} timeZone={campaign.timeZone} now={deps.now()} canWrite={view.canWrite && !closed} campaignMonthly={campaign.brief.monthlyTarget} />
     </div>
   );
 }

@@ -25,7 +25,7 @@ export interface GoLiveState {
   /** Both the client and the coordinator have accepted some version of the agreement. */
   readonly agreed: boolean;
   readonly clientAccepted: boolean;
-  readonly supplierAccepted: boolean;
+  readonly coordinatorAccepted: boolean;
   readonly hasHost: boolean;
 }
 
@@ -38,7 +38,7 @@ export interface GoLiveRefusal {
 export function goLiveRefusal(state: GoLiveState): GoLiveRefusal | null {
   if (!state.agreed) {
     const message =
-      !state.clientAccepted && !state.supplierAccepted
+      !state.clientAccepted && !state.coordinatorAccepted
         ? "Neither the client nor the coordinator has accepted the agreement yet."
         : `The ${state.clientAccepted ? "coordinator" : "client"} has not accepted the agreement yet.`;
     return { code: "agreement-not-accepted", message };

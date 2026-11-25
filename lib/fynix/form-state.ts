@@ -7,7 +7,7 @@ export type FormState =
   | { readonly status: "idle" }
   /** `message` is a problem with the whole form, `fields` a sentence per field, `values` what was typed so a failed attempt keeps it. */
   | { readonly status: "error"; readonly message: string | null; readonly fields: FormValues; readonly values: FormValues }
-  /** The change is saved. `redirectTo` is a page to move to, for example the supplier that was just added. `notice` is a plain sentence about a part that did not go through (an invite that was refused), shown instead of "Saved". */
+  /** The change is saved. `redirectTo` is a page to move to, for example the coordinator that was just added. `notice` is a plain sentence about a part that did not go through (an invite that was refused), shown instead of "Saved". */
   | { readonly status: "done"; readonly redirectTo: string | null; readonly notice?: string | null };
 
 export const IDLE_FORM: FormState = { status: "idle" };

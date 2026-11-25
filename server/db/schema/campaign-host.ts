@@ -18,7 +18,7 @@ export const campaignHost = pgTable(
     campaignId: uuid("campaign_id").notNull(),
     clientOrgId: uuid("client_org_id").notNull(),
     memberId: uuid("member_id").notNull(),
-    /** What the supplier and its agencies are told the host does, next to the name and the company. */
+    /** What the coordinator and its agencies are told the host does, next to the name and the company. */
     jobTitle: text("job_title").notNull(),
     active: boolean("active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

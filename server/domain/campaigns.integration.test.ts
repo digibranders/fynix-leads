@@ -6,7 +6,7 @@ import { addCampaignHost, deactivateCampaignHost } from "@/server/domain/hosts";
 import { publishAgreement, recordAgreementAcceptance } from "@/server/domain/agreements";
 import { DomainError } from "@/server/domain/errors";
 import { createOrganisation, setOrganisationStatus } from "@/server/domain/organisations";
-import { createPartnerAgency } from "@/server/domain/suppliers";
+import { createPartnerAgency } from "@/server/domain/coordinators";
 import { auditRowsFor, makeCampaignReady, memberIdFor, scriptedBytes, setMemberRole, userIn } from "@/server/domain/test-helpers";
 import { openDomainRig } from "@/server/domain/testing";
 
@@ -131,7 +131,7 @@ describe("updateCampaign", () => {
 describe("the going-live rule", () => {
   const create = async () => (await createCampaign(rig.deps(), rig.actor, input())).id;
   const clientUser = () => userIn(rig, rig.world().kestrel);
-  const supplierUser = () => userIn(rig, rig.world().northgate);
+  const coordinatorUser = () => userIn(rig, rig.world().northgate);
   const goLive = (id: string) => updateCampaign(rig.deps(), rig.actor, id, { status: "active" });
 
   it("refuses with no agreement, naming both sides, and with no host after the agreement", async () => {
@@ -139,11 +139,11 @@ describe("the going-live rule", () => {
     const first = await refusal(goLive(id));
     expect(first).toMatchObject({ code: "agreement-not-accepted", message: "Neither the client nor the coordinator has accepted the agreement yet." });
     await setMemberRole(rig, clientUser().id, "manager");
-    await setMemberRole(rig, supplierUser().id, "manager");
+    await setMemberRole(rig, coordinatorUser().id, "manager");
     const published = await publishAgreement(rig.deps(), rig.actor, { campaignId: id, monthlyTarget: 12, totalTarget: 72 });
     await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: published.id, userId: clientUser().id });
     expect(await refusal(goLive(id))).toMatchObject({ code: "agreement-not-accepted", message: "The coordinator has not accepted the agreement yet." });
-    await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: published.id, userId: supplierUser().id });
+    await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: published.id, userId: coordinatorUser().id });
     expect((await refusal(goLive(id))).code).toBe("no-host");
     expect(await row(id)).toMatchObject({ status: "draft" });
     await addCampaignHost(rig.deps(), rig.actor, { campaignId: id, memberId: await memberIdFor(rig, clientUser().id), jobTitle: "Head of Sales" });
@@ -152,9 +152,9 @@ describe("the going-live rule", () => {
 
   it("names the client when only the coordinator has accepted", async () => {
     const id = await create();
-    await setMemberRole(rig, supplierUser().id, "manager");
+    await setMemberRole(rig, coordinatorUser().id, "manager");
     const published = await publishAgreement(rig.deps(), rig.actor, { campaignId: id, monthlyTarget: 12, totalTarget: 72 });
-    await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: published.id, userId: supplierUser().id });
+    await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: published.id, userId: coordinatorUser().id });
     expect((await refusal(goLive(id))).message).toBe("The client has not accepted the agreement yet.");
   });
 
@@ -287,9 +287,9 @@ describe("campaign time zone and meeting length", () => {
 });
 
 describe("a campaign's agency is its coordinator", () => {
-  it("refuses a partner agency as the agency of a new campaign, with not-a-supplier, and writes nothing", async () => {
-    const partner = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: rig.world().northgate.id, name: "Ridgeway Partner Ltd" });
-    expect((await refusal(createCampaign(rig.deps(), rig.actor, { ...input(), agencyOrgId: partner.id }))).code).toBe("not-a-supplier");
+  it("refuses a partner agency as the agency of a new campaign, with not-a-coordinator, and writes nothing", async () => {
+    const partner = await createPartnerAgency(rig.deps(), rig.actor, { coordinatorId: rig.world().northgate.id, name: "Ridgeway Partner Ltd" });
+    expect((await refusal(createCampaign(rig.deps(), rig.actor, { ...input(), agencyOrgId: partner.id }))).code).toBe("not-a-coordinator");
     expect(await rig.dbs.owner.db.select({ id: campaign.id }).from(campaign)).toHaveLength(4);
     expect((await auditRowsFor(rig)).map((entry) => entry.action)).toEqual(["organisation.create"]);
   });

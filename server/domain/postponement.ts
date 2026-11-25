@@ -35,13 +35,13 @@ const sideOf = (actor: TenantActor): RescheduleSide => (actor.orgKind === "clien
 async function movableMeeting(tx: ScopedTransaction, actor: TenantActor, meetingId: string) {
   const [row] = await tx
     .select({ id: meeting.id, leadId: meeting.leadId, outcome: meeting.outcome, leadStage: lead.stage, // A client holds no grant on the source organisation: it is read for the supply side only.
-        sourceOrgId: actor.orgKind === "client" ? sql<string | null>`null::uuid` : lead.sourceOrgId, clientOrgId: campaign.clientOrgId, supplierOrgId: campaign.agencyOrgId })
+        sourceOrgId: actor.orgKind === "client" ? sql<string | null>`null::uuid` : lead.sourceOrgId, clientOrgId: campaign.clientOrgId, coordinatorOrgId: campaign.agencyOrgId })
     .from(meeting)
     .innerJoin(lead, eq(lead.id, meeting.leadId))
     .innerJoin(campaign, eq(campaign.id, meeting.campaignId))
     .where(eq(meeting.id, meetingId))
     .limit(1);
-  const mine = row !== undefined && (actor.orgKind === "client" ? row.clientOrgId === actor.orgId : row.sourceOrgId === actor.orgId || row.supplierOrgId === actor.orgId);
+  const mine = row !== undefined && (actor.orgKind === "client" ? row.clientOrgId === actor.orgId : row.sourceOrgId === actor.orgId || row.coordinatorOrgId === actor.orgId);
   if (row === undefined || !mine) throw new DomainError("not-found", "There is no such meeting.");
   if (row.outcome !== "scheduled" || row.leadStage !== "scheduled") throw new DomainError("invalid-lead-stage", "Only a meeting that is booked and not yet held can be moved.");
   return row;

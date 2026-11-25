@@ -11,7 +11,7 @@ export interface OrganisationRow {
   readonly kind: string;
   readonly name: string;
   readonly timeZone: string | null;
-  /** The supplier a partner agency works under, `null` for everyone else. */
+  /** The coordinator a partner agency works under, `null` for everyone else. */
   readonly parentOrgId: string | null;
   readonly status: string;
 }
@@ -43,6 +43,17 @@ export function snapshotCollateral(row: CollateralRow): JsonObject {
   return { kind: row.kind, title: row.title, url: row.url };
 }
 
+export interface ContactPersonRow {
+  readonly name: string;
+  readonly email: string | null;
+  readonly phone: string | null;
+  readonly jobTitle: string | null;
+}
+
+export function snapshotContactPerson(row: ContactPersonRow): JsonObject {
+  return { name: row.name, email: row.email, phone: row.phone, jobTitle: row.jobTitle };
+}
+
 export interface CampaignRow {
   readonly publicRef: string;
   readonly name: string;
@@ -65,6 +76,15 @@ export interface CampaignRow {
   readonly bantNeed: string;
   readonly bantTimeline: string;
   readonly instructions: string;
+  readonly pitchIntroduction: string;
+  readonly pitchServices: string;
+  readonly pitchDifferentiator: string;
+  readonly pitchCollaterals: string;
+  readonly pitchCaseStudies: string;
+  readonly qualifyingQuestions: string;
+  readonly firstEmail: string;
+  readonly secondEmail: string;
+  readonly primaryContactId: string | null;
   readonly internalNotes: string | null;
   readonly timeZone: string;
   readonly meetingMinutes: number;
@@ -93,6 +113,15 @@ export function snapshotCampaign(row: CampaignRow): JsonObject {
     bantNeed: row.bantNeed,
     bantTimeline: row.bantTimeline,
     instructions: row.instructions,
+    pitchIntroduction: row.pitchIntroduction,
+    pitchServices: row.pitchServices,
+    pitchDifferentiator: row.pitchDifferentiator,
+    pitchCollaterals: row.pitchCollaterals,
+    pitchCaseStudies: row.pitchCaseStudies,
+    qualifyingQuestions: row.qualifyingQuestions,
+    firstEmail: row.firstEmail,
+    secondEmail: row.secondEmail,
+    primaryContactId: row.primaryContactId,
     internalNotes: row.internalNotes,
     timeZone: row.timeZone,
     meetingMinutes: row.meetingMinutes,

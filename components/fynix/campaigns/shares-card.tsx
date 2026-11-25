@@ -11,10 +11,12 @@ import { AddShareButton, ShareRowActions } from "./agreement-actions";
 type Props = {
   page: AgreementsPage;
   campaignId: string;
-  supplierName: string;
+  coordinatorName: string;
   timeZone: string;
   now: Date;
   canWrite: boolean;
+  /** The campaign's monthly number, so a new share can start from what is left of it. */
+  campaignMonthly: number;
 };
 
 /** The sentence for an over-allocation: allowed, and said plainly so the admin can check it. */
@@ -23,16 +25,16 @@ function overSentence(total: number, target: number): string {
 }
 
 /** The monthly shares: each agency's share of the campaign's monthly number, the total against the target, and who changed each last. */
-export function SharesCard({ page, campaignId, supplierName, timeZone, now, canWrite }: Props) {
+export function SharesCard({ page, campaignId, coordinatorName, timeZone, now, canWrite, campaignMonthly }: Props) {
   const { shares, summary, options } = page;
   const month = capitalise(monthName(now, timeZone));
   const monthKey = monthInZone(now, timeZone);
-  const addButton = canWrite && options.length > 0 ? <AddShareButton campaignId={campaignId} options={options} /> : null;
+  const addButton = canWrite && options.length > 0 ? <AddShareButton campaignId={campaignId} options={options} suggested={Math.max(0, campaignMonthly - summary.totalShares)} /> : null;
 
   return (
     <Panel aria-label="Monthly shares">
       <PanelHeader title="Monthly shares" count={shares.length} action={addButton} />
-      <p className="px-5 pb-2 text-body text-ink-muted">Set by {supplierName}. A Fynix admin can change them.</p>
+      <p className="px-5 pb-2 text-body text-ink-muted">Set by {coordinatorName}. A Fynix admin can change them.</p>
 
       {summary.overAllocated && summary.campaignMonthlyTarget !== null && (
         <Notice tone="amber" icon={Warning} compact className="mx-5 mb-3">

@@ -6,7 +6,7 @@ import { agreementParty, agreementStatus } from "./enums";
 import { member } from "./member";
 
 /**
- * A virtual agreement (spec 7.2): what Fynix has agreed with the client, or with the supplier, for one campaign. Not a legal
+ * A virtual agreement (spec 7.2): what Fynix has agreed with the client, or with the coordinator, for one campaign. Not a legal
  * document; it exists for trust and confidence. Each change is a new version that the other side accepts again.
  *
  * Like `terms_document`, a published version is never edited: Fynix holds UPDATE on `status` only, a new version supersedes
@@ -14,7 +14,7 @@ import { member } from "./member";
  * superseded version becoming current again (migration 0022). Versions count per campaign and party, from 1.
  *
  * Since phase 2 a campaign has ONE agreement: the `client` party row. The client and the coordinator both accept it (`agreement_acceptance.side`).
- * Rows with party `supplier` are left as they were and are no longer created or read.
+ * Rows with party `coordinator` are left as they were and are no longer created or read.
  */
 export const agreement = pgTable(
   "agreement",
@@ -66,7 +66,7 @@ export const agreementAcceptance = pgTable(
     acceptedAt: timestamp("accepted_at", { withTimezone: true }).notNull().defaultNow(),
     networkAddress: text("network_address").notNull(),
     /**
-     * Which side of the campaign agreement the signer accepted for (phase 2): the client, or the coordinator (`supplier`). Derived from the
+     * Which side of the campaign agreement the signer accepted for (phase 2): the client, or the coordinator (`coordinator`). Derived from the
      * signer's organisation, never from input. Rows from before phase 2 are all `client`.
      */
     side: text("side").notNull().default("client"),

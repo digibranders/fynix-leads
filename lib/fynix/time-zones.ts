@@ -65,3 +65,8 @@ export const COMMON_TIME_ZONES = [
   "America/Argentina/Buenos_Aires",
   "America/Sao_Paulo",
 ] as const;
+
+/** Whether typed text could be an IANA zone (`Area/City`, or UTC), so the dropdown may offer to use it. The domain checks it against the real list. */
+export function looksLikeTimeZone(text: string): boolean {
+  return /^UTC$/i.test(text) || /^[A-Za-z]+(?:\/[A-Za-z0-9_+-]+)+$/.test(text);
+}

@@ -39,7 +39,7 @@ export function CampaignTitle({ campaign, canWrite = false }: { campaign: Campai
             <StatusChip kind="campaign" status={campaign.status} />
             {campaign.closedAt !== null && isClosed(campaign.status) ? <span>Closed on {formatDate(campaign.closedAt, campaign.timeZone)}</span> : null}
             <span>
-              {campaign.clientName}, served by {campaign.supplierName}
+              {campaign.clientName}, served by {campaign.coordinatorName}
             </span>
             <span className="font-mono text-caption">{campaign.publicRef}</span>
             <span>

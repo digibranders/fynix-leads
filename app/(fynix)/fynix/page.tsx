@@ -156,7 +156,7 @@ async function Overview() {
                     {row.name}
                   </Link>
                 }
-                sub={`${row.clientName} via ${row.supplierName}`}
+                sub={`${row.clientName} via ${row.coordinatorName}`}
                 trailing={<StatusChip kind="campaign" status={row.status} size="sm" />}
               />
             ))}

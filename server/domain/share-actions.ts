@@ -16,8 +16,8 @@ async function run(work: (db: ReturnType<typeof getDatabase>["db"], actor: { use
   if (context === null || context.kind !== "agency") return { status: "error", message: "Only a coordinator can assign a campaign." };
   try {
     await work(getDatabase("leads_agency").db, { userId: context.userId, orgId: context.orgId, orgKind: "agency", role: context.memberRole });
-    revalidatePath("/supplier/campaigns");
-    revalidatePath("/supplier/agencies");
+    revalidatePath("/coordinator/campaigns");
+    revalidatePath("/coordinator/agencies");
     revalidatePath("/agency/campaigns");
     return { status: "success" };
   } catch (error) {

@@ -11,10 +11,10 @@ export function AgencyOverview({ agency, canWrite }: { agency: AgencyDetail; can
     <div className="flex flex-col gap-4">
       <Facts
         items={[
-          ["Company name", agency.name],
+          ["Name", agency.name],
           [
             "Coordinator",
-            <Link key="coordinator" href={`/fynix/suppliers/${agency.coordinator.publicRef}`} className="rounded-xs hover:underline">
+            <Link key="coordinator" href={`/fynix/coordinators/${agency.coordinator.publicRef}`} className="rounded-xs hover:underline">
               {agency.coordinator.name}
             </Link>,
           ],
@@ -28,7 +28,7 @@ export function AgencyOverview({ agency, canWrite }: { agency: AgencyDetail; can
         ]}
         className="sm:grid-cols-3"
       />
-      <ContactPanel organisationId={agency.id} contact={agency.contact} canWrite={canWrite} />
+      <ContactPanel organisationId={agency.id} contact={agency.contact} canWrite={canWrite} mode="person" />
     </div>
   );
 }

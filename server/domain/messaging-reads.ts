@@ -32,7 +32,7 @@ export async function listConversations(
         or(
           eq(conversation.side, "group"),
           and(
-            eq(conversation.supplierOrgId, actor.orgId ?? ""),
+            eq(conversation.coordinatorOrgId, actor.orgId ?? ""),
             inArray(conversation.side, ["supplier_fynix", "supplier_agency"]),
           ),
           and(
@@ -51,7 +51,7 @@ export async function listConversations(
     // organisation rows of its own organisation only, so it gets no name here.
     const counterpartyName =
       actor.orgKind === "fynix"
-        ? sql<string | null>`(select o.name from organisation o where o.id = coalesce(${conversation.clientOrgId}, ${conversation.supplierOrgId}))`
+        ? sql<string | null>`(select o.name from organisation o where o.id = coalesce(${conversation.clientOrgId}, ${conversation.coordinatorOrgId}))`
         : sql<string | null>`null::text`;
     const rows = await tx
       .select({ ...cols, counterpartyName })
@@ -99,7 +99,7 @@ export async function listConversationMessages(
         id: conversation.id,
         side: conversation.side,
         clientOrgId: conversation.clientOrgId,
-        supplierOrgId: conversation.supplierOrgId,
+        coordinatorOrgId: conversation.coordinatorOrgId,
         agencyOrgId: conversation.agencyOrgId,
       })
       .from(conversation)

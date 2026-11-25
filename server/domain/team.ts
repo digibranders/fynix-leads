@@ -7,7 +7,7 @@ import { databaseRefusal } from "@/server/domain/db-refusal";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError, type DomainErrorCode } from "@/server/domain/errors";
 import { fynixRead, fynixSelfWrite, type FynixActor } from "@/server/domain/fynix-write";
-import { createSupplierPartnerAgencySchema, ownProfileSchema, uuidSchema, type OwnProfileInput } from "@/server/domain/inputs";
+import { createCoordinatorPartnerAgencySchema, ownProfileSchema, uuidSchema, type OwnProfileInput } from "@/server/domain/inputs";
 import { parseInput } from "@/server/domain/parse";
 import { insertWithPublicRef } from "@/server/domain/refs";
 import { snapshotMember } from "@/server/domain/snapshots";
@@ -102,7 +102,7 @@ export interface AddedPartnerAgency {
  * No audit row: the audit log is for Fynix writes (the new agency shows in Fynix's lists like any other).
  */
 export async function addPartnerAgencyAsCoordinator(deps: Pick<DomainDeps, "randomBytes">, db: Database, actor: TenantActor, input: unknown): Promise<AddedPartnerAgency> {
-  const parsed = parseInput(createSupplierPartnerAgencySchema, input);
+  const parsed = parseInput(createCoordinatorPartnerAgencySchema, input);
   if (actor.orgKind !== "agency" || actor.role !== "manager") throw new DomainError("not-authorised", "Only a coordinator manager can add a partner agency.");
   try {
     return await withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, (tx) =>

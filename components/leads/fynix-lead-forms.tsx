@@ -22,7 +22,7 @@ export function DecideContestForm({ leadId, contestedOutcome }: { leadId: string
       <FormGroup>
         <p className="text-body text-ink-muted">The outcome you choose is final. A held meeting goes to the client for an answer, a client no-show counts one, a prospect no-show closes the lead at zero.</p>
         <SelectField name="outcome" label="Final outcome" options={CONTEST_OUTCOMES} defaultValue={contestedOutcome} placeholder="Choose an outcome" />
-        <TextAreaField name="note" label="Note" rows={4} helper={NOTE_HELPER} />
+        <TextAreaField name="note" label="Note" helper={NOTE_HELPER} />
       </FormGroup>
     </ActionForm>
   );
@@ -35,7 +35,7 @@ export function MarkReviewedForm({ leadId }: { leadId: string }) {
       <Hidden name="leadId" value={leadId} />
       <FormGroup>
         <p className="text-body text-ink-muted">The rejection stands. It leaves the count in the menu and any review request is closed.</p>
-        <TextAreaField name="note" label="Note" rows={3} helper="Optional. At least 5 characters when given." />
+        <TextAreaField name="note" label="Note" helper="Optional. At least 5 characters when given." />
       </FormGroup>
     </ActionForm>
   );
@@ -80,7 +80,7 @@ export function CorrectLeadForm({ leadId, lead }: { leadId: string; lead: Correc
         <Hidden key={entry.name} name={`was_${entry.name}`} value={lead[entry.name] ?? ""} />
       ))}
       <FormGroup title="Prospect">
-        {FIELDS.slice(0, 8).map((entry) => (entry.area ? <TextAreaField key={entry.name} name={entry.name} label={entry.label} rows={3} defaultValue={lead[entry.name] ?? ""} /> : <TextField key={entry.name} name={entry.name} label={entry.label} defaultValue={lead[entry.name] ?? ""} />))}
+        {FIELDS.slice(0, 8).map((entry) => (entry.area ? <TextAreaField key={entry.name} name={entry.name} label={entry.label} defaultValue={lead[entry.name] ?? ""} /> : <TextField key={entry.name} name={entry.name} label={entry.label} defaultValue={lead[entry.name] ?? ""} />))}
       </FormGroup>
       <FormGroup title="Qualification">
         {FIELDS.slice(8).map((entry) => (
@@ -88,7 +88,7 @@ export function CorrectLeadForm({ leadId, lead }: { leadId: string; lead: Correc
         ))}
       </FormGroup>
       <FormGroup>
-        <TextAreaField name="note" label="Why it is corrected" rows={3} helper={NOTE_HELPER} />
+        <TextAreaField name="note" label="Why it is corrected" helper={NOTE_HELPER} />
       </FormGroup>
     </ActionForm>
   );
@@ -122,7 +122,7 @@ export function AnswerForClientForm({ leadId, stage, proposedTimes }: { leadId: 
             <TimeChoices name="selectedMeetingTime" times={proposedTimes} />
           </div>
         ) : null}
-        <TextAreaField name="note" label="Note" rows={4} helper={NOTE_HELPER} />
+        <TextAreaField name="note" label="Note" helper={NOTE_HELPER} />
       </FormGroup>
     </ActionForm>
   );
@@ -137,7 +137,7 @@ export function MarkLostForm({ leadId }: { leadId: string }) {
         <Notice tone="amber" compact>
           The lead closes and counts as zero. A booked meeting is cancelled. This cannot be undone.
         </Notice>
-        <TextAreaField name="note" label="Note" rows={4} helper={NOTE_HELPER} />
+        <TextAreaField name="note" label="Note" helper={NOTE_HELPER} />
       </FormGroup>
     </ActionForm>
   );
@@ -150,7 +150,7 @@ export function ClearOverShareForm({ leadId }: { leadId: string }) {
       <Hidden name="leadId" value={leadId} />
       <FormGroup>
         <p className="text-body text-ink-muted">The lead went beyond a share. Clearing the flag approves it. To refuse it, mark the lead lost instead.</p>
-        <TextAreaField name="note" label="Note" rows={3} helper={NOTE_HELPER} />
+        <TextAreaField name="note" label="Note" helper={NOTE_HELPER} />
       </FormGroup>
     </ActionForm>
   );

@@ -13,7 +13,7 @@ import { clientReviewLead, decideLead, fynixOverturnRejection, listClientLeads, 
 import { fynixRecordMeetingOutcome, listClientMeetings, recordMeetingOutcome } from "@/server/domain/meetings";
 import { listMeetingJoins, listMeetingJoinsForFynix } from "@/server/domain/meeting-joins";
 import { pickPostponement, proposePostponement } from "@/server/domain/postponement";
-import { createPartnerAgency } from "@/server/domain/suppliers";
+import { createPartnerAgency } from "@/server/domain/coordinators";
 import { refusal } from "@/server/domain/test-helpers";
 import { openDomainRig } from "@/server/domain/testing";
 import { importJoinRecords, sendMeetingReminderEmails, sendReminderEmails, sweepLeadsWithEmails } from "@/server/mail/launch-sweep";
@@ -107,7 +107,7 @@ beforeEach(async () => {
   };
   const coordinatorAlias = await verifiedAlias(coordinatorMember, "Lena Hartmann", "lena@brand.example", "ALI-3M2K");
 
-  const partnerOrg = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: world.brightpath.id, name: "Ridgeway Partner Ltd" });
+  const partnerOrg = await createPartnerAgency(rig.deps(), rig.actor, { coordinatorId: world.brightpath.id, name: "Ridgeway Partner Ltd" });
   const partnerPerson = await addPerson(partnerOrg.id, "agency", "Pia Ridgeway", "pia@ridgeway.example", "manager");
   await owner.insert(campaignShare).values({ campaignId: target.id, agencyOrgId: partnerOrg.id, monthlyShare: 3 });
   const partnerAlias = await verifiedAlias(partnerPerson.memberId, "Piet Ridge", "piet@ridgeway-brand.example", "ALI-9R4T");
@@ -326,7 +326,7 @@ describe("a submitted lead, a proposal of other times and a booked meeting", () 
     const idOf = (email: string) => people.find((person) => person.email === email)?.id;
     for (const row of await mails()) {
       const id = idOf(row.recipient);
-      const expected = id === cast.clientActor.userId || id === cast.clientColleague.userId ? `/client/leads/${one.publicRef}` : id === cast.coordinator.userId || id === cast.coordinatorColleague.userId ? `/supplier/leads/${one.publicRef}` : `/fynix/leads/${one.publicRef}`;
+      const expected = id === cast.clientActor.userId || id === cast.clientColleague.userId ? `/client/leads/${one.publicRef}` : id === cast.coordinator.userId || id === cast.coordinatorColleague.userId ? `/coordinator/leads/${one.publicRef}` : `/fynix/leads/${one.publicRef}`;
       expect(row.link, row.template).toBe(`${ORIGIN}${expected}`);
     }
   });

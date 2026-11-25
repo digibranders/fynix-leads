@@ -5,26 +5,27 @@ import { FormSheet } from "../forms/form-sheet";
 import { ConfirmAction } from "../forms/confirm-action";
 import { NewAgreementForm, ShareForm } from "../forms/campaign-forms";
 
-type Defaults = { monthlyTarget: number; totalTarget: number; disputeWindowHours: number; rules: string; notes: string };
+type Defaults = { monthlyTarget: number; totalTarget: number; rules: string; notes: string };
 
-export function NewVersionButton({ campaignId, defaults }: { campaignId: string; defaults: Defaults | null }) {
+/** `first` is the first version of an agreement: it starts from the campaign's numbers and the standard rules rather than from a version in force. */
+export function NewVersionButton({ campaignId, defaults, first = false }: { campaignId: string; defaults: Defaults | null; first?: boolean }) {
   return (
     <FormSheet
       trigger={
         <Button variant="secondary" size="sm" className="shrink-0">
           <PencilSimple aria-hidden />
-          {defaults === null ? "First version" : "New version"}
+          {first ? "First version" : "New version"}
         </Button>
       }
-      title={defaults === null ? "First agreement" : "New agreement version"}
-      description={defaults === null ? "Set the numbers and the counting rules." : "It replaces the current version. The current one stays in the history."}
+      title={first ? "First agreement" : "New agreement version"}
+      description={first ? "The numbers start from the campaign and the rules from the standard ones. Change what this campaign needs." : "It replaces the current version. The current one stays in the history."}
     >
       <NewAgreementForm campaignId={campaignId} defaults={defaults} />
     </FormSheet>
   );
 }
 
-export function AddShareButton({ campaignId, options }: { campaignId: string; options: readonly { id: string; name: string }[] }) {
+export function AddShareButton({ campaignId, options, suggested }: { campaignId: string; options: readonly { id: string; name: string }[]; suggested?: number }) {
   return (
     <FormSheet
       trigger={
@@ -34,9 +35,9 @@ export function AddShareButton({ campaignId, options }: { campaignId: string; op
         </Button>
       }
       title="Add share"
-      description="How many meetings a month an agency takes on for this campaign."
+      description="How many meetings a month an agency takes on for this campaign. It starts from what is left of the campaign's monthly number."
     >
-      <ShareForm campaignId={campaignId} options={options} />
+      <ShareForm campaignId={campaignId} options={options} {...(suggested === undefined ? {} : { suggested })} />
     </FormSheet>
   );
 }

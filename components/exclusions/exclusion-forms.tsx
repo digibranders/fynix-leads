@@ -18,7 +18,7 @@ export function AddExclusionForm({ clientOrgId }: { clientOrgId: string }) {
         <p className="text-body text-ink-muted">A lead for a company on this list is refused when an agency sends it. Use it for current customers, competitors and anyone you do not want contacted.</p>
         <SelectField name="kind" label="What to exclude" options={KINDS} defaultValue="domain" />
         <TextField name="value" label="Domain or company name" helper="For a domain, write it as example.com." />
-        <TextAreaField name="reason" label="Reason" rows={2} helper="Optional. Only your team reads it." />
+        <TextAreaField name="reason" label="Reason" helper="Optional. Only your team reads it." />
       </FormGroup>
     </ActionForm>
   );

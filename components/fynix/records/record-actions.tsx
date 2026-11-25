@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { setOrganisationStatusAction } from "@/server/fynix/actions";
 import { FormSheet } from "../forms/form-sheet";
 import { InlineAction } from "../forms/inline-action";
-import { EditOrganisationForm } from "../forms/supplier-forms";
+import { EditOrganisationForm } from "../forms/coordinator-forms";
 
 /** Renames a client or a coordinator and sets its time zone. Shown only to an admin. */
 export function EditOrganisationButton({ organisationId, name, timeZone, label }: { organisationId: string; name: string; timeZone: string | null; label: "Client" | "Coordinator" | "Agency" }) {

@@ -23,14 +23,14 @@ import { loadEnvLocal } from "@/server/env-file";
 import { runScript } from "@/server/run-script";
 
 // Development only. Fills the dev database with sample leads, meetings, conversations, an agreement, a host and an alias, so
-// every screen of the client, supplier and agency portals shows rows. It writes as the owner role, so it never goes through
+// every screen of the client, coordinator and agency portals shows rows. It writes as the owner role, so it never goes through
 // the app's own checks: do not point it at anything but the dev database.
 //
 // It needs the three dev accounts and organisations that `pnpm admin:create` and the dev sign-in setup leave behind:
-// dev-client, dev-supplier and dev-agency (see the README). It refuses a database that already holds a lead.
+// dev-client, dev-coordinator and dev-agency (see the README). It refuses a database that already holds a lead.
 
 const CLIENT_REF = "ORG-8H3D";
-const SUPPLIER_REF = "ORG-2B6R";
+const COORDINATOR_REF = "ORG-2B6R";
 const AGENCY_REF = "ORG-DV01";
 const DAY = 86_400_000;
 
@@ -84,25 +84,25 @@ runScript(async () => {
     const existing = await db.select({ id: lead.id }).from(lead).limit(1);
     if (existing.length > 0) throw new Error("The dev database already holds leads, so nothing was seeded.");
 
-    const orgs = await db.select({ id: organisation.id, ref: organisation.publicRef }).from(organisation).where(inArray(organisation.publicRef, [CLIENT_REF, SUPPLIER_REF, AGENCY_REF]));
+    const orgs = await db.select({ id: organisation.id, ref: organisation.publicRef }).from(organisation).where(inArray(organisation.publicRef, [CLIENT_REF, COORDINATOR_REF, AGENCY_REF]));
     const orgId = (ref: string): string => firstRow(orgs.filter((row) => row.ref === ref), `organisation ${ref}`).id;
     const clientOrg = orgId(CLIENT_REF);
-    const supplierOrg = orgId(SUPPLIER_REF);
+    const coordinatorOrg = orgId(COORDINATOR_REF);
     const agencyOrg = orgId(AGENCY_REF);
 
     const people = await db
       .select({ userId: user.id, email: user.email, memberId: member.id })
       .from(user)
       .innerJoin(member, eq(member.userId, user.id))
-      .where(inArray(user.email, ["dev-client@fynix-leads.test", "dev-supplier@fynix-leads.test", "dev-agency@fynix-leads.test", "dev-admin@fynix-leads.test"]));
+      .where(inArray(user.email, ["dev-client@fynix-leads.test", "dev-coordinator@fynix-leads.test", "dev-agency@fynix-leads.test", "dev-admin@fynix-leads.test"]));
     const person = (email: string) => firstRow(people.filter((row) => row.email === email), `user ${email}`);
     const clientUser = person("dev-client@fynix-leads.test");
-    const supplierUser = person("dev-supplier@fynix-leads.test");
+    const coordinatorUser = person("dev-coordinator@fynix-leads.test");
     const agencyUser = person("dev-agency@fynix-leads.test");
     const adminUser = person("dev-admin@fynix-leads.test");
 
-    const campaigns = await db.select({ id: campaign.id, ref: campaign.publicRef, name: campaign.name }).from(campaign).where(and(eq(campaign.clientOrgId, clientOrg), eq(campaign.agencyOrgId, supplierOrg))).orderBy(campaign.publicRef);
-    const first = firstRow(campaigns, "a campaign of the dev client served by the dev supplier");
+    const campaigns = await db.select({ id: campaign.id, ref: campaign.publicRef, name: campaign.name }).from(campaign).where(and(eq(campaign.clientOrgId, clientOrg), eq(campaign.agencyOrgId, coordinatorOrg))).orderBy(campaign.publicRef);
+    const first = firstRow(campaigns, "a campaign of the dev client served by the dev coordinator");
     const second = campaigns[1] ?? first;
     const sampleCampaigns = [first, second] as const;
 
@@ -201,21 +201,21 @@ runScript(async () => {
       }
     }
 
-    // Conversations: client with Fynix, supplier with Fynix, supplier with its agency.
+    // Conversations: client with Fynix, coordinator with Fynix, coordinator with its agency.
     const threads = [
-      { ref: "MSG-2K4P", side: "client_fynix", clientOrgId: clientOrg, supplierOrgId: null, agencyOrgId: null, subject: "Meeting times for the Nordic campaign", lead: "LD-8T4V", sender: clientUser, role: "client", name: "Dev Client", body: "Could we move the Fjordline call to the afternoon? The morning clashes with a board review." },
-      { ref: "MSG-5R7T", side: "supplier_fynix", clientOrgId: null, supplierOrgId: supplierOrg, agencyOrgId: null, subject: "Monthly target for frozen food", lead: null, sender: supplierUser, role: "supplier", name: "Dev Supplier", body: "We have four qualified prospects ready for next week. Is the share allocation confirmed?" },
+      { ref: "MSG-2K4P", side: "client_fynix", clientOrgId: clientOrg, coordinatorOrgId: null, agencyOrgId: null, subject: "Meeting times for the Nordic campaign", lead: "LD-8T4V", sender: clientUser, role: "client", name: "Dev Client", body: "Could we move the Fjordline call to the afternoon? The morning clashes with a board review." },
+      { ref: "MSG-5R7T", side: "supplier_fynix", clientOrgId: null, coordinatorOrgId: coordinatorOrg, agencyOrgId: null, subject: "Monthly target for frozen food", lead: null, sender: coordinatorUser, role: "supplier", name: "Dev Coordinator", body: "We have four qualified prospects ready for next week. Is the share allocation confirmed?" },
     ] as const;
     for (const thread of threads) {
       const target = sampleCampaigns[0];
       const created = firstRow(
         await db
           .insert(conversation)
-          .values({ publicRef: thread.ref, campaignId: target.id, leadId: thread.lead === null ? null : (leadIds.get(thread.lead) ?? null), side: thread.side, clientOrgId: thread.clientOrgId, supplierOrgId: thread.supplierOrgId, agencyOrgId: thread.agencyOrgId, subject: thread.subject })
+          .values({ publicRef: thread.ref, campaignId: target.id, leadId: thread.lead === null ? null : (leadIds.get(thread.lead) ?? null), side: thread.side, clientOrgId: thread.clientOrgId, coordinatorOrgId: thread.coordinatorOrgId, agencyOrgId: thread.agencyOrgId, subject: thread.subject })
           .returning({ id: conversation.id }),
         `conversation ${thread.ref}`,
       );
-      await db.insert(conversationMessage).values({ conversationId: created.id, senderUserId: thread.sender.userId, senderOrgId: thread.clientOrgId ?? thread.agencyOrgId ?? thread.supplierOrgId, senderRole: thread.role, senderName: thread.name, body: thread.body });
+      await db.insert(conversationMessage).values({ conversationId: created.id, senderUserId: thread.sender.userId, senderOrgId: thread.clientOrgId ?? thread.agencyOrgId ?? thread.coordinatorOrgId, senderRole: thread.role, senderName: thread.name, body: thread.body });
       await db.insert(conversationMessage).values({ conversationId: created.id, senderUserId: adminUser.userId, senderOrgId: null, senderRole: "fynix", senderName: "Fynix", body: "Thanks, we are looking at this now and will come back today." });
     }
 

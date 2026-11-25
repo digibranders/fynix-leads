@@ -26,7 +26,7 @@ export interface ClientLeadRow {
   readonly submittedByUserId?: unknown;
   readonly aliasIdentityId?: unknown;
   readonly agencyName?: unknown;
-  readonly supplierName?: unknown;
+  readonly coordinatorName?: unknown;
 }
 
 export interface AgencyLeadRow {
@@ -107,7 +107,7 @@ export function toCsv(
 
 /**
  * Generates an RFC 4180 CSV export for client portal users.
- * Strict privacy guarantee: never includes agency name, supplier name,
+ * Strict privacy guarantee: never includes agency name, coordinator name,
  * sourceOrgId, submittedByUserId, or aliasIdentityId.
  */
 export function generateClientLeadsCsv(leads: readonly ClientLeadRow[]): string {
@@ -153,7 +153,7 @@ export function generateClientLeadsCsv(leads: readonly ClientLeadRow[]): string 
 }
 
 /**
- * Generates an RFC 4180 CSV export for agency and supplier portal users.
+ * Generates an RFC 4180 CSV export for agency and coordinator portal users.
  * Strict privacy guarantee: never includes client contact direct phone number or direct email.
  */
 export function generateAgencyLeadsCsv(leads: readonly AgencyLeadRow[]): string {

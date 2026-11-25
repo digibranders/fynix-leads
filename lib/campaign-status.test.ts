@@ -21,24 +21,24 @@ describe("campaignBucket", () => {
 });
 
 describe("goLiveRefusal", () => {
-  const ready = { agreed: true, clientAccepted: true, supplierAccepted: true, hasHost: true };
+  const ready = { agreed: true, clientAccepted: true, coordinatorAccepted: true, hasHost: true };
 
   it("lets a campaign with both acceptances and a host go live", () => expect(goLiveRefusal(ready)).toBeNull());
 
   it("names the side that has not accepted", () => {
-    expect(goLiveRefusal({ ...ready, agreed: false, supplierAccepted: false })).toEqual({ code: "agreement-not-accepted", message: "The coordinator has not accepted the agreement yet." });
+    expect(goLiveRefusal({ ...ready, agreed: false, coordinatorAccepted: false })).toEqual({ code: "agreement-not-accepted", message: "The coordinator has not accepted the agreement yet." });
     expect(goLiveRefusal({ ...ready, agreed: false, clientAccepted: false })).toEqual({ code: "agreement-not-accepted", message: "The client has not accepted the agreement yet." });
-    expect(goLiveRefusal({ ...ready, agreed: false, clientAccepted: false, supplierAccepted: false })?.message).toBe("Neither the client nor the coordinator has accepted the agreement yet.");
+    expect(goLiveRefusal({ ...ready, agreed: false, clientAccepted: false, coordinatorAccepted: false })?.message).toBe("Neither the client nor the coordinator has accepted the agreement yet.");
   });
 
   it("asks for a host only after the agreement, and refuses with no-host", () => {
     expect(goLiveRefusal({ ...ready, hasHost: false })).toEqual({ code: "no-host", message: "The campaign has no active host yet." });
-    expect(goLiveRefusal({ agreed: false, clientAccepted: false, supplierAccepted: false, hasHost: false })?.code).toBe("agreement-not-accepted");
+    expect(goLiveRefusal({ agreed: false, clientAccepted: false, coordinatorAccepted: false, hasHost: false })?.code).toBe("agreement-not-accepted");
   });
 });
 
 describe("notLiveReason", () => {
-  const ready = { agreed: true, clientAccepted: true, supplierAccepted: true, hasHost: true };
+  const ready = { agreed: true, clientAccepted: true, coordinatorAccepted: true, hasHost: true };
 
   it("is null for an active campaign and says why for the others", () => {
     expect(notLiveReason({ status: "active", ...ready })).toBeNull();

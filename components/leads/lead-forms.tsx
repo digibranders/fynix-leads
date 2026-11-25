@@ -93,7 +93,7 @@ export function RejectLeadForm({ leadId, booked }: { leadId: string; booked: boo
         <Notice tone="amber" compact>
           {booked ? "The booked meeting is cancelled and the lead counts as zero. This cannot be undone." : "The lead counts as zero. This cannot be undone."}
         </Notice>
-        <TextAreaField name="declineReason" label="Note" rows={4} helper={`${NOTE_HELPER} The team that sent it reads it as from the client.`} />
+        <TextAreaField name="declineReason" label="Note" helper={`${NOTE_HELPER} The team that sent it reads it as from the client.`} />
       </FormGroup>
     </ActionForm>
   );
@@ -115,7 +115,7 @@ export function DecideLeadForm({ leadId, decision }: { leadId: string; decision:
         <Notice tone={accepting ? "green" : "amber"} compact>
           {accepting ? "The lead counts as one, in the month of its meeting." : "The lead counts as zero. Fynix reads your note and may change the answer."}
         </Notice>
-        <TextAreaField name="note" label="Note" rows={4} helper={accepting ? NOTE_HELPER : `${NOTE_HELPER} The team that sent it reads it as from the client.`} />
+        <TextAreaField name="note" label="Note" helper={accepting ? NOTE_HELPER : `${NOTE_HELPER} The team that sent it reads it as from the client.`} />
       </FormGroup>
     </ActionForm>
   );
@@ -134,7 +134,7 @@ export function RecordOutcomeForm({ meetingId, side = "tenant" }: { meetingId: s
       <Hidden name="meetingId" value={meetingId} />
       <FormGroup>
         <SelectField name="outcome" label="What happened" options={OUTCOMES} placeholder="Choose an outcome" />
-        <TextAreaField name="notes" label="Notes" rows={3} helper="Optional." />
+        <TextAreaField name="notes" label="Notes" helper="Optional." />
         <p className="text-caption text-ink-muted">The first outcome recorded is the one that counts. A prospect no-show closes the lead.</p>
       </FormGroup>
     </ActionForm>
@@ -148,7 +148,7 @@ export function OverturnRejectionForm({ leadId }: { leadId: string }) {
       <Hidden name="leadId" value={leadId} />
       <FormGroup>
         <p className="text-body text-ink-muted">The lead counts as one, in the month of its meeting. The client&apos;s note stays in the history.</p>
-        <TextAreaField name="note" label="Note" rows={4} helper={NOTE_HELPER} />
+        <TextAreaField name="note" label="Note" helper={NOTE_HELPER} />
       </FormGroup>
     </ActionForm>
   );

@@ -7,7 +7,7 @@ import { reactivatePersonAction, resendInviteAction, revokeInviteAction, suspend
 import { FormSheet } from "../forms/form-sheet";
 import { InlineAction } from "../forms/inline-action";
 import { EditPersonForm } from "../forms/people-forms";
-import { FYNIX_ROLES, InvitePersonForm } from "../forms/supplier-forms";
+import { FYNIX_ROLES, InvitePersonForm } from "../forms/coordinator-forms";
 
 type Organisations = readonly { readonly id: string; readonly name: string }[];
 

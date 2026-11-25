@@ -32,7 +32,7 @@ export async function saveDraftAction(_previous: DraftActionResult, formData: Fo
     const actor = { userId: context.userId, orgId: context.orgId, orgKind: "agency" as const, role: context.memberRole };
     const saved = draftId === "" ? await saveDraft(db, deps, actor, draftInput(formData, { campaignId })) : await updateDraft(db, deps, actor, draftInput(formData, { leadId: draftId }));
     revalidatePath("/agency/leads");
-    revalidatePath("/supplier/leads");
+    revalidatePath("/coordinator/leads");
     return { status: "success", message: "Draft saved", leadId: saved.id };
   } catch (error) {
     if (error instanceof DomainError) return { status: "error", message: error.message };
@@ -54,6 +54,6 @@ export async function discardDraftAction(_previous: FormState, formData: FormDat
       if (context.kind !== "agency") return;
       await discardDraft(getDatabase("leads_agency").db, getDomain(), { userId: context.userId, orgId: context.orgId, orgKind: "agency", role: context.memberRole }, input);
     },
-    revalidate: ["/agency", "/supplier"],
+    revalidate: ["/agency", "/coordinator"],
   });
 }

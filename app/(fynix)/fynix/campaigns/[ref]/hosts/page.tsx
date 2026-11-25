@@ -33,6 +33,7 @@ async function Hosts({ params, searchParams }: { params: PageProps<"/fynix/campa
         campaignZone={campaign.timeZone}
         selectedId={selected?.memberId}
         canWrite={view.canWrite && !isClosed(campaign.status)}
+        inviteHref={`/fynix/clients/${campaign.clientRef}/people/new`}
       />
       {selected !== undefined && (
         <HostPanel host={selected} reference={campaign.publicRef} campaignId={campaign.id} clientName={campaign.clientName} campaignZone={campaign.timeZone} now={deps.now()} canWrite={view.canWrite && !isClosed(campaign.status)} />

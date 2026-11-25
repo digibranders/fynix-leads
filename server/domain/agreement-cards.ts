@@ -18,7 +18,7 @@ export interface TenantAgreementCard extends AgreementCardModel<TenantAgreementV
  * a newer version waiting for acceptance and the history. `orgKind` decides which side is "own".
  */
 export async function loadAgreementCards(db: Database, actor: TenantActor & { readonly orgKind: "client" | "agency" }): Promise<readonly TenantAgreementCard[]> {
-  const [current, campaigns] = await Promise.all([listCurrentAgreements(db, actor), listTenantCampaigns(db, actor, actor.orgKind === "client" ? "client" : "supplier")]);
+  const [current, campaigns] = await Promise.all([listCurrentAgreements(db, actor), listTenantCampaigns(db, actor, actor.orgKind === "client" ? "client" : "coordinator")]);
   const status = new Map(campaigns.map((row) => [row.id, row.status]));
   const cards = await Promise.all(
     current.map(async (row): Promise<TenantAgreementCard> => ({

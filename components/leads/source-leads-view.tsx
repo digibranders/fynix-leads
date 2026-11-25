@@ -25,7 +25,7 @@ import { filterLeads, paginate } from "@/lib/leads/list";
 import type { PipelineKey } from "@/lib/leads/pipeline";
 import type { LeadStage } from "@/lib/leads/stage";
 
-/** The columns of a lead that a supplier or an agency sees on the list. Nothing about the client's people is in it. */
+/** The columns of a lead that a coordinator or an agency sees on the list. Nothing about the client's people is in it. */
 export interface SourceLeadRow {
   readonly id: string;
   readonly publicRef: string;
@@ -75,7 +75,7 @@ function sourceOf(lead: SourceLeadRow, props: SourceLeadsViewProps): string {
   return alias ?? "your team";
 }
 
-/** The leads of a supplier or an agency: stage bar, search, table, pager. State is in the URL, as on the client's list. */
+/** The leads of a coordinator or an agency: stage bar, search, table, pager. State is in the URL, as on the client's list. */
 export function SourceLeadsView(props: SourceLeadsViewProps) {
   const { leads, basePath, submitHref, emptyText, group, q } = props;
   const { campaign: chosen, campaignChoices } = props;

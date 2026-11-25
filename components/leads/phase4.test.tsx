@@ -213,7 +213,7 @@ describe("the lead record after phase 4", () => {
   });
   it("shows the coordinator the review window, and Fynix the request with its badge, and a client neither", () => {
     const rejected = record({ stage: "rejected", decision: { note: "Wrong person", at: new Date("2026-11-24T00:00:00Z"), source: "client", byName: null } });
-    expect(renderToStaticMarkup(<LeadRecordView record={rejected} viewer="supply" isCoordinator backHref="/supplier/leads" now={now} />)).toContain("You can ask Fynix to review this rejection: 36h left");
+    expect(renderToStaticMarkup(<LeadRecordView record={rejected} viewer="supply" isCoordinator backHref="/coordinator/leads" now={now} />)).toContain("You can ask Fynix to review this rejection: 36h left");
     expect(renderToStaticMarkup(<LeadRecordView record={rejected} viewer="supply" backHref="/agency/leads" now={now} />)).not.toContain("ask Fynix to review");
     const asked = { ...rejected, reviewRequest: { note: "He is the buyer", requestedAt: now, status: "open" } };
     const fynix = renderToStaticMarkup(<LeadRecordView record={asked} viewer="fynix" backHref="/fynix/leads" now={now} />);

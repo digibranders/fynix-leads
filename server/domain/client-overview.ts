@@ -2,9 +2,10 @@ import { and, asc, count, desc, eq, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type { CampaignStatus } from "@/lib/domain/campaign-status";
 import { tallyCampaigns, type CampaignCounts } from "@/lib/fynix/campaign-counts";
-import { campaign, clientCollateral, clientProfile, member, organisation } from "@/server/db/schema";
+import { campaign, clientCollateral, clientContact, clientProfile, member, organisation } from "@/server/db/schema";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
+import { readClientContacts, type ClientContactRecord } from "@/server/domain/client-contacts";
 import { fynixRead, type FynixActor } from "@/server/domain/fynix-write";
 import { readActivity, readPeople, type ActivityRow, type PersonRow } from "@/server/domain/people-overview";
 import { contactColumns, type ClientProfileRecord, type CollateralRecord, type OrganisationContact } from "@/server/domain/organisations";
@@ -33,14 +34,18 @@ export async function listClientRows(deps: DomainDeps, actor: FynixActor): Promi
       .orderBy(asc(organisation.name));
     const people = new Map((await tx.select({ key: member.orgId, n: count() }).from(member).where(eq(member.orgKind, "client")).groupBy(member.orgId)).map((row) => [row.key, row.n]));
     const statuses = await tx.select({ key: campaign.clientOrgId, status: campaign.status }).from(campaign);
+    const firstEmail = new Map<string, string>();
+    for (const person of await tx.select({ key: clientContact.clientOrgId, email: clientContact.email }).from(clientContact).where(isNull(clientContact.removedAt)).orderBy(asc(clientContact.createdAt))) {
+      if (person.email !== null && !firstEmail.has(person.key)) firstEmail.set(person.key, person.email);
+    }
     return clients.map((row): ClientRow => {
       const own = statuses.filter((entry) => entry.key === row.id).map((entry) => entry.status);
-      return { ...row, peopleCount: people.get(row.id) ?? 0, campaignCount: own.length, campaignCounts: tallyCampaigns(own) };
+      return { ...row, contactEmail: firstEmail.get(row.id) ?? row.contactEmail, peopleCount: people.get(row.id) ?? 0, campaignCount: own.length, campaignCounts: tallyCampaigns(own) };
     });
   });
 }
 
-const supplierOrg = alias(organisation, "supplier_org");
+const coordinatorOrg = alias(organisation, "supplier_org");
 const ORGANISATION_REF = /^ORG-[0-9A-HJKMNP-TV-Z]{4}$/;
 
 export interface ClientCampaignRow {
@@ -48,7 +53,7 @@ export interface ClientCampaignRow {
   readonly publicRef: string;
   readonly name: string;
   readonly status: CampaignStatus;
-  readonly supplierName: string;
+  readonly coordinatorName: string;
 }
 
 /** One client in full: the record, its profile and collateral, its people, its campaigns and the recorded changes. */
@@ -62,6 +67,8 @@ export interface ClientDetail {
   readonly createdAt: Date;
   readonly profile: ClientProfileRecord | null;
   readonly collateral: readonly CollateralRecord[];
+  /** The contact people Fynix keeps for the client. Not logins. */
+  readonly contacts: readonly ClientContactRecord[];
   readonly people: readonly PersonRow[];
   readonly campaigns: readonly ClientCampaignRow[];
   readonly campaignCounts: CampaignCounts;
@@ -89,15 +96,16 @@ export async function readClientDetail(deps: DomainDeps, actor: FynixActor, publ
       .from(clientCollateral)
       .where(and(eq(clientCollateral.clientOrgId, found.id), isNull(clientCollateral.removedAt)))
       .orderBy(asc(clientCollateral.createdAt));
+    const contacts = await readClientContacts(tx, found.id);
     const campaigns = await tx
-      .select({ id: campaign.id, publicRef: campaign.publicRef, name: campaign.name, status: campaign.status, supplierName: supplierOrg.name })
+      .select({ id: campaign.id, publicRef: campaign.publicRef, name: campaign.name, status: campaign.status, coordinatorName: coordinatorOrg.name })
       .from(campaign)
-      .innerJoin(supplierOrg, eq(supplierOrg.id, campaign.agencyOrgId))
+      .innerJoin(coordinatorOrg, eq(coordinatorOrg.id, campaign.agencyOrgId))
       .where(eq(campaign.clientOrgId, found.id))
       .orderBy(desc(campaign.createdAt), asc(campaign.name));
     const people = await readPeople(tx, [{ id: found.id, name: found.name }], now);
     const activity = await readActivity(tx, [found.id, ...people.filter((person) => person.kind === "member").map((person) => person.id)], found.publicRef);
     const { contactName, contactEmail, contactPhone, website, address, notes, ...record } = found;
-    return { ...record, contact: { contactName, contactEmail, contactPhone, website, address, notes }, profile: profile ?? null, collateral, people, campaigns, campaignCounts: tallyCampaigns(campaigns.map((row) => row.status)), activity };
+    return { ...record, contact: { contactName, contactEmail, contactPhone, website, address, notes }, profile: profile ?? null, collateral, contacts, people, campaigns, campaignCounts: tallyCampaigns(campaigns.map((row) => row.status)), activity };
   });
 }

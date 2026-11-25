@@ -46,7 +46,7 @@ export const conversation = pgTable(
     /** Set for a group conversation (migration 0051), and then no organisation id is. */
     groupId: uuid("group_id"),
     clientOrgId: uuid("client_org_id"),
-    supplierOrgId: uuid("supplier_org_id"),
+    coordinatorOrgId: uuid("supplier_org_id"),
     agencyOrgId: uuid("agency_org_id"),
     subject: text("subject"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -71,7 +71,7 @@ export const conversation = pgTable(
     }).onDelete("cascade"),
     foreignKey({
       name: "conversation_supplier_org_fk",
-      columns: [table.supplierOrgId],
+      columns: [table.coordinatorOrgId],
       foreignColumns: [organisation.id],
     }).onDelete("cascade"),
     foreignKey({
@@ -87,7 +87,7 @@ export const conversation = pgTable(
     index("conversation_campaign_idx").on(table.campaignId),
     index("conversation_lead_idx").on(table.leadId),
     index("conversation_client_org_idx").on(table.clientOrgId),
-    index("conversation_supplier_org_idx").on(table.supplierOrgId),
+    index("conversation_supplier_org_idx").on(table.coordinatorOrgId),
     index("conversation_agency_org_idx").on(table.agencyOrgId),
   ],
 );

@@ -5,7 +5,7 @@ import { listAgencyRows, readAgencyDetail } from "@/server/domain/agency-overvie
 import { listFynixLeads } from "@/server/domain/lead-reads";
 import { setOrganisationStatus, updateOrganisation } from "@/server/domain/organisations";
 import { readSetupFindings } from "@/server/domain/setup-overview";
-import { createPartnerAgency } from "@/server/domain/suppliers";
+import { createPartnerAgency } from "@/server/domain/coordinators";
 import { openDomainRig } from "@/server/domain/testing";
 
 const rig = openDomainRig();
@@ -26,7 +26,7 @@ async function agencyWithLeads() {
   const target = world.campaigns.find((row) => row.agency.id === world.brightpath.id);
   if (target === undefined) throw new Error("The seed has no campaign served by Brightpath");
   await owner.update(campaign).set({ timeZone: "UTC", status: "active" }).where(eq(campaign.id, target.id));
-  const agency = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: world.brightpath.id, name: "Ridgeway Agency", contactEmail: "hello@ridgeway.example" });
+  const agency = await createPartnerAgency(rig.deps(), rig.actor, { coordinatorId: world.brightpath.id, name: "Ridgeway Agency", contactEmail: "hello@ridgeway.example" });
   const [person] = await owner.insert(user).values({ email: "pia@ridgeway.example", name: "Pia Ridgeway" }).returning({ id: user.id });
   const [mine] = await owner.insert(member).values({ userId: person?.id ?? "", orgId: agency.id, orgKind: "agency", role: "manager", displayName: "Pia Ridgeway" }).returning({ id: member.id });
   await owner.insert(campaignShare).values({ campaignId: target.id, agencyOrgId: agency.id, monthlyShare: 3 });
@@ -117,7 +117,7 @@ describe("the Fynix leads read by source", () => {
 describe("the set-up findings", () => {
   it("name an active partner agency with no manager", async () => {
     const { brightpath } = rig.world();
-    const agency = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: brightpath.id, name: "Unmanaged Agency" });
+    const agency = await createPartnerAgency(rig.deps(), rig.actor, { coordinatorId: brightpath.id, name: "Unmanaged Agency" });
     expect((await readSetupFindings(rig.deps(), rig.staffActor)).agenciesWithoutManager).toEqual([{ name: "Unmanaged Agency", ref: agency.publicRef }]);
   });
 });

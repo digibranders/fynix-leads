@@ -13,6 +13,9 @@ export const AUDIT_ACTIONS = [
   "client_profile.update",
   "client_collateral.add",
   "client_collateral.remove",
+  "client_contact.add",
+  "client_contact.update",
+  "client_contact.remove",
   "campaign.create",
   "campaign.update",
   "campaign.archive",
@@ -62,6 +65,7 @@ export type AuditSubjectTable =
   | "organisation"
   | "client_profile"
   | "client_collateral"
+  | "client_contact"
   | "campaign"
   | "invite"
   | "member"

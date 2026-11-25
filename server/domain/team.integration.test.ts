@@ -4,7 +4,7 @@ import { invite, member, organisation } from "@/server/db/schema";
 import { captureErrorText, queryAs } from "@/server/db/testing";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import { issueTenantInvite, listInvites, previewInvite } from "@/server/domain/invites";
-import { createPartnerAgency } from "@/server/domain/suppliers";
+import { createPartnerAgency } from "@/server/domain/coordinators";
 import { addPartnerAgencyAsCoordinator, listMyTeam, readOwnFynixProfile, readOwnProfile, setMemberMeetingEmails, updateOwnFynixProfile, updateOwnProfile } from "@/server/domain/team";
 import { auditRowsFor, latestInviteLink, publishApprovedTerms, refusal } from "@/server/domain/test-helpers";
 import { openDomainRig } from "@/server/domain/testing";
@@ -72,7 +72,7 @@ describe("listMyTeam", () => {
 
   it("gives a coordinator its own people and its partner agencies' people, and a partner agency only its own", async () => {
     const coordinator = await managerOf(rig.world().brightpath.id);
-    const partner = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: coordinator.orgId, name: "Ridgeway Partner Media Ltd" });
+    const partner = await createPartnerAgency(rig.deps(), rig.actor, { coordinatorId: coordinator.orgId, name: "Ridgeway Partner Media Ltd" });
     await issueTenantInvite(rig.deps(), agencyDb(), coordinator, { organisationId: partner.id, email: "child@ridgeway.example", name: "Child Person", ...JOB });
     const seen = await listMyTeam(agencyDb(), rig.deps(), coordinator);
     expect(seen.find((row) => row.email === "child@ridgeway.example")).toMatchObject({ orgId: partner.id, orgName: "Ridgeway Partner Media Ltd", kind: "invite" });
@@ -125,7 +125,7 @@ describe("addPartnerAgencyAsCoordinator", () => {
     const client = await managerOf(rig.world().kestrel.id);
     expect((await refusal(addPartnerAgencyAsCoordinator(rig.deps(), clientDb(), client, { name: "Nope" }))).code).toBe("not-authorised");
     const coordinator = await managerOf(rig.world().brightpath.id);
-    const partner = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: coordinator.orgId, name: "Ridgeway Partner Media Ltd" });
+    const partner = await createPartnerAgency(rig.deps(), rig.actor, { coordinatorId: coordinator.orgId, name: "Ridgeway Partner Media Ltd" });
     // The partner's manager is a person of the partner agency; the pre-check lets an agency manager through, so this is the database refusing.
     const partnerManager: TenantActor = { userId: coordinator.userId, orgId: partner.id, orgKind: "agency", role: "manager" };
     await rig.dbs.owner.db.update(member).set({ orgId: partner.id }).where(eq(member.userId, coordinator.userId));
@@ -243,7 +243,7 @@ describe("what Fynix sees of an invite a tenant sent", () => {
 describe("previewInvite: Coordinator or Agency", () => {
   it("says a coordinator's invite is not for a partner agency, and a partner agency's is", async () => {
     const coordinator = await managerOf(rig.world().brightpath.id);
-    const partner = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: coordinator.orgId, name: "Ridgeway Partner Media Ltd" });
+    const partner = await createPartnerAgency(rig.deps(), rig.actor, { coordinatorId: coordinator.orgId, name: "Ridgeway Partner Media Ltd" });
     await issueTenantInvite(rig.deps(), agencyDb(), coordinator, { organisationId: coordinator.orgId, email: "own@brightpath.example", name: "Own Person", ...JOB });
     await issueTenantInvite(rig.deps(), agencyDb(), coordinator, { organisationId: partner.id, email: "child@ridgeway.example", name: "Child Person", ...JOB });
     const own = await previewInvite(rig.deps(), { token: (await latestInviteLink(rig, "own@brightpath.example")).token, address: "203.0.113.80" });

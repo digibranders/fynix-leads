@@ -12,7 +12,7 @@ export interface PartnerView {
   readonly shares: readonly { readonly campaignName: string; readonly monthlyShare: number }[];
 }
 
-/** The partner agencies working under the supplier, and the monthly share of each campaign that each one holds. A coordinator manager adds agencies; this list is read only. */
+/** The partner agencies working under the coordinator, and the monthly share of each campaign that each one holds. A coordinator manager adds agencies; this list is read only. */
 export function PartnersView({ partners, canAdd = false }: { readonly partners: readonly PartnerView[]; readonly canAdd?: boolean }) {
   if (partners.length === 0) {
     return (

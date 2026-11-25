@@ -1,13 +1,14 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import { Choice } from "@/components/ui/choice";
 import { DateField, TimeField } from "@/components/ui/date-time";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { SearchChoice } from "@/components/ui/search-choice";
 import { Tonal } from "@/components/kit/panel";
 import { Textarea } from "@/components/ui/textarea";
-import { COMMON_TIME_ZONES } from "@/lib/fynix/time-zones";
+import { COMMON_TIME_ZONES, looksLikeTimeZone } from "@/lib/fynix/time-zones";
 import { useFormState, useOnPage } from "./action-form";
 
 /** What a field shows: after a failed attempt, what was typed; otherwise the starting value. */
@@ -75,9 +76,25 @@ export function TextField({
   );
 }
 
-/** A time zone box that suggests common zones as you type. Any IANA zone can be typed; the field posts as `timeZone`. */
+/** A time zone dropdown with a search box over the common zones. Any other IANA zone can be typed and used; the field posts as `timeZone`. */
 export function TimeZoneField({ defaultValue = "", helper }: { defaultValue?: string; helper: string }) {
-  return <TextField name="timeZone" label="Time zone" defaultValue={defaultValue} helper={helper} suggestions={COMMON_TIME_ZONES} />;
+  const id = `${useId()}-timeZone`;
+  const { value, error } = useField("timeZone", defaultValue);
+  return (
+    <Field id={id} label="Time zone" helper={helper} error={error}>
+      <SearchChoice
+        id={id}
+        name="timeZone"
+        options={COMMON_TIME_ZONES}
+        defaultValue={value}
+        placeholder="Choose a time zone"
+        searchPlaceholder="Search, or type Area/City"
+        acceptsTyped={looksLikeTimeZone}
+        invalid={error !== undefined}
+        aria-describedby={error !== undefined || helper !== undefined ? `${id}-message` : undefined}
+      />
+    </Field>
+  );
 }
 
 /** A whole number. A text box with a number keypad: no spinner, and a typo reaches the schema, which says so in words. */
@@ -85,12 +102,21 @@ export function NumberField(props: Common) {
   return <TextField {...props} inputMode="numeric" />;
 }
 
-export function TextAreaField({ name, label, helper, defaultValue = "", rows = 3 }: Common & { rows?: number }) {
+export function TextAreaField({ name, label, helper, defaultValue = "" }: Common) {
   const id = `${useId()}-${name}`;
   const { value, error } = useField(name, defaultValue);
+  const box = useRef<HTMLTextAreaElement>(null);
+  // Two lines to start with, growing as the person types. Browsers with `field-sizing: content` do it in CSS; the rest are sized here.
+  const grow = () => {
+    const el = box.current;
+    if (el === null || (typeof CSS !== "undefined" && CSS.supports("field-sizing", "content"))) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  };
+  useLayoutEffect(grow, []);
   return (
     <Field id={id} label={label} helper={helper} error={error}>
-      <Textarea id={id} name={name} rows={rows} defaultValue={value} {...ariaFor(id, error, helper)} />
+      <Textarea ref={box} id={id} name={name} rows={2} defaultValue={value} onInput={grow} className="max-h-[60dvh] min-h-0 resize-none overflow-y-auto" {...ariaFor(id, error, helper)} />
     </Field>
   );
 }

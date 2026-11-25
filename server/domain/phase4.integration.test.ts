@@ -18,7 +18,7 @@ import { fynixRecordMeetingOutcome, listAgencyMeetings, listClientMeetings, list
 import { readFynixPipelineHealth } from "@/server/domain/pipeline-health";
 import { markRejectionReviewed, listRejectionReviews, requestRejectionReview } from "@/server/domain/rejection-reviews";
 import { listRejections } from "@/server/domain/rejection-overview";
-import { createPartnerAgency } from "@/server/domain/suppliers";
+import { createPartnerAgency } from "@/server/domain/coordinators";
 import { refusal } from "@/server/domain/test-helpers";
 import { openDomainRig } from "@/server/domain/testing";
 import { pickPostponement, proposePostponement, listReschedules } from "@/server/domain/postponement";
@@ -99,7 +99,7 @@ beforeEach(async () => {
 
   // A partner agency under Brightpath with one manager and a share, so a lead can come from an agency that is not the coordinator.
   const partnerName = "Ridgeway Partner Ltd";
-  const partnerOrg = await createPartnerAgency(rig.deps(), rig.actor, { supplierId: world.brightpath.id, name: partnerName });
+  const partnerOrg = await createPartnerAgency(rig.deps(), rig.actor, { coordinatorId: world.brightpath.id, name: partnerName });
   const [partnerUser] = await owner.insert(user).values({ email: "pia@ridgeway.example", name: "Pia Ridgeway" }).returning({ id: user.id });
   if (partnerUser === undefined) throw new Error("No partner user");
   const [partnerMember] = await owner.insert(member).values({ userId: partnerUser.id, orgId: partnerOrg.id, orgKind: "agency", role: "manager", displayName: "Pia Ridgeway" }).returning({ id: member.id });

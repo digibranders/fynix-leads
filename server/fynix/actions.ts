@@ -11,17 +11,17 @@ import { addHostBlock, removeHostBlock, setHostHours } from "@/server/domain/ava
 import { addCampaignHost, deactivateCampaignHost } from "@/server/domain/hosts";
 import {
   addCampaignHostSchema,
-  addCollateralSchema,
-  clientProfileSchema,
+  addClientContactSchema,
   memberDetailsSchema,
-  updateClientProfileSchema,
+  updateClientContactSchema,
   updateOrganisationSchema,
   addHostBlockSchema,
   closeCampaignSchema,
   createCampaignSchema,
   createPartnerAgencySchema,
   createOrganisationSchema,
-  createSupplierSchema,
+  createCoordinatorSchema,
+  firstPersonSchema,
   overturnRejectionSchema,
   recordMeetingOutcomeSchema,
   deactivateCampaignHostSchema,
@@ -41,11 +41,13 @@ import { closeCampaign, createCampaign, reopenCampaign, updateCampaign } from "@
 import { removeCampaignShare, setCampaignShare } from "@/server/domain/shares";
 import { fynixOverturnRejection } from "@/server/domain/leads";
 import { fynixRecordMeetingOutcome } from "@/server/domain/meetings";
-import { addCollateral, createOrganisation, removeCollateral, setOrganisationStatus, updateClientProfile, updateOrganisation } from "@/server/domain/organisations";
-import { createPartnerAgencyWithFirstPerson, createSupplierWithFirstPerson } from "@/server/domain/suppliers";
+import { addClientContact, removeClientContact, updateClientContact } from "@/server/domain/client-contacts";
+import { createOrganisation, setOrganisationStatus, updateOrganisation } from "@/server/domain/organisations";
+import { createPartnerAgencyWithFirstPerson, createCoordinatorWithFirstPerson } from "@/server/domain/coordinators";
 import { publishTerms } from "@/server/domain/terms";
-import { CONTACT_FIELDS, CONTACT_LABELS, contactCreateBody, contactUpdateBody } from "@/server/fynix/contact-fields";
-import { firstInviteNotice, firstPersonBody, firstPersonProblems, FIRST_PERSON_FIELDS } from "@/server/fynix/first-person";
+import { CONTACT_FIELDS, CONTACT_LABELS, contactUpdateBody } from "@/server/fynix/contact-fields";
+import { CONTACT_ROW_FIELDS, contactRowProblems, contactRowsBody } from "@/server/fynix/contact-rows";
+import { firstInviteNotice } from "@/server/fynix/first-person";
 import { field, numberField, runAction } from "@/server/fynix/run-action";
 
 /**
@@ -57,6 +59,7 @@ import { field, numberField, runAction } from "@/server/fynix/run-action";
 const CAMPAIGN_FIELDS = [
   "name", "clientOrgId", "agencyOrgId", "startDate", "endDate", "monthlyTarget", "totalTarget", "geography", "industries", "companySize", "icp", "jobTitles",
   "seniority", "technologies", "bantBudget", "bantAuthority", "bantNeed", "bantTimeline", "instructions", "internalNotes", "timeZone", "meetingMinutes", "status",
+  "pitchIntroduction", "pitchServices", "pitchDifferentiator", "pitchCollaterals", "pitchCaseStudies", "qualifyingQuestions", "firstEmail", "secondEmail", "primaryContactId",
 ] as const;
 
 const CAMPAIGN_LABELS = {
@@ -64,6 +67,8 @@ const CAMPAIGN_LABELS = {
   geography: "Geography", industries: "Industries", companySize: "Company size", icp: "Ideal customer", jobTitles: "Job titles", seniority: "Seniority",
   technologies: "Technologies", bantBudget: "Budget", bantAuthority: "Authority", bantNeed: "Need", bantTimeline: "Timeline", instructions: "Instructions",
   internalNotes: "Internal notes", timeZone: "Time zone", meetingMinutes: "Meeting length", status: "Status",
+  pitchIntroduction: "Introduction", pitchServices: "Services", pitchDifferentiator: "What sets them apart", pitchCollaterals: "Collaterals", pitchCaseStudies: "Case studies",
+  qualifyingQuestions: "Qualifying questions", firstEmail: "First email", secondEmail: "Second email", primaryContactId: "Contact person",
 } as const;
 
 /** "a, b, c" or one per line as a list of trimmed, non-empty entries. */
@@ -93,18 +98,27 @@ function campaignBody(formData: FormData) {
     bantNeed: field(formData, "bantNeed"),
     bantTimeline: field(formData, "bantTimeline"),
     instructions: field(formData, "instructions"),
+    pitchIntroduction: field(formData, "pitchIntroduction"),
+    pitchServices: field(formData, "pitchServices"),
+    pitchDifferentiator: field(formData, "pitchDifferentiator"),
+    pitchCollaterals: field(formData, "pitchCollaterals"),
+    pitchCaseStudies: field(formData, "pitchCaseStudies"),
+    qualifyingQuestions: field(formData, "qualifyingQuestions"),
+    firstEmail: field(formData, "firstEmail"),
+    secondEmail: field(formData, "secondEmail"),
     ...(timeZone === "" ? {} : { timeZone }),
     ...(meetingMinutes === undefined ? {} : { meetingMinutes }),
   };
 }
 
-/** Creates a draft campaign for a client and a supplier, then opens it. */
+/** Creates a draft campaign for a client and a coordinator, then opens it. */
 export async function createCampaignAction(_previous: FormState, formData: FormData): Promise<FormState> {
   const internalNotes = field(formData, "internalNotes").trim();
+  const primaryContactId = field(formData, "primaryContactId");
   return runAction({
     formData,
     fieldNames: CAMPAIGN_FIELDS,
-    build: () => ({ clientOrgId: field(formData, "clientOrgId"), agencyOrgId: field(formData, "agencyOrgId"), ...campaignBody(formData), ...(internalNotes === "" ? {} : { internalNotes }) }),
+    build: () => ({ clientOrgId: field(formData, "clientOrgId"), agencyOrgId: field(formData, "agencyOrgId"), ...campaignBody(formData), ...(internalNotes === "" ? {} : { internalNotes }), ...(primaryContactId === "" ? {} : { primaryContactId }) }),
     schema: createCampaignSchema,
     labels: CAMPAIGN_LABELS,
     perform: async (deps, actor, input) => {
@@ -114,15 +128,22 @@ export async function createCampaignAction(_previous: FormState, formData: FormD
   });
 }
 
-/** Changes a campaign's details, brief, settings and status. The client and the supplier stay as they were. */
+/** Changes a campaign's details, brief, settings and status. The client and the coordinator stay as they were. */
 export async function updateCampaignAction(_previous: FormState, formData: FormData): Promise<FormState> {
   const status = field(formData, "status");
   const internalNotes = field(formData, "internalNotes").trim();
   const campaignId = field(formData, "campaignId");
+  const primaryContactId = field(formData, "primaryContactId");
   return runAction({
     formData,
     fieldNames: CAMPAIGN_FIELDS,
-    build: () => ({ ...campaignBody(formData), internalNotes: internalNotes === "" ? null : internalNotes, ...(status === "" ? {} : { status }) }),
+    // Only what the form posted is changed: a field the form does not carry (the old requirement fields) keeps what is stored.
+    build: () => ({
+      ...Object.fromEntries(Object.entries(campaignBody(formData)).filter(([key]) => formData.has(key))),
+      ...(formData.has("internalNotes") ? { internalNotes: internalNotes === "" ? null : internalNotes } : {}),
+      primaryContactId: primaryContactId === "" ? null : primaryContactId,
+      ...(status === "" ? {} : { status }),
+    }),
     schema: updateCampaignSchema,
     labels: CAMPAIGN_LABELS,
     perform: async (deps, actor, input) => {
@@ -180,73 +201,117 @@ export async function reopenCampaignAction(_previous: FormState, formData: FormD
   });
 }
 
-/** The name, time zone and duplicate tick of a coordinator or agency form. A blank time zone is left out. */
-function agencyBody(formData: FormData) {
-  const timeZone = field(formData, "timeZone").trim();
-  return { name: field(formData, "name"), ...(timeZone === "" ? {} : { timeZone }), ...contactCreateBody((name) => field(formData, name)), confirmDuplicate: field(formData, "confirmDuplicate") === "on" };
+/** What the Add coordinator page asks for: a coordinator is one person, so their name, email and phone are all there is. */
+const ADD_COORDINATOR_FIELDS = ["name", "email", "phone"] as const;
+const COORDINATOR_LABELS = { name: "Name", email: "Email", phone: "Phone" } as const;
+
+/** The coordinator or agency as the person who signs in: the invite fields, with the job title the form does not ask for. */
+function soloPerson(get: (name: string) => string, jobTitle: "Coordinator" | "Agency"): Record<string, string> {
+  const phone = get("phone").trim();
+  return { name: get("name").trim(), jobTitle, email: get("email").trim(), role: "manager", ...(phone === "" ? {} : { phone }) };
 }
 
-const AGENCY_FIELDS = ["name", "timeZone", ...CONTACT_FIELDS, ...FIRST_PERSON_FIELDS] as const;
-const AGENCY_LABELS = { name: "Name", timeZone: "Time zone", supplierId: "Coordinator", ...CONTACT_LABELS } as const;
-
-/** Adds a coordinator, and invites its first person in the same step when one is given. If the invite is refused the coordinator is still added and the notice says why. */
-export async function addSupplierAction(_previous: FormState, formData: FormData): Promise<FormState> {
+/**
+ * Adds a coordinator: one person, who is both the coordinator record and the person invited to sign in. Their name names the record, and the
+ * name, email and phone are kept as its contact. If the invite is refused (the email is taken, or no terms are published) the coordinator is still added and the notice says why.
+ */
+export async function addCoordinatorAction(_previous: FormState, formData: FormData): Promise<FormState> {
   const get = (name: string) => field(formData, name);
+  const phone = get("phone").trim();
   return runAction({
     formData,
-    fieldNames: AGENCY_FIELDS,
-    precheck: () => firstPersonProblems(get),
-    build: () => agencyBody(formData),
-    schema: createSupplierSchema,
-    labels: AGENCY_LABELS,
+    fieldNames: ADD_COORDINATOR_FIELDS,
+    precheck: () => {
+      const checked = firstPersonSchema.safeParse(soloPerson(get, "Coordinator"));
+      return checked.success ? {} : fieldErrors(checked.error, COORDINATOR_LABELS);
+    },
+    build: () => ({ name: get("name"), contactName: get("name").trim(), contactEmail: get("email").trim(), ...(phone === "" ? {} : { contactPhone: phone }), confirmDuplicate: get("confirmDuplicate") === "on" }),
+    schema: createCoordinatorSchema,
+    labels: { name: "Name", contactEmail: "Email", contactPhone: "Phone" },
     errorFields: { "duplicate-name": "confirmDuplicate" },
     messages: { "duplicate-name": "A coordinator with that name already exists." },
     perform: async (deps, actor, input) => {
-      const { organisation, firstInvite } = await createSupplierWithFirstPerson(deps, actor, input, firstPersonBody(get));
+      const { organisation, firstInvite } = await createCoordinatorWithFirstPerson(deps, actor, input, soloPerson(get, "Coordinator"));
       if (firstInvite.status === "sent") sendMailAfterResponse();
       const notice = firstInviteNotice("coordinator", firstInvite);
-      return { redirectTo: `/fynix/suppliers/${organisation.publicRef}`, ...(notice === undefined ? {} : { notice }) };
+      return { redirectTo: `/fynix/coordinators/${organisation.publicRef}`, ...(notice === undefined ? {} : { notice }) };
     },
   });
 }
 
-const PROFILE_FIELDS = ["introduction", "services", "differentiator", "caseStudies"] as const;
-const PROFILE_LABELS = { introduction: "Introduction", services: "Services", differentiator: "What sets them apart", caseStudies: "Case studies" } as const;
-
-function profileBody(formData: FormData) {
-  const caseStudies = field(formData, "caseStudies").trim();
-  return { introduction: field(formData, "introduction"), services: field(formData, "services"), differentiator: field(formData, "differentiator"), ...(caseStudies === "" ? {} : { caseStudies }) };
-}
-
-/** The link a client form may carry. Both boxes empty is fine; one without the other is a problem on the box that is missing. */
-function collateralBody(formData: FormData) {
-  return { kind: "link" as const, title: field(formData, "collateralTitle"), url: field(formData, "collateralUrl").trim() };
-}
-
-function collateralProblems(formData: FormData): Readonly<Record<string, string>> {
-  const { title, url } = collateralBody(formData);
-  if (title.trim() === "" && url === "") return {};
-  const checked = addCollateralSchema.omit({ clientOrgId: true }).safeParse({ ...collateralBody(formData), title: title.trim() });
-  return checked.success ? {} : fieldErrors(checked.error, { title: "Link title", url: "Link address" }, { title: "collateralTitle", url: "collateralUrl" });
-}
+/** What the Add client page asks for: the name, the website, and any number of contact people. The profile, time zone and the rest come with the campaign. */
+const ADD_CLIENT_FIELDS = ["name", "website", ...CONTACT_ROW_FIELDS] as const;
 
 export async function addClientAction(_previous: FormState, formData: FormData): Promise<FormState> {
-  const timeZone = field(formData, "timeZone").trim();
-  const profileProblems = clientProfileSchema.safeParse(profileBody(formData));
+  const get = (name: string) => field(formData, name);
+  const website = get("website").trim();
   return runAction({
     formData,
-    fieldNames: ["name", "timeZone", ...CONTACT_FIELDS, ...PROFILE_FIELDS, "collateralTitle", "collateralUrl"],
-    precheck: () => ({ ...(profileProblems.success ? {} : fieldErrors(profileProblems.error, PROFILE_LABELS)), ...collateralProblems(formData) }),
-    build: () => ({ kind: "client", name: field(formData, "name"), ...(timeZone === "" ? {} : { timeZone }), ...contactCreateBody((name) => field(formData, name)), profile: profileBody(formData), confirmDuplicate: field(formData, "confirmDuplicate") === "on" }),
+    fieldNames: ADD_CLIENT_FIELDS,
+    precheck: () => contactRowProblems(get),
+    build: () => ({ kind: "client", name: get("name"), ...(website === "" ? {} : { website }), contacts: contactRowsBody(get), confirmDuplicate: get("confirmDuplicate") === "on" }),
     schema: createOrganisationSchema,
-    labels: { name: "Name", timeZone: "Time zone", ...CONTACT_LABELS },
+    labels: { name: "Name", website: CONTACT_LABELS.website },
     errorFields: { "duplicate-name": "confirmDuplicate" },
     messages: { "duplicate-name": "A client with that name already exists." },
     perform: async (deps, actor, input) => {
       const created = await createOrganisation(deps, actor, input);
-      const link = collateralBody(formData);
-      if (link.url !== "") await addCollateral(deps, actor, { clientOrgId: created.id, ...link, title: link.title.trim() });
       return { redirectTo: `/fynix/clients/${created.publicRef}` };
+    },
+  });
+}
+
+const CONTACT_PERSON_FIELDS = ["name", "email", "phone", "jobTitle"] as const;
+const CONTACT_PERSON_LABELS = { name: "Name", email: "Email", phone: "Phone", jobTitle: "Job title" } as const;
+
+/** The optional boxes of one contact person: a blank one is left out when adding. */
+function contactPersonBody(formData: FormData): Record<string, string> {
+  return Object.fromEntries(["email", "phone", "jobTitle"].flatMap((name) => (field(formData, name).trim() === "" ? [] : [[name, field(formData, name).trim()]])));
+}
+
+/** Adds one contact person to a client already on the books. */
+export async function addClientContactAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runAction({
+    formData,
+    fieldNames: CONTACT_PERSON_FIELDS,
+    build: () => ({ clientOrgId: field(formData, "clientOrgId"), name: field(formData, "name"), ...contactPersonBody(formData) }),
+    schema: addClientContactSchema,
+    labels: CONTACT_PERSON_LABELS,
+    perform: async (deps, actor, input) => {
+      await addClientContact(deps, actor, input);
+    },
+  });
+}
+
+/** Changes a contact person. A blank email, phone or job title clears it. */
+export async function updateClientContactAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  const blankToNull = (name: string) => (field(formData, name).trim() === "" ? null : field(formData, name).trim());
+  return runAction({
+    formData,
+    fieldNames: CONTACT_PERSON_FIELDS,
+    build: () => ({ contactId: field(formData, "contactId"), name: field(formData, "name"), email: blankToNull("email"), phone: blankToNull("phone"), jobTitle: blankToNull("jobTitle") }),
+    schema: updateClientContactSchema,
+    labels: CONTACT_PERSON_LABELS,
+    messages: { "not-found": "That contact is gone already." },
+    perform: async (deps, actor, input) => {
+      await updateClientContact(deps, actor, input);
+    },
+  });
+}
+
+const contactInput = z.object({ contactId: uuidSchema }).strict();
+
+/** Takes a contact person off the client. */
+export async function removeClientContactAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runAction({
+    formData,
+    fieldNames: [],
+    build: () => ({ contactId: field(formData, "contactId") }),
+    schema: contactInput,
+    labels: {},
+    messages: { "not-found": "That contact is gone already." },
+    perform: async (deps, actor, input) => {
+      await removeClientContact(deps, actor, contactInput.parse(input).contactId);
     },
   });
 }
@@ -294,49 +359,6 @@ export async function setOrganisationStatusAction(_previous: FormState, formData
     perform: async (deps, actor, input) => {
       const parsed = statusInput.parse(input);
       await setOrganisationStatus(deps, actor, parsed.organisationId, parsed.status);
-    },
-  });
-}
-
-export async function updateProfileAction(_previous: FormState, formData: FormData): Promise<FormState> {
-  const caseStudies = field(formData, "caseStudies").trim();
-  return runAction({
-    formData,
-    fieldNames: PROFILE_FIELDS,
-    build: () => ({ clientOrgId: field(formData, "clientOrgId"), ...profileBody(formData), caseStudies: caseStudies === "" ? null : caseStudies }),
-    schema: updateClientProfileSchema,
-    labels: PROFILE_LABELS,
-    perform: async (deps, actor, input) => {
-      await updateClientProfile(deps, actor, input);
-    },
-  });
-}
-
-export async function addCollateralAction(_previous: FormState, formData: FormData): Promise<FormState> {
-  return runAction({
-    formData,
-    fieldNames: ["title", "url"],
-    build: () => ({ clientOrgId: field(formData, "clientOrgId"), kind: "link", title: field(formData, "title"), url: field(formData, "url").trim() }),
-    schema: addCollateralSchema,
-    labels: { title: "Title", url: "Address" },
-    perform: async (deps, actor, input) => {
-      await addCollateral(deps, actor, input);
-    },
-  });
-}
-
-const collateralInput = z.object({ collateralId: uuidSchema }).strict();
-
-export async function removeCollateralAction(_previous: FormState, formData: FormData): Promise<FormState> {
-  return runAction({
-    formData,
-    fieldNames: [],
-    build: () => ({ collateralId: field(formData, "collateralId") }),
-    schema: collateralInput,
-    labels: {},
-    messages: { "invalid-transition": "That link is removed already." },
-    perform: async (deps, actor, input) => {
-      await removeCollateral(deps, actor, collateralInput.parse(input).collateralId);
     },
   });
 }
@@ -449,20 +471,27 @@ export async function fynixRecordOutcomeAction(_previous: FormState, formData: F
   });
 }
 
-/** Adds a partner agency under a coordinator, and invites its first person into it when one is given. If the invite is refused the agency is still added and the notice says why. */
+/**
+ * Adds a partner agency under a coordinator: one person, who is both the agency record and the person invited to sign in. Their name names the
+ * record, and the name, email and phone are kept as its contact. If the invite is refused the agency is still added and the notice says why.
+ */
 export async function addAgencyAction(_previous: FormState, formData: FormData): Promise<FormState> {
   const get = (name: string) => field(formData, name);
+  const phone = get("phone").trim();
   return runAction({
     formData,
-    fieldNames: [...AGENCY_FIELDS, "supplierId"],
-    precheck: () => firstPersonProblems(get),
-    build: () => ({ supplierId: field(formData, "supplierId"), ...agencyBody(formData) }),
+    fieldNames: [...ADD_COORDINATOR_FIELDS, "coordinatorId"],
+    precheck: () => {
+      const checked = firstPersonSchema.safeParse(soloPerson(get, "Agency"));
+      return checked.success ? {} : fieldErrors(checked.error, COORDINATOR_LABELS);
+    },
+    build: () => ({ coordinatorId: get("coordinatorId"), name: get("name"), contactName: get("name").trim(), contactEmail: get("email").trim(), ...(phone === "" ? {} : { contactPhone: phone }), confirmDuplicate: get("confirmDuplicate") === "on" }),
     schema: createPartnerAgencySchema,
-    labels: AGENCY_LABELS,
+    labels: { coordinatorId: "Coordinator", name: "Name", contactEmail: "Email", contactPhone: "Phone" },
     errorFields: { "duplicate-name": "confirmDuplicate" },
     messages: { "duplicate-name": "This coordinator already has an agency with that name." },
     perform: async (deps, actor, input) => {
-      const { firstInvite } = await createPartnerAgencyWithFirstPerson(deps, actor, input, firstPersonBody(get));
+      const { firstInvite } = await createPartnerAgencyWithFirstPerson(deps, actor, input, soloPerson(get, "Agency"));
       if (firstInvite.status === "sent") sendMailAfterResponse();
       const notice = firstInviteNotice("agency", firstInvite);
       return notice === undefined ? undefined : { notice };
@@ -512,17 +541,16 @@ export async function invitePersonAction(_previous: FormState, formData: FormDat
 export async function publishAgreementAction(_previous: FormState, formData: FormData): Promise<FormState> {
   return runAction({
     formData,
-    fieldNames: ["monthlyTarget", "totalTarget", "disputeWindowHours", "rules", "notes"],
+    fieldNames: ["monthlyTarget", "totalTarget", "rules", "notes"],
     build: () => ({
       campaignId: field(formData, "campaignId"),
       monthlyTarget: numberField(formData, "monthlyTarget"),
       totalTarget: numberField(formData, "totalTarget"),
-      disputeWindowHours: numberField(formData, "disputeWindowHours"),
       rules: field(formData, "rules"),
       notes: field(formData, "notes"),
     }),
     schema: publishAgreementSchema,
-    labels: { monthlyTarget: "Per month", totalTarget: "In total", disputeWindowHours: "Dispute window", rules: "Counting rules", notes: "Notes" },
+    labels: { monthlyTarget: "Per month", totalTarget: "In total", rules: "Counting rules", notes: "Notes" },
     perform: async (deps, actor, input) => {
       await publishAgreement(deps, actor, input);
     },

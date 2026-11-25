@@ -134,9 +134,9 @@ describe("readAgreements", () => {
 });
 
 describe("recordAgreementAcceptance", () => {
-  /** Kestrel is the client of the first campaign and Brightpath its supplier. Their one user each is an ordinary member until a test promotes them. */
+  /** Kestrel is the client of the first campaign and Brightpath its coordinator. Their one user each is an ordinary member until a test promotes them. */
   const clientUser = () => userIn(rig, rig.world().kestrel);
-  const supplierUser = () => userIn(rig, rig.world().brightpath);
+  const coordinatorUser = () => userIn(rig, rig.world().brightpath);
 
   it("records a client manager's acceptance of the client agreement, from Fynix, with a default network address, and audits it", async () => {
     await setMemberRole(rig, clientUser().id, "manager");
@@ -151,23 +151,23 @@ describe("recordAgreementAcceptance", () => {
   });
 
   it("records a coordinator manager's acceptance of the same agreement on the coordinator side, and keeps a network address it is given", async () => {
-    await setMemberRole(rig, supplierUser().id, "manager");
+    await setMemberRole(rig, coordinatorUser().id, "manager");
     const published = await publishAgreement(rig.deps(), rig.actor, base());
-    const accepted = await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: published.id, userId: supplierUser().id, networkAddress: "203.0.113.7" });
+    const accepted = await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: published.id, userId: coordinatorUser().id, networkAddress: "203.0.113.7" });
     expect(accepted).toMatchObject({ side: "supplier", networkAddress: "203.0.113.7" });
     expect((await acceptances()).map((row) => row.side)).toEqual(["supplier"]);
-    expect((await auditRowsFor(rig, "agreement.accept"))[0]?.subjectRef).toBe(`${firstCampaign(rig).publicRef} supplier v1`);
+    expect((await auditRowsFor(rig, "agreement.accept"))[0]?.subjectRef).toBe(`${firstCampaign(rig).publicRef} coordinator v1`);
   });
 
   it("copies the numbers onto the campaign when the second side accepts, not before, and keeps the old numbers in force while a new version waits", async () => {
     await setMemberRole(rig, clientUser().id, "manager");
-    await setMemberRole(rig, supplierUser().id, "manager");
+    await setMemberRole(rig, coordinatorUser().id, "manager");
     const numbers = async () => (await rig.dbs.owner.db.select({ monthly: campaign.monthlyTarget, total: campaign.totalTarget }).from(campaign).where(eq(campaign.id, firstCampaign(rig).id)))[0];
     const before = await numbers();
     const v1 = await publishAgreement(rig.deps(), rig.actor, base({ monthlyTarget: 31, totalTarget: 186 }));
     await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: v1.id, userId: clientUser().id });
     expect(await numbers()).toEqual(before);
-    await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: v1.id, userId: supplierUser().id });
+    await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: v1.id, userId: coordinatorUser().id });
     expect(await numbers()).toEqual({ monthly: 31, total: 186 });
     // A newer version waits: the accepted one is in force and the campaign keeps its numbers.
     const v2 = await publishAgreement(rig.deps(), rig.actor, base({ monthlyTarget: 40, totalTarget: 240 }));
@@ -177,7 +177,7 @@ describe("recordAgreementAcceptance", () => {
     expect(read.inForce?.id).toBe(v1.id);
     await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: v2.id, userId: clientUser().id });
     expect(await numbers()).toEqual({ monthly: 31, total: 186 });
-    await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: v2.id, userId: supplierUser().id });
+    await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: v2.id, userId: coordinatorUser().id });
     expect(await numbers()).toEqual({ monthly: 40, total: 240 });
     expect((await readAgreements(rig.deps(), rig.actor, firstCampaign(rig).id)).inForce?.id).toBe(v2.id);
   });

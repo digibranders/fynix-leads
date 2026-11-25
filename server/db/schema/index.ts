@@ -25,3 +25,4 @@ export * from "./meeting-join";
 export * from "./rejection-review";
 export * from "./messaging";
 export * from "./client-profile";
+export * from "./client-contact";

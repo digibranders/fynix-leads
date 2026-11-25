@@ -39,7 +39,7 @@ describe("messaging domain service", () => {
     role: "member",
   };
 
-  const supplierActor: MessagingActor = {
+  const coordinatorActor: MessagingActor = {
     userId: "66666666-6666-4666-8666-666666666666",
     orgId: "77777777-7777-4777-8777-777777777777",
     orgKind: "agency",
@@ -63,41 +63,41 @@ describe("messaging domain service", () => {
     leadId: null,
     side: "client_fynix",
     clientOrgId: clientActor.orgId!,
-    supplierOrgId: null,
+    coordinatorOrgId: null,
     agencyOrgId: null,
   };
 
-  const supplierFynixConv = {
+  const coordinatorFynixConv = {
     id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
     publicRef: "MSG-0002",
     campaignId,
     leadId: null,
     side: "supplier_fynix",
     clientOrgId: null,
-    supplierOrgId: supplierActor.orgId!,
+    coordinatorOrgId: coordinatorActor.orgId!,
     agencyOrgId: null,
   };
 
-  const supplierAgencyConv = {
+  const coordinatorAgencyConv = {
     id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
     publicRef: "MSG-0003",
     campaignId,
     leadId: null,
     side: "supplier_agency",
     clientOrgId: null,
-    supplierOrgId: supplierActor.orgId!,
+    coordinatorOrgId: coordinatorActor.orgId!,
     agencyOrgId: partnerAgencyActor.orgId!,
   };
 
   describe("assertConversationAccess", () => {
     it("allows Fynix to access client_fynix and supplier_fynix conversations", () => {
       expect(() => assertConversationAccess(fynixActor, clientFynixConv)).not.toThrow();
-      expect(() => assertConversationAccess(fynixActor, supplierFynixConv)).not.toThrow();
+      expect(() => assertConversationAccess(fynixActor, coordinatorFynixConv)).not.toThrow();
     });
 
     it("strictly blocks Fynix from accessing supplier_agency conversations (spec D5)", () => {
-      expect(() => assertConversationAccess(fynixActor, supplierAgencyConv)).toThrow(DomainError);
-      expect(() => assertConversationAccess(fynixActor, supplierAgencyConv)).toThrow("Fynix cannot access coordinator-agency conversations.");
+      expect(() => assertConversationAccess(fynixActor, coordinatorAgencyConv)).toThrow(DomainError);
+      expect(() => assertConversationAccess(fynixActor, coordinatorAgencyConv)).toThrow("Fynix cannot access coordinator-agency conversations.");
     });
 
     it("allows Client to access its own client_fynix conversations", () => {
@@ -109,26 +109,26 @@ describe("messaging domain service", () => {
     });
 
     it("refuses Client from accessing supplier_fynix or supplier_agency conversations", () => {
-      expect(() => assertConversationAccess(clientActor, supplierFynixConv)).toThrow(DomainError);
-      expect(() => assertConversationAccess(clientActor, supplierAgencyConv)).toThrow(DomainError);
+      expect(() => assertConversationAccess(clientActor, coordinatorFynixConv)).toThrow(DomainError);
+      expect(() => assertConversationAccess(clientActor, coordinatorAgencyConv)).toThrow(DomainError);
     });
 
     it("allows Coordinator to access its own supplier_fynix and supplier_agency conversations", () => {
-      expect(() => assertConversationAccess(supplierActor, supplierFynixConv)).not.toThrow();
-      expect(() => assertConversationAccess(supplierActor, supplierAgencyConv)).not.toThrow();
+      expect(() => assertConversationAccess(coordinatorActor, coordinatorFynixConv)).not.toThrow();
+      expect(() => assertConversationAccess(coordinatorActor, coordinatorAgencyConv)).not.toThrow();
     });
 
     it("refuses Coordinator from accessing client_fynix conversations", () => {
-      expect(() => assertConversationAccess(supplierActor, clientFynixConv)).toThrow(DomainError);
+      expect(() => assertConversationAccess(coordinatorActor, clientFynixConv)).toThrow(DomainError);
     });
 
     it("allows Partner Agency to access supplier_agency conversations it participates in", () => {
-      expect(() => assertConversationAccess(partnerAgencyActor, supplierAgencyConv)).not.toThrow();
+      expect(() => assertConversationAccess(partnerAgencyActor, coordinatorAgencyConv)).not.toThrow();
     });
 
     it("refuses Partner Agency from accessing client_fynix or supplier_fynix conversations", () => {
       expect(() => assertConversationAccess(partnerAgencyActor, clientFynixConv)).toThrow(DomainError);
-      expect(() => assertConversationAccess(partnerAgencyActor, supplierFynixConv)).toThrow(DomainError);
+      expect(() => assertConversationAccess(partnerAgencyActor, coordinatorFynixConv)).toThrow(DomainError);
     });
   });
 
@@ -138,7 +138,7 @@ describe("messaging domain service", () => {
         getOrCreateConversation(dummyDb, fynixActor, {
           campaignId,
           side: "supplier_agency",
-          supplierOrgId: supplierActor.orgId,
+          coordinatorOrgId: coordinatorActor.orgId,
           agencyOrgId: partnerAgencyActor.orgId,
         }),
       ).rejects.toThrow("Fynix cannot access coordinator-agency conversations.");
@@ -269,7 +269,7 @@ describe("messaging domain service", () => {
   });
 
   describe("forwardMessage across hops with automatic scrubbing", () => {
-    it("scrubs contact details when forwarding across client vs supplier/agency boundary", async () => {
+    it("scrubs contact details when forwarding across client vs coordinator/agency boundary", async () => {
       const fixedNow = new Date("2026-12-15T11:00:00Z");
       const originalMessage = {
         id: "12345678-1234-4234-8234-1234567890aa",
@@ -296,8 +296,8 @@ describe("messaging domain service", () => {
                 callCount += 1;
                 // Call 1: source conversation lookup -> clientFynixConv
                 if (callCount === 1) return [clientFynixConv];
-                // Call 2: target conversation lookup -> supplierFynixConv
-                return [supplierFynixConv];
+                // Call 2: target conversation lookup -> coordinatorFynixConv
+                return [coordinatorFynixConv];
               },
             }),
           }),
@@ -330,7 +330,7 @@ describe("messaging domain service", () => {
         fynixActor,
         {
           messageId: originalMessage.id,
-          targetConversationId: supplierFynixConv.id,
+          targetConversationId: coordinatorFynixConv.id,
         },
         { now: () => fixedNow },
       );
@@ -351,8 +351,8 @@ describe("messaging domain service", () => {
       const fixedNow = new Date("2026-12-15T12:00:00Z");
       const originalMessage = {
         id: "12345678-1234-4234-8234-1234567890cc",
-        conversationId: supplierFynixConv.id,
-        senderUserId: supplierActor.userId,
+        conversationId: coordinatorFynixConv.id,
+        senderUserId: coordinatorActor.userId,
         senderRole: "supplier",
         senderName: "Coordinator User",
         body: "Internal note: contact is internal@coordinator.com",
@@ -372,9 +372,9 @@ describe("messaging domain service", () => {
                   return [originalMessage];
                 }
                 callCount += 1;
-                // Both source and target are supplier/agency side (supplier_fynix -> supplier_agency)
-                if (callCount === 1) return [supplierFynixConv];
-                return [supplierAgencyConv];
+                // Both source and target are coordinator/agency side (supplier_fynix -> supplier_agency)
+                if (callCount === 1) return [coordinatorFynixConv];
+                return [coordinatorAgencyConv];
               },
             }),
           }),
@@ -404,10 +404,10 @@ describe("messaging domain service", () => {
 
       await forwardMessage(
         mockDb,
-        supplierActor,
+        coordinatorActor,
         {
           messageId: originalMessage.id,
-          targetConversationId: supplierAgencyConv.id,
+          targetConversationId: coordinatorAgencyConv.id,
         },
         { now: () => fixedNow },
       );
@@ -543,7 +543,7 @@ describe("messaging domain service", () => {
         select: () => ({
           from: () => ({
             where: () => ({
-              limit: () => [supplierAgencyConv], // conversation Fynix cannot access
+              limit: () => [coordinatorAgencyConv], // conversation Fynix cannot access
             }),
           }),
         }),
@@ -555,7 +555,7 @@ describe("messaging domain service", () => {
       } as unknown as Database;
 
       await expect(
-        listConversationMessages(mockDb, fynixActor, supplierAgencyConv.id),
+        listConversationMessages(mockDb, fynixActor, coordinatorAgencyConv.id),
       ).rejects.toThrow("Fynix cannot access coordinator-agency conversations.");
     });
 

@@ -8,16 +8,16 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { campaignCountsText } from "@/lib/fynix/campaign-counts";
 import { countOf } from "@/lib/fynix/format";
-import { filterCounts, type SupplierFilter } from "@/lib/fynix/suppliers";
+import { filterCounts, type CoordinatorFilter } from "@/lib/fynix/coordinators";
 import type { ClientRow } from "@/server/domain/client-overview";
 import { AddClientButton } from "./client-actions";
 
 /** The Clients list: Active and Archived as link tabs (the filter is in the address), a search, and a row per client that opens its record. */
-export function ClientsTable({ rows, query, canWrite, filter = "active" }: { rows: readonly ClientRow[]; query: string; canWrite: boolean; filter?: SupplierFilter }) {
+export function ClientsTable({ rows, query, canWrite, filter = "active" }: { rows: readonly ClientRow[]; query: string; canWrite: boolean; filter?: CoordinatorFilter }) {
   const needle = query.trim().toLowerCase();
   const counts = filterCounts(rows);
   const shown = rows.filter((row) => row.status === filter && (needle === "" || row.name.toLowerCase().includes(needle)));
-  const hrefFor = (status: SupplierFilter) => {
+  const hrefFor = (status: CoordinatorFilter) => {
     const params = new URLSearchParams();
     if (status === "archived") params.set("status", "archived");
     if (needle !== "") params.set("q", query.trim());

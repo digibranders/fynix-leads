@@ -78,7 +78,7 @@ export async function listClientLeads(
 }
 
 /**
- * Lists leads for an agency organisation (source agency or supplier). Drafts, and drafts that were discarded, are left out: they are not leads yet
+ * Lists leads for an agency organisation (source agency or coordinator). Drafts, and drafts that were discarded, are left out: they are not leads yet
  * (`listAgencyDrafts` reads them), so the tables, the stage bar and the overviews never count them.
  */
 export async function listAgencyLeads(
@@ -87,7 +87,7 @@ export async function listAgencyLeads(
   filter?: { readonly stage?: LeadStage; readonly campaignId?: string },
 ) {
   return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
-    // No source filter: the lead policy already limits an agency to its own leads, and a supplier to its own and those of the
+    // No source filter: the lead policy already limits an agency to its own leads, and a coordinator to its own and those of the
     // partner agencies on its campaigns.
     const conditions = [eq(lead.released, true)];
     if (filter?.stage !== undefined) {
@@ -204,7 +204,7 @@ export async function getLeadSubmissionOptions(
   actor: TenantActor,
 ) {
   return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
-    const supplierCampaigns = await tx
+    const coordinatorCampaigns = await tx
       .select({
         id: campaign.id,
         name: campaign.name,
@@ -226,7 +226,7 @@ export async function getLeadSubmissionOptions(
       .where(and(eq(campaignShare.agencyOrgId, actor.orgId), eq(campaign.status, "active")));
 
     const campaignMap = new Map<string, { id: string; name: string; clientOrgId: string; clientName: string }>();
-    for (const c of [...supplierCampaigns, ...shareCampaigns]) {
+    for (const c of [...coordinatorCampaigns, ...shareCampaigns]) {
       campaignMap.set(c.id, c);
     }
     const campaigns = Array.from(campaignMap.values());

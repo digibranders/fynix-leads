@@ -25,7 +25,7 @@ async function agencyActor() {
 
 function refresh(): void {
   revalidatePath("/agency/aliases");
-  revalidatePath("/supplier/aliases");
+  revalidatePath("/coordinator/aliases");
 }
 
 /** Adds an alias identity. The 6-digit code goes to the alias mailbox and is never shown here. */

@@ -12,9 +12,9 @@ import { snapshotShare } from "@/server/domain/snapshots";
 
 /**
  * The shares of a campaign's monthly number (spec 7.2): the coordinator splits it between itself and its partner
- * agencies. A closed campaign refuses every change with `campaign-closed`. A share goes to the campaign's supplier or one of its partner agencies (the database enforces it, migration
- * 0024). A total above the supplier's target is allowed, and the result says so (`overAllocated`) for the screen to show.
- * `setCampaignShare` and `removeCampaignShare` are Fynix admin writes in phase 1D; in 1E the supplier manager sets them.
+ * agencies. A closed campaign refuses every change with `campaign-closed`. A share goes to the campaign's coordinator or one of its partner agencies (the database enforces it, migration
+ * 0024). A total above the coordinator's target is allowed, and the result says so (`overAllocated`) for the screen to show.
+ * `setCampaignShare` and `removeCampaignShare` are Fynix admin writes in phase 1D; in 1E the coordinator manager sets them.
  */
 
 export interface ShareRecord {
@@ -39,13 +39,13 @@ async function summarise(tx: ScopedTransaction, campaignId: string): Promise<Sha
 
 /**
  * Sets an agency's monthly share of a campaign, creating it or changing it. The agency must be active and be the campaign's
- * supplier or a partner agency of it. The campaign row is locked first, so two admins setting shares for one campaign take
+ * coordinator or a partner agency of it. The campaign row is locked first, so two admins setting shares for one campaign take
  * turns and each flag includes the other's change.
  */
 export async function setCampaignShare(deps: DomainDeps, actor: FynixActor, input: unknown): Promise<ShareResult> {
   const parsed = parseInput(setCampaignShareSchema, input);
   return fynixWrite(deps.fynixDb, actor, async ({ tx, audit }) => {
-    const [target] = await tx.select({ id: campaign.id, supplierOrgId: campaign.agencyOrgId, publicRef: campaign.publicRef, status: campaign.status }).from(campaign).where(eq(campaign.id, parsed.campaignId)).limit(1).for("update");
+    const [target] = await tx.select({ id: campaign.id, coordinatorOrgId: campaign.agencyOrgId, publicRef: campaign.publicRef, status: campaign.status }).from(campaign).where(eq(campaign.id, parsed.campaignId)).limit(1).for("update");
     if (target === undefined) throw new DomainError("not-found", "There is no such campaign.");
     assertCampaignOpen(target.status);
     const [agency] = await tx
@@ -55,7 +55,7 @@ export async function setCampaignShare(deps: DomainDeps, actor: FynixActor, inpu
       .limit(1);
     if (agency === undefined || agency.kind !== "agency") throw new DomainError("not-found", "There is no such agency.");
     if (agency.status !== "active") throw new DomainError("organisation-archived", "The agency is archived.");
-    if (agency.id !== target.supplierOrgId && agency.parentOrgId !== target.supplierOrgId) {
+    if (agency.id !== target.coordinatorOrgId && agency.parentOrgId !== target.coordinatorOrgId) {
       throw new DomainError("share-not-allowed", "A share goes to the campaign's coordinator or to one of its partner agencies.");
     }
     const [existing] = await tx

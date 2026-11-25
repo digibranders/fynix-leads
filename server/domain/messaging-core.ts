@@ -27,7 +27,7 @@ const fynixConversationColumns = {
   leadId: conversation.leadId,
   side: conversation.side,
   clientOrgId: conversation.clientOrgId,
-  supplierOrgId: conversation.supplierOrgId,
+  coordinatorOrgId: conversation.coordinatorOrgId,
   agencyOrgId: conversation.agencyOrgId,
   subject: conversation.subject,
   createdAt: conversation.createdAt,
@@ -89,7 +89,7 @@ export function assertConversationAccess(
   conv: {
     side: string;
     clientOrgId: string | null;
-    supplierOrgId: string | null;
+    coordinatorOrgId: string | null;
     agencyOrgId: string | null;
   },
 ): void {
@@ -121,13 +121,13 @@ export function assertConversationAccess(
       throw new DomainError("not-authorised", "Agencies cannot access client-fynix conversations.");
     }
     if (conv.side === "supplier_fynix") {
-      if (actor.orgId && conv.supplierOrgId !== actor.orgId) {
+      if (actor.orgId && conv.coordinatorOrgId !== actor.orgId) {
         throw new DomainError("not-authorised", "Not authorised to access conversations of another coordinator organisation.");
       }
       return;
     }
     if (conv.side === "supplier_agency") {
-      if (actor.orgId && conv.supplierOrgId !== actor.orgId && conv.agencyOrgId !== actor.orgId) {
+      if (actor.orgId && conv.coordinatorOrgId !== actor.orgId && conv.agencyOrgId !== actor.orgId) {
         throw new DomainError("not-authorised", "Not authorised to access conversations of another organisation.");
       }
       return;

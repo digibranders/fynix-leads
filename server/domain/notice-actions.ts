@@ -12,7 +12,7 @@ const BELL_LIMIT = 8;
 
 /** The shell of every portal shows the counts, and a layout does not run again on navigation, so a change to a notice refreshes all four. */
 function refreshShell(): void {
-  for (const home of ["/client", "/supplier", "/agency", "/fynix"]) revalidatePath(home, "layout");
+  for (const home of ["/client", "/coordinator", "/agency", "/fynix"]) revalidatePath(home, "layout");
 }
 
 /** The latest notices of the signed-in person, for the bell. Nothing when nobody is signed in. */

@@ -13,8 +13,8 @@ export interface PartnerAgencyRow {
 }
 
 /**
- * The partner agencies of the supplier, with the monthly share of each campaign they hold. The names come from a database function
- * (migration 0043), since a supplier holds no grant on organisations; the shares are the supplier's own through row-level security.
+ * The partner agencies of the coordinator, with the monthly share of each campaign they hold. The names come from a database function
+ * (migration 0043), since a coordinator holds no grant on organisations; the shares are the coordinator's own through row-level security.
  */
 export async function listPartnerAgencies(db: Database, actor: { readonly userId: string; readonly orgId: string }): Promise<readonly PartnerAgencyRow[]> {
   return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {

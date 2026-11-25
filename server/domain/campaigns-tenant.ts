@@ -9,7 +9,7 @@ import type { TenantActor } from "@/server/domain/alias-identity";
 import { DomainError } from "@/server/domain/errors";
 import { campaignClientName } from "@/server/db/client-name";
 
-/** One agency's line on a supplier's campaign: the monthly share it holds and what it has delivered. */
+/** One agency's line on a coordinator's campaign: the monthly share it holds and what it has delivered. */
 export interface CampaignAgencyLine {
   readonly agencyOrgId: string;
   readonly name: string;
@@ -31,6 +31,15 @@ export interface CampaignBrief {
   readonly bantNeed: string;
   readonly bantTimeline: string;
   readonly instructions: string;
+  /** What is taken when the campaign is set up (migrations 0083 and 0084): the pitch, the questions to ask a prospect and the two emails. */
+  readonly pitchIntroduction: string;
+  readonly pitchServices: string;
+  readonly pitchDifferentiator: string;
+  readonly pitchCollaterals: string;
+  readonly pitchCaseStudies: string;
+  readonly qualifyingQuestions: string;
+  readonly firstEmail: string;
+  readonly secondEmail: string;
 }
 
 export interface TenantCampaign {
@@ -47,25 +56,25 @@ export interface TenantCampaign {
   readonly delivered: number;
   /** Leads still moving: waiting on the client, booked, or awaiting an outcome. */
   readonly inProgress: number;
-  /** What the viewer's own organisation carries each month (an agency, or a supplier working alone); null for a client. */
+  /** What the viewer's own organisation carries each month (an agency, or a coordinator working alone); null for a client. */
   readonly share: number | null;
-  /** A supplier's partner agencies on this campaign. Empty for everyone else. */
+  /** A coordinator's partner agencies on this campaign. Empty for everyone else. */
   readonly agencies: readonly CampaignAgencyLine[];
   readonly brief: CampaignBrief;
 }
 
-const NO_BRIEF: CampaignBrief = { geography: "", industries: [], companySize: "", icp: "", jobTitles: [], seniority: "", technologies: [], bantBudget: "", bantAuthority: "", bantNeed: "", bantTimeline: "", instructions: "" };
+const NO_BRIEF: CampaignBrief = { geography: "", industries: [], companySize: "", icp: "", jobTitles: [], seniority: "", technologies: [], bantBudget: "", bantAuthority: "", bantNeed: "", bantTimeline: "", instructions: "", pitchIntroduction: "", pitchServices: "", pitchDifferentiator: "", pitchCollaterals: "", pitchCaseStudies: "", qualifyingQuestions: "", firstEmail: "", secondEmail: "" };
 
 const IN_PROGRESS = new Set(["awaiting_client", "scheduled", "outcome_due", "reschedule_needed", "held", "awaiting_decision"]);
 
 /**
  * The campaigns the organisation can see, with how each is going. What is visible is the database's call (row-level security): a
- * client sees the campaigns it owns, a supplier the ones it serves, a partner agency the ones shared with it. An agency counts only
- * the leads its own organisation submitted; a client and a supplier count every lead on the campaign they can see.
+ * client sees the campaigns it owns, a coordinator the ones it serves, a partner agency the ones shared with it. An agency counts only
+ * the leads its own organisation submitted; a client and a coordinator count every lead on the campaign they can see.
  *
  * Only granted columns are used here: the brief (who to reach, qualification, instructions) is read by every tenant role, internal notes by none.
  */
-export async function listTenantCampaigns(db: Database, actor: TenantActor, view: "client" | "supplier" | "agency"): Promise<readonly TenantCampaign[]> {
+export async function listTenantCampaigns(db: Database, actor: TenantActor, view: "client" | "coordinator" | "agency"): Promise<readonly TenantCampaign[]> {
   return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
     const campaigns = await tx
       .select({
@@ -94,9 +103,9 @@ export async function listTenantCampaigns(db: Database, actor: TenantActor, view
         : await tx.select({ campaignId: lead.campaignId, sourceOrgId: lead.sourceOrgId, stage: lead.stage }).from(lead);
     const shares = view === "client" ? [] : await tx.select({ campaignId: campaignShare.campaignId, agencyOrgId: campaignShare.agencyOrgId, monthlyShare: campaignShare.monthlyShare }).from(campaignShare);
 
-    // Names of a supplier's partner agencies come from a database function: a supplier holds no grant on organisations.
+    // Names of a coordinator's partner agencies come from a database function: a coordinator holds no grant on organisations.
     const names = new Map<string, string>();
-    if (view === "supplier") {
+    if (view === "coordinator") {
       const partners = await tx.execute<{ id: string; name: string }>(sql`select id, name from public.app_my_partner_agencies()`);
       for (const row of partners.rows) names.set(row.id, row.name);
     }
@@ -111,7 +120,7 @@ export async function listTenantCampaigns(db: Database, actor: TenantActor, view
         share: view === "client" ? null : (mine.find((share) => share.agencyOrgId === actor.orgId)?.monthlyShare ?? null),
         brief: briefs.get(row.id) ?? NO_BRIEF,
         agencies:
-          view === "supplier"
+          view === "coordinator"
             ? mine
                 .filter((share) => share.agencyOrgId !== actor.orgId)
                 .map((share) => ({
@@ -163,7 +172,7 @@ export async function listCampaignReadiness(db: Database, actor: TenantActor): P
       status: row.status,
       bucket: campaignBucket(row.status),
       // `agreed` is not returned: both flags true is the same fact.
-      notLiveReason: notLiveReason({ status: row.status, agreed: row.client_accepted && row.supplier_accepted, clientAccepted: row.client_accepted, supplierAccepted: row.supplier_accepted, hasHost: row.has_host }),
+      notLiveReason: notLiveReason({ status: row.status, agreed: row.client_accepted && row.supplier_accepted, clientAccepted: row.client_accepted, coordinatorAccepted: row.supplier_accepted, hasHost: row.has_host }),
     }));
   });
 }

@@ -97,7 +97,7 @@ export interface SeededDomain {
 }
 
 /**
- * The phase 1D rows, seeded on request (`withSetup`): a partner agency under Brightpath, a client agreement and a supplier
+ * The phase 1D rows, seeded on request (`withSetup`): a partner agency under Brightpath, a client agreement and a coordinator
  * agreement for the first campaign, one acceptance, a share for the partner, a host (the Kestrel user) with weekly hours in
  * another time zone and a blocked time. `markers` is every distinctive string stored in the new tables, so the leak matrix can
  * search for them; no tenant may find any of them until phase 1E grants the rows that are its own.
@@ -237,8 +237,8 @@ async function seedDomain(owner: DatabaseHandle, world: Pick<SeedWorld, "fynix" 
 const SETUP_MARKERS = {
   clientRules: "SETUP-RULES-CLIENT a no-show counts after ten minutes",
   clientNotes: "SETUP-NOTES-CLIENT review every quarter",
-  supplierRules: "SETUP-RULES-SUPPLIER cancellations need two days notice",
-  supplierNotes: "SETUP-NOTES-SUPPLIER paid on delivered meetings",
+  coordinatorRules: "SETUP-RULES-COORDINATOR cancellations need two days notice",
+  coordinatorNotes: "SETUP-NOTES-COORDINATOR paid on delivered meetings",
   acceptanceAddress: "198.51.100.77",
   hostTitle: "SETUP-HOST-TITLE Chief Operating Officer",
   hostZone: "Pacific/Auckland",
@@ -273,7 +273,7 @@ async function seedSetup(
     "client agreement",
   );
   // Legacy fixture: the separate coordinator agreement is no longer made (phase 2) but old rows stay in live data, and the leak matrix must keep proving no tenant reads one.
-  await db.insert(agreement).values({ campaignId: target.id, party: "supplier", version: 1, monthlyTarget: 18, totalTarget: 108, rules: SETUP_MARKERS.supplierRules, notes: SETUP_MARKERS.supplierNotes, createdBy: memberOf(admin) });
+  await db.insert(agreement).values({ campaignId: target.id, party: "supplier", version: 1, monthlyTarget: 18, totalTarget: 108, rules: SETUP_MARKERS.coordinatorRules, notes: SETUP_MARKERS.coordinatorNotes, createdBy: memberOf(admin) });
   await db.insert(agreementAcceptance).values({ agreementId: clientAgreement.id, userId: kestrelUser.id, networkAddress: SETUP_MARKERS.acceptanceAddress });
   await db.insert(campaignShare).values({ campaignId: target.id, agencyOrgId: partner.id, monthlyShare: 7 });
   await db.insert(campaignHost).values({ campaignId: target.id, clientOrgId: world.kestrel.id, memberId: memberOf(kestrelUser), jobTitle: SETUP_MARKERS.hostTitle });

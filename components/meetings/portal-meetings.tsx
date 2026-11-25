@@ -37,7 +37,7 @@ export function meetingsSummary(meetings: readonly MeetingRow[], now: Date, empt
   return `${counts.upcoming} upcoming, ${counts.due} waiting for an outcome, ${counts.done} done.`;
 }
 
-/** The meetings list of a supplier or an agency: stage tabs, search, table, pager. State is in the URL, as on the client's list. */
+/** The meetings list of a coordinator or an agency: stage tabs, search, table, pager. State is in the URL, as on the client's list. */
 export function PortalMeetings({
   meetings,
   basePath,

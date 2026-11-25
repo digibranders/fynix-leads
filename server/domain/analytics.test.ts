@@ -6,7 +6,7 @@ import {
   getAgencyOverviewMetrics,
   getClientOverviewMetrics,
   getFynixOverviewMetrics,
-  getSupplierOverviewMetrics,
+  getCoordinatorOverviewMetrics,
 } from "./analytics";
 
 vi.mock("@/server/db/scope", () => ({
@@ -23,7 +23,7 @@ function setMockData(data: {
   campaigns?: readonly Record<string, unknown>[];
   leads?: readonly Record<string, unknown>[];
   shares?: readonly Record<string, unknown>[];
-  /** What public.app_my_partner_agencies() returns: the supplier's partner agencies by id and name. */
+  /** What public.app_my_partner_agencies() returns: the coordinator's partner agencies by id and name. */
   partners?: readonly { readonly id: string; readonly name: string }[];
 }) {
   currentMockTx = {
@@ -55,7 +55,7 @@ describe("analytics domain service", () => {
     role: "manager" as const,
   };
 
-  const supplierActor = {
+  const coordinatorActor = {
     userId: "33333333-3333-4333-8333-333333333333",
     orgId: "44444444-4444-4444-8444-444444444444",
     orgKind: "agency" as const,
@@ -75,7 +75,7 @@ describe("analytics domain service", () => {
 
   describe("getClientOverviewMetrics", () => {
     it("refuses non-client actors", async () => {
-      await expect(getClientOverviewMetrics(dummyDb, supplierActor)).rejects.toThrow(DomainError);
+      await expect(getClientOverviewMetrics(dummyDb, coordinatorActor)).rejects.toThrow(DomainError);
     });
 
     it("calculates client KPI counts correctly, over active campaigns only", async () => {
@@ -106,9 +106,9 @@ describe("analytics domain service", () => {
     });
   });
 
-  describe("getSupplierOverviewMetrics", () => {
+  describe("getCoordinatorOverviewMetrics", () => {
     it("refuses client actors", async () => {
-      await expect(getSupplierOverviewMetrics(dummyDb, clientActor)).rejects.toThrow(DomainError);
+      await expect(getCoordinatorOverviewMetrics(dummyDb, clientActor)).rejects.toThrow(DomainError);
     });
 
     it("calculates coordinator KPI metrics and partner agency breakdown", async () => {
@@ -117,11 +117,11 @@ describe("analytics domain service", () => {
           { id: "c1", monthlyTarget: 40, totalTarget: 120, status: "active" },
         ],
         shares: [
-          { id: "s1", campaignId: "c1", agencyOrgId: supplierActor.orgId, monthlyShare: 25 },
+          { id: "s1", campaignId: "c1", agencyOrgId: coordinatorActor.orgId, monthlyShare: 25 },
           { id: "s2", campaignId: "c1", agencyOrgId: agencyActor.orgId, monthlyShare: 15 },
         ],
         leads: [
-          { id: "l1", campaignId: "c1", sourceOrgId: supplierActor.orgId, stage: "delivered", overShare: false },
+          { id: "l1", campaignId: "c1", sourceOrgId: coordinatorActor.orgId, stage: "delivered", overShare: false },
           { id: "l2", campaignId: "c1", sourceOrgId: agencyActor.orgId, stage: "delivered", overShare: false },
           { id: "l3", campaignId: "c1", sourceOrgId: agencyActor.orgId, stage: "awaiting_client", overShare: true },
           { id: "l4", campaignId: "c1", sourceOrgId: agencyActor.orgId, stage: "disputed", overShare: false },
@@ -129,18 +129,18 @@ describe("analytics domain service", () => {
         partners: [{ id: agencyActor.orgId, name: "Ridgeway Partner Media Ltd" }],
       });
 
-      const metrics = await getSupplierOverviewMetrics(dummyDb, supplierActor);
-      expect(metrics.supplierTarget).toBe(40);
+      const metrics = await getCoordinatorOverviewMetrics(dummyDb, coordinatorActor);
+      expect(metrics.coordinatorTarget).toBe(40);
       expect(metrics.deliveredCount).toBe(2);
       expect(metrics.awaitingClientCount).toBe(1);
       expect(metrics.overShareCount).toBe(1);
       expect(metrics.disputedCount).toBe(1);
       expect(metrics.agencyBreakdown).toHaveLength(2);
 
-      const supplierBreakdown = metrics.agencyBreakdown.find((b) => b.agencyOrgId === supplierActor.orgId);
-      expect(supplierBreakdown?.shareTarget).toBe(25);
-      expect(supplierBreakdown?.deliveredCount).toBe(1);
-      expect(supplierBreakdown?.agencyName).toBe("Direct Coordinator");
+      const coordinatorBreakdown = metrics.agencyBreakdown.find((b) => b.agencyOrgId === coordinatorActor.orgId);
+      expect(coordinatorBreakdown?.shareTarget).toBe(25);
+      expect(coordinatorBreakdown?.deliveredCount).toBe(1);
+      expect(coordinatorBreakdown?.agencyName).toBe("Direct Coordinator");
 
       const partnerBreakdown = metrics.agencyBreakdown.find((b) => b.agencyOrgId === agencyActor.orgId);
       expect(partnerBreakdown?.agencyName).toBe("Ridgeway Partner Media Ltd");

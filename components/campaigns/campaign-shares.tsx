@@ -18,7 +18,7 @@ export interface AssignOption {
   readonly current: number | null;
 }
 
-/** Assigns a campaign to one of the supplier's agencies, or changes the monthly share an agency already holds. */
+/** Assigns a campaign to one of the coordinator's agencies, or changes the monthly share an agency already holds. */
 export function AssignCampaignButton({ campaignId, campaignName, options, label = "Assign to an agency" }: { readonly campaignId: string; readonly campaignName: string; readonly options: readonly AssignOption[]; readonly label?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);

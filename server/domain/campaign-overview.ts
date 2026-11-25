@@ -1,10 +1,10 @@
-import { and, asc, count, desc, eq, gt, inArray, notInArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, isNull, notInArray } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type { CampaignStatus } from "@/lib/domain/campaign-status";
 import { countedMonth, isCountedStage } from "@/lib/domain/counting-month";
 import { summariseShares, type ShareSummary } from "@/lib/domain/share-allocation";
 import type { HoursWindow } from "@/lib/domain/weekly-hours";
-import { auditLog, campaign, campaignHost, campaignShare, hostBlock, hostHours, lead, member, organisation } from "@/server/db/schema";
+import { auditLog, campaign, campaignHost, campaignShare, clientContact, hostBlock, hostHours, lead, member, organisation } from "@/server/db/schema";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
 import { fynixRead, type FynixActor } from "@/server/domain/fynix-write";
@@ -20,7 +20,7 @@ import { parseInput } from "@/server/domain/parse";
 const CAMPAIGN_REF = /^CMP-[0-9A-HJKMNP-TV-Z]{4}$/;
 
 const client = alias(organisation, "client_org");
-const supplier = alias(organisation, "supplier_org");
+const coordinator = alias(organisation, "supplier_org");
 
 export interface CampaignRow {
   readonly id: string;
@@ -28,33 +28,49 @@ export interface CampaignRow {
   readonly name: string;
   readonly status: CampaignStatus;
   readonly clientName: string;
-  readonly supplierName: string;
+  readonly coordinatorName: string;
 }
 
 /** Every campaign, newest first. */
 export async function listCampaignRows(deps: DomainDeps, actor: FynixActor): Promise<readonly CampaignRow[]> {
   return fynixRead(deps.fynixDb, actor, (tx) =>
     tx
-      .select({ id: campaign.id, publicRef: campaign.publicRef, name: campaign.name, status: campaign.status, clientName: client.name, supplierName: supplier.name })
+      .select({ id: campaign.id, publicRef: campaign.publicRef, name: campaign.name, status: campaign.status, clientName: client.name, coordinatorName: coordinator.name })
       .from(campaign)
       .innerJoin(client, eq(client.id, campaign.clientOrgId))
-      .innerJoin(supplier, eq(supplier.id, campaign.agencyOrgId))
+      .innerJoin(coordinator, eq(coordinator.id, campaign.agencyOrgId))
       .orderBy(desc(campaign.createdAt), asc(campaign.name)),
   );
 }
 
-export interface CampaignChoices {
-  readonly clients: readonly { readonly id: string; readonly name: string }[];
-  readonly suppliers: readonly { readonly id: string; readonly name: string }[];
+/** A contact person at a client, as the New campaign page offers them in the "contact person" list once a client is chosen. */
+export interface ContactChoice {
+  readonly id: string;
+  readonly clientOrgId: string;
+  readonly name: string;
+  readonly jobTitle: string | null;
 }
 
-/** The active clients and suppliers a new campaign can be made for. A partner agency is not a supplier, so it is left out. */
+export interface CampaignChoices {
+  readonly clients: readonly { readonly id: string; readonly name: string }[];
+  readonly coordinators: readonly { readonly id: string; readonly name: string }[];
+  /** Every live contact person of every client, so the page can filter them by the client chosen. */
+  readonly contacts: readonly ContactChoice[];
+}
+
+/** The active clients and coordinators a new campaign can be made for. A partner agency is not a coordinator, so it is left out. */
 export async function listCampaignChoices(deps: DomainDeps, actor: FynixActor): Promise<CampaignChoices> {
   return fynixRead(deps.fynixDb, actor, async (tx) => {
     const rows = await tx.select({ id: organisation.id, name: organisation.name, kind: organisation.kind, parentOrgId: organisation.parentOrgId }).from(organisation).where(eq(organisation.status, "active")).orderBy(asc(organisation.name));
+    const contacts = await tx
+      .select({ id: clientContact.id, clientOrgId: clientContact.clientOrgId, name: clientContact.name, jobTitle: clientContact.jobTitle })
+      .from(clientContact)
+      .where(isNull(clientContact.removedAt))
+      .orderBy(asc(clientContact.createdAt), asc(clientContact.name));
     return {
       clients: rows.filter((row) => row.kind === "client").map(({ id, name }) => ({ id, name })),
-      suppliers: rows.filter((row) => row.kind === "agency" && row.parentOrgId === null).map(({ id, name }) => ({ id, name })),
+      coordinators: rows.filter((row) => row.kind === "agency" && row.parentOrgId === null).map(({ id, name }) => ({ id, name })),
+      contacts,
     };
   });
 }
@@ -77,6 +93,16 @@ export interface CampaignBrief {
   readonly bantNeed: string;
   readonly bantTimeline: string;
   readonly instructions: string;
+  readonly pitchIntroduction: string;
+  readonly pitchServices: string;
+  readonly pitchDifferentiator: string;
+  readonly pitchCollaterals: string;
+  readonly pitchCaseStudies: string;
+  readonly qualifyingQuestions: string;
+  readonly firstEmail: string;
+  readonly secondEmail: string;
+  /** The client's contact person who approves leads for this campaign, if one is chosen. */
+  readonly primaryContactId: string | null;
   readonly internalNotes: string | null;
 }
 
@@ -87,10 +113,14 @@ export interface CampaignHeader {
   readonly status: CampaignStatus;
   readonly clientOrgId: string;
   readonly clientName: string;
-  readonly supplierOrgId: string;
-  readonly supplierName: string;
+  /** The client's reference, for links to its pages. */
+  readonly clientRef: string;
+  readonly coordinatorOrgId: string;
+  readonly coordinatorName: string;
   readonly timeZone: string;
   readonly meetingMinutes: number;
+  /** The live contact people of the campaign's client, for the "contact person" list on Edit campaign. */
+  readonly clientContacts: readonly ContactChoice[];
   /** Hosts who are switched on. */
   readonly activeHostCount: number;
   /** When the campaign was closed; null while it is not closed. */
@@ -110,8 +140,9 @@ export async function readCampaignHeader(deps: DomainDeps, actor: FynixActor, pu
         status: campaign.status,
         clientOrgId: campaign.clientOrgId,
         clientName: client.name,
-        supplierOrgId: campaign.agencyOrgId,
-        supplierName: supplier.name,
+        clientRef: client.publicRef,
+        coordinatorOrgId: campaign.agencyOrgId,
+        coordinatorName: coordinator.name,
         timeZone: campaign.timeZone,
         meetingMinutes: campaign.meetingMinutes,
         startDate: campaign.startDate,
@@ -130,18 +161,32 @@ export async function readCampaignHeader(deps: DomainDeps, actor: FynixActor, pu
         bantNeed: campaign.bantNeed,
         bantTimeline: campaign.bantTimeline,
         instructions: campaign.instructions,
+        pitchIntroduction: campaign.pitchIntroduction,
+        pitchServices: campaign.pitchServices,
+        pitchDifferentiator: campaign.pitchDifferentiator,
+        pitchCollaterals: campaign.pitchCollaterals,
+        pitchCaseStudies: campaign.pitchCaseStudies,
+        qualifyingQuestions: campaign.qualifyingQuestions,
+        firstEmail: campaign.firstEmail,
+        secondEmail: campaign.secondEmail,
+        primaryContactId: campaign.primaryContactId,
         internalNotes: campaign.internalNotes,
         closedAt: campaign.closedAt,
       })
       .from(campaign)
       .innerJoin(client, eq(client.id, campaign.clientOrgId))
-      .innerJoin(supplier, eq(supplier.id, campaign.agencyOrgId))
+      .innerJoin(coordinator, eq(coordinator.id, campaign.agencyOrgId))
       .where(eq(campaign.publicRef, publicRef))
       .limit(1);
     if (row === undefined) throw new DomainError("not-found", "There is no such campaign.");
     const [hosts] = await tx.select({ n: count() }).from(campaignHost).where(and(eq(campaignHost.campaignId, row.id), eq(campaignHost.active, true)));
-    const { id, publicRef: ref, name, status, clientOrgId, clientName, supplierOrgId, supplierName, timeZone, meetingMinutes, closedAt, ...brief } = row;
-    return { id, publicRef: ref, name, status, clientOrgId, clientName, supplierOrgId, supplierName, timeZone, meetingMinutes, activeHostCount: hosts?.n ?? 0, closedAt, brief };
+    const clientContacts = await tx
+      .select({ id: clientContact.id, clientOrgId: clientContact.clientOrgId, name: clientContact.name, jobTitle: clientContact.jobTitle })
+      .from(clientContact)
+      .where(and(eq(clientContact.clientOrgId, row.clientOrgId), isNull(clientContact.removedAt)))
+      .orderBy(asc(clientContact.createdAt), asc(clientContact.name));
+    const { id, publicRef: ref, name, status, clientOrgId, clientName, clientRef, coordinatorOrgId, coordinatorName, timeZone, meetingMinutes, closedAt, ...brief } = row;
+    return { id, publicRef: ref, name, status, clientOrgId, clientName, clientRef, coordinatorOrgId, coordinatorName, timeZone, meetingMinutes, clientContacts, activeHostCount: hosts?.n ?? 0, closedAt, brief };
   });
 }
 
@@ -167,6 +212,8 @@ export interface HostView {
 export interface HostCandidate {
   readonly memberId: string;
   readonly displayName: string;
+  /** The person's own job title, so adding them as a host does not ask for it again. */
+  readonly jobTitle: string | null;
 }
 
 /**
@@ -204,7 +251,7 @@ export async function listCampaignHosts(deps: DomainDeps, actor: FynixActor, cam
             .orderBy(asc(hostBlock.startsAt));
     const switchedOn = rows.filter((row) => row.active).map((row) => row.memberId);
     const candidates = await tx
-      .select({ memberId: member.id, displayName: member.displayName })
+      .select({ memberId: member.id, displayName: member.displayName, jobTitle: member.jobTitle })
       .from(member)
       .where(and(eq(member.orgId, target.clientOrgId), eq(member.orgKind, "client"), eq(member.status, "active"), ...(switchedOn.length === 0 ? [] : [notInArray(member.id, switchedOn)])))
       .orderBy(asc(member.displayName));
@@ -259,7 +306,7 @@ export interface AgreementHistoryLine {
 export interface ShareView {
   readonly agencyOrgId: string;
   readonly agencyName: string;
-  /** True for the supplier's own bookings, false for a partner agency. */
+  /** True for the coordinator's own bookings, false for a partner agency. */
   readonly ownBookings: boolean;
   readonly monthlyShare: number;
   /** Counted leads of this agency by month ("YYYY-MM", the month of the meeting in the campaign's time zone). A month with none is absent. */
@@ -279,7 +326,7 @@ export interface AgreementsPage {
   readonly agreement: AgreementSideView;
   readonly shares: readonly ShareView[];
   readonly summary: ShareSummary;
-  /** Active agencies a share can still go to: the supplier and its partner agencies that have none yet. */
+  /** Active agencies a share can still go to: the coordinator and its partner agencies that have none yet. */
   readonly options: readonly AgencyOption[];
 }
 
@@ -311,7 +358,7 @@ export async function readAgreementsPage(deps: DomainDeps, actor: FynixActor, ca
   const id = parseInput(uuidSchema, campaignId);
   const agreements = await readAgreements(deps, actor, id);
   return fynixRead(deps.fynixDb, actor, async (tx) => {
-    const [target] = await tx.select({ id: campaign.id, supplierOrgId: campaign.agencyOrgId, monthlyTarget: campaign.monthlyTarget, timeZone: campaign.timeZone }).from(campaign).where(eq(campaign.id, id)).limit(1);
+    const [target] = await tx.select({ id: campaign.id, coordinatorOrgId: campaign.agencyOrgId, monthlyTarget: campaign.monthlyTarget, timeZone: campaign.timeZone }).from(campaign).where(eq(campaign.id, id)).limit(1);
     if (target === undefined) throw new DomainError("not-found", "There is no such campaign.");
 
     const signerIds = (agreements.current?.acceptances ?? []).map((entry) => entry.userId);
@@ -353,7 +400,7 @@ export async function readAgreementsPage(deps: DomainDeps, actor: FynixActor, ca
         countedByMonth: counted.get(row.agencyOrgId) ?? {},
         agencyOrgId: row.agencyOrgId,
         agencyName: row.agencyName,
-        ownBookings: row.agencyOrgId === target.supplierOrgId,
+        ownBookings: row.agencyOrgId === target.coordinatorOrgId,
         monthlyShare: row.monthlyShare,
         updatedAt: row.updatedAt,
         changedBy: changedBy.get(row.id) ?? null,
@@ -366,8 +413,8 @@ export async function readAgreementsPage(deps: DomainDeps, actor: FynixActor, ca
       .where(and(eq(organisation.kind, "agency"), eq(organisation.status, "active")))
       .orderBy(asc(organisation.name));
     const options = eligible
-      .filter((row) => (row.id === target.supplierOrgId || row.parentOrgId === target.supplierOrgId) && !taken.has(row.id))
-      .map((row): AgencyOption => ({ id: row.id, name: row.name, ownBookings: row.id === target.supplierOrgId }));
+      .filter((row) => (row.id === target.coordinatorOrgId || row.parentOrgId === target.coordinatorOrgId) && !taken.has(row.id))
+      .map((row): AgencyOption => ({ id: row.id, name: row.name, ownBookings: row.id === target.coordinatorOrgId }));
 
     return {
       agreement: sideView(agreements, names),

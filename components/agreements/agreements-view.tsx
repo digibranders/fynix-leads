@@ -1,3 +1,4 @@
+import { AUTO_ACCEPT_HOURS } from "@/lib/leads/decision-queue";
 import { CheckCircle, Handshake } from "@phosphor-icons/react/dist/ssr";
 import { EmptyState } from "@/components/kit/empty-state";
 import { Facts } from "@/components/kit/facts";
@@ -19,7 +20,7 @@ function Terms({ version }: { readonly version: TenantAgreementVersion }) {
         items={[
           ["Monthly target", `${version.monthlyTarget} meetings`],
           ["Total target", `${version.totalTarget} meetings`],
-          ["Dispute window", `${version.disputeWindowHours} hours`],
+          ["Client decision window", `${AUTO_ACCEPT_HOURS} hours`],
         ]}
       />
       {version.rules.trim() !== "" ? (

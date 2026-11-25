@@ -6,6 +6,6 @@ export function leadRefFromSubject(subject: string | null): string | null {
 
 /** The Messages page of a portal and the address that opens one thread in it. A coordinator is the only agency with a thread with Fynix. */
 export function threadHref(kind: "client" | "agency" | "fynix", conversationId: string): string {
-  const page = kind === "client" ? "/client/messages" : kind === "fynix" ? "/fynix/inbox" : "/supplier/messages";
+  const page = kind === "client" ? "/client/messages" : kind === "fynix" ? "/fynix/inbox" : "/coordinator/messages";
   return `${page}?conv=${encodeURIComponent(conversationId)}`;
 }

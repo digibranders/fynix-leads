@@ -81,7 +81,7 @@ describe("exports domain service", () => {
         submittedAt: new Date("2026-12-01T10:00:00Z"),
         // Sensitive supply-side identifiers that MUST NOT leak:
         agencyName: "Secret Agency Partner Ltd",
-        supplierName: "Secret Coordinator Apex Corp",
+        coordinatorName: "Secret Coordinator Apex Corp",
         sourceOrgId: "secret-agency-uuid-9999",
         submittedByUserId: "secret-user-uuid-8888",
         aliasIdentityId: "secret-alias-uuid-7777",
@@ -105,7 +105,7 @@ describe("exports domain service", () => {
       expect(csv).not.toContain("submittedByUserId");
       expect(csv).not.toContain("aliasIdentityId");
       expect(csv).not.toContain("agencyName");
-      expect(csv).not.toContain("supplierName");
+      expect(csv).not.toContain("coordinatorName");
     });
   });
 

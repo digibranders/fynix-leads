@@ -5,7 +5,7 @@ import { member } from "./member";
 import { organisation } from "./organisation";
 
 /**
- * Client alias identities for agency and supplier members (spec v2 section 9.3, D31, D32).
+ * Client alias identities for agency and coordinator members (spec v2 section 9.3, D31, D32).
  * Each agency person keeps several identities: display name, title, alias email, and the client it
  * belongs to. An alias email cannot be used until verified with a 6-digit code sent to that mailbox.
  */

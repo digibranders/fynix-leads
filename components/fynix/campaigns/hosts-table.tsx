@@ -1,9 +1,10 @@
-import { Info, UserCircle } from "@phosphor-icons/react/dist/ssr";
+import { Info, UserCircle, UserPlus } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { EmptyState } from "@/components/kit/empty-state";
 import { Panel, PanelHeader } from "@/components/kit/panel";
 import { Person } from "@/components/kit/person";
 import { StatusChip } from "@/components/kit/status-chip";
+import { buttonVariants } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { blockParts, capitalise, weekSummary } from "@/lib/fynix/format";
 import type { HostCandidate, HostView } from "@/server/domain/campaign-overview";
@@ -18,22 +19,36 @@ type Props = {
   campaignZone: string;
   selectedId: string | undefined;
   canWrite: boolean;
+  /** The page that invites a person into the client, offered when nobody there can be a host yet. */
+  inviteHref: string;
 };
 
 const hostHref = (reference: string, memberId: string): string => `/fynix/campaigns/${reference}/hosts?host=${memberId}`;
 
 /** The campaign's hosts: name and title, a summary of the weekly hours, the next blocked time and whether they are taking meetings. Below `md` a row is two lines. */
-export function HostsTable({ hosts, candidates, campaignId, reference, clientName, campaignZone, selectedId, canWrite }: Props) {
+export function HostsTable({ hosts, candidates, campaignId, reference, clientName, campaignZone, selectedId, canWrite, inviteHref }: Props) {
   const addButton = canWrite && candidates.length > 0 ? <AddHostButton campaignId={campaignId} candidates={candidates} clientName={clientName} /> : null;
   const noCandidates = canWrite && candidates.length === 0;
 
   if (hosts.length === 0) {
     return (
       <Panel aria-label="Meeting hosts">
-        <EmptyState icon={UserCircle} title="No hosts yet" action={addButton ?? undefined}>
+        <EmptyState
+          icon={UserCircle}
+          title="No hosts yet"
+          action={
+            addButton ??
+            (canWrite ? (
+              <Link href={inviteHref} className={buttonVariants({ variant: "secondary", size: "sm" })}>
+                <UserPlus aria-hidden />
+                Invite a person
+              </Link>
+            ) : undefined)
+          }
+        >
           {candidates.length > 0
             ? `Add the people at ${clientName} who take meetings for this campaign.`
-            : `Nobody at ${clientName} can be a host yet. People join when they accept an invite.`}
+            : `Nobody at ${clientName} can be a host yet. A host is a person who signs in, so invite someone first: they join when they accept the invite. A campaign needs a host before it can go live.`}
         </EmptyState>
       </Panel>
     );

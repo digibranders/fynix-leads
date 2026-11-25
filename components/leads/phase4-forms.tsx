@@ -18,7 +18,7 @@ export function WithdrawLeadForm({ leadId, booked }: { leadId: string; booked: b
         <Notice tone="amber" compact>
           {booked ? "The booked meeting is cancelled and the lead counts as zero. This cannot be undone." : "The lead counts as zero and leaves the client's queue. This cannot be undone."}
         </Notice>
-        <TextAreaField name="note" label="Note" rows={3} helper="Optional. It stays in the lead's history." />
+        <TextAreaField name="note" label="Note" helper="Optional. It stays in the lead's history." />
       </FormGroup>
     </ActionForm>
   );
@@ -82,7 +82,7 @@ export function ContestOutcomeForm({ meetingId, timeLeft }: { meetingId: string;
         <Notice tone="amber" compact>
           {`Fynix decides the final outcome and may not agree. ${timeLeft}.`}
         </Notice>
-        <TextAreaField name="note" label="Note" rows={4} helper={`${NOTE_HELPER} Say what really happened.`} />
+        <TextAreaField name="note" label="Note" helper={`${NOTE_HELPER} Say what really happened.`} />
       </FormGroup>
     </ActionForm>
   );
@@ -97,7 +97,7 @@ export function AskReviewForm({ leadId, timeLeft }: { leadId: string; timeLeft: 
         <Notice tone="blue" compact>
           {`Fynix reads the client's note and yours, and may change the rejection to accepted. ${timeLeft}.`}
         </Notice>
-        <TextAreaField name="note" label="Note" rows={4} helper={`${NOTE_HELPER} Say why the rejection should change.`} />
+        <TextAreaField name="note" label="Note" helper={`${NOTE_HELPER} Say why the rejection should change.`} />
       </FormGroup>
     </ActionForm>
   );

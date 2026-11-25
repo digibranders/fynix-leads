@@ -74,7 +74,7 @@ export interface MessagingViewProps {
   readonly seenAt?: string | null;
   /** The files sent in the open thread, matched to their messages by `messageId`. */
   readonly attachments?: readonly MessageAttachmentView[];
-  /** Whether this person may start a group chat (a Fynix admin or a supplier manager). */
+  /** Whether this person may start a group chat (a Fynix admin or a coordinator manager). */
   readonly canCreateGroup?: boolean;
   /** The group behind the open thread, when it is one. */
   readonly groupInfo?: GroupInfoView | null;
@@ -433,7 +433,7 @@ export function MessagingView({
               )}
               {activeConversation.leadRef ? (
                 <Link
-                  href={`/${role === "fynix" ? "fynix/leads" : role === "client" ? "client/leads" : role === "supplier" ? "supplier/leads" : "agency/leads"}/${activeConversation.leadRef}`}
+                  href={`/${role === "fynix" ? "fynix/leads" : role === "client" ? "client/leads" : role === "supplier" ? "coordinator/leads" : "agency/leads"}/${activeConversation.leadRef}`}
                   className={buttonVariants({ variant: "secondary", size: "sm", className: "shrink-0 @max-[619px]/mv:hidden" })}
                 >
                   Open lead

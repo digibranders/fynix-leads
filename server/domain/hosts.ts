@@ -22,7 +22,7 @@ export interface HostRecord {
 }
 
 /**
- * Adds an active member of the campaign's client as a host, with the job title the supplier and its agencies are told. A host
+ * Adds an active member of the campaign's client as a host, with the job title the coordinator and its agencies are told. A host
  * who was deactivated is switched back on, with the new title, on the same row. The database pins the member to the campaign's
  * client with composite foreign keys (migration 0025); `client_org_id` on the row is copied from the campaign here.
  */
