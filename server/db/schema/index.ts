@@ -21,6 +21,7 @@ export * from "./lead-reminder";
 export * from "./meeting";
 export * from "./meeting-reschedule";
 export * from "./meeting-reminder";
+export * from "./once-stamp";
 export * from "./meeting-join";
 export * from "./rejection-review";
 export * from "./messaging";

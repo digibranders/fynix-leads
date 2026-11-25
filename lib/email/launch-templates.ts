@@ -37,6 +37,12 @@ export const LAUNCH_TEMPLATES = [
   "outcome_contested_info",
   "contest_decided_info",
   "review_requested_info",
+  "agreement_published_info",
+  "target_met_info",
+  "share_met_info",
+  "over_share_info",
+  "leads_waiting_daily",
+  "leads_waiting_summary",
   "prospect_confirmed",
   "prospect_moved",
   "prospect_cancelled",
@@ -83,6 +89,20 @@ const paramsSchema = z.object({
   decided: z.enum(["held", "client_no_show", "prospect_no_show"]).optional(),
   /** What the calendar file is built from. The recipient and the sender are added when the message is sent. */
   calendar: z.object({ meetingRef: z.string().regex(/^MTG-[0-9A-HJKMNP-TV-Z]{4}$/), startsAt: z.iso.datetime(), endsAt: z.iso.datetime(), sequence: z.number().int().min(0) }).optional(),
+  /** A campaign's name, for an email about a campaign or a target. Never in a prospect letter. */
+  campaignName: text.optional(),
+  /** A month written out, "November 2026". */
+  period: text.optional(),
+  reached: z.number().int().min(0).max(100_000).optional(),
+  target: z.number().int().min(1).max(100_000).optional(),
+  /** Whether a met target is the month's or the campaign's total. */
+  scope: z.enum(["month", "total"]).optional(),
+  /** How many leads wait for a time. */
+  waiting: z.number().int().min(1).max(100_000).optional(),
+  /** Fynix's daily summary: each client with leads waiting, and how many. */
+  clients: z.array(z.object({ name: text, waiting: z.number().int().min(1).max(100_000) })).min(1).max(200).optional(),
+  /** An agreement's version number. */
+  version: z.number().int().min(1).max(100_000).optional(),
   // Added by the database for a prospect letter:
   prospectName: text.optional(),
   clientBrand: text.optional(),
@@ -121,6 +141,12 @@ const REQUIRED: Readonly<Record<LaunchTemplate, readonly Field[]>> = {
   outcome_contested_info: [...PORTAL_BASE, "note", "noteFrom"],
   contest_decided_info: [...PORTAL_BASE, "decided"],
   review_requested_info: PORTAL_BASE,
+  agreement_published_info: ["campaignName", "version"],
+  target_met_info: [...PORTAL_BASE, "campaignName", "scope", "reached", "target"],
+  share_met_info: [...PORTAL_BASE, "campaignName", "period", "reached", "target"],
+  over_share_info: PORTAL_BASE,
+  leads_waiting_daily: [...PORTAL_BASE, "waiting"],
+  leads_waiting_summary: [...PORTAL_BASE, "clients"],
   prospect_confirmed: [...PROSPECT_BASE, "when", "calendar"],
   prospect_moved: [...PROSPECT_BASE, "when", "calendar"],
   prospect_cancelled: [...PROSPECT_BASE, "calendar"],
@@ -153,7 +179,13 @@ interface Layout {
   readonly paragraphs: readonly string[];
   /** A line giving the Meet link, or saying it will follow. */
   readonly join: boolean;
+  /** What the link opens, when it is not simply the lead: the line above the button and the button's own words. */
+  readonly open?: { readonly intro: string; readonly label: string };
 }
+
+const leads = (count: number): string => (count === 1 ? "1 lead" : `${count} leads`);
+/** How many clients Fynix's summary lists by name before it says how many more there are. */
+const SUMMARY_LINES = 20;
 
 /** The same three lines as the notices in the app (`lib/leads/notices.ts`). */
 const DECIDED_LINE: Readonly<Record<"held" | "client_no_show" | "prospect_no_show", string>> = {
@@ -169,6 +201,15 @@ const need = <T,>(value: T | undefined): T => {
 
 function portalLayout(content: LaunchContent): Layout {
   const { params } = content;
+  // The one email about a campaign and no lead.
+  if (content.template === "agreement_published_info") {
+    return {
+      subject: `Agreement version ${need(params.version)} for ${need(params.campaignName)} needs your acceptance`,
+      paragraphs: ["A new version of the agreement is published.", "The old one stays in force until both sides accept the new one. Open it, read it and accept it."],
+      join: false,
+      open: { intro: "Open the agreement:", label: "Open the agreement" },
+    };
+  }
   const ref = need(params.ref);
   const company = need(params.company);
   const note = params.note === undefined || params.note === "" ? [] : [`Note from ${params.noteFrom ?? "Client"}: ${params.note}`];
@@ -244,6 +285,49 @@ function portalLayout(content: LaunchContent): Layout {
       return { subject: `Fynix decided the contest on ${ref}`, paragraphs: [`Fynix decided the contested outcome of the meeting with ${company}.`, DECIDED_LINE[need(params.decided)], ...note], join: false };
     case "review_requested_info":
       return { subject: `A review of the rejection of ${ref} was asked for`, paragraphs: [`The coordinator asks Fynix to look again at the rejection of lead ${ref} from ${company}.`], join: false };
+    case "target_met_info": {
+      const campaign = need(params.campaignName);
+      const monthly = need(params.scope) === "month";
+      return {
+        subject: monthly ? `${campaign} reached its target for ${need(params.period)}` : `${campaign} reached its total target`,
+        paragraphs: [`${leads(need(params.reached))} now ${need(params.reached) === 1 ? "counts" : "count"} ${monthly ? `for ${need(params.period)}` : "in total"}. The target is ${need(params.target)}.`, `Lead ${ref} from ${company} completed it.`],
+        join: false,
+        open: { intro: "Open the lead that completed it:", label: "Open the lead" },
+      };
+    }
+    case "share_met_info":
+      return {
+        subject: `You reached your share for ${need(params.period)}`,
+        paragraphs: [`${need(params.reached)} of your leads for ${need(params.campaignName)} now count for ${need(params.period)}. Your share is ${need(params.target)}.`, `Lead ${ref} from ${company} completed it.`],
+        join: false,
+        open: { intro: "Open the lead that completed it:", label: "Open the lead" },
+      };
+    case "over_share_info":
+      return { subject: `Lead ${ref} is beyond its sender's share`, paragraphs: [`Lead ${ref} from ${company} takes the agency that sent it past its share for the month.`, "Approve it or leave it flagged."], join: false };
+    case "leads_waiting_daily": {
+      const count = need(params.waiting);
+      return {
+        subject: `${leads(count)} ${count === 1 ? "is" : "are"} waiting for a time`,
+        paragraphs: [`${leads(count)} ${count === 1 ? "has" : "have"} waited more than 24 hours for you to pick a meeting time. The oldest is ${ref} from ${company}.`, "Pick one of the proposed times or propose others."],
+        join: false,
+        open: { intro: "Open the oldest lead:", label: "Open the oldest lead" },
+      };
+    }
+    case "leads_waiting_summary": {
+      const clients = need(params.clients);
+      const more = clients.length - SUMMARY_LINES;
+      return {
+        subject: "Leads waiting for a client to pick a time",
+        paragraphs: [
+          "These clients have leads that have waited more than 24 hours for a meeting time.",
+          ...clients.slice(0, SUMMARY_LINES).map((entry) => `${entry.name}: ${leads(entry.waiting)}`),
+          ...(more > 0 ? [`And ${more} more ${more === 1 ? "client" : "clients"}.`] : []),
+          `The one that has waited longest is ${ref} from ${company}.`,
+        ],
+        join: false,
+        open: { intro: "Open the lead that has waited longest:", label: "Open the lead" },
+      };
+    }
     default:
       throw new Error(`${content.template} is not a portal email.`);
   }
@@ -306,10 +390,10 @@ export function renderLaunchEmail(content: LaunchContent, link: string | null): 
   const layout = portalLayout(content);
   const url = content.params.meetUrl ?? null;
   const joinText = layout.join ? [url === null ? "The link to join will follow." : `Join link: ${url}`] : [];
-  const intro = "Open the lead:";
+  const { intro, label } = layout.open ?? { intro: "Open the lead:", label: "Open the lead" };
   const textBody = [...layout.paragraphs, ...joinText, "", intro, link ?? LINK_REMOVED_TEXT].join("\n");
   const joinHtml = layout.join ? paragraphHtml(joinText[0] ?? "") : "";
-  const action = link === null ? `${paragraphHtml(intro)}${paragraphHtml(LINK_REMOVED_TEXT)}` : `${paragraphHtml(intro)}${buttonHtml("Open the lead", link)}`;
+  const action = link === null ? `${paragraphHtml(intro)}${paragraphHtml(LINK_REMOVED_TEXT)}` : `${paragraphHtml(intro)}${buttonHtml(label, link)}`;
   return { subject: layout.subject, text: textBody, html: shellHtml(`${layout.paragraphs.map(paragraphHtml).join("")}${joinHtml}${action}`, "Fynix Leads") };
 }
 

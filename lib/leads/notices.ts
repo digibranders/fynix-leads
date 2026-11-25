@@ -49,7 +49,8 @@ export type LeadNoticeEvent =
   | { readonly type: "lead_accepted"; readonly by: "client" | "fynix"; readonly note: string }
   | { readonly type: "lead_rejected"; readonly by: "client" | "fynix"; readonly note: string }
   | { readonly type: "rejection_overturned"; readonly note: string }
-  | { readonly type: "review_requested" };
+  | { readonly type: "review_requested" }
+  | { readonly type: "lead_over_share" };
 
 export type CampaignNoticeEvent = { readonly type: "campaign_active" } | { readonly type: "campaign_closed" } | { readonly type: "agreement_published"; readonly version: number };
 
@@ -117,6 +118,8 @@ export function leadNotices(event: LeadNoticeEvent): readonly NoticeDelivery[] {
     case "rejection_overturned":
       // The client reads it too: the lead now counts toward its number (owner decision, 2026-11-25).
       return [lead(["client", "source", "coordinator"], "rejection_overturned", "The rejection of {ref} was changed to accepted", `Fynix changed it. The lead counts as one. Note from Fynix: ${noteOf(event.note)}`)];
+    case "lead_over_share":
+      return [lead(["fynix"], "general", "Lead {ref} is beyond its sender's share", "This lead from {company} takes the agency that sent it past its share for the month. Approve it or leave it flagged.")];
     case "review_requested":
       return [lead(["fynix"], "review_requested", "A review of the rejection of {ref} was asked for", "The coordinator asks Fynix to look at this rejection again.")];
   }

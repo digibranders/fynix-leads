@@ -34,8 +34,8 @@ Also agree with your lawyer that the coordinator and agency terms oblige them to
 
 - **A rejection less than 24 hours before the meeting.** It counts zero today. The choices are: it counts as a client no-show (one), it counts zero as any early rejection does, or Fynix decides each case. The rule lives in one function, `lateRejectionCounts` in `lib/domain/counting-month.ts`.
 - **Retention.** How long to keep the join record, and a closed lead's prospect details.
-- **Email timing.** Whether "lead submitted" goes out at once or as one email every 2 hours, and when the outcome reminders go out.
-- **Three client emails.** Whether the client is emailed when a lead is accepted automatically, when Fynix changes a rejection, and when a client no-show is recorded against it. The suggestion is yes to all three.
+- **Email timing.** When the outcome reminders go out. Today: when the meeting ends and again a day later. ("Lead submitted" goes out at once: decided 2026-11-25.)
+- **The Fynix time zone.** Fynix's daily summary of leads left waiting goes out at 9 am in the Fynix organisation's time zone. None is set, so it is 9 am Europe/London. Say which zone it should be.
 - **Which host the prospect letter names** when several hosts are invited.
 
 ## 5. Fix the GitHub billing
@@ -50,5 +50,5 @@ Every GitHub Actions job fails in 2 seconds with "recent account payments have f
 
 ## Not done on purpose
 
-- **Editing email wording in the app.** The Templates page shows every email. Wording changes go through code and review.
+- **Editing email wording in the app.** The Templates page shows every email. Wording changes go through code and review. The one exception is the opening paragraph of the letter that confirms a meeting to a prospect: a Fynix admin writes it per campaign, on the campaign's "Prospect email" panel.
 - **Dev data.** Your dev database has sample leads that the browser checks moved forward, and a test terms text for clients.

@@ -25,6 +25,7 @@ const LEAD_EVENTS: readonly LeadNoticeEvent[] = [
   { type: "lead_rejected", by: "fynix", note: "The client asked us to reject it" },
   { type: "rejection_overturned", note: "The prospect qualifies" },
   { type: "review_requested" },
+  { type: "lead_over_share" },
 ];
 
 const CAMPAIGN_EVENTS: readonly CampaignNoticeEvent[] = [{ type: "campaign_active" }, { type: "campaign_closed" }, { type: "agreement_published", version: 3 }];
@@ -65,6 +66,13 @@ describe("the notice catalogue", () => {
     expect(overturned).toHaveLength(1);
     expect(overturned[0]?.audience).toEqual(["client", "source", "coordinator"]);
     expect(overturned[0]?.body).toContain("Note from Fynix: The prospect qualifies");
+  });
+
+  it("tells Fynix alone when a lead takes its sender past its share", () => {
+    const over = leadNotices({ type: "lead_over_share" });
+    expect(over).toHaveLength(1);
+    expect(over[0]?.audience).toEqual(["fynix"]);
+    expect(over[0]?.kind).toBe("general");
   });
 
   it("takes contact details out of a note before it is stored", () => {

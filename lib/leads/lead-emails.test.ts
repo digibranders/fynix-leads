@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseLaunchContent, isProspectTemplate } from "@/lib/email/launch-templates";
-import { leadEmailDeliveries, type LeadEmailContext, type LeadEmailEvent } from "./lead-emails";
+import { campaignEmailDeliveries, leadEmailDeliveries, type LeadEmailContext, type LeadEmailEvent } from "./lead-emails";
 
 const MEETING = { ref: "MTG-3F7K", startsAt: new Date("2026-12-08T14:30:00.000Z"), durationMinutes: 30, meetUrl: "https://meet.google.com/abc-defg-hij", icsSequence: 0, outcome: "scheduled" } as const;
 const CONTEXT: LeadEmailContext = { ref: "LD-4K7M", company: "Nordvik Cold Chain", timeZone: "Europe/London", prospectReady: true, meeting: MEETING };
@@ -91,6 +91,35 @@ describe("who gets which email", () => {
     expect(leadEmailDeliveries({ type: "contest_decided", outcome: "held", note: "n" }, CONTEXT)[0]?.params).toMatchObject({ decided: "held", noteFrom: "Fynix" });
   });
 
+  it("a target that is met goes to the client, the coordinator and Fynix; an agency's share to that agency alone", () => {
+    const month = { type: "target_met", scope: "campaign_month", campaignName: "UK freight", period: "November 2026", reached: 12, target: 12 } as const;
+    expect(shape(month)).toEqual(["target_met_info:client+coordinator+fynix"]);
+    expect(leadEmailDeliveries(month, CONTEXT)[0]?.params).toMatchObject({ scope: "month", campaignName: "UK freight", period: "November 2026", reached: 12, target: 12 });
+    expect(shape({ ...month, scope: "campaign_total" })).toEqual(["target_met_info:client+coordinator+fynix"]);
+    expect(leadEmailDeliveries({ ...month, scope: "campaign_total" }, CONTEXT)[0]?.params.scope).toBe("total");
+    expect(shape({ ...month, scope: "agency_share" })).toEqual(["share_met_info:source"]);
+  });
+
+  it("a lead beyond its sender's share goes to Fynix alone", () => {
+    expect(shape({ type: "lead_over_share" })).toEqual(["over_share_info:fynix"]);
+  });
+
+  it("leads still waiting for a time: the client once a day, Fynix as one summary", () => {
+    expect(shape({ type: "leads_waiting", waiting: 3 })).toEqual(["leads_waiting_daily:client"]);
+    expect(leadEmailDeliveries({ type: "leads_waiting", waiting: 3 }, CONTEXT)[0]?.params.waiting).toBe(3);
+    const summary = { type: "leads_waiting_summary", clients: [{ name: "Kestrel Logistics", waiting: 3 }] } as const;
+    expect(shape(summary)).toEqual(["leads_waiting_summary:fynix"]);
+    expect(leadEmailDeliveries(summary, CONTEXT)[0]?.params.clients).toEqual([{ name: "Kestrel Logistics", waiting: 3 }]);
+  });
+
+  it("a new agreement version goes to the managers of both sides, and other campaign events send no email", () => {
+    expect(campaignEmailDeliveries({ type: "agreement_published", version: 3 }, { campaignName: "UK freight" })).toEqual([
+      { template: "agreement_published_info", audience: ["client_managers", "coordinator_managers"], params: { campaignName: "UK freight", version: 3 } },
+    ]);
+    expect(campaignEmailDeliveries({ type: "campaign_active" }, { campaignName: "UK freight" })).toEqual([]);
+    expect(campaignEmailDeliveries({ type: "campaign_closed" }, { campaignName: "UK freight" })).toEqual([]);
+  });
+
   it("a request to review a rejection goes to Fynix alone", () => {
     expect(shape({ type: "review_requested" })).toEqual(["review_requested_info:fynix"]);
   });
@@ -110,6 +139,12 @@ describe("who gets which email", () => {
       { type: "outcome_contested", by: "client", note: NOTE },
       { type: "contest_decided", outcome: "held", note: "n" },
       { type: "review_requested" },
+      { type: "lead_over_share" },
+      { type: "target_met", scope: "campaign_month", campaignName: "UK freight", period: "November 2026", reached: 12, target: 12 },
+      { type: "target_met", scope: "campaign_total", campaignName: "UK freight", period: "November 2026", reached: 72, target: 72 },
+      { type: "target_met", scope: "agency_share", campaignName: "UK freight", period: "November 2026", reached: 5, target: 5 },
+      { type: "leads_waiting", waiting: 2 },
+      { type: "leads_waiting_summary", clients: [{ name: "Kestrel Logistics", waiting: 2 }] },
       { type: "lead_accepted", by: "fynix", note: "n" },
       { type: "lead_rejected", by: "fynix", note: "n" },
       { type: "rejection_overturned", note: "n" },

@@ -190,6 +190,8 @@ const EXPECTED_ACCESS: Readonly<Record<string, readonly RuntimeRoleName[]>> = {
   // a meeting's room (written by a function for the sweep; the client, the agencies and Fynix read the rows of the meetings they can read).
   meeting_reminder: [],
   meeting_join: ["leads_fynix", "leads_client", "leads_agency"],
+  // Migration 0092: "this was sent" keys (a target notice, the daily reminders). Written by SECURITY DEFINER functions alone.
+  once_stamp: [],
 };
 /** The tables nobody but leads_auth touches. `user` is not one of them any more: Fynix reads four columns of it. */
 const AUTH_TABLES = ["session", "account", "verification", "two_factor"] as const;

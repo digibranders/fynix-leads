@@ -37,6 +37,12 @@ export const emailTemplate = pgEnum("email_template", [
   "outcome_contested_info",
   "contest_decided_info",
   "review_requested_info",
+  "agreement_published_info",
+  "target_met_info",
+  "share_met_info",
+  "over_share_info",
+  "leads_waiting_daily",
+  "leads_waiting_summary",
 ]);
 export const outboxStatus = pgEnum("outbox_status", ["pending", "sent", "failed", "cancelled"]);
 export const termsStatus = pgEnum("terms_status", ["current", "superseded"]);

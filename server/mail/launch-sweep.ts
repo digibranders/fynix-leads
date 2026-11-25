@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import type { Database } from "@/server/db/pool";
 import type { MeetProvider } from "@/server/meet/provider";
-import { enqueueLeadEmails, type EnqueueOptions } from "@/server/mail/lead-emails";
+import { claimTargetNotices, enqueueLeadEmails, type EnqueueOptions } from "@/server/mail/lead-emails";
 
 /**
  * The time-based half of the launch emails and the join record, run by `pnpm leads:sweep` as `leads_auth`. Every step is idempotent: a row is claimed and
@@ -24,7 +24,11 @@ export async function sweepLeadsWithEmails(authDb: Database, now: Date, enqueue:
   return authDb.transaction(async (tx) => {
     const swept = await tx.execute<{ swept_id: string; swept_ref: string }>(sql`select swept_id, swept_ref from public.app_sweep_leads(${now.toISOString()}::timestamptz)`);
     const rows = swept.rows.map((row) => ({ id: row.swept_id, publicRef: row.swept_ref }));
-    for (const row of rows) await enqueueLeadEmails(tx, { type: "lead_auto_accepted", leadId: row.id }, { ...enqueue, system: true });
+    for (const row of rows) {
+      await enqueueLeadEmails(tx, { type: "lead_auto_accepted", leadId: row.id }, { ...enqueue, system: true });
+      // An acceptance adds one, so a target may just have been met: its notice is written whatever the email switch says.
+      await claimTargetNotices(tx, row.id, { ...enqueue, system: true });
+    }
     return rows;
   });
 }
@@ -55,6 +59,26 @@ export async function sendMeetingReminderEmails(authDb: Database, now: Date, enq
       }
     }
     return { prospect, nudges };
+  });
+}
+
+/**
+ * The daily reminder to each client with a lead that has waited more than 24 hours for a time (`app_claim_waiting_reminders`: once per client and local day,
+ * from 9 am there, with its notice in the app), and Fynix's one summary of them (`app_claim_waiting_summary`, once per day). The client's notice is written
+ * whatever the email switch says; the summary is an email and nothing else, so it is only claimed when emails are on.
+ */
+export async function sendWaitingReminders(authDb: Database, now: Date, enqueue: EnqueueOptions): Promise<{ readonly clients: number; readonly summary: number }> {
+  return authDb.transaction(async (tx) => {
+    const options = { ...enqueue, system: true };
+    const due = await tx.execute<{ lead_id: string; waiting: number }>(sql`select lead_id, waiting from public.app_claim_waiting_reminders(${now.toISOString()}::timestamptz)`);
+    for (const row of due.rows) await enqueueLeadEmails(tx, { type: "leads_waiting", waiting: row.waiting, leadId: row.lead_id }, options);
+    if (enqueue.enabled !== true) return { clients: due.rows.length, summary: 0 };
+    const summary = await tx.execute<{ client_name: string; waiting: number; oldest_lead: string }>(sql`select client_name, waiting, oldest_lead from public.app_claim_waiting_summary(${now.toISOString()}::timestamptz)`);
+    const longest = summary.rows[0];
+    if (longest !== undefined) {
+      await enqueueLeadEmails(tx, { type: "leads_waiting_summary", clients: summary.rows.map((row) => ({ name: row.client_name, waiting: row.waiting })), leadId: longest.oldest_lead }, options);
+    }
+    return { clients: due.rows.length, summary: summary.rows.length };
   });
 }
 

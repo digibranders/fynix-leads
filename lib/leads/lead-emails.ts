@@ -1,6 +1,6 @@
 import { formatMeetingTime, type LaunchParams, type LaunchTemplate } from "@/lib/email/launch-templates";
 import { relayText } from "@/lib/relay/relay-text";
-import type { LeadNoticeEvent } from "@/lib/leads/notices";
+import type { CampaignNoticeEvent, LeadNoticeEvent } from "@/lib/leads/notices";
 
 /**
  * Which emails each lead event sends, to whom (phase 6, the table "Emails at launch" in the Meet note). Pure: the database function that queues a message
@@ -16,7 +16,13 @@ export type SystemEmailEvent =
   | { readonly type: "lead_auto_accepted" }
   | { readonly type: "decision_reminder"; readonly hoursLeft: number }
   | { readonly type: "prospect_reminder"; readonly kind: "24h" | "1h" }
-  | { readonly type: "outcome_nudge" };
+  | { readonly type: "outcome_nudge" }
+  /** A target the lead completed (`app_claim_target_notices`): the campaign's for a month, the campaign's in total, or the share of the agency that sent the lead. */
+  | { readonly type: "target_met"; readonly scope: "campaign_month" | "campaign_total" | "agency_share"; readonly campaignName: string; readonly period: string; readonly reached: number; readonly target: number }
+  /** The client's daily reminder, keyed on the lead that has waited longest for a time. */
+  | { readonly type: "leads_waiting"; readonly waiting: number }
+  /** Fynix's daily summary, keyed on the lead that has waited longest of all. */
+  | { readonly type: "leads_waiting_summary"; readonly clients: readonly { readonly name: string; readonly waiting: number }[] };
 
 export type LeadEmailEvent = LeadNoticeEvent | SystemEmailEvent;
 
@@ -139,6 +145,17 @@ export function leadEmailDeliveries(event: LeadEmailEvent, context: LeadEmailCon
       return [{ template: "contest_decided_info", audience: EVERYONE, params: { ...base, decided: event.outcome, note: noteOf(event.note), noteFrom: "Fynix" } }];
     case "review_requested":
       return [{ template: "review_requested_info", audience: ["fynix"], params: base }];
+    case "lead_over_share":
+      return [{ template: "over_share_info", audience: ["fynix"], params: base }];
+    case "target_met":
+      // An agency hears of its own share and never of the campaign's target; the campaign's target goes to the client, the coordinator and Fynix.
+      return event.scope === "agency_share"
+        ? [{ template: "share_met_info", audience: ["source"], params: { ...base, campaignName: event.campaignName, period: event.period, reached: event.reached, target: event.target } }]
+        : [{ template: "target_met_info", audience: ["client", "coordinator", "fynix"], params: { ...base, campaignName: event.campaignName, scope: event.scope === "campaign_month" ? "month" : "total", period: event.period, reached: event.reached, target: event.target } }];
+    case "leads_waiting":
+      return [{ template: "leads_waiting_daily", audience: ["client"], params: { ...base, waiting: event.waiting } }];
+    case "leads_waiting_summary":
+      return [{ template: "leads_waiting_summary", audience: ["fynix"], params: { ...base, clients: event.clients.map((entry) => ({ name: entry.name, waiting: entry.waiting })) } }];
     case "decision_reminder":
       return [{ template: "decision_reminder", audience: ["client"], params: { ...base, hoursLeft: event.hoursLeft } }];
     case "prospect_reminder":
@@ -146,4 +163,19 @@ export function leadEmailDeliveries(event: LeadEmailEvent, context: LeadEmailCon
     case "outcome_nudge":
       return [{ template: "outcome_nudge", audience: SUPPLY_AND_FYNIX, params: base }];
   }
+}
+
+/** The people an email about a campaign (and no lead) can go to: the managers of its two sides. */
+export type CampaignEmailAudience = "client_managers" | "coordinator_managers";
+
+export interface CampaignEmailDelivery {
+  readonly template: LaunchTemplate;
+  readonly audience: readonly CampaignEmailAudience[];
+  readonly params: LaunchParams;
+}
+
+/** Which emails a campaign event sends. Only a new agreement version sends one: both sides must accept it. */
+export function campaignEmailDeliveries(event: CampaignNoticeEvent, campaign: { readonly campaignName: string }): readonly CampaignEmailDelivery[] {
+  if (event.type !== "agreement_published") return [];
+  return [{ template: "agreement_published_info", audience: ["client_managers", "coordinator_managers"], params: { campaignName: campaign.campaignName, version: event.version } }];
 }

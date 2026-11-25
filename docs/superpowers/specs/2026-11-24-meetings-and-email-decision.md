@@ -130,6 +130,8 @@ Gates G1 (second factor for Fynix) and G2 (terms) are unchanged. G3 and G4 are n
 - Which host is named in the prospect letter when several are invited (open decision 2 of `2026-11-23-calendar-design.md`).
 - How long the join record and a closed lead's prospect data are kept (spec section 19, question 4).
 
+Settled by the owner on 2026-11-25 and built (see `2026-11-25-pending-emails-design.md`): "lead submitted" is sent at once; the client is emailed when a lead is accepted for it after 48 hours, when Fynix changes its rejection and when a client no-show is recorded; the emails this note left for later (target met, over share, agreement changed, the daily reminder) and a per-campaign opening paragraph for the confirmation letter.
+
 Settled by the owner later on 2026-11-24: the client is reminded every 12 hours after the outcome until it answers, and the lead is accepted for it at 48 hours.
 
 Settled elsewhere since the lead flow note was written: a prospect no-show closes the lead, and the client, the agency, the coordinator and Fynix can all record an outcome.

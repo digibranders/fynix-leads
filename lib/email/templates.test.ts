@@ -158,6 +158,12 @@ const FIXTURES: Record<EmailTemplate, EmailContent> = {
   outcome_contested_info: portal("outcome_contested_info", { note: "Two of us joined on time.", noteFrom: "Client" }),
   contest_decided_info: portal("contest_decided_info", { decided: "client_no_show", note: "The room record shows nobody from the client.", noteFrom: "Fynix" }),
   review_requested_info: portal("review_requested_info"),
+  agreement_published_info: { template: "agreement_published_info", params: { campaignName: "UK freight decision makers", version: 3 } } as EmailContent,
+  target_met_info: portal("target_met_info", { campaignName: "UK freight decision makers", scope: "month", period: "November 2026", reached: 12, target: 12 }),
+  share_met_info: portal("share_met_info", { campaignName: "UK freight decision makers", period: "November 2026", reached: 5, target: 5 }),
+  over_share_info: portal("over_share_info"),
+  leads_waiting_daily: portal("leads_waiting_daily", { waiting: 3 }),
+  leads_waiting_summary: portal("leads_waiting_summary", { clients: [{ name: "Kestrel Logistics", waiting: 3 }, { name: "Halden Foods", waiting: 1 }] }),
   prospect_confirmed: prospect("prospect_confirmed"),
   prospect_moved: prospect("prospect_moved"),
   prospect_cancelled: prospect("prospect_cancelled"),
@@ -235,6 +241,36 @@ describe("every template, rendered", () => {
     expect(decided).toContain("The client did not attend. It counts as one.");
     expect(decided).toContain("Note from Fynix: The room record shows nobody from the client.");
     expect(everyRendering(FIXTURES.rejection_overturned_client, PORTAL_LINK).text).toContain("Note from Fynix: The brief allowed it.");
+  });
+
+  it("a met target says how many count, for which month or in total, and against which number", () => {
+    const month = everyRendering(FIXTURES.target_met_info, PORTAL_LINK);
+    expect(month.subject).toBe("UK freight decision makers reached its target for November 2026");
+    expect(month.text).toContain("12 leads now count for November 2026. The target is 12.");
+    const total = everyRendering(portal("target_met_info", { campaignName: "UK freight decision makers", scope: "total", reached: 72, target: 72 }), PORTAL_LINK);
+    expect(total.subject).toBe("UK freight decision makers reached its total target");
+    expect(total.text).toContain("72 leads now count in total. The target is 72.");
+    const share = everyRendering(FIXTURES.share_met_info, PORTAL_LINK);
+    expect(share.subject).toBe("You reached your share for November 2026");
+    expect(share.text).toContain("5 of your leads for UK freight decision makers now count for November 2026. Your share is 5.");
+    expect(share.all).not.toContain("The target is");
+  });
+
+  it("the daily reminder counts the leads in words that fit one or many, and names the oldest", () => {
+    expect(everyRendering(FIXTURES.leads_waiting_daily, PORTAL_LINK).subject).toBe("3 leads are waiting for a time");
+    expect(everyRendering(FIXTURES.leads_waiting_daily, PORTAL_LINK).text).toContain("The oldest is LD-4K7M from Nordvik Cold Chain.");
+    expect(everyRendering(portal("leads_waiting_daily", { waiting: 1 }), PORTAL_LINK).subject).toBe("1 lead is waiting for a time");
+    const summary = everyRendering(FIXTURES.leads_waiting_summary, PORTAL_LINK).text;
+    expect(summary).toContain("Kestrel Logistics: 3 leads");
+    expect(summary).toContain("Halden Foods: 1 lead");
+  });
+
+  it("an email about an agreement or a waiting list names its own button, not the lead's", () => {
+    const agreement = everyRendering(FIXTURES.agreement_published_info, PORTAL_LINK);
+    expect(agreement.subject).toBe("Agreement version 3 for UK freight decision makers needs your acceptance");
+    expect(agreement.html).toContain("Open the agreement");
+    expect(agreement.all).not.toContain("Open the lead");
+    expect(everyRendering(FIXTURES.leads_waiting_daily, PORTAL_LINK).html).toContain("Open the oldest lead");
   });
 
   it("the cancelled email gives the note, labelled with who wrote it", () => {

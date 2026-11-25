@@ -1,6 +1,6 @@
 # Pending emails: client emails, bell-only events, a letter per campaign and the later emails
 
-Owner decisions, 2026-11-25. This is a design, not yet built. It adds to `2026-11-24-meetings-and-email-decision.md` and does not change it. Building starts only after the work now uncommitted in this checkout (the coordinator rename, client contacts, campaign set-up fields) is committed.
+Owner decisions, 2026-11-25. Built the same day in three slices on `development` (migrations 0087 to 0093), each with its plan in `docs/superpowers/plans/2026-11-25-pending-emails-slice-*.md`. It adds to `2026-11-24-meetings-and-email-decision.md` and does not change it. "What changed while building" at the end lists where the build differs from the design below.
 
 ## Decided
 
@@ -108,3 +108,13 @@ Queueing:
 
 - The Fynix organisation's time zone, used for the daily summary. Europe/London is assumed until it is set.
 - Whether a rejection less than 24 hours before the meeting counts as one (unchanged, see `docs/owner-checklist.md`, section 4).
+
+## What changed while building
+
+- **Target emails and the daily reminder are keyed on a lead, not on a campaign or an organisation.** A target email opens the lead that completed the target; the daily reminder and Fynix's summary open the lead that has waited longest. So they go through the queue that already exists, and only the agreement email needed a new queue function (`app_enqueue_campaign_email`, Fynix only).
+- **One table of "sent once" keys** (`once_stamp`) does the stamping for targets, shares, the daily reminder and the summary.
+- **The new bell notices use the existing kind `general`**, so the list of notice kinds did not change.
+- **The bell notice of a met target goes to everyone it concerns, the person who acted included.** The email leaves the person who acted out, like every other email.
+- **"Waiting" is measured from the lead's last change**, not from when it was submitted, so a lead that came back to the client last night is not chased this morning.
+- **The paragraph's rules are reported one sentence each on the form**, and a paragraph that names the coordinator or an agency is refused when saved as well as left out when queued.
+- **An agency is told about its share only when it holds a share of the campaign.** An agency with no share has nothing to reach.

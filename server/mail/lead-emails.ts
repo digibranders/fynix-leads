@@ -1,7 +1,8 @@
 import { sql } from "drizzle-orm";
 import { parseLaunchContent, isProspectTemplate } from "@/lib/email/launch-templates";
 import { renderEmail } from "@/lib/email/templates";
-import { leadEmailDeliveries, type LeadEmailContext, type LeadEmailEvent } from "@/lib/leads/lead-emails";
+import { campaignEmailDeliveries, leadEmailDeliveries, type LeadEmailContext, type LeadEmailEvent } from "@/lib/leads/lead-emails";
+import type { CampaignNoticeEvent } from "@/lib/leads/notices";
 import type { Database } from "@/server/db/pool";
 import { hasNeutralSender, launchEmailsEnabled } from "@/server/mail/launch";
 
@@ -80,6 +81,49 @@ export async function enqueueLeadEmails(db: EmailExecutor, event: LeadEmailEvent
     const result = system
       ? await db.execute<{ n: number }>(sql`select public.app_enqueue_lead_email_system(${leadId}::uuid, ${audience}::text[], ${delivery.template}, ${params}::jsonb, ${stored.subject}, ${stored.text}, ${origin}) as n`)
       : await db.execute<{ n: number }>(sql`select public.app_enqueue_lead_email(${leadId}::uuid, ${audience}::text[], ${delivery.template}, ${params}::jsonb, ${stored.subject}, ${stored.text}, ${origin}) as n`);
+    written += result.rows[0]?.n ?? 0;
+  }
+  return written;
+}
+
+type TargetRow = { scope: "campaign_month" | "campaign_total" | "agency_share"; campaign_name: string; period: string; reached: number; target: number };
+
+/**
+ * After a lead's count changed: asks the database which targets the lead has just completed (`app_claim_target_notices`, which stamps each one so it is said
+ * once and writes its notice in the app) and queues the email of each. The claim runs whatever the email switch says, because the notices are not behind it;
+ * the emails are. `system` is the sweep, after an automatic acceptance. Returns how many targets were claimed.
+ */
+export async function claimTargetNotices(db: EmailExecutor, leadId: string, options: EnqueueOptions = {}): Promise<number> {
+  const claimed =
+    options.system === true
+      ? await db.execute<TargetRow>(sql`select scope, campaign_name, period, reached, target from public.app_claim_target_notices_system(${leadId}::uuid)`)
+      : await db.execute<TargetRow>(sql`select scope, campaign_name, period, reached, target from public.app_claim_target_notices(${leadId}::uuid)`);
+  for (const row of claimed.rows) {
+    await enqueueLeadEmails(db, { type: "target_met", scope: row.scope, campaignName: row.campaign_name, period: row.period, reached: row.reached, target: row.target, leadId }, options);
+  }
+  return claimed.rows.length;
+}
+
+/**
+ * Queues the email of a campaign event: only a new agreement version has one, to the managers of both sides (`lib/leads/lead-emails.ts`). Only Fynix publishes
+ * an agreement, and the database function refuses anyone else. Does nothing while `LAUNCH_EMAILS_ENABLED` is not `true`.
+ */
+export async function enqueueCampaignEmails(db: EmailExecutor, event: CampaignNoticeEvent & { readonly campaignId: string }, options: EnqueueOptions = {}): Promise<number> {
+  if (event.type !== "agreement_published") return 0;
+  if (!(options.enabled ?? launchEmailsEnabled())) return 0;
+  const origin = options.origin ?? process.env.APP_ORIGIN;
+  if (origin === undefined || origin === "") throw new Error("APP_ORIGIN must be set to queue the launch emails.");
+  const { campaignId, ...rest } = event;
+  const named = await db.execute<{ name: string }>(sql`select name from public.campaign where id = ${campaignId}::uuid`);
+  const campaignName = named.rows[0]?.name;
+  if (campaignName === undefined) return 0;
+  let written = 0;
+  for (const delivery of campaignEmailDeliveries(rest, { campaignName })) {
+    const content = parseLaunchContent(delivery.template, delivery.params);
+    const stored = renderEmail(content, null);
+    const result = await db.execute<{ n: number }>(
+      sql`select public.app_enqueue_campaign_email(${campaignId}::uuid, ${textArray(delivery.audience)}::text[], ${delivery.template}, ${JSON.stringify(content.params)}::jsonb, ${stored.subject}, ${stored.text}, ${origin}) as n`,
+    );
     written += result.rows[0]?.n ?? 0;
   }
   return written;

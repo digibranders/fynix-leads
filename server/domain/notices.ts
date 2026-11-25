@@ -6,7 +6,7 @@ import type { ScopedTransaction } from "@/server/db/scope";
 import { notificationColumnsFor, withActorScope, type MessagingActor } from "@/server/domain/messaging-core";
 import { markNotificationReadSchema } from "@/server/domain/inputs";
 import { parseInput } from "@/server/domain/parse";
-import { enqueueLeadEmails } from "@/server/mail/lead-emails";
+import { claimTargetNotices, enqueueCampaignEmails, enqueueLeadEmails } from "@/server/mail/lead-emails";
 
 /**
  * Notices in the app (phase 5). `notify(tx, event)` is the one call every domain function that changes a lead, a meeting or a campaign makes inside its own
@@ -29,12 +29,17 @@ export async function notify(tx: ScopedTransaction, event: NotifyEvent): Promise
     }
     // The emails of the same event (phase 6), in the same transaction. Nothing happens while LAUNCH_EMAILS_ENABLED is not true.
     await enqueueLeadEmails(tx, { ...rest, leadId });
+    // These are the events after which a lead can count where it did not before, so a target may just have been met. (The sweep does the same after an
+    // automatic acceptance.) The database decides, says each target once and writes its notice; the email follows when the launch switch is on.
+    if (rest.type === "lead_accepted" || rest.type === "rejection_overturned" || rest.type === "contest_decided" || (rest.type === "outcome_recorded" && rest.outcome === "client_no_show")) {
+      await claimTargetNotices(tx, leadId);
+    }
     return;
   }
   const { campaignId, ...rest } = event;
   for (const delivery of campaignNotices(rest) as readonly NoticeDelivery[]) {
     await tx.execute(sql`select public.app_notify_campaign(${campaignId}::uuid, ${textArray(delivery.audience)}::text[], ${delivery.kind}, ${delivery.title}, ${delivery.body}, ${delivery.target})`);
-  }
+  }  await enqueueCampaignEmails(tx, { ...rest, campaignId });
 }
 
 /**
