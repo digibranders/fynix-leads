@@ -6,7 +6,6 @@ import type { AuditAction } from "@/server/domain/audit";
 import { DomainError } from "@/server/domain/errors";
 import { publishTerms } from "@/server/domain/terms";
 import { publishAgreement, recordAgreementAcceptance } from "@/server/domain/agreements";
-import { addCampaignHost } from "@/server/domain/hosts";
 import type { DomainRig } from "@/server/domain/testing";
 
 /** A random source that answers from a list, one entry per call, and repeats the last entry when the list runs out. For forcing a reference collision. */
@@ -97,12 +96,7 @@ export async function agreeNumbers(rig: DomainRig, campaignId: string, numbers: 
   return published.id;
 }
 
-/** Makes a campaign meet the going-live rule: an agreement both sides accepted (`agreeNumbers`) and one active host (the client's seeded person). */
+/** Makes a campaign meet the going-live rule: an agreement both sides accepted (`agreeNumbers`). The client's seeded person is the active client team member the rule also needs. */
 export async function makeCampaignReady(rig: DomainRig, campaignId: string, numbers?: { readonly monthlyTarget: number; readonly totalTarget: number }): Promise<string> {
-  const agreementId = await agreeNumbers(rig, campaignId, numbers);
-  const [row] = await rig.dbs.owner.db.select({ clientOrgId: campaign.clientOrgId }).from(campaign).where(eq(campaign.id, campaignId));
-  const clientUser = rig.world().users.find((person) => person.organisation.id === row?.clientOrgId);
-  if (clientUser === undefined) throw new Error("The seed has no user for the campaign's client");
-  await addCampaignHost(rig.deps(), rig.actor, { campaignId, memberId: await memberIdFor(rig, clientUser.id), jobTitle: "Head of Sales" });
-  return agreementId;
+  return agreeNumbers(rig, campaignId, numbers);
 }

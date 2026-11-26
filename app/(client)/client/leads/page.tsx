@@ -88,7 +88,7 @@ async function Leads({ searchParams }: { searchParams: PageProps<"/client/leads"
                       <SortHead label="Prospect" sortKey="prospect" sort={sort} hrefFor={sortHref} />
                       <SortHead label="Company" sortKey="company" sort={sort} hrefFor={sortHref} className="max-md:hidden" />
                       <TableHead className="max-xl:hidden">Campaign</TableHead>
-                      <TableHead className="max-xl:hidden">Host</TableHead>
+                      <TableHead className="max-xl:hidden">Team member</TableHead>
                       <SortHead label="Stage" sortKey="stage" sort={sort} hrefFor={sortHref} />
                       <SortHead label="Meeting" sortKey="meeting" sort={sort} hrefFor={sortHref} className="max-lg:hidden" />
                       <SortHead label="Submitted" sortKey="submitted" sort={sort} hrefFor={sortHref} className="max-lg:hidden" />

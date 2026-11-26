@@ -1,10 +1,10 @@
-import { and, asc, count, desc, eq, gt, inArray, isNull, notInArray } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type { CampaignStatus } from "@/lib/domain/campaign-status";
 import { countedMonth, isCountedStage } from "@/lib/domain/counting-month";
 import { summariseShares, type ShareSummary } from "@/lib/domain/share-allocation";
 import type { HoursWindow } from "@/lib/domain/weekly-hours";
-import { auditLog, campaign, campaignHost, campaignShare, clientContact, hostBlock, hostHours, lead, member, organisation } from "@/server/db/schema";
+import { auditLog, campaign, campaignShare, clientContact, hostBlock, hostHours, lead, member, organisation } from "@/server/db/schema";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
 import { fynixRead, type FynixActor } from "@/server/domain/fynix-write";
@@ -179,7 +179,7 @@ export async function readCampaignHeader(deps: DomainDeps, actor: FynixActor, pu
       .where(eq(campaign.publicRef, publicRef))
       .limit(1);
     if (row === undefined) throw new DomainError("not-found", "There is no such campaign.");
-    const [hosts] = await tx.select({ n: count() }).from(campaignHost).where(and(eq(campaignHost.campaignId, row.id), eq(campaignHost.active, true)));
+    const [hosts] = await tx.select({ n: count() }).from(member).where(and(eq(member.orgId, row.clientOrgId), eq(member.orgKind, "client"), eq(member.status, "active")));
     const clientContacts = await tx
       .select({ id: clientContact.id, clientOrgId: clientContact.clientOrgId, name: clientContact.name, jobTitle: clientContact.jobTitle })
       .from(clientContact)
@@ -201,7 +201,6 @@ export interface HostView {
   readonly memberId: string;
   readonly displayName: string;
   readonly jobTitle: string;
-  readonly active: boolean;
   /** The zone the weekly hours are in, or `null` when no hours are set. */
   readonly timeZone: string | null;
   readonly hours: readonly HoursWindow[];
@@ -209,30 +208,19 @@ export interface HostView {
   readonly blocks: readonly HostBlockView[];
 }
 
-export interface HostCandidate {
-  readonly memberId: string;
-  readonly displayName: string;
-  /** The person's own job title, so adding them as a host does not ask for it again. */
-  readonly jobTitle: string | null;
-}
-
-/**
- * A campaign's hosts, by name, each with the weekly hours and the blocked times still to come, plus the client's active people
- * who are not hosts yet (the ones Add host can offer).
- */
-export async function listCampaignHosts(deps: DomainDeps, actor: FynixActor, campaignId: string): Promise<{ readonly hosts: readonly HostView[]; readonly candidates: readonly HostCandidate[] }> {
+/** The active people of the campaign's client, by name, each with the weekly hours and the blocked times still to come. */
+export async function listCampaignHosts(deps: DomainDeps, actor: FynixActor, campaignId: string): Promise<readonly HostView[]> {
   const id = parseInput(uuidSchema, campaignId);
   const now = deps.now();
   return fynixRead(deps.fynixDb, actor, async (tx) => {
     const [target] = await tx.select({ id: campaign.id, clientOrgId: campaign.clientOrgId }).from(campaign).where(eq(campaign.id, id)).limit(1);
     if (target === undefined) throw new DomainError("not-found", "There is no such campaign.");
-    const rows = await tx
-      .select({ memberId: campaignHost.memberId, displayName: member.displayName, jobTitle: campaignHost.jobTitle, active: campaignHost.active })
-      .from(campaignHost)
-      .innerJoin(member, eq(member.id, campaignHost.memberId))
-      .where(eq(campaignHost.campaignId, id))
+    const people = await tx
+      .select({ memberId: member.id, displayName: member.displayName, jobTitle: member.jobTitle })
+      .from(member)
+      .where(and(eq(member.orgId, target.clientOrgId), eq(member.orgKind, "client"), eq(member.status, "active")))
       .orderBy(asc(member.displayName));
-    const ids = rows.map((row) => row.memberId);
+    const ids = people.map((row) => row.memberId);
     const hours =
       ids.length === 0
         ? []
@@ -249,26 +237,17 @@ export async function listCampaignHosts(deps: DomainDeps, actor: FynixActor, cam
             .from(hostBlock)
             .where(and(inArray(hostBlock.memberId, ids), gt(hostBlock.endsAt, now)))
             .orderBy(asc(hostBlock.startsAt));
-    const switchedOn = rows.filter((row) => row.active).map((row) => row.memberId);
-    const candidates = await tx
-      .select({ memberId: member.id, displayName: member.displayName, jobTitle: member.jobTitle })
-      .from(member)
-      .where(and(eq(member.orgId, target.clientOrgId), eq(member.orgKind, "client"), eq(member.status, "active"), ...(switchedOn.length === 0 ? [] : [notInArray(member.id, switchedOn)])))
-      .orderBy(asc(member.displayName));
-    return {
-      hosts: rows.map(
-        (row): HostView => {
-          const own = hours.filter((entry) => entry.memberId === row.memberId);
-          return {
-            ...row,
-            timeZone: own[0]?.timeZone ?? null,
-            hours: own.map(({ weekday, startMinute, endMinute }) => ({ weekday, startMinute, endMinute })),
-            blocks: blocks.filter((entry) => entry.memberId === row.memberId).map(({ id: blockId, startsAt, endsAt, note }) => ({ id: blockId, startsAt, endsAt, note })),
-          };
-        },
-      ),
-      candidates,
-    };
+    return people.map((row): HostView => {
+      const own = hours.filter((entry) => entry.memberId === row.memberId);
+      return {
+        memberId: row.memberId,
+        displayName: row.displayName,
+        jobTitle: row.jobTitle ?? "",
+        timeZone: own[0]?.timeZone ?? null,
+        hours: own.map(({ weekday, startMinute, endMinute }) => ({ weekday, startMinute, endMinute })),
+        blocks: blocks.filter((entry) => entry.memberId === row.memberId).map(({ id: blockId, startsAt, endsAt, note }) => ({ id: blockId, startsAt, endsAt, note })),
+      };
+    });
   });
 }
 

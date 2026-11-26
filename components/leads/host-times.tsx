@@ -46,19 +46,19 @@ export function HostTimesField({ availability, hostName, initialTimes = [] }: { 
   return (
     <div className="flex flex-col gap-3">
       {availability === null ? (
-        <p className="text-label text-ink-muted">Choose a host to see their working hours and pick from their free times.</p>
+        <p className="text-label text-ink-muted">Choose a team member to see their working hours and pick from their free times.</p>
       ) : hasHours ? (
         <div className="flex flex-col gap-0.5 rounded-md bg-surface px-3.5 py-3">
-          <p className="text-row font-semibold">{hostName === null ? "Host hours" : `${hostName}'s hours`}</p>
+          <p className="text-row font-semibold">{hostName === null ? "Working hours" : `${hostName}'s hours`}</p>
           {describeHostHours(availability.hours).map((line) => (
             <p key={line} className="text-body text-ink-2">
               {line}
             </p>
           ))}
-          <p className="text-caption text-ink-muted">{`Times are in the host's zone, ${zone}. Each shows the same moment in yours.`}</p>
+          <p className="text-caption text-ink-muted">{`Times are in their time zone, ${zone}. Each shows the same moment in yours.`}</p>
         </div>
       ) : (
-        <p className="text-label text-ink-muted">This host has not set working hours yet, so any time can be proposed and none can be checked.</p>
+        <p className="text-label text-ink-muted">This person has not set working hours yet, so any time can be proposed and none can be checked.</p>
       )}
 
       {slots.map((slot, index) => {
@@ -106,7 +106,7 @@ export function HostTimesField({ availability, hostName, initialTimes = [] }: { 
                   />
                   {hasHours ? (
                     <Button type="button" variant="ghost" size="sm" onClick={() => update(index, { mode: "slots", day: "", iso: "", free: "" })}>
-                      Use the host&apos;s hours
+                      Use their working hours
                     </Button>
                   ) : null}
                 </>
@@ -121,7 +121,7 @@ export function HostTimesField({ availability, hostName, initialTimes = [] }: { 
             </div>
             {when !== null ? (
               <p className="flex flex-col text-caption text-ink-muted">
-                {zone === null ? null : <span>{`Host: ${formatInZone(when, zone)}`}</span>}
+                {zone === null ? null : <span>{`Their time: ${formatInZone(when, zone)}`}</span>}
                 <span>
                   For you: <When at={when} />
                 </span>

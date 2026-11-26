@@ -4,6 +4,7 @@ import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
 import type { ScopedTransaction } from "@/server/db/scope";
 import { fynixRead, fynixWrite, type FynixActor } from "@/server/domain/fynix-write";
+import { issueInvite, type IssuedInvite } from "@/server/domain/invites";
 import { addClientContactSchema, updateClientContactSchema, uuidSchema } from "@/server/domain/inputs";
 import { loadClientForContacts } from "@/server/domain/organisations";
 import { parseInput } from "@/server/domain/parse";
@@ -81,5 +82,29 @@ export async function removeClientContact(deps: DomainDeps, actor: FynixActor, c
     if (row === undefined || row.removedAt !== null) throw new DomainError("not-found", "There is no such contact.");
     await tx.update(clientContact).set({ removedAt: deps.now(), updatedAt: deps.now() }).where(eq(clientContact.id, id));
     await audit({ action: "client_contact.remove", subject: { table: "client_contact", id }, before: snapshotContactPerson(row), after: null });
+  });
+}
+
+/**
+ * Invites a saved contact to the portal as a member of their client (owner decision, 2026-11-26). The contact stays on the list. An invite needs an email and a
+ * job title, so a contact without either is refused in plain words before anything is sent. Every other refusal is `issueInvite`'s own: the address already has an
+ * account, the client is archived, the terms are missing, or the actor is Fynix staff (`admin-required`).
+ */
+export async function inviteClientContact(deps: DomainDeps, actor: FynixActor, contactId: string): Promise<IssuedInvite> {
+  const id = parseInput(uuidSchema, contactId);
+  const [contact] = await fynixRead(deps.fynixDb, actor, (tx) =>
+    tx.select(clientContactColumns).from(clientContact).where(and(eq(clientContact.id, id), isNull(clientContact.removedAt))).limit(1),
+  );
+  if (contact === undefined) throw new DomainError("not-found", "There is no such contact.");
+  if (contact.email === null || contact.jobTitle === null) {
+    throw new DomainError("invalid-input", "This contact needs an email and a job title before they can be invited.");
+  }
+  return issueInvite(deps, actor, {
+    organisationId: contact.clientOrgId,
+    email: contact.email,
+    name: contact.name,
+    jobTitle: contact.jobTitle,
+    ...(contact.phone === null ? {} : { phone: contact.phone }),
+    role: "member",
   });
 }

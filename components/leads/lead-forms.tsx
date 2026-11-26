@@ -77,7 +77,7 @@ export function ProposeTimesForm({ leadId }: { leadId: string }) {
     <ActionForm action={proposeTimesAction} submitLabel="Propose these times" pendingLabel="Saving" savedMessage="Times proposed">
       <Hidden name="leadId" value={leadId} />
       <FormGroup>
-        <p className="text-body text-ink-muted">Offer one to three times that suit the host. Times are in your own time zone.</p>
+        <p className="text-body text-ink-muted">Offer one to three times that suit your team. Times are in your own time zone.</p>
         <TimesField />
       </FormGroup>
     </ActionForm>

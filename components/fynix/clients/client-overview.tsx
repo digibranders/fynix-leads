@@ -36,7 +36,7 @@ export function ClientOverview({ client, canWrite }: { client: ClientDetail; can
         className="sm:grid-cols-2"
       />
 
-      <ContactsPanel clientOrgId={client.id} contacts={client.contacts} canWrite={canWrite} />
+      <ContactsPanel contacts={client.contacts} canWrite={canWrite} />
 
       <ContactPanel organisationId={client.id} contact={client.contact} canWrite={canWrite} mode="client" />
 

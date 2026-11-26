@@ -13,7 +13,6 @@ import type { Database } from "@/server/db/pool";
 import {
   aliasIdentity,
   campaign,
-  campaignHost,
   campaignShare,
   lead,
   leadHistory,
@@ -24,6 +23,7 @@ import { withTenantScope, type ScopedTransaction } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
+import { requireTeamMember } from "@/server/domain/host-availability";
 import { fynixWorkWrite, type FynixActor } from "@/server/domain/fynix-write";
 import {
   clientReviewLeadSchema,
@@ -124,22 +124,8 @@ export async function checkSubmission(
     throw new DomainError("not-authorised", "Your organisation is not assigned to this campaign.");
   }
 
-  // 4. Validate host member exists and is active on this campaign
-  const [hostRow] = await tx
-    .select({ memberId: campaignHost.memberId, active: campaignHost.active })
-    .from(campaignHost)
-    .where(
-      and(
-        eq(campaignHost.campaignId, parsed.campaignId),
-        eq(campaignHost.memberId, parsed.hostMemberId),
-        eq(campaignHost.active, true),
-      ),
-    )
-    .limit(1);
-
-  if (hostRow === undefined) {
-    throw new DomainError("not-found", "The specified host is not an active host for this campaign.");
-  }
+  // 4. The chosen person is an active member of the campaign's client.
+  await requireTeamMember(tx, parsed.campaignId, parsed.hostMemberId);
 
   // 5. Check client exclusion list
   const normalizedEmail = parsed.prospectEmail.trim().toLowerCase();
@@ -295,7 +281,7 @@ export async function bookMeeting(
   now: Date,
   room: MeetRoom | null = null,
 ): Promise<string> {
-  if (leadRow.hostMemberId === null) throw new DomainError("invalid-lead-stage", "A lead with no host cannot be booked.");
+  if (leadRow.hostMemberId === null) throw new DomainError("invalid-lead-stage", "A lead with no client team member chosen cannot be booked.");
   const hostMemberId = leadRow.hostMemberId;
   const booked = await insertWithPublicRef(tx, { prefix: "MTG", constraint: "meeting_public_ref_unique", randomBytes }, async (innerTx, publicRef: string) => {
     const [row] = await innerTx

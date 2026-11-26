@@ -2,11 +2,12 @@ import { and, eq } from "drizzle-orm";
 import { extractDomainFromEmail, normaliseDomain, normaliseLinkedinUrl } from "@/lib/leads/normalize";
 import { agencyLeadColumns } from "@/server/db/columns";
 import type { Database } from "@/server/db/pool";
-import { aliasIdentity, campaign, campaignHost, lead, leadHistory, meeting, meetingReschedule } from "@/server/db/schema";
+import { aliasIdentity, campaign, lead, leadHistory, meeting, meetingReschedule } from "@/server/db/schema";
 import { withTenantScope, type ScopedTransaction } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
+import { requireTeamMember } from "@/server/domain/host-availability";
 import { draftIdSchema, saveDraftSchema, submitLeadSchema, updateDraftSchema, withdrawLeadSchema } from "@/server/domain/inputs";
 import { notify } from "@/server/domain/notices";
 import { parseInput } from "@/server/domain/parse";
@@ -66,12 +67,7 @@ async function checkDraftRefs(tx: ScopedTransaction, campaignId: string, values:
     if (row === undefined) throw new DomainError("not-found", "There is no such alias identity.");
   }
   if (values.hostMemberId !== undefined && values.hostMemberId !== null) {
-    const [row] = await tx
-      .select({ memberId: campaignHost.memberId })
-      .from(campaignHost)
-      .where(and(eq(campaignHost.campaignId, campaignId), eq(campaignHost.memberId, values.hostMemberId), eq(campaignHost.active, true)))
-      .limit(1);
-    if (row === undefined) throw new DomainError("not-found", "The specified host is not an active host for this campaign.");
+    await requireTeamMember(tx, campaignId, values.hostMemberId);
   }
 }
 

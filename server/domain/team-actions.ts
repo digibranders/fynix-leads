@@ -7,8 +7,8 @@ import type { FormState } from "@/lib/fynix/form-state";
 import { getDatabase } from "@/server/db/client";
 import { getDomain } from "@/server/domain";
 import type { TenantActor } from "@/server/domain/alias-identity";
-import { addClientHost, addOwnBlock, pauseClientHost, removeOwnBlock, setOwnHours } from "@/server/domain/hosts-tenant";
-import { createCoordinatorPartnerAgencySchema, issueInviteSchema, memberDetailsSchema, ownBlockSchema, ownHoursSchema, ownProfileSchema, tenantAddHostSchema, tenantHostSchema, uuidSchema } from "@/server/domain/inputs";
+import { addOwnBlock, removeOwnBlock, setOwnHours } from "@/server/domain/hosts-tenant";
+import { createCoordinatorPartnerAgencySchema, issueInviteSchema, memberDetailsSchema, ownBlockSchema, ownHoursSchema, ownProfileSchema, uuidSchema } from "@/server/domain/inputs";
 import { issueTenantInvite } from "@/server/domain/invites";
 import { updateOwnMemberDetails } from "@/server/domain/members";
 import { field, runTenantForm } from "@/server/tenant/run-form";
@@ -23,7 +23,7 @@ import type { SessionContext } from "@/server/auth/session-context";
 const TENANTS = ["client", "agency"] as const;
 const EVERYONE = ["client", "agency", "fynix"] as const;
 const TEAM_PAGES = ["/client/team", "/coordinator/team", "/agency/team", "/coordinator/agencies", "/fynix"] as const;
-const HOST_PAGES = ["/client/hosts"] as const;
+const HOURS_PAGES = ["/client/hours"] as const;
 const PROFILE_PAGES = ["/client", "/coordinator", "/agency", "/fynix"] as const;
 
 function actorOf(context: SessionContext): TenantActor {
@@ -135,42 +135,6 @@ export async function updateProfileAction(_previous: FormState, formData: FormDa
   });
 }
 
-const CLOSED = { "campaign-closed": "That campaign is closed, so its hosts cannot change. Fynix can reopen it." } as const;
-
-/** A client manager makes one of the organisation's people a host of a campaign. */
-export async function addClientHostAction(_previous: FormState, formData: FormData): Promise<FormState> {
-  return runTenantForm({
-    formData,
-    fieldNames: ["campaignId", "memberId", "jobTitle"],
-    kinds: ["client"],
-    build: () => ({ campaignId: field(formData, "campaignId"), memberId: field(formData, "memberId"), jobTitle: field(formData, "jobTitle") }),
-    schema: tenantAddHostSchema,
-    labels: { campaignId: "Campaign", memberId: "Person", jobTitle: "Job title" },
-    messages: { ...CLOSED, "invalid-transition": "That person is a host of this campaign already.", "not-a-client-member": "A host is an active person at your organisation." },
-    perform: async (context, input) => {
-      await addClientHost(dbFor(context), actorOf(context), input);
-    },
-    revalidate: HOST_PAGES,
-  });
-}
-
-/** A client manager pauses a host on one campaign. */
-export async function pauseClientHostAction(_previous: FormState, formData: FormData): Promise<FormState> {
-  return runTenantForm({
-    formData,
-    fieldNames: [],
-    kinds: ["client"],
-    build: () => ({ campaignId: field(formData, "campaignId"), memberId: field(formData, "memberId") }),
-    schema: tenantHostSchema,
-    labels: {},
-    messages: { ...CLOSED, "invalid-transition": "That host is paused already." },
-    perform: async (context, input) => {
-      await pauseClientHost(dbFor(context), actorOf(context), input);
-    },
-    revalidate: HOST_PAGES,
-  });
-}
-
 /** A person replaces their own weekly hours. Empty days are days off. */
 export async function setOwnHoursAction(_previous: FormState, formData: FormData): Promise<FormState> {
   const grid = parseHoursGrid((name) => field(formData, name));
@@ -185,7 +149,7 @@ export async function setOwnHoursAction(_previous: FormState, formData: FormData
     perform: async (context, input) => {
       await setOwnHours(dbFor(context), actorOf(context), input);
     },
-    revalidate: HOST_PAGES,
+    revalidate: HOURS_PAGES,
   });
 }
 
@@ -203,7 +167,7 @@ export async function addOwnBlockAction(_previous: FormState, formData: FormData
     perform: async (context, input) => {
       await addOwnBlock(dbFor(context), actorOf(context), input);
     },
-    revalidate: HOST_PAGES,
+    revalidate: HOURS_PAGES,
   });
 }
 
@@ -221,6 +185,6 @@ export async function removeOwnBlockAction(_previous: FormState, formData: FormD
     perform: async (context, input) => {
       await removeOwnBlock(dbFor(context), actorOf(context), blockInput.parse(input).blockId);
     },
-    revalidate: HOST_PAGES,
+    revalidate: HOURS_PAGES,
   });
 }

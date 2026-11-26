@@ -8,10 +8,7 @@ import { parseHoursGrid } from "@/lib/fynix/hours-form";
 import { sendQueuedMail } from "@/server/domain";
 import { publishAgreement } from "@/server/domain/agreements";
 import { addHostBlock, removeHostBlock, setHostHours } from "@/server/domain/availability";
-import { addCampaignHost, deactivateCampaignHost } from "@/server/domain/hosts";
 import {
-  addCampaignHostSchema,
-  addClientContactSchema,
   memberDetailsSchema,
   updateClientContactSchema,
   updateOrganisationSchema,
@@ -24,7 +21,6 @@ import {
   firstPersonSchema,
   overturnRejectionSchema,
   recordMeetingOutcomeSchema,
-  deactivateCampaignHostSchema,
   issueInviteSchema,
   publishAgreementSchema,
   publishTermsSchema,
@@ -42,7 +38,7 @@ import { closeCampaign, createCampaign, reopenCampaign, updateCampaign } from "@
 import { removeCampaignShare, setCampaignShare } from "@/server/domain/shares";
 import { fynixOverturnRejection } from "@/server/domain/leads";
 import { fynixRecordMeetingOutcome } from "@/server/domain/meetings";
-import { addClientContact, removeClientContact, updateClientContact } from "@/server/domain/client-contacts";
+import { inviteClientContact, removeClientContact, updateClientContact } from "@/server/domain/client-contacts";
 import { createOrganisation, setOrganisationStatus, updateOrganisation } from "@/server/domain/organisations";
 import { createPartnerAgencyWithFirstPerson, createCoordinatorWithFirstPerson } from "@/server/domain/coordinators";
 import { publishTerms } from "@/server/domain/terms";
@@ -265,25 +261,6 @@ export async function addClientAction(_previous: FormState, formData: FormData):
 const CONTACT_PERSON_FIELDS = ["name", "email", "phone", "jobTitle"] as const;
 const CONTACT_PERSON_LABELS = { name: "Name", email: "Email", phone: "Phone", jobTitle: "Job title" } as const;
 
-/** The optional boxes of one contact person: a blank one is left out when adding. */
-function contactPersonBody(formData: FormData): Record<string, string> {
-  return Object.fromEntries(["email", "phone", "jobTitle"].flatMap((name) => (field(formData, name).trim() === "" ? [] : [[name, field(formData, name).trim()]])));
-}
-
-/** Adds one contact person to a client already on the books. */
-export async function addClientContactAction(_previous: FormState, formData: FormData): Promise<FormState> {
-  return runAction({
-    formData,
-    fieldNames: CONTACT_PERSON_FIELDS,
-    build: () => ({ clientOrgId: field(formData, "clientOrgId"), name: field(formData, "name"), ...contactPersonBody(formData) }),
-    schema: addClientContactSchema,
-    labels: CONTACT_PERSON_LABELS,
-    perform: async (deps, actor, input) => {
-      await addClientContact(deps, actor, input);
-    },
-  });
-}
-
 /** Changes a contact person. A blank email, phone or job title clears it. */
 export async function updateClientContactAction(_previous: FormState, formData: FormData): Promise<FormState> {
   const blankToNull = (name: string) => (field(formData, name).trim() === "" ? null : field(formData, name).trim());
@@ -313,6 +290,23 @@ export async function removeClientContactAction(_previous: FormState, formData: 
     messages: { "not-found": "That contact is gone already." },
     perform: async (deps, actor, input) => {
       await removeClientContact(deps, actor, contactInput.parse(input).contactId);
+    },
+  });
+}
+
+/** Invites a saved contact to the portal as a member of their client. The contact stays on the list. */
+export async function inviteClientContactAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runAction({
+    formData,
+    fieldNames: [],
+    build: () => ({ contactId: field(formData, "contactId") }),
+    schema: contactInput,
+    labels: {},
+    messages: { "not-found": "That contact is gone already." },
+    ownMessages: ["invalid-input"],
+    perform: async (deps, actor, input) => {
+      await inviteClientContact(deps, actor, contactInput.parse(input).contactId);
+      sendMailAfterResponse();
     },
   });
 }
@@ -597,34 +591,6 @@ export async function removeShareAction(_previous: FormState, formData: FormData
   });
 }
 
-export async function addHostAction(_previous: FormState, formData: FormData): Promise<FormState> {
-  return runAction({
-    formData,
-    fieldNames: ["memberId", "jobTitle"],
-    build: () => ({ campaignId: field(formData, "campaignId"), memberId: field(formData, "memberId"), jobTitle: field(formData, "jobTitle") }),
-    schema: addCampaignHostSchema,
-    labels: { memberId: "Person", jobTitle: "Job title" },
-    messages: { "invalid-transition": "That person is a host of this campaign already." },
-    perform: async (deps, actor, input) => {
-      await addCampaignHost(deps, actor, input);
-    },
-  });
-}
-
-export async function pauseHostAction(_previous: FormState, formData: FormData): Promise<FormState> {
-  return runAction({
-    formData,
-    fieldNames: [],
-    build: () => ({ campaignId: field(formData, "campaignId"), memberId: field(formData, "memberId") }),
-    schema: deactivateCampaignHostSchema,
-    labels: {},
-    messages: { "invalid-transition": "That host is paused already." },
-    perform: async (deps, actor, input) => {
-      await deactivateCampaignHost(deps, actor, input);
-    },
-  });
-}
-
 export async function setHoursAction(_previous: FormState, formData: FormData): Promise<FormState> {
   const grid = parseHoursGrid((name) => field(formData, name));
   return runAction({
@@ -633,7 +599,7 @@ export async function setHoursAction(_previous: FormState, formData: FormData): 
     precheck: () => grid.errors,
     build: () => ({ memberId: field(formData, "memberId"), timeZone: field(formData, "timeZone"), hours: grid.windows }),
     schema: setHostHoursSchema,
-    labels: { memberId: "Host", timeZone: "Time zone", hours: "Hours" },
+    labels: { memberId: "Team member", timeZone: "Time zone", hours: "Hours" },
     perform: async (deps, actor, input) => {
       await setHostHours(deps, actor, input);
     },

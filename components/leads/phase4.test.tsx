@@ -265,27 +265,27 @@ describe("drafts and the lead form", () => {
   });
 });
 
-describe("the time list follows the host", () => {
+describe("the time list follows the client team member", () => {
   const week = [1, 2, 3, 4, 5].map((weekday) => ({ weekday, startMinute: 540, endMinute: 1020 }));
-  it("shows the host's weekly hours and zone, and asks for a host first when there is none", () => {
+  it("shows the team member's weekly hours and zone, and asks for a team member first when there is none", () => {
     const html = renderToStaticMarkup(<HostTimesField availability={{ timeZone: "Europe/London", hours: week, blocks: [] }} hostName="Daniel Okafor" />);
     expect(html).toContain("Daniel Okafor&#x27;s hours");
     expect(html).toContain("Mon to Fri 9:00 am to 5:00 pm");
     expect(html).toContain("Europe/London");
     expect(html).toContain("Pick a day");
-    expect(renderToStaticMarkup(<HostTimesField availability={null} hostName={null} />)).toContain("Choose a host");
+    expect(renderToStaticMarkup(<HostTimesField availability={null} hostName={null} />)).toContain("Choose a team member");
   });
-  it("warns, without blocking, for a saved time outside the hours and for a host with no hours", () => {
+  it("warns, without blocking, for a saved time outside the hours and for a person with no hours", () => {
     const outside = renderToStaticMarkup(<HostTimesField availability={{ timeZone: "Europe/London", hours: week, blocks: [] }} hostName="D" initialTimes={["2026-11-28T09:00:00.000Z"]} />);
-    expect(outside).toContain("outside the host&#x27;s working hours");
+    expect(outside).toContain("outside their working hours");
     expect(outside).toContain("You can still send the lead");
     const none = renderToStaticMarkup(<HostTimesField availability={{ timeZone: null, hours: [], blocks: [] }} hostName="D" initialTimes={["2026-11-27T09:00:00.000Z"]} />);
     expect(none).toContain("has not set working hours");
     expect(renderToStaticMarkup(<HostTimesField availability={{ timeZone: "Europe/London", hours: week, blocks: [] }} hostName="D" initialTimes={["2026-11-27T10:00:00.000Z"]} />)).not.toContain("You can still send the lead");
   });
-  it("shows the same moment in the host's zone and in the viewer's", () => {
+  it("shows the same moment in their zone and in the viewer's", () => {
     const html = renderToStaticMarkup(<HostTimesField availability={{ timeZone: "Asia/Kolkata", hours: week, blocks: [] }} hostName="D" initialTimes={["2026-11-27T09:00:00.000Z"]} />);
-    expect(html).toContain("Host: Fri 27 Nov, 2:30 pm IST");
+    expect(html).toContain("Their time: Fri 27 Nov, 2:30 pm IST");
     expect(html).toContain("For you:");
   });
 });

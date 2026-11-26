@@ -3,71 +3,60 @@ import Link from "next/link";
 import { EmptyState } from "@/components/kit/empty-state";
 import { Panel, PanelHeader } from "@/components/kit/panel";
 import { Person } from "@/components/kit/person";
-import { StatusChip } from "@/components/kit/status-chip";
 import { buttonVariants } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { blockParts, capitalise, weekSummary } from "@/lib/fynix/format";
-import type { HostCandidate, HostView } from "@/server/domain/campaign-overview";
-import { AddHostButton } from "./host-actions";
+import type { HostView } from "@/server/domain/campaign-overview";
 
 type Props = {
   hosts: readonly HostView[];
-  candidates: readonly HostCandidate[];
-  campaignId: string;
   reference: string;
   clientName: string;
   campaignZone: string;
   selectedId: string | undefined;
   canWrite: boolean;
-  /** The page that invites a person into the client, offered when nobody there can be a host yet. */
+  /** The page that invites a person into the client, offered when nobody is there yet. */
   inviteHref: string;
 };
 
-const hostHref = (reference: string, memberId: string): string => `/fynix/campaigns/${reference}/hosts?host=${memberId}`;
+const personHref = (reference: string, memberId: string): string => `/fynix/campaigns/${reference}/team?person=${memberId}`;
 
-/** The campaign's hosts: name and title, a summary of the weekly hours, the next blocked time and whether they are taking meetings. Below `md` a row is two lines. */
-export function HostsTable({ hosts, candidates, campaignId, reference, clientName, campaignZone, selectedId, canWrite, inviteHref }: Props) {
-  const addButton = canWrite && candidates.length > 0 ? <AddHostButton campaignId={campaignId} candidates={candidates} clientName={clientName} /> : null;
-  const noCandidates = canWrite && candidates.length === 0;
+/** The client team of a campaign: name and title, a summary of the weekly hours and the next blocked time. Below `md` a row is two lines. */
+export function HostsTable({ hosts, reference, clientName, campaignZone, selectedId, canWrite, inviteHref }: Props) {
 
   if (hosts.length === 0) {
     return (
-      <Panel aria-label="Meeting hosts">
+      <Panel aria-label="Client team">
         <EmptyState
           icon={UserCircle}
-          title="No hosts yet"
+          title="No team members yet"
           action={
-            addButton ??
-            (canWrite ? (
+            canWrite ? (
               <Link href={inviteHref} className={buttonVariants({ variant: "secondary", size: "sm" })}>
                 <UserPlus aria-hidden />
                 Invite a person
               </Link>
-            ) : undefined)
+            ) : undefined
           }
         >
-          {candidates.length > 0
-            ? `Add the people at ${clientName} who take meetings for this campaign.`
-            : `Nobody at ${clientName} can be a host yet. A host is a person who signs in, so invite someone first: they join when they accept the invite. A campaign needs a host before it can go live.`}
+          {`Nobody at ${clientName} has joined yet. A person joins when they accept an invite. A campaign needs at least one team member before it can go live.`}
         </EmptyState>
       </Panel>
     );
   }
 
   return (
-    <Panel aria-label="Meeting hosts">
-      <PanelHeader title="Meeting hosts" count={hosts.length} action={addButton} />
-      <p className="px-5 pb-2 text-body text-ink-muted">People at {clientName} who take meetings for this campaign.</p>
-      {noCandidates ? <p className="px-5 pb-2 text-caption text-ink-muted">Everyone active at {clientName} is a host already.</p> : null}
+    <Panel aria-label="Client team">
+      <PanelHeader title="Client team" count={hosts.length} />
+      <p className="px-5 pb-2 text-body text-ink-muted">People at {clientName} who can take meetings for this campaign.</p>
 
       <div className="px-2.5">
         <Table>
           <TableHeader>
             <TableRow className="hover:[&>th]:bg-navy-04">
-              <TableHead>Host</TableHead>
+              <TableHead>Team member</TableHead>
               <TableHead className="max-md:hidden">Weekly hours</TableHead>
               <TableHead className="max-lg:hidden">Next block</TableHead>
-              <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -79,14 +68,17 @@ export function HostsTable({ hosts, candidates, campaignId, reference, clientNam
               return (
                 <TableRow key={host.memberId} data-state={selected ? "selected" : undefined} className="relative">
                   <TableCell className="max-md:max-w-0 max-md:w-full">
-                    <Link href={hostHref(reference, host.memberId)} scroll={false} aria-current={selected ? "true" : undefined} className="block rounded-xs after:absolute after:inset-0 after:content-['']">
+                    <Link href={personHref(reference, host.memberId)} scroll={false} aria-current={selected ? "true" : undefined} className="block rounded-xs after:absolute after:inset-0 after:content-['']">
                       <Person name={host.displayName} sub={host.jobTitle} />
                     </Link>
-                    <span className="mt-0.5 block truncate text-caption text-ink-muted md:hidden">{week === null ? "No hours set" : `${week.days}, ${week.detail}`}</span>
+                    <span className="mt-0.5 block truncate text-caption text-ink-muted md:hidden">{week === null ? "Hours not set, counts as Mon to Fri, 09:00 to 17:00" : `${week.days}, ${week.detail}`}</span>
                   </TableCell>
                   <TableCell className="max-md:hidden">
                     {week === null ? (
-                      <span className="text-ink-muted">No hours set</span>
+                      <span className="block leading-tight text-ink-muted">
+                        Not set
+                        <span className="block text-caption">Counts as Mon to Fri, 09:00 to 17:00</span>
+                      </span>
                     ) : (
                       <span className="block leading-tight">
                         {week.days}
@@ -104,9 +96,6 @@ export function HostsTable({ hosts, candidates, campaignId, reference, clientNam
                       </span>
                     )}
                   </TableCell>
-                  <TableCell>
-                    <StatusChip kind="host" status={host.active ? "active" : "paused"} size="sm" />
-                  </TableCell>
                 </TableRow>
               );
             })}
@@ -115,7 +104,7 @@ export function HostsTable({ hosts, candidates, campaignId, reference, clientNam
       </div>
       <p className="flex items-start gap-2 px-5 pt-3 pb-4 text-caption text-ink-muted">
         <Info aria-hidden size={14} className="mt-px shrink-0" />
-        Agencies see free times only, never the reason for a block.
+        Agencies see names and free times only, never the reason for a block.
       </p>
     </Panel>
   );

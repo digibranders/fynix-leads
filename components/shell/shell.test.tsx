@@ -15,7 +15,7 @@ describe("SidebarContent", () => {
     const html = render("client");
     expect(html).toContain("Fynix Leads");
     expect(html).toContain("Client portal");
-    for (const label of ["Work", "Campaign", "Overview", "Availability", "Leads", "Meetings", "Messages", "Hosts &amp; hours", "Agreement"]) {
+    for (const label of ["Work", "Campaign", "Overview", "Availability", "Leads", "Meetings", "Messages", "Working hours", "Agreement"]) {
       expect(html).toContain(label);
     }
     expect(html).toContain("Signed in footer");

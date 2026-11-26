@@ -8,6 +8,28 @@ export interface HostAvailability {
   readonly blocks: readonly { readonly startsAt: Date; readonly endsAt: Date }[];
 }
 
+/** What a person who has set no hours is taken to work: Monday to Friday, 09:00 to 17:00 (owner decision, 2026-11-26). */
+export const DEFAULT_HOURS: readonly HoursWindow[] = [1, 2, 3, 4, 5].map((weekday) => ({ weekday, startMinute: 9 * 60, endMinute: 17 * 60 }));
+
+const FALLBACK_ZONE = "Europe/London";
+
+/** The zone if the runtime knows it, Europe/London otherwise: a zone typed wrong never stops a booking. */
+function usableZone(zone: string | null): string {
+  if (zone === null) return FALLBACK_ZONE;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: zone });
+    return zone;
+  } catch {
+    return FALLBACK_ZONE;
+  }
+}
+
+/** A person's own hours when they have set any, the default week in the client's zone when they have not. Blocked times are kept either way. */
+export function withDefaultHours(availability: HostAvailability, clientTimeZone: string | null): HostAvailability {
+  if (availability.hours.length > 0) return availability;
+  return { ...availability, timeZone: usableZone(clientTimeZone), hours: DEFAULT_HOURS };
+}
+
 const QUARTER_MINUTES = 15;
 const MINUTE = 60_000;
 
@@ -85,14 +107,14 @@ export interface ProposedTimeWarning {
  */
 export function proposedTimeWarnings(times: readonly Date[], availability: HostAvailability): ProposedTimeWarning[] {
   if (availability.timeZone === null || availability.hours.length === 0) {
-    return [{ time: "", code: "no_host_hours", message: "This host has not set working hours, so the times cannot be checked." }];
+    return [{ time: "", code: "no_host_hours", message: "This person has not set working hours, so the times cannot be checked." }];
   }
   const warnings: ProposedTimeWarning[] = [];
   for (const time of times) {
     const { weekday, minute } = localParts(time, availability.timeZone);
     const inWindow = availability.hours.some((window) => window.weekday === weekday && minute >= window.startMinute && minute < window.endMinute);
-    if (!inWindow) warnings.push({ time: time.toISOString(), code: "outside_host_hours", message: "This time is outside the host's working hours." });
-    else if (isOutsideHostHours(time, availability)) warnings.push({ time: time.toISOString(), code: "host_blocked", message: "The host has blocked this time." });
+    if (!inWindow) warnings.push({ time: time.toISOString(), code: "outside_host_hours", message: "This time is outside their working hours." });
+    else if (isOutsideHostHours(time, availability)) warnings.push({ time: time.toISOString(), code: "host_blocked", message: "They have blocked this time." });
   }
   return warnings;
 }

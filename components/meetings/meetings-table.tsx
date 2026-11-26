@@ -80,7 +80,7 @@ export function MeetingsTable({
           <TableRow className="hover:[&>th]:bg-navy-04">
             {sortable ? <SortHead label="Prospect" sortKey="prospect" sort={sort} hrefFor={sortHref} /> : <TableHead>Prospect</TableHead>}
             <TableHead className="max-xl:hidden">Campaign</TableHead>
-            {showHost ? <TableHead className="max-xl:hidden">Host</TableHead> : null}
+            {showHost ? <TableHead className="max-xl:hidden">Team member</TableHead> : null}
             {sortable ? <SortHead label="When" sortKey="meeting" sort={sort} hrefFor={sortHref} className="max-xl:hidden" /> : <TableHead className="max-xl:hidden">When</TableHead>}
             {sortable ? <SortHead label="Stage" sortKey="stage" sort={sort} hrefFor={sortHref} className="max-md:hidden" /> : <TableHead className="max-md:hidden">Stage</TableHead>}
             <TableHead className="text-right max-md:hidden">

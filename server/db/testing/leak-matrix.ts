@@ -269,6 +269,8 @@ export const PROBES: readonly Probe[] = [
   { name: "lead: whether Fynix reviewed a rejection, as a client", statement: "select rejection_reviewed_at from lead", expectedError: DENIED_TABLE, roles: ["leads_client"] },
   { name: "write: release a draft, as a client", statement: "update lead set released = true", expectedError: DENIED_TABLE, roles: ["leads_client"] },
   { name: "the host names of a campaign, as a client", statement: "select * from app_campaign_host_names(gen_random_uuid())", expectedError: /permission denied for function app_campaign_host_names/, roles: ["leads_client"] },
+  { name: "the team of a campaign, as a client", statement: "select * from app_campaign_team(gen_random_uuid())", expectedError: /permission denied for function app_campaign_team/, roles: ["leads_client"] },
+  { name: "whether an agency serves a member, as a client", statement: "select app_agency_serves_member(gen_random_uuid())", expectedError: /permission denied for function app_agency_serves_member/, roles: ["leads_client"] },
   { name: "who serves a lead, as a client", statement: "select app_lead_served_by_me(gen_random_uuid())", expectedError: /permission denied for function app_lead_served_by_me/, roles: ["leads_client"] },
   { name: "the visibility of a proposal to the supply side, as a client", statement: "select app_reschedule_visible_to_supply(gen_random_uuid())", expectedError: /permission denied for function app_reschedule_visible_to_supply/, roles: ["leads_client"] },
   { name: "the visibility of a proposal to the client, as an agency", statement: "select app_reschedule_visible_to_client(gen_random_uuid())", expectedError: /permission denied for function app_reschedule_visible_to_client/, roles: ["leads_agency"] },

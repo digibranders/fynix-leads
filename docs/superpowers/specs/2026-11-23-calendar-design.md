@@ -1,6 +1,6 @@
 # Fynix Leads: calendar experience
 
-Status: draft for owner approval. Extends spec v2 section 9 (Meetings). Nothing here is built.
+Status: replaced on 2026-11-26 by `2026-11-26-calendar-and-meetings-design.md`, which is the one calendar spec. Kept as history. Nothing here was built.
 Date: 2026-11-23.
 
 ## 1. Purpose

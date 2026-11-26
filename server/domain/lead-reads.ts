@@ -21,7 +21,7 @@ import { withTenantScope } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import { DomainError } from "@/server/domain/errors";
 import { type FynixActor } from "@/server/domain/fynix-write";
-import { listCampaignHostChoices } from "@/server/domain/host-availability";
+import { listCampaignTeam } from "@/server/domain/host-availability";
 import { campaignClientName, clientNameOf } from "@/server/db/client-name";
 export interface LeadHistoryRecord {
   readonly id: string;
@@ -242,10 +242,10 @@ export async function getLeadSubmissionOptions(
       .from(aliasIdentity)
       .where(and(sql`${aliasIdentity.verifiedAt} IS NOT NULL`, eq(aliasIdentity.status, "active")));
 
-    // The supply side sees the host's name and job title (owner decision, 2026-11-24), through a function that answers for the campaigns it serves.
-    const hosts: { id: string; campaignId: string; name: string; jobTitle: string }[] = [];
+    // The supply side sees the name of each person of the client's team and nothing else (owner decision, 2026-11-26), through a function that answers for the campaigns it serves.
+    const hosts: { id: string; campaignId: string; name: string }[] = [];
     for (const row of campaigns) {
-      for (const choice of await listCampaignHostChoices(tx, row.id)) hosts.push({ id: choice.memberId, campaignId: row.id, name: choice.displayName, jobTitle: choice.jobTitle });
+      for (const choice of await listCampaignTeam(tx, row.id)) hosts.push({ id: choice.memberId, campaignId: row.id, name: choice.displayName });
     }
 
     return {

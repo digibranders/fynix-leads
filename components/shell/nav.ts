@@ -71,7 +71,7 @@ export const PORTALS: Record<PortalKind, PortalConfig> = {
         label: "Campaign",
         items: [
           { label: "Campaigns", icon: "megaphone", href: "/client/campaigns" },
-          { label: "Hosts & hours", icon: "users", href: "/client/hosts" },
+          { label: "Working hours", icon: "users", href: "/client/hours" },
           { label: "Agreement", icon: "handshake", href: "/client/agreement" },
           { label: "Team", icon: "team", href: "/client/team" },
           { label: "Exclusions", icon: "prohibit", href: "/client/exclusions" },

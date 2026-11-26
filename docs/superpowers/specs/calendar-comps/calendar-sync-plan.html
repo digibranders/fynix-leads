@@ -1,0 +1,648 @@
+<title>Fynix Leads calendar plan</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@500&display=swap">
+<style>
+/* Layout: one column of sections on the warm canvas. The mock is a working calendar (lanes per person plus a side panel),
+   the diagrams sit in white panels. Ledger Soft tokens from DESIGN.md. The product is light only, so this page is too. */
+:root{
+  --canvas:#F4F2EE; --surface:#FFFFFF; --navy:#0C1E2E; --peach:#E9AF88; --peach-deep:#A9602F; --selected:#FBF1E7; --offwhite:#F3EFE9;
+  --ink:#0C1E2E; --ink-2:#3F4D59; --muted:#56626D; --ctl-edge:#87929F;
+  --tonal:rgba(12,30,46,.045); --navy-04:rgba(12,30,46,.04); --navy-07:rgba(12,30,46,.07); --line:rgba(12,30,46,.07);
+  --amber-text:#7A4700; --amber-soft:#FBEFD3; --green-text:#176B3D; --green-soft:#E0F1E7; --red-text:#A3251D; --red-soft:#FBE6E2;
+  --blue-text:#1D4E8F; --blue-soft:#E1ECF9;
+  --raised:0 0 0 1px rgba(12,30,46,.05),0 1px 2px rgba(12,30,46,.04),0 10px 24px -12px rgba(12,30,46,.12);
+  --font:"Geist",system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"Geist Mono",ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{background:var(--canvas);color:var(--ink);font:13.5px/1.5 var(--font);font-variant-numeric:tabular-nums;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 64px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:44px}
+h1{font-size:26px;line-height:32px;font-weight:600;margin:0;letter-spacing:-.015em;text-wrap:balance}
+h2{font-size:22px;line-height:28px;font-weight:600;margin:0;letter-spacing:-.01em}
+h3{font-size:15px;line-height:22px;font-weight:600;margin:0}
+p{margin:0}
+.lede{color:var(--ink-2);max-width:68ch;font-size:14px}
+.top{display:flex;flex-direction:column;gap:10px}
+.jump{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.jump a{display:inline-flex;align-items:center;height:30px;padding:0 10px;border-radius:9px;background:var(--navy-07);color:var(--ink);font-weight:500;text-decoration:none}
+.jump a:hover{background:rgba(12,30,46,.11)}
+section{display:flex;flex-direction:column;gap:14px;scroll-margin-top:16px}
+.panel{background:var(--surface);border-radius:14px;box-shadow:var(--raised);min-width:0}
+.mono{font-family:var(--mono);font-size:12px;color:var(--ink-2)}
+a:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
+
+/* controls */
+.seg{display:inline-flex;background:var(--navy-07);border-radius:9px;padding:2px;gap:2px;flex-wrap:wrap}
+.seg button{height:30px;padding:0 12px;border:0;border-radius:7px;background:transparent;color:var(--ink-2);font:inherit;font-weight:500;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--navy);color:var(--offwhite)}
+.seg button:active,.btn:active{transform:scale(.98)}
+select{height:34px;border-radius:9px;background:var(--navy-04);border:1px solid var(--ctl-edge);padding:0 10px;font:inherit;color:var(--ink);max-width:100%}
+.btn{height:34px;padding:0 14px;border:0;border-radius:9px;background:var(--navy-07);color:var(--ink);font:inherit;font-weight:600;cursor:pointer}
+.btn.primary{background:var(--navy);color:var(--offwhite)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.chip{display:inline-flex;align-items:center;height:22px;padding:0 7px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap;flex:none}
+.chip.green{background:var(--green-soft);color:var(--green-text)} .chip.amber{background:var(--amber-soft);color:var(--amber-text)}
+.chip.red{background:var(--red-soft);color:var(--red-text)} .chip.blue{background:var(--blue-soft);color:var(--blue-text)}
+.chip.grey{background:var(--navy-07);color:var(--ink-2)}
+
+/* mock */
+.viewas{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-weight:500;color:var(--ink-2)}
+.apphead p{color:var(--ink-2)}
+.work{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px;align-items:start}
+.tool{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:end;padding:16px 20px 10px}
+.fieldx{display:flex;flex-direction:column;gap:4px}
+.fieldx label,.lbl{font-size:12.5px;font-weight:500;color:var(--ink-2)}
+.zone{color:var(--muted);font-size:12px;margin-left:auto;align-self:center}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;padding:0 20px 12px;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:14px;height:12px;border-radius:4px;display:inline-block;box-shadow:inset 0 0 0 1px rgba(12,30,46,.08)}
+.gridscroll{overflow-x:auto;padding:0 12px 14px}
+.grid{display:grid;grid-template-columns:48px repeat(var(--n),minmax(104px,1fr));min-width:calc(48px + var(--n) * 104px)}
+.lh{padding:8px 8px 14px;display:flex;flex-direction:column;gap:2px;align-items:flex-start;min-width:0}
+.lh b{font-size:13px;font-weight:600;line-height:1.25} .lh span{font-size:12px;color:var(--muted);line-height:1.3}
+.lh .chip{margin-top:4px;height:20px;font-size:11.5px}
+.times{position:relative;height:480px} .times span{position:absolute;right:8px;transform:translateY(-50%);font-size:11.5px;color:var(--muted)}
+.lane{position:relative;height:480px;border-left:1px solid var(--line);background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 47px,var(--line) 47px,var(--line) 48px)}
+.pickable .lane{cursor:pointer}
+.off{position:absolute;left:0;right:0;background:var(--navy-04)}
+.blk{position:absolute;left:3px;right:3px;border-radius:6px;padding:2px 8px;font-size:11.5px;font-weight:600;line-height:1.3;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;z-index:1}
+.blk.busy{background-color:#E7E8E8;color:var(--ink-2);background-image:repeating-linear-gradient(135deg,transparent 0,transparent 6px,rgba(12,30,46,.06) 6px,rgba(12,30,46,.06) 12px)}
+.blk.sched{background:var(--blue-soft);color:var(--blue-text)} .blk.held{background:var(--amber-soft);color:var(--amber-text)}
+.pick{position:absolute;left:1px;right:1px;height:24px;border-radius:6px;box-shadow:inset 0 0 0 1.5px var(--peach-deep);pointer-events:none;z-index:2;
+  font-size:11.5px;font-weight:600;color:var(--peach-deep);padding:3px 8px;line-height:1.5}
+.pick.free{background:var(--selected)}
+.side{padding:20px;display:flex;flex-direction:column;gap:12px}
+.side .sub{color:var(--ink-2)}
+.tonalb{background:var(--tonal);border-radius:12px;padding:10px 12px;color:var(--ink-2)}
+.rows{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.rows li{display:flex;align-items:center;gap:10px;padding:9px 0;box-shadow:inset 0 1px 0 var(--line)}
+.rows li:first-child{box-shadow:none}
+.rows label{display:flex;align-items:center;gap:10px;flex:1;min-width:0;cursor:pointer}
+.rows span:not(.chip){flex:1;min-width:0} .rows b{display:block;font-weight:600;font-size:13.5px;line-height:1.3} .rows small{display:block;color:var(--muted);font-size:12px;line-height:1.35}
+.rows input{width:16px;height:16px;accent-color:var(--navy);flex:none}
+.help{color:var(--muted);font-size:12.5px}
+.note{background:var(--green-soft);color:var(--green-text);border-radius:9px;padding:8px 10px;font-weight:500}
+.card{background:var(--selected);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:6px}
+.card b{font-weight:600;font-size:14px} .card small{color:var(--ink-2);font-size:12.5px}
+.card .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.card.plain{background:var(--tonal)}
+
+/* month and week views */
+.navb{display:flex;gap:6px;flex-wrap:wrap}
+.blk.free{background:var(--green-soft);color:var(--green-text)} .blk.free.all{background:#CFE9DA} .blk.own{background:#DDE3E8;color:var(--ink)}
+.dh{border:0;background:transparent;font:inherit;font-size:13px;font-weight:600;color:var(--ink);padding:4px 8px;margin-left:-8px;border-radius:7px;cursor:pointer}
+.dh:hover{background:var(--navy-07)} .dh.today{background:var(--navy);color:var(--offwhite);margin-left:0}
+.month{grid-column:1/-1;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px}
+.mh{font-size:12px;font-weight:500;color:var(--muted);padding:6px 8px}
+.mc{border:0;font:inherit;color:var(--ink);text-align:left;background:var(--navy-04);border-radius:9px;min-height:92px;padding:6px;display:flex;flex-direction:column;gap:3px;cursor:pointer;min-width:0}
+.mc:hover{background:var(--navy-07)} .mc.out{opacity:.5} .mc.sel{background:var(--selected);box-shadow:inset 0 0 0 1.5px var(--peach)}
+.md{font-size:12.5px;font-weight:600;padding:1px 6px;border-radius:6px;align-self:flex-start} .md.today{background:var(--navy);color:var(--offwhite)}
+.mf{font-size:11.5px;font-weight:600;color:var(--green-text);padding:0 6px;margin-top:auto}
+.blk.mchip{position:static;height:auto;padding:1px 6px;width:100%}
+
+/* figures */
+figure{margin:0;padding:18px 18px 14px;display:flex;flex-direction:column;gap:10px}
+.dscroll{overflow-x:auto}
+.dscroll svg{display:block;width:100%;height:auto;min-width:760px}
+figcaption{color:var(--ink-2);font-size:13px;max-width:80ch}
+.key{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted)}
+.key span{display:inline-flex;align-items:center;gap:6px}
+.key i{width:16px;height:12px;border-radius:3px;display:inline-block}
+svg text{font-family:var(--font)}
+.t{font-size:12.5px;font-weight:600;fill:var(--ink)} .s{font-size:11px;fill:var(--muted)}
+.gl{font-size:11.5px;font-weight:600;fill:var(--muted)}
+.al,.dvt{font-size:11px;font-weight:500;fill:var(--ink-2);paint-order:stroke;stroke:var(--surface);stroke-width:4px;stroke-linejoin:round}
+.dvt{font-weight:600;fill:var(--peach-deep)}
+.ar{fill:none;stroke:var(--ink-2);stroke-width:1.3} .ah{fill:var(--ink-2)}
+.bx-code{fill:var(--surface);stroke:rgba(12,30,46,.22)} .bx-table{fill:#ECEDEC;stroke:none}
+.bx-ext{fill:var(--canvas);stroke:var(--ctl-edge);stroke-dasharray:4 3} .bx-person,.bx-new{fill:var(--selected);stroke:var(--peach)}
+.bx-state{fill:var(--surface);stroke:rgba(12,30,46,.22)}
+.grp{fill:none;stroke:rgba(12,30,46,.16)} .life{stroke:rgba(12,30,46,.2);stroke-dasharray:3 4}
+.notebx{fill:#ECEDEC} .dv{stroke:var(--peach);stroke-dasharray:5 4}
+.tl-grid{stroke:var(--line)} .tl-a{fill:#DCDFE1} .tl-b{fill:#B9C0C6} .tl-c{fill:#8C97A1} .tl-d{fill:#7FA6D9} .tl-free{fill:#5DB487}
+
+/* tables */
+.tscroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px;min-width:640px}
+th{text-align:left;font-weight:600;font-size:12.5px;color:var(--ink-2);background:var(--tonal);padding:10px 14px;white-space:nowrap}
+td{padding:11px 14px;vertical-align:top;box-shadow:inset 0 1px 0 var(--line)}
+td:first-child{font-weight:600;white-space:nowrap}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.list{padding:18px 20px;display:flex;flex-direction:column;gap:10px}
+.list ol,.list ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:7px;color:var(--ink-2)}
+.list li b{color:var(--ink);font-weight:600}
+@media (max-width:900px){.work,.two{grid-template-columns:1fr}.zone{margin-left:0}}
+@media (max-width:640px){select{font-size:16px}h1{font-size:23px;line-height:29px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Calendar and meetings for Fynix Leads</h1>
+    <p class="lede">Client team members connect Google or Outlook. Everyone else sees only free and busy time per person. An agency sees names only. A client team member also sees their own events from their real calendar. The agency books one slot and the first person to accept confirms it.</p>
+    <p class="help">Proposal of 26 November 2026. Nothing here is built. Every person added to a client gets a login and can be invited to meetings. Nine defaults at the end are waiting for approval.</p>
+    <nav class="jump" aria-label="Sections">
+      <a href="#mock">Mock</a><a href="#architecture">Architecture</a><a href="#flows">Workflows</a><a href="#access">Who sees what</a><a href="#plan">Build order</a>
+    </nav>
+  </header>
+
+  <section id="mock">
+    <h2>Mock of the calendar screen</h2>
+    <p class="lede">Switch between month, week and day. Click a time to pick a slot, then send the invite. A day in the month or week view opens that day. As the client team member you also see your own calendar events. Switch the role to see what each side is shown, and accept the invite as the client team member. People, companies and times are examples.</p>
+    <div class="viewas"><span id="va">View as</span>
+      <div class="seg" role="group" aria-labelledby="va">
+        <button type="button" data-role="agency" aria-pressed="true">Agency</button>
+        <button type="button" data-role="host" aria-pressed="false">Client team member</button>
+        <button type="button" data-role="fynix" aria-pressed="false">Fynix</button>
+      </div>
+    </div>
+    <div class="apphead"><h3>Calendar</h3><p id="who"></p></div>
+    <div class="work">
+      <div class="panel">
+        <div class="tool">
+          <div class="fieldx"><label for="client">Client</label><select id="client"></select></div>
+          <div class="fieldx"><span class="lbl" id="vl">View</span><div class="seg" role="group" aria-labelledby="vl"><button type="button" data-view="month" aria-pressed="false">Month</button><button type="button" data-view="week" aria-pressed="false">Week</button><button type="button" data-view="day" aria-pressed="true">Day</button></div></div>
+          <div class="fieldx"><span class="lbl" id="ttl" aria-live="polite"></span><div class="navb"><button type="button" class="btn" data-nav="-1">Previous</button><button type="button" class="btn" data-nav="0">Today</button><button type="button" class="btn" data-nav="1">Next</button></div></div>
+          <div class="fieldx" id="agwrap" hidden><label for="agency">Agency</label><select id="agency"><option value="">All agencies</option><option>Wavelength Partners</option><option>Kestrel Outreach</option></select></div>
+          <span class="zone">Times shown in your time zone (GMT)</span>
+        </div>
+        <div class="legend" id="legend">
+          <span><i style="background:#fff"></i>Free</span>
+          <span><i style="background:#E7E8E8"></i>Busy</span>
+          <span><i style="background:var(--amber-soft)"></i>Waiting for reply</span>
+          <span><i style="background:var(--blue-soft)"></i>Scheduled</span>
+          <span><i style="background:var(--navy-04)"></i>Not working</span>
+        </div>
+        <div class="gridscroll"><div class="grid" id="grid"></div></div>
+      </div>
+      <aside class="panel side" id="side" aria-live="polite"></aside>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <h2>Architecture</h2>
+    <p class="lede">The portal talks to Google and Microsoft directly. It stores only when a busy block starts and ends. A person's own event titles are read live, for that person alone, and never stored. Booking, replies, email and the Meet room stay inside the portal as they are today.</p>
+    <div class="panel"><figure>
+      <div class="dscroll" id="d-arch"></div>
+      <div class="key">
+        <span><i style="background:var(--selected);box-shadow:inset 0 0 0 1px var(--peach)"></i>Person</span>
+        <span><i style="background:#fff;box-shadow:inset 0 0 0 1px rgba(12,30,46,.3)"></i>Code in the portal</span>
+        <span><i style="background:#ECEDEC"></i>Table in PostgreSQL</span>
+        <span><i style="background:var(--canvas);box-shadow:inset 0 0 0 1px var(--ctl-edge)"></i>Outside service</span>
+      </div>
+      <figcaption>A client team member connects once. The sync step then copies busy blocks into the portal every 5 minutes. The free-slot function is the only place that decides what can be booked, and the calendar pages read it through the same per-campaign database rules as every other screen. When a client team member opens their own calendar, the page also asks Google or Microsoft for that person's events and shows the titles to them only.</figcaption>
+    </figure></div>
+
+    <h3>How free time is worked out</h3>
+    <div class="panel"><figure>
+      <div class="dscroll">
+        <svg viewBox="0 0 900 262" role="img" aria-label="One person on one day. Free time is the typed working hours minus blocked times, minus busy times synced from Google or Outlook, minus portal meetings and held slots.">
+          <g class="tl-grid"><line x1="190" x2="190" y1="30" y2="244"/><line x1="326" x2="326" y1="30" y2="244"/><line x1="462" x2="462" y1="30" y2="244"/><line x1="598" x2="598" y1="30" y2="244"/><line x1="734" x2="734" y1="30" y2="244"/><line x1="870" x2="870" y1="30" y2="244"/></g>
+          <g class="s" text-anchor="middle"><text x="190" y="20">08:00</text><text x="326" y="20">10:00</text><text x="462" y="20">12:00</text><text x="598" y="20">14:00</text><text x="734" y="20">16:00</text><text x="870" y="20">18:00</text></g>
+          <g class="t" text-anchor="end"><text x="176" y="57">Working hours</text><text x="176" y="95">Time they blocked</text><text x="176" y="133">Busy in Google or Outlook</text><text x="176" y="171">Meetings booked here</text><text x="176" y="225">Free to book</text></g>
+          <rect class="tl-a" x="258" y="42" width="578" height="22" rx="5"/>
+          <rect class="tl-b" x="530" y="80" width="68" height="22" rx="5"/>
+          <rect class="tl-c" x="394" y="118" width="34" height="22" rx="5"/><rect class="tl-c" x="666" y="118" width="68" height="22" rx="5"/>
+          <rect class="tl-d" x="598" y="156" width="34" height="22" rx="5"/><rect class="tl-d" x="768" y="156" width="34" height="22" rx="5"/>
+          <line class="ar" x1="20" x2="880" y1="192" y2="192" stroke-dasharray="3 4"/>
+          <rect class="tl-free" x="258" y="210" width="136" height="22" rx="5"/><rect class="tl-free" x="428" y="210" width="102" height="22" rx="5"/><rect class="tl-free" x="632" y="210" width="34" height="22" rx="5"/><rect class="tl-free" x="734" y="210" width="34" height="22" rx="5"/><rect class="tl-free" x="802" y="210" width="34" height="22" rx="5"/>
+        </svg>
+      </div>
+      <figcaption>One person on one day. The bottom row is the top row with the three rows between taken out. A person with no connected calendar simply has an empty third row, so their working hours are still used.</figcaption>
+    </figure></div>
+  </section>
+
+  <section id="flows">
+    <h2>Workflows</h2>
+    <h3>Connecting a calendar</h3>
+    <div class="panel"><figure>
+      <div class="dscroll" id="d-connect"></div>
+      <figcaption>The person signs in at Google or Microsoft, never in the portal. The portal asks to read calendar events, because showing a person their own meetings needs the titles. It stores nothing but a token and busy blocks.</figcaption>
+    </figure></div>
+    <h3>Booking a meeting</h3>
+    <div class="panel"><figure>
+      <div class="dscroll" id="d-book"></div>
+      <figcaption>The example from the brief: the prospect gives a time, Anika is busy, so Tomás and Leila are invited. The meeting is confirmed as soon as one of them accepts. Only then is the Meet room made and the prospect written to.</figcaption>
+    </figure></div>
+    <h3>States of a lead around the meeting</h3>
+    <div class="panel"><figure>
+      <div class="dscroll" id="d-state"></div>
+      <div class="key"><span><i style="background:var(--selected);box-shadow:inset 0 0 0 1px var(--peach)"></i>New with this feature</span><span><i style="background:#fff;box-shadow:inset 0 0 0 1px rgba(12,30,46,.3)"></i>Exists today</span></div>
+      <figcaption>Waiting for reply replaces today's step where the client picks one of three proposed times. Everything from Outcome due onward is unchanged.</figcaption>
+    </figure></div>
+  </section>
+
+  <section id="access">
+    <h2>Who sees what</h2>
+    <p class="lede">Nobody else sees why a slot is busy. Only the person who owns the calendar sees their own event titles, and the portal never stores them. The rest follows the campaign rules already in the database.</p>
+    <div class="panel tscroll"><table>
+      <thead><tr><th>Who</th><th>Clients on the filter</th><th>What a slot shows</th><th>Meeting details</th><th>Meeting link</th></tr></thead>
+      <tbody>
+        <tr><td>Agency</td><td>Only clients with a campaign shared to it</td><td>Free or busy, per person by name</td><td>Its own leads. Another agency's meeting shows as busy</td><td>Its own meetings</td></tr>
+        <tr><td>Coordinator</td><td>Clients of its campaigns</td><td>Free or busy, per person by name</td><td>Leads of its own agencies</td><td>Meetings of its agencies</td></tr>
+        <tr><td>Client team member</td><td>Own company</td><td>Colleagues as free or busy. Their own events in full, from Google or Outlook</td><td>Meetings of own campaigns, with no agency name</td><td>Meetings they are invited to</td></tr>
+        <tr><td>Fynix</td><td>Every client, plus an agency filter</td><td>Free or busy, and whether a calendar is connected</td><td>Everything, with the agency named</td><td>Every meeting</td></tr>
+      </tbody>
+    </table></div>
+    <h3>What gets stored</h3>
+    <div class="panel tscroll"><table>
+      <thead><tr><th>Table</th><th>Holds</th><th>Who can read it</th></tr></thead>
+      <tbody>
+        <tr><td><span class="mono">calendar_connection</span></td><td>Person, provider, encrypted refresh token, status, time of last sync</td><td>The sync step only. No client, agency or Fynix screen</td></tr>
+        <tr><td><span class="mono">member_busy</span></td><td>Person, start, end. No title, guest or place, ever</td><td>Through the free-slot rule, for campaigns the reader serves</td></tr>
+        <tr><td><span class="mono">meeting_attendee</span></td><td>Meeting, person, reply (invited, accepted, declined), time of reply</td><td>Same rules as meetings today</td></tr>
+        <tr><td><span class="mono">meeting</span> (changed)</td><td>The single required person becomes optional until someone accepts. A time waiting for a reply gets a deadline</td><td>Unchanged</td></tr>
+      </tbody>
+    </table></div>
+    <p class="help">Proposed shape. Final columns are set in the spec. Every new table gets grants, row-level security and leak tests, as the repo rules require.</p>
+  </section>
+
+  <section id="plan">
+    <h2>Build order</h2>
+    <div class="panel tscroll"><table>
+      <thead><tr><th>Step</th><th>Delivers</th><th>Needs first</th></tr></thead>
+      <tbody>
+        <tr><td>0</td><td>Owner set-up at Google and Microsoft, and a short developer test with one Google, one Microsoft 365 and one Outlook.com account</td><td>Owner</td></tr>
+        <tr><td>A</td><td>Spec and comps approved</td><td>Owner</td></tr>
+        <tr><td>B</td><td>Data layer: free-slot function, <span class="mono">meeting_attendee</span> with replies, holds, range reads, leak tests</td><td>A</td></tr>
+        <tr><td>C</td><td>Read-only calendar for every role, with the client filter</td><td>B</td></tr>
+        <tr><td>D</td><td>One-slot booking, Accept and Decline, the lead flow change</td><td>C</td></tr>
+        <tr><td>E</td><td>Calendar connection: sign-in, token store, adapters, sync, a warning for a broken connection</td><td>Step 0 passed</td></tr>
+        <tr><td>F</td><td>Moving and cancelling through the same slot picker, reminders</td><td>D</td></tr>
+      </tbody>
+    </table></div>
+    <p class="help">Steps B to D need no approval from Google or Microsoft, so they can start while the reviews run. Step E plugs busy times into the same free-slot function.</p>
+    <div class="two">
+      <div class="panel list">
+        <h3>Nine defaults waiting for approval</h3>
+        <ol>
+          <li><b>Busy blocks booking.</b> A busy slot cannot be picked. Today the form only warns.</li>
+          <li><b>No calendar connected.</b> Only their working hours and blocked times are used.</li>
+          <li><b>Who is invited.</b> Every client team member free at that time. The agency can untick one.</li>
+          <li><b>First to accept confirms.</b> The others no longer need to reply, and can still join.</li>
+          <li><b>Nobody accepts by 24 hours before.</b> The lead moves to Reschedule needed. The agency and Fynix are told.</li>
+          <li><b>Prospect letter.</b> Sent when the first person accepts, not when the invite goes out.</li>
+          <li><b>Meeting link.</b> A Google Meet room from the neutral account, for Outlook clients too.</li>
+          <li><b>Postponing.</b> Uses the same one-slot picker.</li>
+          <li><b>Own events.</b> A client team member sees their own Google or Outlook events with titles. They are read live, shown to that person alone and never stored.</li>
+        </ol>
+      </div>
+      <div class="panel list">
+        <h3>Owner set-up with lead time</h3>
+        <ul>
+          <li><b>Google.</b> An app left in testing mode loses every connection after 7 days. An unreviewed app is capped at 100 users.</li>
+          <li><b>Microsoft.</b> Many companies block an app whose publisher is not verified. Verification needs a Microsoft partner account.</li>
+          <li><b>Client IT.</b> An admin can still block the connection. For that person, only their working hours are used.</li>
+        </ul>
+        <h3>Not yet verified</h3>
+        <ul>
+          <li>How long Google's review takes. Showing a person their own event titles needs the read-events permission, which is wider than free/busy and is expected to need review.</li>
+          <li>Which Microsoft permission the schedule call needs. Two Microsoft pages disagree.</li>
+          <li>The read path and permission for personal Outlook.com accounts.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+/* ---------- mock ---------- */
+const $ = (s) => document.querySelector(s);
+/* A day is a whole number counted from Monday 23 November 2026, so any date works. Today is Thursday 26 November. */
+const TODAY = 3, WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const dt = (d) => new Date(Date.UTC(2026, 10, 23 + d));
+const wd = (d) => (dt(d).getUTCDay() + 6) % 7;
+const weekend = (d) => wd(d) > 4;
+const dshort = (d) => `${WD[dt(d).getUTCDay()]} ${dt(d).getUTCDate()} ${MON[dt(d).getUTCMonth()].slice(0, 3)}`;
+const dlong = (d) => `${WD[dt(d).getUTCDay()]} ${dt(d).getUTCDate()} ${MON[dt(d).getUTCMonth()]}`;
+const hrs = (x) => (weekend(S.day) ? [8, 8] : x.hours);
+const sw = (bg, t) => `<span><i style="background:${bg}"></i>${t}</span>`;
+const LEG = {
+  day: sw('#fff', 'Free') + sw('#E7E8E8', 'Busy') + sw('var(--amber-soft)', 'Waiting for reply') + sw('var(--blue-soft)', 'Scheduled') + sw('var(--navy-04)', 'Not working'),
+  week: sw('#CFE9DA', 'Everyone free') + sw('var(--green-soft)', 'Some people free') + sw('var(--amber-soft)', 'Waiting for reply') + sw('var(--blue-soft)', 'Scheduled') + sw('var(--navy-04)', 'Not working'),
+  month: sw('var(--amber-soft)', 'Waiting for reply') + sw('var(--blue-soft)', 'Scheduled') + sw('var(--selected)', 'Selected day'),
+};
+const PAT = [[[9, 10.5], [13, 14]], [[10, 10.5], [15, 16]], [[8.5, 9.5], [11, 12], [16, 17]], [[12, 13], [14, 15.5]], [[9.5, 10], [11, 11.5], [13.5, 15]]];
+const ME = 'Wavelength Partners', VIEWER = 'tf';
+const C = {
+  northwind: { name: 'Northwind', agencies: [ME, 'Kestrel Outreach'], lead: ['Tessaly Systems', 'LD-4MXA'], hosts: [
+    { id: 'ar', name: 'Anika Rao', title: 'Sales director', src: 'Google', hours: [9, 17.5] },
+    { id: 'tf', name: 'Tomás Ferreira', title: 'Account executive', src: 'Outlook', hours: [9, 18] },
+    { id: 'lh', name: 'Leila Haddad', title: 'Solutions lead', src: '', hours: [10, 16] }] },
+  halden: { name: 'Halden Freight', agencies: [ME], lead: ['Morrow and Pike', 'LD-7HVN'], hosts: [
+    { id: 'mc', name: 'Mirela Costin', title: 'Head of partnerships', src: 'Outlook', hours: [8.5, 17] },
+    { id: 'jw', name: 'Jonas Weller', title: 'Commercial manager', src: 'Google', hours: [9, 17.5] }] },
+  orrin: { name: 'Orrin Health', agencies: ['Kestrel Outreach'], lead: null, hosts: [
+    { id: 'dv', name: 'Dario Vance', title: 'Growth lead', src: 'broken', hours: [9, 17] },
+    { id: 'sb', name: 'Sunita Bhatt', title: 'Clinical partnerships', src: 'Google', hours: [9.5, 18] }] },
+};
+const WHO = {
+  agency: 'Priya Kulkarni, Wavelength Partners. You see the clients your campaigns serve.',
+  host: 'Tomás Ferreira, Northwind. You see your own company.',
+  fynix: 'Fynix admin. You see every client and every agency.',
+};
+const LINK = '<small>Meeting link (example) <span class="mono">meet.google.com/example</span></small>';
+const S = { role: 'agency', client: 'northwind', agency: '', day: 4, view: 'day', slot: 11, note: '', meetings: [
+  { client: 'northwind', day: 4, start: 14, hosts: ['tf'], lead: 'Brightline Foods', ref: 'LD-6T3R', agency: ME, status: 'sched' },
+  { client: 'northwind', day: 3, start: 15.5, hosts: ['tf', 'lh'], lead: 'Corvane Logistics', ref: 'LD-9KQ2', agency: 'Kestrel Outreach', status: 'held' },
+  { client: 'halden', day: 2, start: 10, hosts: ['jw'], lead: 'Ostrava Tooling', ref: 'LD-2PWC', agency: ME, status: 'sched' },
+  { client: 'orrin', day: 4, start: 11.5, hosts: ['sb'], lead: 'Fenwick Dental Group', ref: 'LD-8RDT', agency: 'Kestrel Outreach', status: 'sched' }] };
+
+const fmt = (h) => String(Math.floor(h)).padStart(2, '0') + ':' + (h % 1 ? '30' : '00');
+const when = (m) => `${dshort(m.day)},${fmt(m.start)} to ${fmt(m.start + 0.5)} GMT`;
+const chip = (c, t) => `<span class="chip ${c}">${t}</span>`;
+const pidx = (i, d) => (((i + d) % 5) + 5) % 5;
+const busyOf = (i, d) => (weekend(d) ? [] : PAT[pidx(i, d)]);
+/* What the signed-in client team member sees in place of "Busy" on their own calendar. Same order as PAT. */
+const TITLES = [['Pipeline review', 'Lunch with Marta'], ['Team stand-up', 'Customer call, Aldgate'], ['School run', 'Forecast meeting', 'Catch-up with Anika'], ['Gym', 'Quarterly planning'], ['Stand-up', 'Dentist', 'Proposal workshop']];
+const hit = (a, b, s) => s < b && s + 0.5 > a;
+const hostName = (id) => Object.values(C).flatMap((c) => c.hosts).find((h) => h.id === id).name;
+const clientsFor = (r) => (r === 'host' ? ['northwind'] : Object.keys(C).filter((k) => (r === 'fynix' ? !S.agency || C[k].agencies.includes(S.agency) : C[k].agencies.includes(ME))));
+
+function stateOf(ck, i, d, s) {
+  const h = C[ck].hosts[i];
+  if (weekend(d) || s < h.hours[0] || s + 0.5 > h.hours[1]) return 'out';
+  const m = S.meetings.find((x) => x.client === ck && x.day === d && x.hosts.includes(h.id) && hit(x.start, x.start + 0.5, s));
+  if (m) return S.role === 'agency' && m.agency !== ME ? 'busy' : m.status;
+  return busyOf(i, d).some((b) => hit(b[0], b[1], s)) ? 'busy' : 'free';
+}
+function blockText(m, hid) {
+  const st = m.status === 'sched' ? 'Scheduled' : 'Waiting for reply';
+  if (S.role === 'agency') return m.agency === ME ? [m.status, `${st}, ${m.lead}`] : ['busy', 'Busy'];
+  if (S.role === 'host') return [m.status, `${m.status === 'held' && hid === VIEWER ? 'Invited' : st}, ${m.lead}`];
+  if (S.agency && m.agency !== S.agency) return ['busy', 'Busy'];
+  return [m.status, `${st}, ${m.lead}, ${m.agency}`];
+}
+const blk = (cls, s, len, t) => `<div class="blk ${cls}" style="top:${(s - 8) * 48 + 1}px;height:${len * 48 - 2}px" title="${t}">${t}</div>`;
+const srcChip = (x) => (x.src === 'broken' ? chip('red', 'Calendar disconnected') : x.src ? chip('grey', x.src) : chip('amber', 'No calendar connected'));
+
+function dayGrid() {
+  const c = C[S.client], g = $('#grid');
+  g.style.setProperty('--n', c.hosts.length);
+  g.classList.toggle('pickable', S.role === 'agency');
+  let h = '<div></div>' + c.hosts.map((x) => `<div class="lh"><b>${x.name}</b>${S.role === 'agency' ? '' : `<span>${x.title}</span>${srcChip(x)}`}</div>`).join('');
+  h += '<div class="times">' + [...Array(11)].map((_, k) => `<span style="top:${k * 48}px">${fmt(8 + k)}</span>`).join('') + '</div>';
+  c.hosts.forEach((x, i) => {
+    let l = `<div class="off" style="top:0;height:${(hrs(x)[0] - 8) * 48}px"></div><div class="off" style="top:${(hrs(x)[1] - 8) * 48}px;bottom:0"></div>`;
+    const mine = S.role === 'host' && x.id === VIEWER;
+    busyOf(i, S.day).forEach((b, k) => { l += blk(mine ? 'own' : 'busy', b[0], b[1] - b[0], mine ? TITLES[pidx(i, S.day)][k] : 'Busy'); });
+    S.meetings.filter((m) => m.client === S.client && m.day === S.day && m.hosts.includes(x.id)).forEach((m) => { const [cls, t] = blockText(m, x.id); l += blk(cls, m.start, 0.5, t); });
+    if (S.role === 'agency') { const free = stateOf(S.client, i, S.day, S.slot) === 'free'; l += `<div class="pick ${free ? 'free' : ''}" style="top:${(S.slot - 8) * 48}px">${free ? 'Free' : ''}</div>`; }
+    h += `<div class="lane">${l}</div>`;
+  });
+  g.innerHTML = h;
+}
+const shown = (m) => blockText(m, m.hosts.includes(VIEWER) ? VIEWER : m.hosts[0]);
+const dayMeetings = (d) => S.meetings.filter((m) => m.client === S.client && m.day === d && m.hosts.length).sort((a, b) => a.start - b.start).map((m) => [shown(m), m]).filter(([b]) => b[0] !== 'busy');
+
+/* Week: a column per day. Each block says how many people are free, so the agency can spot a time before opening the day. */
+function weekGrid() {
+  const c = C[S.client], g = $('#grid'), n = c.hosts.length, mon = S.day - wd(S.day);
+  const lo = Math.min(...c.hosts.map((x) => x.hours[0])), hi = Math.max(...c.hosts.map((x) => x.hours[1]));
+  g.style.setProperty('--n', 7);
+  g.classList.toggle('pickable', S.role === 'agency');
+  let h = '<div></div>';
+  for (let d = mon; d < mon + 7; d++) h += `<div class="lh"><button type="button" class="dh ${d === TODAY ? 'today' : ''}" data-jump="${d}">${dshort(d)}</button></div>`;
+  h += '<div class="times">' + [...Array(11)].map((_, k) => `<span style="top:${k * 48}px">${fmt(8 + k)}</span>`).join('') + '</div>';
+  for (let d = mon; d < mon + 7; d++) {
+    let l = weekend(d) ? '<div class="off" style="top:0;bottom:0"></div>' : `<div class="off" style="top:0;height:${(lo - 8) * 48}px"></div><div class="off" style="top:${(hi - 8) * 48}px;bottom:0"></div>`;
+    let run = null;
+    for (let s = 8; s <= 18; s += 0.5) {
+      const f = s < 18 ? c.hosts.filter((x, i) => stateOf(S.client, i, d, s) === 'free').length : -1;
+      if (run && run.f !== f) { if (run.f > 0) l += blk(run.f === n ? 'free all' : 'free', run.s, s - run.s, `${run.f} of ${n} free`); run = null; }
+      if (!run) run = { f, s };
+    }
+    if (S.role === 'host') { const vi = c.hosts.findIndex((x) => x.id === VIEWER); busyOf(vi, d).forEach((b, k) => { l += blk('own', b[0], b[1] - b[0], TITLES[pidx(vi, d)][k]); }); }
+    dayMeetings(d).forEach(([b, m]) => { l += blk(b[0], m.start, 0.5, b[1]); });
+    if (S.role === 'agency' && d === S.day) l += `<div class="pick ${c.hosts.some((x, i) => stateOf(S.client, i, d, S.slot) === 'free') ? 'free' : ''}" style="top:${(S.slot - 8) * 48}px"></div>`;
+    h += `<div class="lane" data-day="${d}">${l}</div>`;
+  }
+  g.innerHTML = h;
+}
+
+/* Month: a cell per day with its meetings and how many half-hour slots still have someone free. */
+function monthGrid() {
+  const c = C[S.client], g = $('#grid'), month = dt(S.day).getUTCMonth(), first = S.day - (dt(S.day).getUTCDate() - 1);
+  g.style.setProperty('--n', 7);
+  g.classList.remove('pickable');
+  let h = [1, 2, 3, 4, 5, 6, 0].map((k) => `<div class="mh">${WD[k]}</div>`).join('');
+  for (let d = first - wd(first); d < first + 42; d++) {
+    const out = dt(d).getUTCMonth() !== month;
+    if (d > first && out && wd(d) === 0) break;
+    let free = 0;
+    if (d >= TODAY) for (let s = 8; s < 18; s += 0.5) if (c.hosts.some((x, i) => stateOf(S.client, i, d, s) === 'free')) free++;
+    h += `<button type="button" class="mc ${out ? 'out' : ''} ${d === S.day ? 'sel' : ''}" data-jump="${d}"><span class="md ${d === TODAY ? 'today' : ''}">${dt(d).getUTCDate()}</span>`
+      + dayMeetings(d).map(([b, m]) => `<span class="blk ${b[0]} mchip">${fmt(m.start)} ${m.lead}</span>`).join('')
+      + (free ? `<span class="mf">${free} free ${free === 1 ? 'time' : 'times'}</span>` : '') + '</button>';
+  }
+  g.innerHTML = `<div class="month">${h}</div>`;
+}
+function grid() { ({ day: dayGrid, week: weekGrid, month: monthGrid })[S.view](); }
+function title() {
+  const x = dt(S.day), a = dt(S.day - wd(S.day)), b = dt(S.day - wd(S.day) + 6);
+  if (S.view === 'month') return `${MON[x.getUTCMonth()]} ${x.getUTCFullYear()}`;
+  if (S.view === 'day') return `${dlong(S.day)} ${x.getUTCFullYear()}`;
+  return `${a.getUTCDate()}${a.getUTCMonth() === b.getUTCMonth() ? '' : ' ' + MON[a.getUTCMonth()]} to ${b.getUTCDate()} ${MON[b.getUTCMonth()]} ${b.getUTCFullYear()}`;
+}
+
+function sideAgency() {
+  const c = C[S.client];
+  const states = c.hosts.map((x, i) => stateOf(S.client, i, S.day, S.slot));
+  const text = { free: 'Free', busy: 'Busy', out: 'Not working', held: 'Waiting for reply', sched: 'Busy' };
+  const rows = c.hosts.map((x, i) => `<li><label><input type="checkbox" id="h-${x.id}" value="${x.id}" ${states[i] === 'free' ? 'checked' : 'disabled'}><span><b>${x.name}</b></span></label>${chip(states[i] === 'free' ? 'green' : states[i] === 'held' ? 'amber' : 'grey', text[states[i]])}</li>`).join('');
+  const any = states.includes('free');
+  const opts = [...Array(20)].map((_, k) => 8 + k / 2).map((t) => `<option value="${t}" ${t === S.slot ? 'selected' : ''}>${fmt(t)} to ${fmt(t + 0.5)}</option>`).join('');
+  return `<h3>Book a meeting</h3>
+    <p class="sub"><span class="mono">${c.lead[1]}</span> ${c.lead[0]} for ${c.name}</p>
+    <div class="tonalb">30 minute meeting. The prospect is in CET, 1 hour ahead of you.</div>
+    <div class="fieldx"><label for="slot">Time on ${dlong(S.day)}</label><select id="slot">${opts}</select></div>
+    <p class="lbl">Who to invite</p><ul class="rows">${rows}</ul>
+    <button type="button" class="btn primary" id="send" ${any ? '' : 'disabled'}>Send invite</button>
+    ${S.note ? `<p class="note" role="status">${S.note}</p>` : `<p class="help">${any ? 'The meeting is confirmed as soon as one invited person accepts.' : 'Nobody is free at this time. Pick another slot.'}</p>`}
+    <h3>Your meetings on this day</h3>${S.meetings.filter((m) => m.client === S.client && m.day === S.day && m.agency === ME && m.status !== 'resched').sort((a, b) => a.start - b.start)
+    .map((m) => `<div class="card plain"><b>${m.lead}</b><small>${when(m)}. ${m.hosts.map(hostName).join(', ')}</small>${m.status === 'sched' ? LINK : '<small>The meeting link appears here once someone accepts.</small>'}</div>`).join('') || '<p class="help">None on this day.</p>'}`;
+}
+function sideHost() {
+  const mine = S.meetings.filter((m) => m.client === 'northwind' && m.hosts.includes(VIEWER));
+  const inv = mine.filter((m) => m.status === 'held').map((m) => `<div class="card"><b>${m.lead}</b><small>${when(m)}</small><div class="row"><button type="button" class="btn primary" data-go="${S.meetings.indexOf(m)}">Accept</button><button type="button" class="btn" data-no="${S.meetings.indexOf(m)}">Decline</button></div></div>`).join('') || '<p class="help">No invitations are waiting.</p>';
+  const sch = mine.filter((m) => m.status === 'sched').map((m) => `<div class="card plain"><b>${m.lead}</b><small>${when(m)}</small>${LINK}</div>`).join('') || '<p class="help">No meetings yet.</p>';
+  return `<h3>Your calendar</h3>
+    <ul class="rows"><li><span><b>Outlook</b><small>Updated 2 minutes ago</small></span>${chip('green', 'Connected')}</li><li><span><b>Google</b><small>A second calendar can be added</small></span>${chip('grey', 'Not connected')}</li></ul>
+    <p class="help">Only you can see your own events. Everyone else just sees Busy.</p>
+    <h3>Invitations</h3>${inv}
+    ${S.note ? `<p class="note" role="status">${S.note}</p>` : ''}
+    <h3>Your meetings</h3>${sch}`;
+}
+function sideFynix() {
+  const c = C[S.client];
+  const warn = c.hosts.filter((x) => x.src !== 'Google' && x.src !== 'Outlook').map((x) => `<li><span><b>${x.name}</b><small>${x.src ? 'Outlook stopped working on 25 Nov. Only their working hours are used until they reconnect.' : 'No calendar connected. Only their working hours are used.'}</small></span>${chip(x.src ? 'red' : 'amber', x.src ? 'Disconnected' : 'Not connected')}</li>`)
+    .concat(S.meetings.filter((m) => m.client === S.client && m.status === 'resched').map((m) => `<li><span><b>${m.lead}</b><small>Nobody could make ${when(m)}. ${m.agency} has been told.</small></span>${chip('red', 'Reschedule needed')}</li>`)).join('');
+  const day = S.meetings.filter((m) => m.client === S.client && m.day === S.day && m.status !== 'resched' && (!S.agency || m.agency === S.agency)).sort((a, b) => a.start - b.start)
+    .map((m) => `<li><span><b>${fmt(m.start)} ${m.lead}</b><small>${m.agency}. ${m.hosts.map(hostName).join(', ')}</small>${m.status === 'sched' ? LINK : ''}</span>${chip(m.status === 'sched' ? 'blue' : 'amber', m.status === 'sched' ? 'Scheduled' : 'Waiting for reply')}</li>`).join('');
+  return `<h3>Needs attention</h3>${warn ? `<ul class="rows">${warn}</ul>` : '<p class="help">Nothing for this client.</p>'}
+    <h3>Meetings on ${dlong(S.day)}</h3>${day ? `<ul class="rows">${day}</ul>` : '<p class="help">No meetings on this day.</p>'}`;
+}
+
+function render(roleChanged) {
+  const focus = document.activeElement && document.activeElement.id;
+  const ks = clientsFor(S.role);
+  if (!ks.includes(S.client)) S.client = ks[0];
+  if (roleChanged) $('#client').innerHTML = ks.map((k) => `<option value="${k}" ${k === S.client ? 'selected' : ''}>${C[k].name}</option>`).join('');
+  document.querySelectorAll('[data-role]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.role === S.role));
+  document.querySelectorAll('[data-view]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.view === S.view));
+  $('#ttl').textContent = title();
+  $('#legend').innerHTML = LEG[S.view] + (S.role === 'host' && S.view !== 'month' ? sw('#DDE3E8', 'Your own events (only you can see them)') : '');
+  $('#who').textContent = WHO[S.role];
+  $('#agwrap').hidden = S.role !== 'fynix';
+  grid();
+  $('#side').innerHTML = { agency: sideAgency, host: sideHost, fynix: sideFynix }[S.role]();
+  if (focus) { const el = document.getElementById(focus); if (el) el.focus(); }
+}
+
+document.addEventListener('click', (e) => {
+  const t = e.target;
+  if (t.dataset.role) { S.role = t.dataset.role; S.note = ''; return render(true); }
+  if (t.dataset.view) { S.view = t.dataset.view; return render(); }
+  if (t.dataset.nav) {
+    const n = +t.dataset.nav, x = dt(S.day);
+    S.day = !n ? TODAY : S.view === 'day' ? S.day + n : S.view === 'week' ? S.day + 7 * n : Math.round((Date.UTC(x.getUTCFullYear(), x.getUTCMonth() + n, 1) - dt(0)) / 864e5);
+    S.note = ''; return render();
+  }
+  const jump = t.closest('[data-jump]');
+  if (jump) { S.day = +jump.dataset.jump; S.view = 'day'; S.note = ''; return render(); }
+  const lane = t.closest('.lane');
+  if (lane && S.role === 'agency') {
+    const y = e.clientY - lane.getBoundingClientRect().top;
+    if (lane.dataset.day) S.day = +lane.dataset.day;
+    S.slot = Math.min(17.5, Math.max(8, 8 + Math.floor(y / 24) / 2)); S.note = ''; return render();
+  }
+  if (t.id === 'send') {
+    const ids = [...document.querySelectorAll('#side input:checked')].map((i) => i.value), c = C[S.client];
+    if (!ids.length) { S.note = 'Tick at least one person to invite.'; return render(); }
+    S.meetings.push({ client: S.client, day: S.day, start: S.slot, hosts: ids, lead: c.lead[0], ref: c.lead[1], agency: ME, status: 'held' });
+    S.note = `Invite sent to ${ids.map(hostName).join(' and ')}. The time is kept for them until one of them accepts.`; return render();
+  }
+  if (t.dataset.go) { const m = S.meetings[+t.dataset.go]; m.status = 'sched'; m.hosts = [VIEWER]; S.day = m.day; S.note = `You accepted. ${m.lead} is scheduled. The others no longer need to reply.`; return render(); }
+  if (t.dataset.no) { const m = S.meetings[+t.dataset.no]; m.hosts = m.hosts.filter((h) => h !== VIEWER); if (!m.hosts.length) m.status = 'resched'; S.note = 'Reply saved. You will not be expected at that meeting.'; return render(); }
+});
+document.addEventListener('change', (e) => {
+  if (e.target.id === 'client') { S.client = e.target.value; S.note = ''; render(); }
+  if (e.target.id === 'agency') { S.agency = e.target.value; render(true); }
+  if (e.target.id === 'slot') { S.slot = +e.target.value; S.note = ''; render(); }
+});
+render(true);
+
+/* ---------- diagrams ---------- */
+const marker = (id) => `<defs><marker id="${id}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker></defs>`;
+
+/* boxes: [x, y, w, h, kind, title, line2, line3]. arrows: [path, label, x, y, anchor]. */
+function draw(id, W, H, aria, boxes, arrows, extra) {
+  const b = boxes.map(([x, y, w, h, k, t, s1, s2]) => {
+    const centred = k === 'state' || k === 'new', tx = centred ? x + w / 2 : x + 12, anchor = centred ? ' text-anchor="middle"' : '';
+    return `<rect class="bx-${k}" x="${x}" y="${y}" width="${w}" height="${h}" rx="9"/><text class="t" x="${tx}" y="${centred ? y + h / 2 + 4 : y + (h < 50 ? 18 : 20)}"${anchor}>${t}</text>`
+      + (s1 ? `<text class="s" x="${tx}" y="${y + (h < 50 ? 34 : 37)}">${s1}</text>` : '') + (s2 ? `<text class="s" x="${tx}" y="${y + 53}">${s2}</text>` : '');
+  }).join('');
+  const a = arrows.map(([d, t, x, y, an]) => `<path class="ar" d="${d}" marker-end="url(#${id}-ah)"/>` + (t ? `<text class="al" x="${x}" y="${y}" text-anchor="${an || 'middle'}">${t}</text>` : '')).join('');
+  $('#' + id).innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${aria}">${marker(id + '-ah')}${extra || ''}${b}${a}</svg>`;
+}
+
+draw('d-arch', 1070, 590, 'Architecture. A client team member connects a calendar once. A sync step reads busy times from Google Calendar and Microsoft Graph every 5 minutes and stores start and end only. A free-slot function combines them with working hours and portal meetings. Calendar pages show the result to agencies and Fynix, and booking writes the meeting, sends email and makes the Meet room.', [
+  [10, 67, 150, 44, 'person', 'Client team member', 'connects a calendar'],
+  [10, 328, 150, 44, 'person', 'Agency, coordinator', 'its campaigns only'],
+  [10, 382, 150, 44, 'person', 'Fynix', 'every client'],
+  [10, 443, 150, 44, 'person', 'Invited people', 'email or portal'],
+  [270, 64, 230, 50, 'code', 'Connect calendar', 'sign-in at Google or Microsoft'],
+  [560, 64, 230, 50, 'code', 'Calendar sync', 'a step of leads:sweep, every 5 min'],
+  [270, 228, 230, 72, 'code', 'Free-slot function', 'pure code in lib/, fully tested', 'hours minus blocks, busy and holds'],
+  [270, 330, 230, 66, 'code', 'Calendar pages', 'one per role, filtered by client', 'scoped by campaign in the database'],
+  [270, 440, 230, 50, 'code', 'Booking and replies', 'live recheck, then hold the slot'],
+  [270, 150, 230, 50, 'table', 'calendar_connection', 'no screen role can read it'],
+  [560, 150, 230, 50, 'table', 'member_busy', 'member, start, end. No titles'],
+  [560, 242, 230, 44, 'table', 'host_hours, host_block', 'working hours, as today'],
+  [560, 318, 230, 44, 'table', 'meeting, meeting_attendee', 'invites, replies and held slots'],
+  [880, 54, 180, 44, 'ext', 'Google Calendar', 'busy times and own events'],
+  [880, 106, 180, 44, 'ext', 'Microsoft Graph', 'work and personal accounts'],
+  [880, 448, 180, 44, 'ext', 'Email (Brevo)', 'one email per person'],
+  [880, 508, 180, 44, 'ext', 'Google Meet', 'neutral room account'],
+], [
+  ['M160,89 H270', 'connects once', 215, 83],
+  ['M385,114 V150', 'encrypted token', 393, 137, 'start'],
+  ['M500,165 H530 V89 H560', 'token', 524, 128, 'end'],
+  ['M790,76 H880', 'free/busy', 835, 70],
+  ['M790,102 L880,128', 'schedule', 824, 136],
+  ['M675,114 V150', 'start and end only', 683, 137, 'start'],
+  ['M560,188 H545 V244 H500', 'inputs', 539, 220, 'end'],
+  ['M560,264 H500'],
+  ['M560,340 H530 V284 H500'],
+  ['M385,300 V330', 'free slots', 393, 320, 'start'],
+  ['M160,350 H270', 'picks a slot', 215, 344],
+  ['M160,404 H215 V380 H270', 'sees every client', 215, 422],
+  ['M385,396 V440', 'one slot', 393, 423, 'start'],
+  ['M160,465 H270', 'reply by button', 215, 459],
+  ['M500,452 H675 V362', 'meeting and hold', 588, 446],
+  ['M500,470 H880', 'invite, calendar file', 745, 464],
+  ['M440,490 V530 H880', 'room made when one accepts', 650, 524],
+], '<rect class="grp" x="250" y="24" width="560" height="546" rx="14"/><text class="gl" x="10" y="44">People</text><text class="gl" x="266" y="48">Portal</text><text class="gl" x="880" y="40">Outside services</text>');
+
+draw('d-state', 990, 232, 'States of a lead around the meeting. Draft lead, then Waiting for reply once the agency picks a slot, then Scheduled when one person accepts, then Outcome due when the meeting ends, then Client decides. If nobody accepts, the lead moves to Reschedule needed and returns to Waiting for reply when a new slot is picked. A scheduled meeting moved to a new slot also returns to Waiting for reply.', [
+  [10, 80, 130, 46, 'state', 'Draft lead'], [220, 80, 130, 46, 'new', 'Waiting for reply'], [430, 80, 130, 46, 'state', 'Scheduled'],
+  [640, 80, 130, 46, 'state', 'Outcome due'], [850, 80, 130, 46, 'state', 'Client decides'], [220, 170, 130, 46, 'new', 'Reschedule needed'],
+], [
+  ['M140,103 H220', 'picks a slot', 180, 97], ['M350,103 H430', 'one accepts', 390, 97], ['M560,103 H640', 'meeting ends', 600, 97], ['M770,103 H850', 'outcome saved', 810, 97],
+  ['M265,126 V170', 'nobody accepts', 257, 152, 'end'], ['M305,170 V126', 'new slot picked', 313, 152, 'start'],
+  ['M495,80 C495,34 285,34 285,80', 'moved to a new slot', 390, 38],
+]);
+
+/* steps: [from, to, text], same from and to is a note, {div} is a divider line. */
+function seq(id, aria, actors, steps) {
+  const W = 1040, xs = actors.map((_, i) => 130 + i * 260);
+  let y = 86, out = '';
+  steps.forEach((s) => {
+    if (s.div) { out += `<line class="dv" x1="20" x2="${W - 20}" y1="${y - 12}" y2="${y - 12}"/><text class="dvt" x="20" y="${y + 6}">${s.div}</text>`; y += 34; return; }
+    const [a, b, t] = s;
+    if (a === b) { const w = t.length * 6.3 + 28; out += `<rect class="notebx" x="${xs[a] - w / 2}" y="${y - 17}" width="${w}" height="26" rx="6"/><text class="t" x="${xs[a]}" y="${y}" text-anchor="middle" style="font-weight:500;font-size:11.5px">${t}</text>`; }
+    else out += `<line class="ar" x1="${xs[a]}" x2="${xs[b]}" y1="${y}" y2="${y}" marker-end="url(#${id}-ah)"/><text class="al" x="${(xs[a] + xs[b]) / 2}" y="${y - 7}" text-anchor="middle">${t}</text>`;
+    y += 38;
+  });
+  const H = y, heads = actors.map((a, i) => `<line class="life" x1="${xs[i]}" x2="${xs[i]}" y1="46" y2="${H - 14}"/><rect class="bx-code" x="${xs[i] - 105}" y="12" width="210" height="34" rx="9"/><text class="t" x="${xs[i]}" y="34" text-anchor="middle">${a}</text>`).join('');
+  $('#' + id).innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${aria}">${marker(id + '-ah')}${heads}${out}</svg>`;
+}
+
+seq('d-connect', 'Connecting a calendar. The person presses Connect, signs in at Google or Microsoft and approves. The portal swaps the code for a refresh token, stores it encrypted, reads busy times and saves start and end only. It repeats the read every 5 minutes and uses working hours only if the connection stops working.',
+  ['Client team member', 'Portal', 'Google or Microsoft', 'Database'], [
+    [0, 1, 'Presses Connect calendar on their profile'],
+    [1, 2, 'Sends them to sign in, asking to read their calendar'],
+    [0, 2, 'Signs in and approves'],
+    [2, 1, 'Returns a one-time code'],
+    [1, 2, 'Swaps the code for a refresh token'],
+    [1, 3, 'Stores the token encrypted'],
+    [1, 2, 'First read: busy times for the next 60 days'],
+    [1, 3, 'Saves the start and end of each busy block'],
+    [1, 0, 'Shows Connected, with the time of the last sync'],
+    { div: 'Every 5 minutes after that' },
+    [1, 2, 'Reads busy times again'],
+    [1, 3, 'Replaces that person’s busy blocks'],
+    { div: 'If the token stops working' },
+    [1, 1, 'Uses their working hours only'],
+    [1, 0, 'Shows a warning to the person and to Fynix'],
+  ]);
+
+seq('d-book', 'Booking a meeting. The prospect agrees a time with the agency. The agency opens the calendar, sees Anika busy and Tomás and Leila free, picks the slot and sends the invite. The portal rechecks live, holds the slot and emails both people. Tomás accepts, the meeting is scheduled, the Meet room is made, Leila no longer needs to reply and everyone is told. If nobody accepts by 24 hours before, the lead moves to Reschedule needed.',
+  ['Prospect', 'Agency', 'Portal', 'Client team members'], [
+    [0, 1, 'Agrees a time: Fri 27 Nov, 11:00'],
+    [1, 2, 'Opens the calendar, filters to Northwind'],
+    [2, 1, 'Shows each person: Anika busy, Tomás and Leila free'],
+    [1, 2, 'Picks 11:00 and sends the invite'],
+    [2, 2, 'Checks Google and Outlook live, then holds the slot'],
+    [2, 3, 'Emails Tomás and Leila: Accept or Decline'],
+    [3, 2, 'Tomás accepts'],
+    [2, 2, 'Meeting scheduled. Meet room made. Leila is freed'],
+    [2, 0, 'Confirmation letter with the Meet link and calendar file'],
+    [2, 1, 'Meeting email and a notice in the app'],
+    [2, 3, 'Meeting email with the calendar file'],
+    { div: 'If nobody accepts by 24 hours before the meeting' },
+    [2, 2, 'Lead moves to Reschedule needed. The time is freed'],
+    [2, 1, 'Tells the agency and Fynix to pick a new slot'],
+  ]);
+</script>

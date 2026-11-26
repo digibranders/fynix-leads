@@ -1,8 +1,9 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { addClientContact, listClientContacts, removeClientContact, updateClientContact } from "@/server/domain/client-contacts";
+import { invite } from "@/server/db/schema";
+import { addClientContact, inviteClientContact, listClientContacts, removeClientContact, updateClientContact } from "@/server/domain/client-contacts";
 import { DomainError } from "@/server/domain/errors";
 import { createOrganisation } from "@/server/domain/organisations";
-import { auditRowsFor } from "@/server/domain/test-helpers";
+import { auditRowsFor, latestInviteLink, publishApprovedTerms } from "@/server/domain/test-helpers";
 import { openDomainRig } from "@/server/domain/testing";
 
 const rig = openDomainRig();
@@ -66,5 +67,44 @@ describe("the contact people of a client", () => {
     const agency = await createOrganisation(rig.deps(), rig.actor, { kind: "agency", name: "Ridgeway Media Pvt Ltd" });
     expect((await refusal(addClientContact(rig.deps(), rig.actor, { clientOrgId: agency.id, name: "Asha" }))).code).toBe("invalid-input");
     expect((await refusal(createOrganisation(rig.deps(), rig.actor, { kind: "agency", name: "Other Agency Ltd", contacts: [{ name: "Asha" }] }))).code).toBe("invalid-input");
+  });
+});
+
+describe("inviting a saved contact to the portal", () => {
+  let counter = 0;
+  const clientWith = async (contact: { name: string; email?: string; jobTitle?: string; phone?: string }) => {
+    counter += 1;
+    const client = await createOrganisation(rig.deps(), rig.actor, { kind: "client", name: `Orchard Foods ${counter} Ltd`, contacts: [contact] });
+    const [saved] = await listClientContacts(rig.deps(), rig.actor, client.id);
+    if (saved === undefined) throw new Error("The contact was not saved");
+    return { client, contact: saved };
+  };
+
+  it("invites a contact as a member of their client, keeps them on the list and queues the invite email", async () => {
+    await publishApprovedTerms(rig);
+    const { client, contact } = await clientWith({ name: "Maya Rao", email: "maya@orchard.example", jobTitle: "Head of Sales", phone: "+44 20 7946 0958" });
+    await inviteClientContact(rig.deps(), rig.actor, contact.id);
+    const [row] = await rig.dbs.owner.db.select().from(invite);
+    expect(row).toMatchObject({ orgId: client.id, orgKind: "client", email: "maya@orchard.example", name: "Maya Rao", jobTitle: "Head of Sales", phone: "+44 20 7946 0958", role: "member", alias: null });
+    expect((await latestInviteLink(rig, "maya@orchard.example")).token).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    expect((await listClientContacts(rig.deps(), rig.actor, client.id)).map((person) => person.name)).toEqual(["Maya Rao"]);
+  });
+
+  it("asks for an email and a job title first, in plain words, and sends nothing", async () => {
+    await publishApprovedTerms(rig);
+    const noEmail = await clientWith({ name: "Dev Patel", jobTitle: "Head of Ops" });
+    expect(await refusal(inviteClientContact(rig.deps(), rig.actor, noEmail.contact.id))).toMatchObject({ code: "invalid-input", message: "This contact needs an email and a job title before they can be invited." });
+    const noTitle = await clientWith({ name: "Tara Moss", email: "tara@orchard.example" });
+    expect((await refusal(inviteClientContact(rig.deps(), rig.actor, noTitle.contact.id))).message).toBe("This contact needs an email and a job title before they can be invited.");
+    expect(await rig.dbs.owner.db.select().from(invite)).toEqual([]);
+  });
+
+  it("is refused for a contact that was removed, an unknown contact and Fynix staff", async () => {
+    await publishApprovedTerms(rig);
+    const { contact } = await clientWith({ name: "Maya Rao", email: "maya@orchard.example", jobTitle: "Head of Sales" });
+    expect((await refusal(inviteClientContact(rig.deps(), rig.actor, "99999999-9999-4999-8999-999999999999"))).code).toBe("not-found");
+    expect((await refusal(inviteClientContact(rig.deps(), rig.staffActor, contact.id))).code).toBe("admin-required");
+    await removeClientContact(rig.deps(), rig.actor, contact.id);
+    expect((await refusal(inviteClientContact(rig.deps(), rig.actor, contact.id))).code).toBe("not-found");
   });
 });

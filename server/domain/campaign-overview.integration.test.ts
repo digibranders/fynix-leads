@@ -5,7 +5,6 @@ import { publishAgreement, recordAgreementAcceptance } from "@/server/domain/agr
 import { addHostBlock, setHostHours } from "@/server/domain/availability";
 import { listCampaignHosts, listCampaignRows, readAgreementsPage, readCampaignHeader } from "@/server/domain/campaign-overview";
 import { updateCampaign } from "@/server/domain/campaigns";
-import { addCampaignHost, deactivateCampaignHost } from "@/server/domain/hosts";
 import { setOrganisationStatus } from "@/server/domain/organisations";
 import { setCampaignShare } from "@/server/domain/shares";
 import { createPartnerAgency } from "@/server/domain/coordinators";
@@ -46,11 +45,10 @@ describe("listCampaignRows", () => {
 });
 
 describe("readCampaignHeader", () => {
-  it("reads the header facts, the brief and the count of hosts that are switched on", async () => {
-    await addCampaignHost(rig.deps(), rig.actor, { campaignId: campaignId(), memberId: await hostMember(), jobTitle: "Chief Operating Officer" });
-    const other = await addClientPerson("Second Person");
-    await addCampaignHost(rig.deps(), rig.actor, { campaignId: campaignId(), memberId: other, jobTitle: "Head of Finance" });
-    await deactivateCampaignHost(rig.deps(), rig.actor, { campaignId: campaignId(), memberId: other });
+  it("reads the header facts, the brief and the count of active people of the client", async () => {
+    await addClientPerson("Second Person");
+    const suspended = await addClientPerson("Third Person");
+    await rig.dbs.owner.db.update(member).set({ status: "suspended" }).where(eq(member.id, suspended));
     await agreeNumbers(rig, campaignId(), { monthlyTarget: 20, totalTarget: 120 });
     await updateCampaign(rig.deps(), rig.actor, campaignId(), { status: "active", timeZone: "Asia/Kolkata", meetingMinutes: 45, geography: "United Kingdom", industries: ["Finance"], internalNotes: "Handle with care" });
 
@@ -63,7 +61,7 @@ describe("readCampaignHeader", () => {
       coordinatorOrgId: rig.world().brightpath.id,
       timeZone: "Asia/Kolkata",
       meetingMinutes: 45,
-      activeHostCount: 1,
+      activeHostCount: 2,
       closedAt: null,
     });
     expect(header.brief).toMatchObject({ geography: "United Kingdom", industries: ["Finance"], internalNotes: "Handle with care", monthlyTarget: 20, totalTarget: 120, startDate: "2026-12-01" });
@@ -75,35 +73,32 @@ describe("readCampaignHeader", () => {
 });
 
 describe("listCampaignHosts", () => {
-  it("lists hosts by name with their weekly hours and blocks still to come, and offers the client's other active people", async () => {
+  it("lists every active person of the client by name with their weekly hours and blocks still to come, whether or not anyone made them a host", async () => {
     const hostId = await hostMember();
     const other = await addClientPerson("Alpha Person");
-    await addCampaignHost(rig.deps(), rig.actor, { campaignId: campaignId(), memberId: hostId, jobTitle: "Chief Operating Officer" });
     await setHostHours(rig.deps(), rig.actor, { memberId: hostId, timeZone: "Europe/London", hours: [{ weekday: 3, startMinute: 780, endMinute: 1020 }, { weekday: 1, startMinute: 540, endMinute: 1020 }] });
     const soon = new Date(rig.clock.now.getTime() + 86_400_000);
     await addHostBlock(rig.deps(), rig.actor, { memberId: hostId, startsAt: soon.toISOString(), endsAt: new Date(soon.getTime() + 3_600_000).toISOString(), note: "Board meeting" });
     await addHostBlock(rig.deps(), rig.actor, { memberId: hostId, startsAt: new Date(rig.clock.now.getTime() - 7_200_000).toISOString(), endsAt: new Date(rig.clock.now.getTime() - 3_600_000).toISOString(), note: "Already over" });
 
-    const { hosts, candidates } = await listCampaignHosts(rig.deps(), rig.staffActor, campaignId());
-    expect(hosts).toHaveLength(1);
-    expect(hosts[0]).toMatchObject({ memberId: hostId, jobTitle: "Chief Operating Officer", active: true, timeZone: "Europe/London" });
-    expect(hosts[0]?.hours).toEqual([{ weekday: 1, startMinute: 540, endMinute: 1020 }, { weekday: 3, startMinute: 780, endMinute: 1020 }]);
-    expect(hosts[0]?.blocks.map((block) => block.note)).toEqual(["Board meeting"]);
-    expect(candidates).toEqual([{ memberId: other, displayName: "Alpha Person", jobTitle: null }]);
+    const hosts = await listCampaignHosts(rig.deps(), rig.staffActor, campaignId());
+    expect(hosts.map((row) => row.memberId)).toEqual([other, hostId]);
+    const first = hosts.find((row) => row.memberId === hostId);
+    expect(first).toMatchObject({ memberId: hostId, jobTitle: userIn(rig, rig.world().kestrel).jobTitle, timeZone: "Europe/London" });
+    expect(first?.hours).toEqual([{ weekday: 1, startMinute: 540, endMinute: 1020 }, { weekday: 3, startMinute: 780, endMinute: 1020 }]);
+    expect(first?.blocks.map((block) => block.note)).toEqual(["Board meeting"]);
+    expect(hosts.find((row) => row.memberId === other)).toEqual({ memberId: other, displayName: "Alpha Person", jobTitle: "", timeZone: null, hours: [], blocks: [] });
   });
 
-  it("keeps a switched off host in the list, with no hours when none are set, and offers them as a candidate again", async () => {
+  it("shows a person who has set nothing with no hours and no blocks", async () => {
     const hostId = await hostMember();
-    await addCampaignHost(rig.deps(), rig.actor, { campaignId: campaignId(), memberId: hostId, jobTitle: "Chief Operating Officer" });
-    await deactivateCampaignHost(rig.deps(), rig.actor, { campaignId: campaignId(), memberId: hostId });
-    const { hosts, candidates } = await listCampaignHosts(rig.deps(), rig.actor, campaignId());
-    expect(hosts).toEqual([{ memberId: hostId, displayName: userIn(rig, rig.world().kestrel).name, jobTitle: "Chief Operating Officer", active: false, timeZone: null, hours: [], blocks: [] }]);
-    expect(candidates.map((row) => row.memberId)).toEqual([hostId]);
+    const hosts = await listCampaignHosts(rig.deps(), rig.actor, campaignId());
+    expect(hosts).toEqual([{ memberId: hostId, displayName: userIn(rig, rig.world().kestrel).name, jobTitle: userIn(rig, rig.world().kestrel).jobTitle, timeZone: null, hours: [], blocks: [] }]);
   });
 
-  it("returns empty lists for a campaign without hosts and not-found for an unknown campaign, and never offers a suspended person", async () => {
+  it("never lists a suspended person, and answers not-found for an unknown campaign", async () => {
     await rig.dbs.owner.db.update(member).set({ status: "suspended" }).where(eq(member.id, await hostMember()));
-    expect(await listCampaignHosts(rig.deps(), rig.actor, campaignId())).toEqual({ hosts: [], candidates: [] });
+    expect(await listCampaignHosts(rig.deps(), rig.actor, campaignId())).toEqual([]);
     expect((await refusal(listCampaignHosts(rig.deps(), rig.actor, UNKNOWN))).code).toBe("not-found");
     expect((await refusal(listCampaignHosts(rig.deps(), rig.actor, "nope"))).code).toBe("invalid-input");
   });

@@ -8,7 +8,7 @@ import { Hint } from "@/components/ui/hint";
 import { Input } from "@/components/ui/input";
 import { MAX_NEW_CONTACTS } from "@/server/domain/inputs";
 import type { ClientContactRecord } from "@/server/domain/client-contacts";
-import { addClientContactAction, updateClientContactAction } from "@/server/fynix/actions";
+import { updateClientContactAction } from "@/server/fynix/actions";
 import { ActionForm, useFormState } from "./action-form";
 import { FormGroup, Hidden, TextField } from "./form-parts";
 
@@ -177,24 +177,9 @@ export function ContactPeopleFields() {
           <Plus aria-hidden />
           Add contact person
         </Button>
-        {full ? <span className="ml-3 text-xs text-muted-foreground">That is the most you can add at once. Add more from the client page.</span> : null}
+        {full ? <span className="ml-3 text-xs text-muted-foreground">That is the most you can add at once. Invite more people from the client&apos;s People page.</span> : null}
       </div>
     </FormGroup>
-  );
-}
-
-/** Adds one contact person to a client that is already on the books. */
-export function AddContactForm({ clientOrgId }: { clientOrgId: string }) {
-  return (
-    <ActionForm action={addClientContactAction} submitLabel="Add contact" pendingLabel="Adding" savedMessage="Contact added">
-      <Hidden name="clientOrgId" value={clientOrgId} />
-      <FormGroup>
-        <TextField name="name" label="Name" />
-        <TextField name="jobTitle" label="Job title (optional)" />
-        <TextField name="email" label="Email (optional)" type="email" inputMode="email" />
-        <TextField name="phone" label="Phone (optional)" />
-      </FormGroup>
-    </ActionForm>
   );
 }
 

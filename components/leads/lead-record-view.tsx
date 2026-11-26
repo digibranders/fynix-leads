@@ -254,7 +254,7 @@ export function LeadRecordView({
               <Facts
                 items={[
                   ...(record.scheduledMeetingTime === null ? [] : ([["Scheduled for", <Times key="at" at={record.scheduledMeetingTime} hostZone={record.hostTimeZone} />]] as const)),
-                  ...(hostLine === null ? [] : ([["Host", hostLine]] as const)),
+                  ...(hostLine === null ? [] : ([["Team member", hostLine]] as const)),
                   ...(record.alias === null ? [] : ([["Sent as", `${record.alias.displayName}, ${record.alias.jobTitle}`]] as const)),
                   ...extraFacts,
                 ]}

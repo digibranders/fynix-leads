@@ -673,6 +673,13 @@
       "when": 1795628219838,
       "tag": "0095_pending_emails_review_fixes",
       "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1795691902873,
+      "tag": "0096_client_team",
+      "breakpoints": true
     }
   ]
 }

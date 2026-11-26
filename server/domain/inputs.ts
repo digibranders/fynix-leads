@@ -241,11 +241,6 @@ export type SetCampaignShareInput = z.infer<typeof setCampaignShareSchema>;
 export const removeCampaignShareSchema = z.object({ campaignId: z.uuid(), agencyOrgId: z.uuid() }).strict();
 export type RemoveCampaignShareInput = z.infer<typeof removeCampaignShareSchema>;
 
-export const addCampaignHostSchema = z.object({ campaignId: z.uuid(), memberId: z.uuid(), jobTitle: name(120) }).strict();
-export type AddCampaignHostInput = z.infer<typeof addCampaignHostSchema>;
-
-export const deactivateCampaignHostSchema = z.object({ campaignId: z.uuid(), memberId: z.uuid() }).strict();
-export type DeactivateCampaignHostInput = z.infer<typeof deactivateCampaignHostSchema>;
 
 const hoursWindow = z.object({ weekday: z.number().int(), startMinute: z.number().int(), endMinute: z.number().int() }).strict();
 /** A whole weekly set, replacing the old one. Ranges and overlaps are checked by `findHoursProblem` (lib/domain/weekly-hours.ts) so the message names the rule. */
@@ -281,11 +276,6 @@ export type UpdateAliasIdentityInput = z.infer<typeof updateAliasIdentitySchema>
 
 export const retireAliasIdentitySchema = z.object({ publicRef: z.string().trim().regex(/^ALI-[0-9A-HJKMNP-TV-Z]{4}$/, "must be an ALI reference") }).strict();
 export type RetireAliasIdentityInput = z.infer<typeof retireAliasIdentitySchema>;
-
-/** A client manager adds a host from its own organisation's people, or pauses one. */
-export const tenantHostSchema = z.object({ campaignId: z.uuid(), memberId: z.uuid() }).strict();
-export const tenantAddHostSchema = z.object({ campaignId: z.uuid(), memberId: z.uuid(), jobTitle: name(120) }).strict();
-export type TenantAddHostInput = z.input<typeof tenantAddHostSchema>;
 
 /** A host's own weekly hours and a blocked time. The person is the signed-in member, so no member id is taken. */
 export const ownHoursSchema = z.object({ timeZone: timeZoneSchema, hours: z.array(hoursWindow).max(70, "must have at most 70 windows") }).strict();

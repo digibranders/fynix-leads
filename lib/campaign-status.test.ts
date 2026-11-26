@@ -23,7 +23,7 @@ describe("campaignBucket", () => {
 describe("goLiveRefusal", () => {
   const ready = { agreed: true, clientAccepted: true, coordinatorAccepted: true, hasHost: true };
 
-  it("lets a campaign with both acceptances and a host go live", () => expect(goLiveRefusal(ready)).toBeNull());
+  it("lets a campaign with both acceptances and a client team member go live", () => expect(goLiveRefusal(ready)).toBeNull());
 
   it("names the side that has not accepted", () => {
     expect(goLiveRefusal({ ...ready, agreed: false, coordinatorAccepted: false })).toEqual({ code: "agreement-not-accepted", message: "The coordinator has not accepted the agreement yet." });
@@ -31,8 +31,8 @@ describe("goLiveRefusal", () => {
     expect(goLiveRefusal({ ...ready, agreed: false, clientAccepted: false, coordinatorAccepted: false })?.message).toBe("Neither the client nor the coordinator has accepted the agreement yet.");
   });
 
-  it("asks for a host only after the agreement, and refuses with no-host", () => {
-    expect(goLiveRefusal({ ...ready, hasHost: false })).toEqual({ code: "no-host", message: "The campaign has no active host yet." });
+  it("asks for a client team member only after the agreement, and refuses with no-host", () => {
+    expect(goLiveRefusal({ ...ready, hasHost: false })).toEqual({ code: "no-host", message: "The client has no active team member yet." });
     expect(goLiveRefusal({ agreed: false, clientAccepted: false, coordinatorAccepted: false, hasHost: false })?.code).toBe("agreement-not-accepted");
   });
 });
@@ -43,7 +43,7 @@ describe("notLiveReason", () => {
   it("is null for an active campaign and says why for the others", () => {
     expect(notLiveReason({ status: "active", ...ready })).toBeNull();
     expect(notLiveReason({ status: "draft", ...ready })).toBe("Fynix has not made it active yet.");
-    expect(notLiveReason({ status: "draft", ...ready, hasHost: false })).toBe("The campaign has no active host yet.");
+    expect(notLiveReason({ status: "draft", ...ready, hasHost: false })).toBe("The client has no active team member yet.");
     expect(notLiveReason({ status: "draft", ...ready, agreed: false, clientAccepted: false })).toBe("The client has not accepted the agreement yet.");
     expect(notLiveReason({ status: "completed", ...ready })).toBe("The campaign is closed.");
   });

@@ -125,10 +125,10 @@ async function Review({ searchParams }: { searchParams: PageProps<"/client/revie
             <div className="flex flex-col gap-5 px-6 py-5">
               <Facts
                 items={[
-                  ["Host", selected.hostName ?? "Not named"],
+                  ["Team member", selected.hostName ?? "Not named"],
                   ["Sent as", selected.alias === null ? "Not shown" : `${selected.alias.displayName}, ${selected.alias.jobTitle}`],
                   ["Campaign", <span key="c" className="flex flex-wrap items-center gap-1.5">{selected.campaignName}{isClosed(selected.campaignStatus) ? <ClosedTag /> : null}</span>],
-                  ["Host's time zone", selected.hostTimeZone ?? "Not set"],
+                  ["Their time zone", selected.hostTimeZone ?? "Not set"],
                   ["Budget", selected.bant.budget],
                   ["Authority", selected.bant.authority],
                   ["Need", selected.bant.need],

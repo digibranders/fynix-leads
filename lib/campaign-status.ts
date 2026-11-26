@@ -34,7 +34,7 @@ export interface GoLiveRefusal {
   readonly message: string;
 }
 
-/** The rule: a campaign goes live when the client and the coordinator have both accepted the agreement and it has an active host. */
+/** The rule: a campaign goes live when the client and the coordinator have both accepted the agreement and the client has an active team member. */
 export function goLiveRefusal(state: GoLiveState): GoLiveRefusal | null {
   if (!state.agreed) {
     const message =
@@ -43,7 +43,7 @@ export function goLiveRefusal(state: GoLiveState): GoLiveRefusal | null {
         : `The ${state.clientAccepted ? "coordinator" : "client"} has not accepted the agreement yet.`;
     return { code: "agreement-not-accepted", message };
   }
-  return state.hasHost ? null : { code: "no-host", message: "The campaign has no active host yet." };
+  return state.hasHost ? null : { code: "no-host", message: "The client has no active team member yet." };
 }
 
 /** Why an agency's campaign is not taking leads, in words that name no person. Null when it is active. */

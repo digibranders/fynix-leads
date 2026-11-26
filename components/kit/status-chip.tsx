@@ -42,11 +42,6 @@ const PERSON = {
   "invite-expired": { label: "Invite expired", variant: "red" },
 } as const satisfies Record<string, Look>;
 
-const HOST = {
-  active: { label: "Taking meetings", variant: "green" },
-  paused: { label: "Paused", variant: "quiet" },
-} as const satisfies Record<string, Look>;
-
 const AGREEMENT = {
   accepted: { label: "Accepted", variant: "green" },
   waiting: { label: "Waiting", variant: "amber" },
@@ -65,7 +60,6 @@ type Props =
   | { kind: "campaign"; status: CampaignStatus; size?: "default" | "sm" }
   | { kind: "lead"; status: LeadStage; size?: "default" | "sm" }
   | { kind: "person"; status: keyof typeof PERSON; size?: "default" | "sm" }
-  | { kind: "host"; status: keyof typeof HOST; size?: "default" | "sm" }
   | { kind: "agreement"; status: keyof typeof AGREEMENT; size?: "default" | "sm" }
   | { kind: "meeting"; status: keyof typeof MEETING; size?: "default" | "sm" };
 
@@ -77,8 +71,6 @@ function look(props: Props): Look {
       return LEAD[props.status];
     case "person":
       return PERSON[props.status];
-    case "host":
-      return HOST[props.status];
     case "agreement":
       return AGREEMENT[props.status];
     case "meeting":

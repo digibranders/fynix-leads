@@ -34,7 +34,6 @@ export interface HostOption {
   readonly id: string;
   readonly campaignId: string;
   readonly name: string;
-  readonly jobTitle: string;
 }
 
 export interface NotLiveCampaign {
@@ -140,7 +139,7 @@ export function SubmitLeadForm({ campaigns, aliases, hosts, notLive = [], leadsH
             </p>
           ) : null}
 
-          <Group title="Campaign and sender" note="The campaign sets which alias and which host you can choose.">
+          <Group title="Campaign and sender" note="The campaign sets which alias and which team member you can choose.">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field id="lead-campaign" label="Campaign">
                 <Choice
@@ -171,7 +170,7 @@ export function SubmitLeadForm({ campaigns, aliases, hosts, notLive = [], leadsH
                 />
               </Field>
               <div className="md:col-span-2">
-                <Field id="lead-host" label="Meeting host">
+                <Field id="lead-host" label="Client team member">
                   <Choice
                     key={`host-${campaignId}`}
                     id="lead-host"
@@ -179,9 +178,9 @@ export function SubmitLeadForm({ campaigns, aliases, hosts, notLive = [], leadsH
                     value={hostId}
                     onValueChange={setHostId}
                     required
-                    placeholder="Select a host"
-                    emptyLabel={campaignId === "" ? "Choose a campaign first" : "No hosts for this campaign yet"}
-                    options={campaignHosts.map((h) => ({ value: h.id, label: h.name.includes(h.jobTitle) ? h.name : `${h.name} (${h.jobTitle})` }))}
+                    placeholder="Select a team member"
+                    emptyLabel={campaignId === "" ? "Choose a campaign first" : "This client has no active team member yet"}
+                    options={campaignHosts.map((h) => ({ value: h.id, label: h.name }))}
                   />
                 </Field>
               </div>
