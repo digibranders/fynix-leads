@@ -68,7 +68,7 @@ beforeEach(async () => {
 
 const agencyDb = () => rig.dbs.roles.leads_agency.db;
 const clientDb = () => rig.dbs.roles.leads_client.db;
-const read = (clientOrgId: string) => readTeamTimeForTenant(agencyDb(), cast.agency, { clientOrgId, ...window() });
+const read = (campaignId: string) => readTeamTimeForTenant(agencyDb(), cast.agency, { campaignId, ...window() });
 const busyOf = (rows: readonly TeamMemberTime[], memberId: string): string[][] => (rows.find((row) => row.memberId === memberId)?.busy ?? []).map((span) => [iso(span.start), iso(span.end)]);
 
 /** A scheduled meeting of the served campaign, written as the owner. The lead is unreleased so nothing but the owner reads it. */
@@ -107,7 +107,7 @@ async function bookMeeting(start: Date, over: { readonly outcome?: string; reado
 
 describe("the people and their hours", () => {
   it("gives an agency that serves the client every active person by name, with the default week when none has set hours", async () => {
-    const rows = await read(cast.served.client.id);
+    const rows = await read(cast.served.id);
     expect(rows.map((row) => row.displayName).sort()).toEqual(["Colleague Calendar", userIn(rig, cast.served.client).name].sort());
     const [org] = await rig.dbs.owner.db.select({ timeZone: organisation.timeZone }).from(organisation).where(eq(organisation.id, cast.served.client.id));
     for (const row of rows) {
@@ -119,7 +119,7 @@ describe("the people and their hours", () => {
 
   it("leaves out a suspended person", async () => {
     await rig.dbs.owner.db.update(member).set({ status: "suspended" }).where(eq(member.id, cast.colleague));
-    expect((await read(cast.served.client.id)).map((row) => row.memberId)).not.toContain(cast.colleague);
+    expect((await read(cast.served.id)).map((row) => row.memberId)).not.toContain(cast.colleague);
   });
 });
 
@@ -129,7 +129,7 @@ describe("what makes a person busy", () => {
     await bookMeeting(at(3, 14));
     const invited = await bookMeeting(at(4, 11), { replyDueAt: at(9, 0) });
     await rig.dbs.owner.db.insert(meetingAttendee).values({ meetingId: invited, memberId: cast.colleague });
-    const rows = await read(cast.served.client.id);
+    const rows = await read(cast.served.id);
     expect(busyOf(rows, cast.colleague)).toEqual([[iso(at(2, 9)), iso(at(2, 10))], [iso(at(4, 11)), iso(at(4, 11, 30))]]);
     expect(busyOf(rows, cast.clientMember)).toEqual([[iso(at(3, 14)), iso(at(3, 14, 30))], [iso(at(4, 11)), iso(at(4, 11, 30))]]);
   });
@@ -143,7 +143,7 @@ describe("what makes a person busy", () => {
   ] as const)("%s", async (_label, reply, dueInDays, busy) => {
     const meetingId = await bookMeeting(at(5, 10), { replyDueAt: at(dueInDays, 0) });
     await rig.dbs.owner.db.insert(meetingAttendee).values({ meetingId, memberId: cast.colleague, reply, repliedAt: reply === "invited" ? null : new Date() });
-    const rows = await read(cast.served.client.id);
+    const rows = await read(cast.served.id);
     expect(busyOf(rows, cast.colleague)).toEqual(busy ? [[iso(at(5, 10)), iso(at(5, 10, 30))]] : []);
   });
 
@@ -152,20 +152,20 @@ describe("what makes a person busy", () => {
       const meetingId = await bookMeeting(at(6, 10), { outcome });
       await rig.dbs.owner.db.insert(meetingAttendee).values({ meetingId, memberId: cast.colleague, reply: "accepted", repliedAt: new Date() });
     }
-    const rows = await read(cast.served.client.id);
+    const rows = await read(cast.served.id);
     expect(busyOf(rows, cast.colleague)).toEqual([]);
     expect(busyOf(rows, cast.clientMember)).toEqual([]);
   });
 
   it("only reports time inside the range asked for", async () => {
     await bookMeeting(at(20, 10));
-    expect(busyOf(await read(cast.served.client.id), cast.clientMember)).toEqual([]);
+    expect(busyOf(await read(cast.served.id), cast.clientMember)).toEqual([]);
   });
 
   it("tells nothing about what the busy time is", async () => {
     await rig.dbs.owner.db.insert(hostBlock).values({ memberId: cast.colleague, startsAt: at(2, 9), endsAt: at(2, 10), note: "Dentist, private note" });
     await bookMeeting(at(3, 14));
-    const text = JSON.stringify(await read(cast.served.client.id));
+    const text = JSON.stringify(await read(cast.served.id));
     for (const forbidden of ["Dentist", "private note", "hidden1@hidden.example", "Hidden Company 1", "Hidden Prospect", "LD-C1XX", "MTG-C1XX", cast.served.name, rig.world().brightpath.name, rig.world().northgate.name]) {
       expect(text, forbidden).not.toContain(forbidden);
     }
@@ -174,19 +174,19 @@ describe("what makes a person busy", () => {
 
 describe("who may read which team", () => {
   it("gives an agency nothing for a client it has no campaign with", async () => {
-    expect(await read(cast.other.client.id)).toEqual([]);
+    expect(await read(cast.other.id)).toEqual([]);
   });
 
   it("gives a client its own team and nothing of another client's", async () => {
     await rig.dbs.owner.db.insert(hostBlock).values({ memberId: cast.colleague, startsAt: at(2, 9), endsAt: at(2, 10), note: "x" });
-    const own = await readTeamTimeForTenant(clientDb(), cast.client, { clientOrgId: cast.served.client.id, ...window() });
+    const own = await readTeamTimeForTenant(clientDb(), cast.client, { campaignId: cast.served.id, ...window() });
     expect(busyOf(own, cast.colleague)).toEqual([[iso(at(2, 9)), iso(at(2, 10))]]);
-    expect(await readTeamTimeForTenant(clientDb(), cast.otherClient, { clientOrgId: cast.served.client.id, ...window() })).toEqual([]);
+    expect(await readTeamTimeForTenant(clientDb(), cast.otherClient, { campaignId: cast.served.id, ...window() })).toEqual([]);
   });
 
   it("gives Fynix any client, staff included", async () => {
-    const kestrel = await readTeamTimeForFynix(rig.deps(), rig.staffActor, { clientOrgId: cast.served.client.id, ...window() });
-    const halden = await readTeamTimeForFynix(rig.deps(), rig.staffActor, { clientOrgId: cast.other.client.id, ...window() });
+    const kestrel = await readTeamTimeForFynix(rig.deps(), rig.staffActor, { campaignId: cast.served.id, ...window() });
+    const halden = await readTeamTimeForFynix(rig.deps(), rig.staffActor, { campaignId: cast.other.id, ...window() });
     expect(kestrel.length).toBeGreaterThan(0);
     expect(halden.length).toBeGreaterThan(0);
   });
@@ -194,18 +194,18 @@ describe("who may read which team", () => {
 
 describe("the range", () => {
   it("refuses more than 62 days, an empty range, a backwards range and a malformed one, all as invalid input", async () => {
-    const id = cast.served.client.id;
-    const over = { clientOrgId: id, from: iso(at(1, 0)), to: iso(at(64, 0)) };
-    const empty = { clientOrgId: id, from: iso(at(1, 0)), to: iso(at(1, 0)) };
-    const backwards = { clientOrgId: id, from: iso(at(3, 0)), to: iso(at(1, 0)) };
-    for (const input of [over, empty, backwards, { clientOrgId: id, from: "tomorrow", to: "later" }, { clientOrgId: "nope", ...window() }]) {
+    const id = cast.served.id;
+    const over = { campaignId: id, from: iso(at(1, 0)), to: iso(at(64, 0)) };
+    const empty = { campaignId: id, from: iso(at(1, 0)), to: iso(at(1, 0)) };
+    const backwards = { campaignId: id, from: iso(at(3, 0)), to: iso(at(1, 0)) };
+    for (const input of [over, empty, backwards, { campaignId: id, from: "tomorrow", to: "later" }, { campaignId: "nope", ...window() }]) {
       expect((await refusal(readTeamTimeForTenant(agencyDb(), cast.agency, input))).code).toBe("invalid-input");
     }
   });
 
   it("is refused by the database too, so a caller that skips the domain cannot read a longer range", async () => {
     const asFynix = withScope(rig.dbs.roles.leads_fynix.db, { orgId: null, userId: rig.actor.userId }, (tx) =>
-      tx.execute(sql`select * from public.app_team_busy(${cast.served.client.id}::uuid, now(), now() + interval '63 days')`),
+      tx.execute(sql`select * from public.app_team_busy_for_campaign(${cast.served.id}::uuid, now(), now() + interval '63 days')`),
     );
     await expect(asFynix).rejects.toSatisfy((error: unknown) => {
       for (let current: unknown = error; current instanceof Error; current = current.cause) if (current.message.includes("domain:invalid-input")) return true;

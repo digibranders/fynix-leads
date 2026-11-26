@@ -701,6 +701,13 @@
       "when": 1795696226249,
       "tag": "0099_meeting_new_columns_insert",
       "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1795697240757,
+      "tag": "0100_team_reads_by_campaign",
+      "breakpoints": true
     }
   ]
 }

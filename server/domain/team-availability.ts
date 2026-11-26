@@ -46,8 +46,8 @@ function checkedRange(from: Date, to: Date): Interval {
   return range;
 }
 
-async function assemble(tx: ScopedTransaction, clientOrgId: string, range: Interval): Promise<readonly TeamMemberTime[]> {
-  const people = await tx.execute<PersonRow>(sql`select member_id, display_name, time_zone from public.app_team_people(${clientOrgId}::uuid)`);
+async function assemble(tx: ScopedTransaction, campaignId: string, range: Interval): Promise<readonly TeamMemberTime[]> {
+  const people = await tx.execute<PersonRow>(sql`select member_id, display_name, time_zone from public.app_team_people_for_campaign(${campaignId}::uuid)`);
   if (people.rows.length === 0) return [];
   const ids = people.rows.map((row) => row.member_id);
   const hours = await tx
@@ -56,7 +56,7 @@ async function assemble(tx: ScopedTransaction, clientOrgId: string, range: Inter
     .where(inArray(hostHours.memberId, ids))
     .orderBy(asc(hostHours.weekday), asc(hostHours.startMinute));
   const busy = await tx.execute<BusyRow>(
-    sql`select member_id, starts_at, ends_at from public.app_team_busy(${clientOrgId}::uuid, ${range.start.toISOString()}::timestamptz, ${range.end.toISOString()}::timestamptz)`,
+    sql`select member_id, starts_at, ends_at from public.app_team_busy_for_campaign(${campaignId}::uuid, ${range.start.toISOString()}::timestamptz, ${range.end.toISOString()}::timestamptz)`,
   );
   return people.rows.map((person): TeamMemberTime => {
     const own = hours.filter((row) => row.memberId === person.member_id);
@@ -75,12 +75,12 @@ function refused(error: unknown): never {
   throw databaseRefusal(error, REFUSALS, "A calendar read covers at least a moment and at most 62 days.") ?? error;
 }
 
-/** A client reads its own team, and an agency reads the team of a client it serves. Anyone else gets an empty list: the database answers for no one it may not read. */
+/** A client reads the team of its own campaign, and an agency the team of a client whose campaign it serves. For any other campaign the list is empty: the database answers for no one it may not read. */
 export async function readTeamTimeForTenant(db: Database, actor: TenantActor, input: unknown): Promise<readonly TeamMemberTime[]> {
   const parsed = parseInput(teamTimeSchema, input);
   const range = checkedRange(parsed.from, parsed.to);
   try {
-    return await withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, (tx) => assemble(tx, parsed.clientOrgId, range));
+    return await withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, (tx) => assemble(tx, parsed.campaignId, range));
   } catch (error) {
     return refused(error);
   }
@@ -91,7 +91,7 @@ export async function readTeamTimeForFynix(deps: Pick<DomainDeps, "fynixDb">, ac
   const parsed = parseInput(teamTimeSchema, input);
   const range = checkedRange(parsed.from, parsed.to);
   try {
-    return await fynixRead(deps.fynixDb, actor, (tx) => assemble(tx, parsed.clientOrgId, range));
+    return await fynixRead(deps.fynixDb, actor, (tx) => assemble(tx, parsed.campaignId, range));
   } catch (error) {
     return refused(error);
   }

@@ -40,20 +40,35 @@ interface LocalParts {
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
+// Building a formatter is slow and a month view asks thousands of times, so one is kept for each zone and shape.
+const formatters = new Map<string, Intl.DateTimeFormat>();
+function formatter(timeZone: string, shape: "weekday-time" | "date-time"): Intl.DateTimeFormat {
+  const key = `${shape}|${timeZone}`;
+  let found = formatters.get(key);
+  if (found === undefined) {
+    found =
+      shape === "weekday-time"
+        ? new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short", hour: "numeric", minute: "numeric", hourCycle: "h23" })
+        : new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", second: "numeric", hourCycle: "h23" });
+    formatters.set(key, found);
+  }
+  return found;
+}
+
 /** The weekday (0 is Sunday) and the minute of the day an instant has in a zone. */
 function localParts(instant: Date, timeZone: string): LocalParts {
-  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short", hour: "numeric", minute: "numeric", hourCycle: "h23" }).formatToParts(instant).map((part) => [part.type, part.value]));
+  const parts = Object.fromEntries(formatter(timeZone, "weekday-time").formatToParts(instant).map((part) => [part.type, part.value]));
   return { weekday: WEEKDAYS.indexOf(parts.weekday as (typeof WEEKDAYS)[number]), minute: Number(parts.hour) * 60 + Number(parts.minute) };
 }
 
 /** The offset of a zone from UTC at an instant, in milliseconds. */
 function offsetMs(instant: Date, timeZone: string): number {
-  const parts = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", second: "numeric", hourCycle: "h23" }).formatToParts(instant).map((part) => [part.type, Number(part.value)]));
+  const parts = Object.fromEntries(formatter(timeZone, "date-time").formatToParts(instant).map((part) => [part.type, Number(part.value)]));
   return Date.UTC(parts.year ?? 0, (parts.month ?? 1) - 1, parts.day ?? 1, parts.hour ?? 0, parts.minute ?? 0, parts.second ?? 0) - Math.floor(instant.getTime() / 1000) * 1000;
 }
 
 /** The instant at which a wall clock reads `minute` minutes after midnight on `day` ("YYYY-MM-DD") in a zone. Read twice so a day that changes its offset still lands right. */
-function wallClockToInstant(day: string, minute: number, timeZone: string): Date {
+export function wallClockToInstant(day: string, minute: number, timeZone: string): Date {
   const [year, month, date] = day.split("-").map(Number);
   const naive = Date.UTC(year ?? 1970, (month ?? 1) - 1, date ?? 1, 0, minute);
   const first = naive - offsetMs(new Date(naive), timeZone);

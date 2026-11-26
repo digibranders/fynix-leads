@@ -530,6 +530,6 @@ export const groupIdSchema = z.object({ groupId: z.uuid() }).strict();
 export const hostAvailabilitySchema = z.object({ hostMemberId: z.uuid(), campaignId: z.uuid() }).strict();
 export const checkProposedTimesSchema = z.object({ hostMemberId: z.uuid(), campaignId: z.uuid(), proposedTimes: z.array(instant).max(3) }).strict();
 
-/** A calendar read: one client's team between two moments. The length of the range is checked by `assertRange` and again by the database. */
-export const teamTimeSchema = z.object({ clientOrgId: z.uuid(), from: instant, to: instant }).strict();
+/** A calendar read: the team of a campaign's client between two moments. A campaign, not a client id, because an agency never reads an organisation id. The length of the range is checked by `assertRange` and again by the database. */
+export const teamTimeSchema = z.object({ campaignId: z.uuid(), from: instant, to: instant }).strict();
 export type TeamTimeInput = z.input<typeof teamTimeSchema>;
