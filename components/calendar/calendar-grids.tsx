@@ -45,7 +45,7 @@ function RunBlock({ run }: { readonly run: Run }) {
 
 function HourLabels() {
   return (
-    <div className="relative" aria-hidden="true">
+    <div className="relative h-full" aria-hidden="true">
       {HOURS.map((minute) => (
         <span key={minute} className="absolute right-2 -translate-y-1/2 text-caption text-ink-muted" style={{ top: `${percent(minute)}%` }}>
           {clock(minute)}

@@ -43,7 +43,7 @@ export function SlotPicker({ people, initialTime = null }: { readonly people: re
   const invited = people.filter((person) => free.includes(person.memberId) && !unticked.has(person.memberId));
   const toggle = (memberId: string, on: boolean) => setUnticked((current) => new Set(on ? [...current].filter((id) => id !== memberId) : [...current, memberId]));
 
-  if (zone === null) return <p className="text-label text-ink-muted">Choose a campaign to see when its client team is free.</p>;
+  if (zone === null) return <p className="text-label text-ink-muted">This client has no team members to invite yet, so there are no times to offer.</p>;
 
   return (
     <div className="flex flex-col gap-3">

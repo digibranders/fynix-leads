@@ -4,6 +4,7 @@ import { leadNotices } from "@/lib/leads/notices";
 import { agreement, aliasIdentity, campaign, campaignShare, hostBlock, hostHours, lead, leadHistory, meeting, meetingAttendee, member, user } from "@/server/db/schema";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import { saveDraft, submitDraft } from "@/server/domain/lead-drafts";
+import { loadCampaignTeams, loadCampaignTeamsForFynix } from "@/server/domain/lead-form-data";
 import { submitLead } from "@/server/domain/leads";
 import { expireInvitations, fynixRebookMeeting, listMyInvitations, rebookWithInvitations, remindInvitations, replyToInvitation } from "@/server/domain/meeting-invitations";
 import { withdrawLead } from "@/server/domain/lead-drafts";
@@ -407,5 +408,17 @@ describe("moving a meeting, leaving one, and the reminder", () => {
     const outsider = { ...cast.agency, orgId: cast.anna.orgId, orgKind: "client" as const };
     await expect(rebookWithInvitations(clientDb(), rig.deps(), { ...outsider, userId: cast.agency.userId }, { leadId: booked.id, slot: slot(6).toISOString(), inviteeMemberIds: [cast.annaMember] })).rejects.toBeInstanceOf(Error);
     expect((await leadRow(booked.id))?.stage).toBe("reschedule_needed");
+  });
+
+  it("gives the lead form and the lead record the client team of a campaign, for the agency, the client and Fynix", async () => {
+    const names = (people: readonly { displayName: string }[] | undefined) => (people ?? []).map((person) => person.displayName).sort();
+    const forAgency = await loadCampaignTeams(agencyDb(), rig.deps(), cast.agency, [cast.campaignId]);
+    const forClient = await loadCampaignTeams(clientDb(), rig.deps(), cast.anna, [cast.campaignId]);
+    const forFynix = await loadCampaignTeamsForFynix(rig.deps(), rig.actor, [cast.campaignId]);
+    expect(names(forAgency[cast.campaignId])).toHaveLength(2);
+    expect(names(forClient[cast.campaignId])).toEqual(names(forAgency[cast.campaignId]));
+    expect(names(forFynix[cast.campaignId])).toEqual(names(forAgency[cast.campaignId]));
+    // Everything a screen needs is plain text and numbers, and none of it is a title or a reason.
+    expect(forAgency[cast.campaignId]?.[0]).toEqual({ memberId: expect.any(String), displayName: expect.any(String), timeZone: "Europe/London", hours: expect.any(Array), busy: expect.any(Array) });
   });
 });

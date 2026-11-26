@@ -279,8 +279,8 @@ describe("the meeting time follows the client team", () => {
     day.setUTCHours(10, 0, 0, 0);
     return day.toISOString();
   })();
-  it("asks for a campaign first, then names the client's zone and asks for a day", () => {
-    expect(renderToStaticMarkup(<SlotPicker people={[]} />)).toContain("Choose a campaign");
+  it("says when the client has nobody to invite, then names the client's zone and asks for a day", () => {
+    expect(renderToStaticMarkup(<SlotPicker people={[]} />)).toContain("no team members to invite yet");
     const html = renderToStaticMarkup(<SlotPicker people={[daniel]} />);
     expect(html).toContain("Europe/London");
     expect(html).toContain("Pick a day");

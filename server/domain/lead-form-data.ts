@@ -20,8 +20,9 @@ export async function loadCampaignTeams(db: Database, deps: Pick<DomainDeps, "no
   const entries = await Promise.all(
     [...new Set(campaignIds)].map(async (campaignId) => {
       try {
-        return [campaignId, (await readTeamTimeForTenant(db, actor, { campaignId, from, to })).map(toPerson)] as const;
-      } catch {
+        return [campaignId, (await readTeamTimeForTenant(db, actor, { campaignId, from: from.toISOString(), to: to.toISOString() })).map(toPerson)] as const;
+      } catch (error) {
+        console.error(`A client team could not be read for the lead form (${error instanceof Error ? error.name : "unknown error"}).`);
         return null;
       }
     }),
@@ -40,7 +41,8 @@ export async function loadCampaignTeamsForFynix(deps: Pick<DomainDeps, "now" | "
     [...new Set(campaignIds)].map(async (campaignId) => {
       try {
         return [campaignId, (await readTeamTimeForFynix(deps, actor, { campaignId, from: from.toISOString(), to: to.toISOString() })).map(toPerson)] as const;
-      } catch {
+      } catch (error) {
+        console.error(`A client team could not be read for the lead form (${error instanceof Error ? error.name : "unknown error"}).`);
         return null;
       }
     }),
