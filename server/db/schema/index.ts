@@ -23,6 +23,7 @@ export * from "./meeting-reschedule";
 export * from "./meeting-reminder";
 export * from "./once-stamp";
 export * from "./meeting-join";
+export * from "./meeting-attendee";
 export * from "./rejection-review";
 export * from "./messaging";
 export * from "./client-profile";

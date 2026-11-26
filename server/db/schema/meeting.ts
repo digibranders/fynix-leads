@@ -34,6 +34,9 @@ export const meeting = pgTable(
     icsSequence: integer("ics_sequence").notNull().default(0),
     // When the join record was read from the room; null until it has been, so it is read once.
     joinImportedAt: timestamp("join_imported_at", { withTimezone: true }),
+    // When the first invited person accepted, and the time by which someone must (24 hours before the meeting). Both stay empty until booking is built (step E).
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+    replyDueAt: timestamp("reply_due_at", { withTimezone: true }),
     outcome: text("outcome").notNull().default("scheduled"),
     notes: text("notes"),
     heldAt: timestamp("held_at", { withTimezone: true }),

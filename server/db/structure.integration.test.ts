@@ -190,6 +190,8 @@ const EXPECTED_ACCESS: Readonly<Record<string, readonly RuntimeRoleName[]>> = {
   // a meeting's room (written by a function for the sweep; the client, the agencies and Fynix read the rows of the meetings they can read).
   meeting_reminder: [],
   meeting_join: ["leads_fynix", "leads_client", "leads_agency"],
+  // Calendar step C: invitations to a meeting. No runtime role touches the table; the SECURITY DEFINER functions of 0098 are the only way in and out.
+  meeting_attendee: [],
   // Migration 0092: "this was sent" keys (a target notice, the daily reminders). Written by SECURITY DEFINER functions alone.
   once_stamp: [],
 };

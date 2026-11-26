@@ -680,6 +680,27 @@
       "when": 1795691902873,
       "tag": "0096_client_team",
       "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1795695386184,
+      "tag": "0097_meeting_attendee",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1795695444821,
+      "tag": "0098_meeting_attendee_grants",
+      "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1795696226249,
+      "tag": "0099_meeting_new_columns_insert",
+      "breakpoints": true
     }
   ]
 }

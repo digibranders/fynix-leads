@@ -344,7 +344,7 @@ If item 2 or 3 fails, section 8.2 is revised before step F is planned.
 | 0 | Gate G5: the owner's set-up and the developer test | Owner |
 | A | This spec and the mock approved | Owner |
 | B | Client team instead of hosts (section 4): anyone at the client can be chosen, default working hours, the go-live rule, screens and words. One person is still chosen per lead until step E. Plan: `docs/superpowers/plans/2026-11-26-calendar-step-b-client-team.md` | A |
-| C | Data layer: the free-time function, attendees and holds, the availability function, range reads, leak tests | B |
+| C | Data layer: the free-time rules (`lib/calendar/free-time.ts`), the invitation table, and one read of each person's name, hours and busy time for the client, its agencies and Fynix. Lists of meetings by date range, which carry meeting details, move to D. Built. Plan: `docs/superpowers/plans/2026-11-26-calendar-step-c-free-time-data.md` | B |
 | D | Read-only calendar for every role: month, week, day | C |
 | E | One-slot booking, replies, the lead flow change, emails and notices | D |
 | F | Calendar connection: sign-in, token store, providers, sync, own events, the broken-connection warning | E, and step 0 passed |

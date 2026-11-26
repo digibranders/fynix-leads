@@ -45,7 +45,9 @@ describe.each(TENANT_ROLES)("leak matrix as %s", (role: TenantRoleName) => {
     for (const viewer of viewers().filter((candidate) => candidate.role === role)) {
       const result = await withScope(dbs.roles[role].db, { orgId: viewer.organisation.id, userId: USER }, (tx) => path.run(tx, viewer, world));
       const text = JSON.stringify(result);
-      expect(findLeaks(text, forbiddenTokens(viewer, world)), `${label(viewer)} saw something it must not`).toEqual([]);
+      // Strings a path may show (the names of a client's people, which embed the seeded organisation reference) are taken out first, so a reference that appears anywhere else is still caught.
+      const shown = (path.allowedTokens?.(viewer, world) ?? []).reduce((rest, token) => rest.split(token).join(""), text);
+      expect(findLeaks(shown, forbiddenTokens(viewer, world)), `${label(viewer)} saw something it must not`).toEqual([]);
       for (const expected of path.mustContain(viewer, world)) {
         expect(text, `${label(viewer)} should see ${expected}`).toContain(expected);
       }

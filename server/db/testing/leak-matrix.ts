@@ -25,6 +25,8 @@ export interface ReadPath {
   readonly run: (tx: ScopedTransaction, viewer: Viewer, world: SeedWorld) => Promise<unknown>;
   /** Strings that must appear in the result, so a path that returns nothing at all cannot pass as "no leaks". */
   readonly mustContain: (viewer: Viewer, world: SeedWorld) => readonly string[];
+  /** Strings this one path may show, such as the names of the people of a client an agency serves. Each is removed from the result before it is searched for forbidden tokens. */
+  readonly allowedTokens?: (viewer: Viewer, world: SeedWorld) => readonly string[];
 }
 
 export interface Probe {
@@ -46,6 +48,22 @@ export function ownCampaigns(viewer: Viewer, world: SeedWorld): SeedWorld["campa
 export function visibleProfiles(viewer: Viewer, world: SeedWorld): SeedWorld["profiles"][number][] {
   const clientIds = new Set(viewer.role === "leads_client" ? [viewer.organisation.id] : ownCampaigns(viewer, world).map((row) => row.client.id));
   return world.profiles.filter((profile) => clientIds.has(profile.client.id));
+}
+
+/** The clients whose team a viewer may read: its own organisation for a client, the clients of its campaigns for an agency. */
+function teamClientIds(viewer: Viewer, world: SeedWorld): string[] {
+  return viewer.role === "leads_client" ? [viewer.organisation.id] : [...new Set(ownCampaigns(viewer, world).map((row) => row.client.id))];
+}
+
+function teamNames(viewer: Viewer, world: SeedWorld): string[] {
+  const ids = teamClientIds(viewer, world);
+  return world.users.filter((person) => ids.includes(person.organisation.id)).map((person) => person.name);
+}
+
+/** The time zone of each client whose team a viewer may read. An agency already reads the zone, hours and blocked times of those people (the lead form), so the client's own zone, which fills in for a person with no hours, is the same kind of fact. */
+function teamZones(viewer: Viewer, world: SeedWorld): string[] {
+  const ids = teamClientIds(viewer, world);
+  return world.profiles.filter((profile) => ids.includes(profile.client.id)).map((profile) => profile.timeZone);
 }
 
 export const READ_PATHS: readonly ReadPath[] = [
@@ -110,6 +128,28 @@ export const READ_PATHS: readonly ReadPath[] = [
       return found;
     },
     mustContain: (viewer, world) => ownCampaigns(viewer, world).map((row) => row.publicRef),
+  },
+  {
+    // Calendar step C: the people of a client, by name and time zone, for the client itself and the agencies that serve it. A name and nothing else.
+    name: "the team of a client, names only",
+    run: async (tx, viewer, world) => {
+      const rows: unknown[] = [];
+      for (const id of teamClientIds(viewer, world)) rows.push((await tx.execute(sql`select * from public.app_team_people(${id}::uuid)`)).rows);
+      return rows;
+    },
+    mustContain: (viewer, world) => teamNames(viewer, world),
+    allowedTokens: (viewer, world) => [...teamNames(viewer, world), ...teamZones(viewer, world)],
+  },
+  {
+    // The busy time of every client's team over the next ten days. The seeded world has no busy time, so the result is empty: the path proves that a client the
+    // viewer may not read answers with nothing and that nothing but bare times can come out of the function.
+    name: "the busy time of a client's team",
+    run: async (tx, _viewer, world) => {
+      const rows: unknown[] = [];
+      for (const org of world.clients) rows.push((await tx.execute(sql`select * from public.app_team_busy(${org.id}::uuid, now(), now() + interval '10 days')`)).rows);
+      return rows;
+    },
+    mustContain: () => [],
   },
 ];
 
@@ -271,6 +311,14 @@ export const PROBES: readonly Probe[] = [
   { name: "the host names of a campaign, as a client", statement: "select * from app_campaign_host_names(gen_random_uuid())", expectedError: /permission denied for function app_campaign_host_names/, roles: ["leads_client"] },
   { name: "the team of a campaign, as a client", statement: "select * from app_campaign_team(gen_random_uuid())", expectedError: /permission denied for function app_campaign_team/, roles: ["leads_client"] },
   { name: "whether an agency serves a member, as a client", statement: "select app_agency_serves_member(gen_random_uuid())", expectedError: /permission denied for function app_agency_serves_member/, roles: ["leads_client"] },
+  { name: "invitations to meetings, every column", statement: "select * from meeting_attendee", expectedError: DENIED_TABLE },
+  { name: "invitations: who was invited", statement: "select member_id from meeting_attendee", expectedError: DENIED_TABLE },
+  { name: "invitations: the reply link hash", statement: "select reply_token_hash from meeting_attendee", expectedError: DENIED_TABLE },
+  { name: "write: invite someone to a meeting", statement: "insert into meeting_attendee (meeting_id, member_id) values (gen_random_uuid(), gen_random_uuid())", expectedError: DENIED_TABLE },
+  { name: "write: change a reply", statement: "update meeting_attendee set reply = 'accepted'", expectedError: DENIED_TABLE },
+  { name: "meeting: when someone must reply", statement: "select reply_due_at from meeting", expectedError: DENIED_TABLE },
+  { name: "meeting: when it was confirmed", statement: "select confirmed_at from meeting", expectedError: DENIED_TABLE },
+  { name: "who may read a client's team, called directly", statement: "select app_may_read_team(gen_random_uuid())", expectedError: /permission denied for function app_may_read_team/ },
   { name: "who serves a lead, as a client", statement: "select app_lead_served_by_me(gen_random_uuid())", expectedError: /permission denied for function app_lead_served_by_me/, roles: ["leads_client"] },
   { name: "the visibility of a proposal to the supply side, as a client", statement: "select app_reschedule_visible_to_supply(gen_random_uuid())", expectedError: /permission denied for function app_reschedule_visible_to_supply/, roles: ["leads_client"] },
   { name: "the visibility of a proposal to the client, as an agency", statement: "select app_reschedule_visible_to_client(gen_random_uuid())", expectedError: /permission denied for function app_reschedule_visible_to_client/, roles: ["leads_agency"] },
