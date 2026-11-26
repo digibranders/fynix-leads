@@ -43,6 +43,7 @@ export const LAUNCH_TEMPLATES = [
   "over_share_info",
   "leads_waiting_daily",
   "leads_waiting_summary",
+  "meeting_invitation",
   "prospect_confirmed",
   "prospect_moved",
   "prospect_cancelled",
@@ -93,6 +94,8 @@ const paramsSchema = z.object({
   calendar: z.object({ meetingRef: z.string().regex(/^MTG-[0-9A-HJKMNP-TV-Z]{4}$/), startsAt: z.iso.datetime(), endsAt: z.iso.datetime(), sequence: z.number().int().min(0) }).optional(),
   /** A campaign's name, for an email about a campaign or a target. Never in a prospect letter. */
   campaignName: text.optional(),
+  /** The deadline of an invitation, already written out in the campaign's time zone. */
+  replyBy: text.optional(),
   /** A month written out, "November 2026". */
   period: text.optional(),
   // As wide as the database's own integers: a count that is merely large must never stop the acceptance that completed a target.
@@ -150,6 +153,7 @@ const REQUIRED: Readonly<Record<LaunchTemplate, readonly Field[]>> = {
   over_share_info: PORTAL_BASE,
   leads_waiting_daily: [...PORTAL_BASE, "waiting"],
   leads_waiting_summary: [...PORTAL_BASE, "clients"],
+  meeting_invitation: [...PORTAL_BASE, "when", "replyBy", "campaignName"],
   prospect_confirmed: [...PROSPECT_BASE, "when", "calendar"],
   prospect_moved: [...PROSPECT_BASE, "when", "calendar"],
   prospect_cancelled: [...PROSPECT_BASE, "calendar"],
@@ -219,6 +223,17 @@ function portalLayout(content: LaunchContent): Layout {
   switch (content.template) {
     case "lead_waiting":
       return { subject: `Lead ${ref} is waiting for a time`, paragraphs: [`A lead from ${company} is ready for your review.`, "Pick one of the proposed times or propose others."], join: false };
+    case "meeting_invitation":
+      return {
+        subject: `A meeting with ${company} is waiting for your reply`,
+        paragraphs: [
+          `A meeting with ${company} is booked for ${need(params.when)}. It is for the campaign ${need(params.campaignName)}.`,
+          "The first person from your team to accept takes the meeting, and the others are let go.",
+          `Please reply by ${need(params.replyBy)}. If nobody accepts by then, a new time is found.`,
+        ],
+        join: false,
+        open: { intro: "Accept or decline the meeting:", label: "Accept or decline" },
+      };
     case "lead_submitted_info":
       return { subject: `Lead ${ref} was submitted`, paragraphs: [`Lead ${ref} from ${company} was submitted.`, "It now waits for the client to pick a time."], join: false };
     case "times_proposed_info":

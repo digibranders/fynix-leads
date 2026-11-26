@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { clientAddressFrom } from "@/server/auth/client-address";
 import { getDatabase } from "@/server/db/client";
 import { getDomain } from "@/server/domain";
+import { previewInvitationLink, type InvitationLinkView } from "@/server/domain/invitation-links";
 import { previewInvite, type InvitePreview } from "@/server/domain/invites";
 import { isPartnerAgency } from "@/server/domain/org-role";
 
@@ -21,4 +22,9 @@ export async function loadInvitePage(token: string | undefined): Promise<InviteP
  */
 export async function agencyHomePath(person: { readonly userId: string; readonly orgId: string }): Promise<"/agency" | "/coordinator"> {
   return (await isPartnerAgency(getDatabase("leads_agency").db, person)) ? "/agency" : "/coordinator";
+}
+
+/** What the reply page of an invitation email reads for a link. Like `loadInvitePage`, called inside a `<Suspense>` boundary because the headers are request-time data. */
+export async function loadInvitationLink(token: string | undefined): Promise<InvitationLinkView> {
+  return previewInvitationLink(getDomain(), { token: token ?? "", address: clientAddressFrom(await headers()) });
 }

@@ -95,7 +95,7 @@ export function leadEmailDeliveries(event: LeadEmailEvent, context: LeadEmailCon
         { template: moved ? "meeting_moved" : "meeting_booked", audience: MEETING_PEOPLE, params: { ...base, ...meeting } },
       ];
     }
-    // The invitation email and the email that tells the agency a new time is needed are not built yet: people read both in the app.
+    // The invitation email is queued by the booking itself (`server/mail/invitation-emails.ts`, one message for each person, each with its own link). The email that tells the agency a new time is needed is not built yet: they read it in the app.
     case "reschedule_needed":
     case "meeting_invited":
     case "meeting_moved":

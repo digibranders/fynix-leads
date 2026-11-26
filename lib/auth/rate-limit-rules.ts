@@ -78,6 +78,14 @@ export function inviteLookupChecks(address: string): readonly RateLimitCheck[] {
 }
 
 /**
+ * Opening or answering a meeting invitation from an email link. The link holds a 32 byte token, so guessing is hopeless; the limit is for scanners and load.
+ * Answering is limited more tightly than looking.
+ */
+export function invitationLinkChecks(address: string, answering: boolean): readonly RateLimitCheck[] {
+  return [{ key: `invitation-link:${answering ? "answer" : "look"}:network:${address}`, rule: { limit: answering ? 30 : 120, windowSeconds: ONE_HOUR } }];
+}
+
+/**
  * Redeeming an invite sets a password, so a network may try ten times an hour, and so may one invite: a person who gets
  * the password wrong or picks a breached one a few times is fine, a script is not. `tokenHash` is the stored hash, not the token.
  */

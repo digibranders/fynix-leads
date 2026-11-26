@@ -1,10 +1,13 @@
 import { and, eq, sql } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { leadNotices } from "@/lib/leads/notices";
 import { agreement, aliasIdentity, campaign, campaignShare, hostBlock, hostHours, lead, leadHistory, meeting, meetingAttendee, member, user } from "@/server/db/schema";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import { saveDraft, submitDraft } from "@/server/domain/lead-drafts";
 import { loadCampaignTeams, loadCampaignTeamsForFynix } from "@/server/domain/lead-form-data";
+import { withTenantScope } from "@/server/db/scope";
+import { hashInviteToken } from "@/server/domain/invite-token";
+import { answerInvitationLink, previewInvitationLink } from "@/server/domain/invitation-links";
 import { submitLead } from "@/server/domain/leads";
 import { expireInvitations, fynixRebookMeeting, listMyInvitations, rebookWithInvitations, remindInvitations, replyToInvitation } from "@/server/domain/meeting-invitations";
 import { withdrawLead } from "@/server/domain/lead-drafts";
@@ -420,5 +423,119 @@ describe("moving a meeting, leaving one, and the reminder", () => {
     expect(names(forFynix[cast.campaignId])).toEqual(names(forAgency[cast.campaignId]));
     // Everything a screen needs is plain text and numbers, and none of it is a title or a reason.
     expect(forAgency[cast.campaignId]?.[0]).toEqual({ memberId: expect.any(String), displayName: expect.any(String), timeZone: "Europe/London", hours: expect.any(Array), busy: expect.any(Array) });
+  });
+});
+
+describe("the invitation email and its reply link", () => {
+  const ORIGIN = "https://leads.example.test";
+  const ADDRESS = "203.0.113.7";
+  afterEach(() => vi.unstubAllEnvs());
+  const switchOn = () => {
+    vi.stubEnv("LAUNCH_EMAILS_ENABLED", "true");
+    vi.stubEnv("APP_ORIGIN", ORIGIN);
+  };
+  const invitations = () => ownerDb().execute<{ recipient: string; link: string | null; subject: string; body: string; params: unknown }>(sql`select recipient, link, subject, body, params from email_outbox where template = 'meeting_invitation' order by recipient`);
+  const tokenOf = (link: string | null) => new URL(link ?? "").searchParams.get("token") ?? "";
+
+  it("queues one email for each person invited, each with a link of their own, and none while the switch is off", async () => {
+    await book(slot(3));
+    expect((await invitations()).rows).toEqual([]);
+    switchOn();
+    const { meeting: held } = await book(slot(6));
+    const queued = (await invitations()).rows;
+    expect(queued).toHaveLength(2);
+    expect(new Set(queued.map((row) => row.link)).size).toBe(2);
+    const hashes = new Set((await attendees(held.id)).map((row) => row.hash));
+    for (const row of queued) {
+      expect(row.link?.startsWith(`${ORIGIN}/reply?token=`)).toBe(true);
+      // The link carries the token; the hash of it is what the database holds, and nothing stored about the message names the token.
+      expect(hashes.has(hashInviteToken(tokenOf(row.link)))).toBe(true);
+      expect(JSON.stringify([row.subject, row.body, row.params])).not.toContain(tokenOf(row.link));
+      expect(row.subject).toContain(cast.company);
+    }
+    expect(queued.map((row) => row.recipient).sort()).toHaveLength(2);
+  });
+
+  it("cannot be made to write a message for someone who was not invited, by anyone", async () => {
+    switchOn();
+    const { meeting: held } = await book(slot(3), [cast.annaMember]);
+    const before = (await invitations()).rows.length;
+    const forge = (members: readonly string[], tokens: readonly string[]) =>
+      withTenantScope(clientDb(), { orgId: cast.anna.orgId, userId: cast.anna.userId }, (tx) =>
+        tx.execute<{ n: number }>(sql`select public.app_enqueue_invitation_emails(${held.id}::uuid, ${`{${members.join(",")}}`}::uuid[], ${`{${tokens.join(",")}}`}::text[], '{}'::jsonb, 's', 'b', ${ORIGIN}) as n`),
+      );
+    // A person of the client who knows no token writes nothing, for the person invited or for one who was not.
+    expect((await forge([cast.annaMember], ["not-a-real-token"])).rows[0]?.n).toBe(0);
+    expect((await forge([cast.priyaMember], ["not-a-real-token"])).rows[0]?.n).toBe(0);
+    // Nobody with no scope at all can call it.
+    await expect(clientDb().execute(sql`select public.app_enqueue_invitation_emails(${held.id}::uuid, array[${cast.annaMember}]::uuid[], array['x']::text[], '{}'::jsonb, 's', 'b', ${ORIGIN})`)).rejects.toThrow();
+    expect((await invitations()).rows).toHaveLength(before);
+  });
+
+  it("shows the meeting for a link, accepts from it, confirms the meeting, and tells the others", async () => {
+    switchOn();
+    const { lead: booked, meeting: held } = await book(slot(3));
+    const [first, second] = (await invitations()).rows;
+    const view = await previewInvitationLink(rig.deps(), { token: tokenOf(first?.link ?? ""), address: ADDRESS });
+    expect(view).toMatchObject({ status: "open", details: { company: cast.company, reply: "invited", confirmed: false } });
+    const answer = await answerInvitationLink(rig.deps(), { token: tokenOf(first?.link ?? ""), reply: "accepted", address: ADDRESS });
+    expect(answer).toMatchObject({ status: "done", reply: "accepted", confirmed: true, needsNewTime: false });
+    expect((await leadRow(booked.id))?.stage).toBe("scheduled");
+    expect((await meetingRow(held.id))?.confirmedAt).not.toBeNull();
+    expect((await attendees(held.id)).filter((row) => row.reply === "released")).toHaveLength(1);
+    // The notice in the app says what the catalogue says, to everyone but the person who answered.
+    const [delivery] = leadNotices({ type: "meeting_scheduled" });
+    const notices = await ownerDb().execute<{ title: string; body: string }>(sql`select title, body from notification where kind = 'meeting_scheduled'`);
+    expect(notices.rows.length).toBeGreaterThan(0);
+    for (const row of notices.rows) {
+      expect(row.title).toBe(delivery?.title.replace("{ref}", booked.publicRef));
+      expect(row.body).toBe(delivery?.body.replace("{company}", cast.company));
+    }
+    const confirmations = await ownerDb().execute<{ n: string }>(sql`select count(*)::text as n from email_outbox where template = 'meeting_booked'`);
+    expect(Number(confirmations.rows[0]?.n)).toBeGreaterThan(0);
+    // The other person's link now says someone else took it, and they may still accept to be added.
+    expect(await previewInvitationLink(rig.deps(), { token: tokenOf(second?.link ?? ""), address: ADDRESS })).toMatchObject({ status: "open", details: { reply: "released", confirmed: true } });
+    expect(await answerInvitationLink(rig.deps(), { token: tokenOf(second?.link ?? ""), reply: "accepted", address: ADDRESS })).toMatchObject({ status: "done", confirmed: false });
+    // Answering the same way twice changes nothing.
+    expect(await answerInvitationLink(rig.deps(), { token: tokenOf(first?.link ?? ""), reply: "accepted", address: ADDRESS })).toMatchObject({ status: "done", confirmed: false });
+  });
+
+  it("sends the lead back for a new time when everyone declines from their links", async () => {
+    switchOn();
+    const { lead: booked } = await book(slot(3));
+    const links = (await invitations()).rows.map((row) => tokenOf(row.link));
+    expect(await answerInvitationLink(rig.deps(), { token: links[0] ?? "", reply: "declined", address: ADDRESS })).toMatchObject({ status: "done", needsNewTime: false });
+    expect(await answerInvitationLink(rig.deps(), { token: links[1] ?? "", reply: "declined", address: ADDRESS })).toMatchObject({ status: "done", needsNewTime: true });
+    expect((await leadRow(booked.id))?.stage).toBe("reschedule_needed");
+    const [delivery] = leadNotices({ type: "reschedule_needed" });
+    const notices = await ownerDb().execute<{ title: string }>(sql`select title from notification where title like 'A new time is needed%'`);
+    expect(notices.rows.length).toBeGreaterThan(0);
+    for (const row of notices.rows) expect(row.title).toBe(delivery?.title.replace("{ref}", booked.publicRef));
+  });
+
+  it("refuses a link that is unknown, malformed, past its deadline or for a meeting that is closed, and writes nothing", async () => {
+    switchOn();
+    const { lead: booked, meeting: held } = await book(slot(3));
+    const token = tokenOf((await invitations()).rows[0]?.link ?? "");
+    expect(await previewInvitationLink(rig.deps(), { token: "x".repeat(43), address: ADDRESS })).toEqual({ status: "invalid" });
+    expect(await previewInvitationLink(rig.deps(), { token: "short", address: ADDRESS })).toEqual({ status: "invalid" });
+    expect(await answerInvitationLink(rig.deps(), { token: "x".repeat(43), reply: "accepted", address: ADDRESS })).toEqual({ status: "invalid" });
+    await expect(answerInvitationLink(rig.deps(), { token, reply: "maybe", address: ADDRESS })).rejects.toMatchObject({ code: "invalid-input" });
+    // Past the deadline.
+    await ownerDb().update(meeting).set({ replyDueAt: new Date(Date.now() - 1000) }).where(eq(meeting.id, held.id));
+    expect(await previewInvitationLink(rig.deps(), { token, address: ADDRESS })).toMatchObject({ status: "expired" });
+    expect(await answerInvitationLink(rig.deps(), { token, reply: "accepted", address: ADDRESS })).toEqual({ status: "expired" });
+    expect((await leadRow(booked.id))?.stage).toBe("awaiting_reply");
+    // A meeting that was cancelled.
+    await ownerDb().update(meeting).set({ replyDueAt: new Date(Date.now() + DAY), outcome: "cancelled" }).where(eq(meeting.id, held.id));
+    expect(await previewInvitationLink(rig.deps(), { token, address: ADDRESS })).toEqual({ status: "closed" });
+    expect(await answerInvitationLink(rig.deps(), { token, reply: "accepted", address: ADDRESS })).toEqual({ status: "closed" });
+    expect((await attendees(held.id)).every((row) => row.reply === "invited")).toBe(true);
+  });
+
+  it("is limited per network, so a scanner is turned away", async () => {
+    let last: Awaited<ReturnType<typeof previewInvitationLink>> = { status: "invalid" };
+    for (let attempt = 0; attempt < 121; attempt += 1) last = await previewInvitationLink(rig.deps(), { token: "y".repeat(43), address: "198.51.100.9" });
+    expect(last.status).toBe("rate-limited");
   });
 });

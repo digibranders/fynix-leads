@@ -1,0 +1,1 @@
+ALTER TYPE "public"."email_template" ADD VALUE 'meeting_invitation';

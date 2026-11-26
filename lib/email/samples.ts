@@ -61,6 +61,7 @@ export const SAMPLES: Readonly<Record<EmailTemplate, EmailContent>> = {
   over_share_info: portal("over_share_info"),
   leads_waiting_daily: portal("leads_waiting_daily", { waiting: 3 }),
   leads_waiting_summary: portal("leads_waiting_summary", { clients: [{ name: "Sample Client", waiting: 3 }, { name: "Sample Client Two", waiting: 1 }] }),
+  meeting_invitation: portal("meeting_invitation", { campaignName: "Sample campaign", replyBy: "Monday 7 December 2026, 14:30 Europe/London" }),
   prospect_confirmed: prospect("prospect_confirmed"),
   prospect_moved: prospect("prospect_moved"),
   prospect_cancelled: prospect("prospect_cancelled"),
@@ -99,6 +100,7 @@ export const CATALOG: readonly CatalogGroup[] = [
   {
     audience: "The client",
     entries: [
+      { template: "meeting_invitation", title: "A meeting is waiting for your reply", when: "A lead is submitted with a meeting time, or a meeting is moved, and a person of the client is invited. Each invited person gets their own, with a link to accept or decline without signing in." },
       { template: "lead_waiting", title: "A lead is waiting", when: "An agency submits a lead for the client." },
       { template: "outcome_held_client", title: "Meeting held", when: "Someone records that the meeting took place." },
       { template: "decision_reminder", title: "Reminder to accept or reject", when: "The client has not decided 12, 24 and 36 hours after the meeting." },

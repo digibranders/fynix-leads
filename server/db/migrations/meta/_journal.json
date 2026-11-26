@@ -757,6 +757,20 @@
       "when": 1795702749918,
       "tag": "0107_rebook_by_client_and_fynix",
       "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "7",
+      "when": 1795704621304,
+      "tag": "0108_email_template_meeting_invitation",
+      "breakpoints": true
+    },
+    {
+      "idx": 109,
+      "version": "7",
+      "when": 1795704703617,
+      "tag": "0109_invitation_links",
+      "breakpoints": true
     }
   ]
 }

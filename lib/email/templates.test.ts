@@ -164,6 +164,7 @@ const FIXTURES: Record<EmailTemplate, EmailContent> = {
   over_share_info: portal("over_share_info"),
   leads_waiting_daily: portal("leads_waiting_daily", { waiting: 3 }),
   leads_waiting_summary: portal("leads_waiting_summary", { clients: [{ name: "Kestrel Logistics", waiting: 3 }, { name: "Halden Foods", waiting: 1 }] }),
+  meeting_invitation: portal("meeting_invitation", { campaignName: "UK freight decision makers", replyBy: "Monday 7 December 2026, 14:30 Europe/London" }),
   prospect_confirmed: prospect("prospect_confirmed"),
   prospect_moved: prospect("prospect_moved"),
   prospect_cancelled: prospect("prospect_cancelled"),

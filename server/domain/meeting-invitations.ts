@@ -15,6 +15,7 @@ import { parseInput } from "@/server/domain/parse";
 import { notify } from "@/server/domain/notices";
 import { insertWithPublicRef } from "@/server/domain/refs";
 import { readTeamTimeIn } from "@/server/domain/team-availability";
+import { enqueueInvitationEmails } from "@/server/mail/invitation-emails";
 import { createRoomSafely } from "@/server/meet/provider";
 
 /** How long a booked meeting lasts. The campaign's own length is read from the campaign in a later step. */
@@ -90,7 +91,9 @@ export async function bookWithInvitations(
   await tx.execute(
     sql`select public.app_invite_attendees(${booked.id}::uuid, ${`{${invitations.map((item) => item.memberId).join(",")}}`}::uuid[], ${`{${invitations.map((item) => item.tokenHash).join(",")}}`}::text[])`,
   );
-  return { meetingId: booked.id, invitations: invitations.map(({ memberId, token }) => ({ memberId, token })) };
+  const sent = invitations.map(({ memberId, token }) => ({ memberId, token }));
+  await enqueueInvitationEmails(tx, { meetingId: booked.id, invitations: sent });
+  return { meetingId: booked.id, invitations: sent };
 }
 
 const REPLY_CODES: ReadonlySet<DomainErrorCode> = new Set<DomainErrorCode>(["not-authorised", "not-found", "invalid-transition", "invalid-input", "not-a-client-member"]);
@@ -175,9 +178,11 @@ async function rebookIn(tx: ScopedTransaction, deps: Pick<DomainDeps, "randomByt
   );
   const meetingId = moved.rows[0]?.meeting_id;
   if (meetingId === undefined) throw new Error("The rebooking returned no meeting");
+  const sent = invitations.map(({ memberId, token }) => ({ memberId, token }));
+  await enqueueInvitationEmails(tx, { meetingId, invitations: sent });
   await notify(tx, { type: "meeting_invited", leadId: input.leadId, meetingId });
   await notify(tx, { type: "meeting_moved", leadId: input.leadId, meetingId });
-  return { meetingId, invitations: invitations.map(({ memberId, token }) => ({ memberId, token })) };
+  return { meetingId, invitations: sent };
 }
 
 /**
