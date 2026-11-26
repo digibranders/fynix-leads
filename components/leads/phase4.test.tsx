@@ -59,9 +59,11 @@ describe("the action bar after phase 4: the client", () => {
 
 describe("the action bar after phase 4: the supply side", () => {
   it("lets the source withdraw before the meeting and propose new times, and nobody else withdraw", () => {
-    const own = bar({ viewer: "supply", context: { isSource: true } });
+    const own = bar({ viewer: "supply", context: { isSource: true, people: [{ memberId: "h1", displayName: "Daniel Okafor", timeZone: "Europe/London", hours: [], busy: [] }] } });
     expect(own).toContain("Withdraw lead");
-    expect(own).toContain("Propose new times");
+    expect(own).toContain("Book a new time");
+    expect(own).not.toContain("Propose new times");
+    expect(bar({ viewer: "supply", context: { isSource: false } })).toContain("Propose new times");
     expect(bar({ viewer: "supply", context: { isSource: false } })).not.toContain("Withdraw lead");
     expect(bar({ viewer: "supply", stage: "awaiting_client", meetingTime: null, context: { isSource: true } })).toContain("Withdraw lead");
     expect(bar({ viewer: "supply", stage: "scheduled", meetingTime: past, context: { isSource: true } })).not.toContain("Withdraw lead");

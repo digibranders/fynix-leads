@@ -65,7 +65,7 @@ export interface TenantCampaign {
 
 const NO_BRIEF: CampaignBrief = { geography: "", industries: [], companySize: "", icp: "", jobTitles: [], seniority: "", technologies: [], bantBudget: "", bantAuthority: "", bantNeed: "", bantTimeline: "", instructions: "", pitchIntroduction: "", pitchServices: "", pitchDifferentiator: "", pitchCollaterals: "", pitchCaseStudies: "", qualifyingQuestions: "", firstEmail: "", secondEmail: "" };
 
-const IN_PROGRESS = new Set(["awaiting_client", "scheduled", "outcome_due", "reschedule_needed", "held", "awaiting_decision"]);
+const IN_PROGRESS = new Set(["awaiting_client", "awaiting_reply", "scheduled", "outcome_due", "reschedule_needed", "held", "awaiting_decision"]);
 
 /**
  * The campaigns the organisation can see, with how each is going. What is visible is the database's call (row-level security): a

@@ -69,7 +69,7 @@ function MeetingList({ meetings }: { readonly meetings: readonly CalendarMeeting
                 </span>
               </span>
               <span className="flex items-center gap-3">
-                {isMeetingStatus(meeting.status) ? <StatusChip kind="meeting" status={meeting.status} size="sm" /> : null}
+                {isMeetingStatus(meeting.status) ? <StatusChip kind="meeting" status={meeting.status} size="sm" /> : meeting.status === "awaiting_reply" ? <StatusChip kind="lead" status="awaiting_reply" size="sm" /> : null}
                 {meeting.link === null ? (
                   <span className="text-table text-ink-muted">Link to follow</span>
                 ) : (
@@ -96,7 +96,8 @@ export function CalendarScreen({ data, query, basePath, now }: { readonly data: 
   const nowDate = new Date(now);
   const todayKey = dayKeyIn(nowDate, zone);
   const team = data.selected;
-  const href = (next: CalendarQuery) => calendarHref(basePath, next, team);
+  const agency = data.agency ?? null;
+  const href = (next: CalendarQuery) => calendarHref(basePath, next, team, agency);
   const dayHref = (dayKey: string) => href({ view: "day", date: dayKey });
   const days = visibleDays(query);
   const inView = days.flatMap((day) => meetingsOnDay(data.meetings, day, zone));
@@ -119,9 +120,22 @@ export function CalendarScreen({ data, query, basePath, now }: { readonly data: 
           {data.choices.length > 1 ? (
             <label className="flex items-center gap-2 text-label font-semibold text-ink-2">
               Client
-              <select className={cn(NATIVE_FIELD, "w-auto min-w-40")} value={data.selected} onChange={(event) => router.push(calendarHref(basePath, query, event.target.value))}>
+              <select className={cn(NATIVE_FIELD, "w-auto min-w-40")} value={data.selected} onChange={(event) => router.push(calendarHref(basePath, query, event.target.value, agency))}>
                 {data.choices.map((choice) => (
                   <option key={choice.campaignId} value={choice.campaignId}>
+                    {choice.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
+          {data.agencies !== undefined && data.agencies.length > 1 ? (
+            <label className="flex items-center gap-2 text-label font-semibold text-ink-2">
+              Agency
+              <select className={cn(NATIVE_FIELD, "w-auto min-w-40")} value={agency ?? ""} onChange={(event) => router.push(calendarHref(basePath, query, team, event.target.value === "" ? null : event.target.value))}>
+                <option value="">All agencies</option>
+                {data.agencies.map((choice) => (
+                  <option key={choice.id} value={choice.id}>
                     {choice.label}
                   </option>
                 ))}

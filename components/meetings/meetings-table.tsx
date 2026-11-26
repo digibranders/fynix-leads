@@ -31,6 +31,7 @@ type MeetingOutcome = "scheduled" | "held" | "client_no_show" | "prospect_no_sho
 /** A scheduled meeting whose time has passed reads as "Outcome due", the same word the lead stage uses. */
 function Stage({ meeting, group }: { readonly meeting: MeetingRow; readonly group: MeetingGroup }) {
   if (group === "due") return <StatusChip kind="lead" status="outcome_due" size="sm" />;
+  if (meeting.leadStage === "awaiting_reply") return <StatusChip kind="lead" status="awaiting_reply" size="sm" />;
   return <StatusChip kind="meeting" status={meeting.outcome as MeetingOutcome} size="sm" />;
 }
 

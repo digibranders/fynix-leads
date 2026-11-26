@@ -52,6 +52,15 @@ describe("the calendar screen", () => {
   const render = (over: Partial<CalendarData> = {}, view: "month" | "week" | "day" = "week") =>
     renderToStaticMarkup(<CalendarScreen data={{ ...data, ...over }} query={{ view, date: "2026-12-03" }} basePath="/agency/calendar" now={NOW.toISOString()} />);
 
+  it("offers a choice of agency to Fynix only, with all agencies first", () => {
+    const agencies = [{ id: "a1", label: "Brightpath" }, { id: "a2", label: "Northline" }];
+    const html = render({ agencies, agency: "a2" });
+    expect(html).toContain("All agencies");
+    expect(html).toContain("Northline");
+    expect(render()).not.toContain("All agencies");
+    expect(render({ agencies: [agencies[0] ?? { id: "x", label: "x" }] })).not.toContain("All agencies");
+  });
+
   it("offers a choice of client only when there is one to make", () => {
     expect(render()).toContain("Halden Foods");
     expect(render({ choices: [] })).not.toContain("<select");

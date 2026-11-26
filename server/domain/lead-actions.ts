@@ -62,6 +62,9 @@ export async function submitLeadAction(
     inviteeMemberIds: inviteeMemberIds.length === 0 ? undefined : inviteeMemberIds,
   };
 
+  // A lead is submitted with one time and the people to invite. The older way, up to three times for the client to choose from, is no longer offered.
+  if (inviteeMemberIds.length === 0) return { status: "error", message: "Pick a time and invite at least one person." };
+
   const draftId = getField(formData, "draftId");
   let editsSaved = false;
   try {

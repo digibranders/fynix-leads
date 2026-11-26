@@ -111,7 +111,7 @@ export async function getClientOverviewMetrics(
     for (const l of leads) {
       if (isCountedStage(l.stage)) {
         deliveredCount++;
-      } else if (l.stage === "awaiting_client") {
+      } else if ((l.stage === "awaiting_client" || l.stage === "awaiting_reply")) {
         awaitingClientCount++;
       } else if (l.stage === "scheduled") {
         scheduledCount++;
@@ -205,7 +205,7 @@ export async function getCoordinatorOverviewMetrics(
     for (const l of leads) {
       if (isCountedStage(l.stage)) {
         deliveredCount++;
-      } else if (l.stage === "awaiting_client") {
+      } else if ((l.stage === "awaiting_client" || l.stage === "awaiting_reply")) {
         awaitingClientCount++;
       } else if (l.stage === "disputed") {
         disputedCount++;
@@ -225,7 +225,7 @@ export async function getCoordinatorOverviewMetrics(
 
       if (isCountedStage(l.stage)) {
         existing.deliveredCount++;
-      } else if (l.stage === "awaiting_client") {
+      } else if ((l.stage === "awaiting_client" || l.stage === "awaiting_reply")) {
         existing.awaitingClientCount++;
       } else if (l.stage === "disputed") {
         existing.disputedCount++;
@@ -322,7 +322,7 @@ export async function getAgencyOverviewMetrics(
 
       if (isCountedStage(l.stage)) {
         deliveredCount++;
-      } else if (l.stage === "awaiting_client") {
+      } else if ((l.stage === "awaiting_client" || l.stage === "awaiting_reply")) {
         awaitingClientCount++;
       } else if (l.stage === "disputed") {
         disputedCount++;
@@ -380,7 +380,7 @@ export async function getFynixOverviewMetrics(
     for (const l of leads) {
       if (isCountedStage(l.stage)) {
         deliveredCount++;
-      } else if (l.stage === "awaiting_client") {
+      } else if ((l.stage === "awaiting_client" || l.stage === "awaiting_reply")) {
         awaitingClientCount++;
       } else if (l.stage === "scheduled") {
         scheduledCount++;

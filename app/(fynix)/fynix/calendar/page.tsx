@@ -17,7 +17,7 @@ async function Calendar({ searchParams }: { searchParams: PageProps<"/fynix/cale
   const params = await searchParams;
   const now = new Date();
   const query = parseCalendarQuery({ view: one(params.view), date: one(params.date) }, now.toISOString().slice(0, 10));
-  const data = await loadCalendarForFynix(getDomain(), view.actor, { team: one(params.team), query });
+  const data = await loadCalendarForFynix(getDomain(), view.actor, { team: one(params.team), agency: one(params.agency), query });
   return (
     <div className="flex flex-col gap-4">
       <PageHeader title="Calendar" description="The team and the meetings of every client. Choose a client to see its team." />

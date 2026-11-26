@@ -10,6 +10,8 @@ export type LeadAction =
   | "overturn"
   // Phase 4: the source withdraws, either side moves a booked meeting, the other side contests an outcome, the coordinator asks for a review.
   | "withdraw"
+  // Calendar step G: the source books a new time for a meeting that has to move or that nobody could take.
+  | "book_new_time"
   | "postpone"
   | "pick_new_time"
   | "contest"
@@ -40,11 +42,12 @@ export interface LeadActionFacts {
 }
 
 /** Stages from which Fynix can mark a lead lost (the domain's list). */
-const LOSABLE: readonly string[] = ["awaiting_client", "scheduled", "outcome_due", "reschedule_needed", "held", "awaiting_decision", "outcome_contested"];
+const LOSABLE: readonly string[] = ["awaiting_client", "awaiting_reply", "scheduled", "outcome_due", "reschedule_needed", "held", "awaiting_decision", "outcome_contested"];
 
 /**
  * The actions that are valid for a lead, by who is looking and where the lead stands. The domain repeats every rule; this only decides which
  * buttons to show, so nobody is offered a button that will be refused.
+ * - A meeting booked with invitations (`awaiting_reply`) waits for the client team to answer; the source may withdraw it. The source books a new time for `reschedule_needed` and for a confirmed meeting that has not started.
  * - Before a time is booked (`awaiting_client`) only the client acts: pick a time, ask for other times, or reject with a note. The source may withdraw.
  * - Once booked, the client may still reject, and either side may propose new times (the other picks one) until the meeting time; the source may withdraw.
  * - After the meeting time every side may record how it went; the other side of a recording may contest it for 48 hours.
@@ -81,9 +84,11 @@ export function availableActions(input: { readonly viewer: LeadViewer; readonly 
   } else if (awaitingOutcome) {
     actions.push("record_outcome");
   }
-  if (booked && !meetingPassed) actions.push("postpone");
+  const mayRebook = viewer === "supply" && input.isSource === true && (stage === "reschedule_needed" || (booked && !meetingPassed));
+  if (mayRebook) actions.push("book_new_time");
+  else if (booked && !meetingPassed) actions.push("postpone");
   if (booked && input.openProposalBy != null && input.openProposalBy !== side) actions.push("pick_new_time");
-  if (viewer === "supply" && input.isSource === true && (stage === "awaiting_client" || (booked && !meetingPassed))) actions.push("withdraw");
+  if (viewer === "supply" && input.isSource === true && (stage === "awaiting_client" || stage === "awaiting_reply" || stage === "reschedule_needed" || (booked && !meetingPassed))) actions.push("withdraw");
   if (input.canContest === true) actions.push("contest");
   if (viewer === "supply" && input.isCoordinator === true && input.canAskReview === true && stage === "rejected") actions.push("ask_review");
   return actions;

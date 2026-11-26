@@ -136,8 +136,9 @@ export function titleFor(query: CalendarQuery): string {
 }
 
 /** The address of a view, with the client chosen (a campaign id that names its team) when there is one. */
-export function calendarHref(basePath: string, query: CalendarQuery, team: string | null): string {
+export function calendarHref(basePath: string, query: CalendarQuery, team: string | null, agency: string | null = null): string {
   const params = new URLSearchParams({ view: query.view, date: query.date });
   if (team !== null) params.set("team", team);
+  if (agency !== null) params.set("agency", agency);
   return `${basePath}?${params.toString()}`;
 }

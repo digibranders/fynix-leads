@@ -96,5 +96,6 @@ describe("calendarHref", () => {
   it("keeps the view and day in the address, and the client when one is chosen", () => {
     expect(calendarHref("/agency/calendar", { view: "week", date: "2026-11-26" }, null)).toBe("/agency/calendar?view=week&date=2026-11-26");
     expect(calendarHref("/agency/calendar", { view: "day", date: "2026-11-26" }, "abc")).toBe("/agency/calendar?view=day&date=2026-11-26&team=abc");
+    expect(calendarHref("/fynix/calendar", { view: "day", date: "2026-11-26" }, "abc", "org1")).toBe("/fynix/calendar?view=day&date=2026-11-26&team=abc&agency=org1");
   });
 });

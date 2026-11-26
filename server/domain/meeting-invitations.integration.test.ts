@@ -5,7 +5,9 @@ import { agreement, aliasIdentity, campaign, campaignShare, hostBlock, hostHours
 import type { TenantActor } from "@/server/domain/alias-identity";
 import { saveDraft, submitDraft } from "@/server/domain/lead-drafts";
 import { submitLead } from "@/server/domain/leads";
-import { expireInvitations, listMyInvitations, replyToInvitation } from "@/server/domain/meeting-invitations";
+import { expireInvitations, listMyInvitations, rebookWithInvitations, remindInvitations, replyToInvitation } from "@/server/domain/meeting-invitations";
+import { withdrawLead } from "@/server/domain/lead-drafts";
+import { readTeamTimeForTenant } from "@/server/domain/team-availability";
 import { memberIdFor, refusal, userIn } from "@/server/domain/test-helpers";
 import { openDomainRig } from "@/server/domain/testing";
 
@@ -273,5 +275,102 @@ describe("the deadline", () => {
     const wrong = await saveDraft(agencyDb(), rig.deps(), cast.agency, draftFields(3));
     expect((await refusal(submitDraft(agencyDb(), rig.deps(), cast.agency, { leadId: wrong.id, inviteeMemberIds: [cast.priyaMember] }))).code).toBe("invalid-input");
     expect((await leadRow(wrong.id))?.stage).toBe("draft");
+  });
+});
+
+describe("moving a meeting, leaving one, and the reminder", () => {
+  const rebook = (leadId: string, at: Date, invitees: readonly string[] = [cast.annaMember, cast.priyaMember], actor: TenantActor = cast.agency) =>
+    rebookWithInvitations(agencyDb(), rig.deps(), actor, { leadId, slot: at.toISOString(), inviteeMemberIds: [...invitees] });
+  const lapse = async (meetingId: string) => {
+    await ownerDb().update(meeting).set({ replyDueAt: new Date(Date.now() - 1000) }).where(eq(meeting.id, meetingId));
+    await expireInvitations(rig.deps(), new Date());
+  };
+  const busyOf = async (memberId: string, at: Date) =>
+    (await readTeamTimeForTenant(agencyDb(), cast.agency, { campaignId: cast.campaignId, from: new Date(at.getTime() - 3_600_000).toISOString(), to: new Date(at.getTime() + 3_600_000).toISOString() })).find((person) => person.memberId === memberId)?.busy.length ?? 0;
+
+  it("books a new time for a lapsed meeting on the same meeting, and invites only the people chosen", async () => {
+    const { lead: booked, meeting: held } = await book(slot(3));
+    await lapse(held.id);
+    expect((await leadRow(booked.id))?.stage).toBe("reschedule_needed");
+    const next = slot(6);
+    const moved = await rebook(booked.id, next, [cast.priyaMember]);
+    expect(moved.meetingId).toBe(held.id);
+    expect((await leadRow(booked.id))?.stage).toBe("awaiting_reply");
+    const after = await meetingRow(held.id);
+    expect(after).toMatchObject({ outcome: "scheduled", confirmedAt: null, hostMemberId: cast.priyaMember, publicRef: held.publicRef });
+    expect(after?.scheduledStartTime.toISOString()).toBe(next.toISOString());
+    expect(after?.replyDueAt?.toISOString()).toBe(new Date(next.getTime() - DAY).toISOString());
+    expect((await attendees(held.id)).map((row) => [row.memberId, row.reply]).sort()).toEqual([[cast.annaMember, "released"], [cast.priyaMember, "invited"]].sort());
+    const history = await ownerDb().select({ action: leadHistory.action }).from(leadHistory).where(eq(leadHistory.leadId, booked.id));
+    expect(history.map((row) => row.action)).toContain("lead.rebook");
+    // Priya accepts the new time and the lead is scheduled again.
+    await reply(cast.priya, held.id, "accepted");
+    expect((await leadRow(booked.id))?.stage).toBe("scheduled");
+  });
+
+  it("moves a confirmed meeting that has not started, keeps its link, and asks everyone again", async () => {
+    const { lead: booked, meeting: held } = await book(slot(3));
+    await reply(cast.anna, held.id, "accepted");
+    await ownerDb().update(meeting).set({ googleMeetUrl: "https://meet.google.com/abc-defg-hij", googleSpaceId: "spaces/abc" }).where(eq(meeting.id, held.id));
+    const sequence = (await meetingRow(held.id))?.icsSequence ?? 0;
+    await rebook(booked.id, slot(7));
+    const after = await meetingRow(held.id);
+    expect(after).toMatchObject({ outcome: "scheduled", confirmedAt: null, googleMeetUrl: "https://meet.google.com/abc-defg-hij", publicRef: held.publicRef });
+    expect(after?.icsSequence).toBeGreaterThan(sequence);
+    expect((await leadRow(booked.id))?.stage).toBe("awaiting_reply");
+    expect((await attendees(held.id)).every((row) => row.reply === "invited")).toBe(true);
+    // The link is already there, so the person asked to accept is not given a second room.
+    expect((await listMyInvitations(clientDb(), cast.priya)).find((item) => item.meetingId === held.id)?.hasRoom).toBe(true);
+  });
+
+  it("refuses a move by the wrong people, at the wrong stage, to a busy person, or too soon", async () => {
+    const { lead: booked, meeting: held } = await book(slot(3));
+    // Still waiting for a reply: nothing to move yet.
+    await expect(rebook(booked.id, slot(6))).rejects.toMatchObject({ code: "invalid-transition" });
+    await lapse(held.id);
+    await expect(rebook(booked.id, slot(6), [cast.annaMember], cast.anna)).rejects.toMatchObject({ code: "not-authorised" });
+    await expect(rebook(booked.id, new Date(Date.now() + 24 * 3_600_000))).rejects.toMatchObject({ code: "invalid-input" });
+    const next = slot(6);
+    await ownerDb().insert(hostBlock).values({ memberId: cast.annaMember, startsAt: new Date(next.getTime() - 3_600_000), endsAt: new Date(next.getTime() + 3_600_000), note: "Away" });
+    await expect(rebook(booked.id, next)).rejects.toMatchObject({ code: "invalid-input" });
+    expect((await leadRow(booked.id))?.stage).toBe("reschedule_needed");
+    expect((await rebook(booked.id, next, [cast.priyaMember])).meetingId).toBe(held.id);
+  });
+
+  it("lets the agency withdraw a lead that is waiting for a reply, which ends the hold and the invitations", async () => {
+    const at = slot(3);
+    const { lead: booked, meeting: held } = await book(at);
+    expect(await busyOf(cast.priyaMember, at)).toBe(1);
+    await withdrawLead(agencyDb(), rig.deps(), cast.agency, { leadId: booked.id });
+    expect((await leadRow(booked.id))?.stage).toBe("withdrawn");
+    expect((await meetingRow(held.id))?.outcome).toBe("cancelled");
+    expect(await busyOf(cast.priyaMember, at)).toBe(0);
+    expect(await listMyInvitations(clientDb(), cast.priya)).toEqual([]);
+    await expect(reply(cast.priya, held.id, "accepted")).rejects.toMatchObject({ code: "invalid-transition" });
+    await ownerDb().update(meeting).set({ replyDueAt: new Date(Date.now() - 1000) }).where(eq(meeting.id, held.id));
+    expect(await expireInvitations(rig.deps(), new Date())).toEqual([]);
+    expect((await leadRow(booked.id))?.stage).toBe("withdrawn");
+  });
+
+  it("does not keep the first person invited busy once they decline", async () => {
+    const at = slot(3);
+    const { meeting: held } = await book(at);
+    expect(await busyOf(cast.annaMember, at)).toBe(1);
+    await reply(cast.anna, held.id, "declined");
+    expect(await busyOf(cast.annaMember, at)).toBe(0);
+    expect(await busyOf(cast.priyaMember, at)).toBe(1);
+  });
+
+  it("reminds each person once, a day after the invitation, and not again", async () => {
+    const { meeting: held } = await book(slot(5));
+    expect(await remindInvitations(rig.deps(), new Date())).toBe(0);
+    await ownerDb().update(meetingAttendee).set({ createdAt: new Date(Date.now() - 25 * 3_600_000) }).where(eq(meetingAttendee.meetingId, held.id));
+    expect(await remindInvitations(rig.deps(), new Date())).toBe(2);
+    expect(await remindInvitations(rig.deps(), new Date())).toBe(0);
+    const notices = await ownerDb().execute<{ n: string }>(sql`select count(*)::text as n from notification where title = 'A meeting is waiting for your reply'`);
+    expect(notices.rows[0]?.n).toBe("2");
+    // A person who has answered is not reminded.
+    await reply(cast.anna, held.id, "declined");
+    expect(await remindInvitations(rig.deps(), new Date())).toBe(0);
   });
 });

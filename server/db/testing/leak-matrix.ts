@@ -319,6 +319,8 @@ export const PROBES: readonly Probe[] = [
   { name: "meeting: when someone must reply", statement: "select reply_due_at from meeting", expectedError: DENIED_TABLE },
   { name: "meeting: when it was confirmed", statement: "select confirmed_at from meeting", expectedError: DENIED_TABLE },
   { name: "who may read a client's team, called directly", statement: "select app_may_read_team(gen_random_uuid())", expectedError: /permission denied for function app_may_read_team/ },
+  { name: "move a meeting, as a client", statement: "select * from app_rebook_meeting(gen_random_uuid(), now(), now(), array[gen_random_uuid()], array['x'])", expectedError: /permission denied for function app_rebook_meeting/, roles: ["leads_client"] },
+  { name: "remind invited people, as a tenant", statement: "select app_remind_invitations(now())", expectedError: /permission denied for function app_remind_invitations/ },
   { name: "invite people to a meeting, as a client", statement: "select app_invite_attendees(gen_random_uuid(), array[gen_random_uuid()], array['x'])", expectedError: /permission denied for function app_invite_attendees/, roles: ["leads_client"] },
   { name: "answer an invitation, as an agency", statement: "select * from app_reply_invitation(gen_random_uuid(), 'accepted', null, null)", expectedError: /permission denied for function app_reply_invitation/, roles: ["leads_agency"] },
   { name: "the invitations of a person, as an agency", statement: "select * from app_my_invitations()", expectedError: /permission denied for function app_my_invitations/, roles: ["leads_agency"] },

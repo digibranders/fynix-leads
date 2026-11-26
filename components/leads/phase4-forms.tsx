@@ -4,8 +4,10 @@ import { ActionForm, useFormState } from "@/components/fynix/forms/action-form";
 import { FormGroup, Hidden, TextAreaField } from "@/components/fynix/forms/form-parts";
 import { Notice } from "@/components/auth/notice";
 import { When } from "@/components/kit/when";
+import { SlotPicker } from "@/components/leads/slot-picker";
+import type { CalendarPersonLike } from "@/lib/calendar/layout";
 import { TimesField } from "@/components/leads/lead-forms";
-import { contestOutcomeAction, pickPostponementAction, proposePostponementAction, requestRejectionReviewAction, withdrawLeadAction } from "@/server/domain/lead-flow-actions";
+import { bookNewTimeAction, contestOutcomeAction, pickPostponementAction, proposePostponementAction, requestRejectionReviewAction, withdrawLeadAction } from "@/server/domain/lead-flow-actions";
 
 const NOTE_HELPER = "At least 5 characters.";
 
@@ -19,6 +21,19 @@ export function WithdrawLeadForm({ leadId, booked }: { leadId: string; booked: b
           {booked ? "The booked meeting is cancelled and the lead counts as zero. This cannot be undone." : "The lead counts as zero and leaves the client's queue. This cannot be undone."}
         </Notice>
         <TextAreaField name="note" label="Note" helper="Optional. It stays in the lead's history." />
+      </FormGroup>
+    </ActionForm>
+  );
+}
+
+/** The source picks one new time when someone on the client team is free and invites them. The meeting keeps its link and goes back to Waiting for reply. */
+export function BookNewTimeForm({ leadId, people }: { leadId: string; people: readonly CalendarPersonLike[] }) {
+  return (
+    <ActionForm action={bookNewTimeAction} submitLabel="Book this time" pendingLabel="Booking" savedMessage="New time booked and the client team invited">
+      <Hidden name="leadId" value={leadId} />
+      <FormGroup>
+        <p className="text-body text-ink-muted">Pick one time when someone from the client team is free, and who to invite. The first to accept takes the meeting. It keeps its link.</p>
+        <SlotPicker people={people} />
       </FormGroup>
     </ActionForm>
   );

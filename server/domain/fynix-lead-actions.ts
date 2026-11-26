@@ -107,7 +107,7 @@ export async function fynixAnswerForClient(deps: DomainDeps, actor: FynixActor, 
 }
 
 /** The stages a lead can be lost from: it is still open and has not been counted. */
-const LOSABLE = ["awaiting_client", "scheduled", "outcome_due", "reschedule_needed", "held", "awaiting_decision", "outcome_contested"] as const;
+const LOSABLE = ["awaiting_client", "awaiting_reply", "scheduled", "outcome_due", "reschedule_needed", "held", "awaiting_decision", "outcome_contested"] as const;
 
 /** Fynix marks a lead lost: it closes, counts zero, and a booked meeting is cancelled. */
 export async function fynixMarkLost(deps: DomainDeps, actor: FynixActor, input: unknown) {

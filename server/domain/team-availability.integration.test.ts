@@ -131,7 +131,8 @@ describe("what makes a person busy", () => {
     await rig.dbs.owner.db.insert(meetingAttendee).values({ meetingId: invited, memberId: cast.colleague });
     const rows = await read(cast.served.id);
     expect(busyOf(rows, cast.colleague)).toEqual([[iso(at(2, 9)), iso(at(2, 10))], [iso(at(4, 11)), iso(at(4, 11, 30))]]);
-    expect(busyOf(rows, cast.clientMember)).toEqual([[iso(at(3, 14)), iso(at(3, 14, 30))], [iso(at(4, 11)), iso(at(4, 11, 30))]]);
+    // The person named on a meeting that is still waiting for a reply is not busy because of it: only the people invited hold the time. A meeting booked the old way, with no invitations, still holds its person.
+    expect(busyOf(rows, cast.clientMember)).toEqual([[iso(at(3, 14)), iso(at(3, 14, 30))]]);
   });
 
   it.each([

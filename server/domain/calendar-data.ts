@@ -44,11 +44,17 @@ export interface CalendarData {
   readonly selected: string | null;
   readonly people: readonly CalendarPerson[];
   readonly meetings: readonly CalendarMeeting[];
+  /** Fynix only: the agencies that sent a meeting, to filter by. Empty for everyone else. */
+  readonly agencies?: readonly { readonly id: string; readonly label: string }[];
+  /** The agency chosen in the address, or null for all of them. */
+  readonly agency?: string | null;
 }
 
 export interface CalendarInput {
   /** A campaign id from the address. One that is not in the viewer's list is ignored. */
   readonly team?: string;
+  /** Fynix only: an organisation id from the address. One that sent no meeting is ignored. */
+  readonly agency?: string;
   readonly query: CalendarQuery;
 }
 
@@ -67,6 +73,8 @@ interface MeetingRow {
   readonly prospectCompany: string;
   readonly googleMeetUrl: string | null;
   readonly hostName?: string | null;
+  /** The stage of the meeting's lead. `awaiting_reply` means the meeting is booked but nobody has accepted it yet. */
+  readonly leadStage?: string;
 }
 
 /** The clients of a list of campaigns, in the order they first appear, each with the ids of all its campaigns. */
@@ -87,6 +95,10 @@ export function toPerson(row: TeamMemberTime): CalendarPerson {
 }
 
 function toMeeting(row: MeetingRow, shows: "host" | "nobody"): CalendarMeeting {
+  // Until someone accepts, no person is going and there is no link to show: the first person invited has not answered.
+  if (row.leadStage === "awaiting_reply") {
+    return { id: row.id, ref: row.publicRef, start: row.scheduledStartTime.toISOString(), minutes: row.durationMinutes, status: "awaiting_reply", company: row.prospectCompany, link: null, with: null };
+  }
   return {
     id: row.id,
     ref: row.publicRef,
@@ -139,5 +151,9 @@ export async function loadCalendarForTenant(db: Database, actor: TenantActor, au
 export async function loadCalendarForFynix(deps: DomainDeps, actor: FynixActor, input: CalendarInput): Promise<CalendarData> {
   const campaigns = await listCampaignRows(deps, actor);
   const meetings = await listFynixMeetings(deps.fynixDb, actor);
-  return build(campaigns, input, meetings, "host", false, async (campaignId, range) => readTeamTimeForFynix(deps, actor, { campaignId, ...range }));
+  const agencies = [...new Map(meetings.map((row) => [row.sourceOrgId, row.sourceName])).entries()].map(([id, label]) => ({ id, label })).sort((a, b) => a.label.localeCompare(b.label));
+  const agency = agencies.find((choice) => choice.id === input.agency)?.id ?? null;
+  const shown = agency === null ? meetings : meetings.filter((row) => row.sourceOrgId === agency);
+  const data = await build(campaigns, input, shown, "host", false, async (campaignId, range) => readTeamTimeForFynix(deps, actor, { campaignId, ...range }));
+  return { ...data, agencies, agency };
 }

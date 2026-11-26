@@ -262,7 +262,7 @@ export async function withdrawLead(db: Database, deps: Pick<DomainDeps, "now">, 
       .where(and(eq(lead.id, parsed.leadId), eq(lead.sourceOrgId, actor.orgId)))
       .limit(1);
     if (row === undefined) throw new DomainError("not-found", "There is no such lead.");
-    if (row.stage !== "awaiting_client" && row.stage !== "scheduled") throw new DomainError("invalid-lead-stage", "A lead can be withdrawn before its meeting only.");
+    if (!["awaiting_client", "awaiting_reply", "reschedule_needed", "scheduled"].includes(row.stage)) throw new DomainError("invalid-lead-stage", "A lead can be withdrawn before its meeting only.");
 
     const now = deps.now();
     const note = parsed.note === undefined || parsed.note === "" ? "Withdrawn by the agency before the meeting" : parsed.note;
@@ -273,11 +273,10 @@ export async function withdrawLead(db: Database, deps: Pick<DomainDeps, "now">, 
       .returning(agencyLeadColumns);
     if (updated === undefined) throw new DomainError("invalid-lead-stage", "This lead was changed by someone else. Refresh the page.");
 
-    if (row.stage === "scheduled") {
-      const booked = await tx.update(meeting).set({ outcome: "cancelled", updatedAt: now }).where(and(eq(meeting.leadId, row.id), eq(meeting.outcome, "scheduled"))).returning({ id: meeting.id });
-      for (const entry of booked) {
-        await tx.update(meetingReschedule).set({ status: "superseded", resolvedAt: now }).where(and(eq(meetingReschedule.meetingId, entry.id), eq(meetingReschedule.status, "open")));
-      }
+    // Any hold on the client team ends with the meeting: the cancelled meeting is no longer busy time and its invitations can no longer be answered.
+    const booked = await tx.update(meeting).set({ outcome: "cancelled", updatedAt: now }).where(and(eq(meeting.leadId, row.id), eq(meeting.outcome, "scheduled"))).returning({ id: meeting.id });
+    for (const entry of booked) {
+      await tx.update(meetingReschedule).set({ status: "superseded", resolvedAt: now }).where(and(eq(meetingReschedule.meetingId, entry.id), eq(meetingReschedule.status, "open")));
     }
     await tx.insert(leadHistory).values({
       leadId: row.id,

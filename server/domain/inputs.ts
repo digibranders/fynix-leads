@@ -377,6 +377,8 @@ export const saveDraftSchema = z.object({ campaignId: z.uuid(), ...draftFields }
 export type SaveDraftInput = z.input<typeof saveDraftSchema>;
 export const updateDraftSchema = z.object({ leadId: z.uuid(), ...draftFields }).strict();
 export type UpdateDraftInput = z.input<typeof updateDraftSchema>;
+/** The source of a lead moves its meeting to a new slot and invites the people free then (calendar spec of 2026-11-26, section 7.2). */
+export const rebookMeetingSchema = z.object({ leadId: z.uuid(), slot: instant, inviteeMemberIds: z.array(z.uuid()).min(1, "invite at least one person").max(20, "at most 20 people") }).strict();
 export const draftIdSchema = z.object({ leadId: z.uuid() }).strict();
 /** Sending a draft, with the client people to invite when its one time is a booking (calendar spec of 2026-11-26). */
 export const submitDraftSchema = z.object({ leadId: z.uuid(), inviteeMemberIds: z.array(z.uuid()).min(1, "invite at least one person").max(20, "at most 20 people").optional() }).strict();
