@@ -2,8 +2,11 @@
 
 import type { FormState } from "@/lib/fynix/form-state";
 import { fynixAnswerForClient, fynixApproveOverShare, fynixCorrectLead, fynixMarkLost } from "@/server/domain/fynix-lead-actions";
+import { calendarSetupFromEnv } from "@/server/calendar";
+import { assertLiveFreeForFynix } from "@/server/calendar/live-check";
+import { campaignOfLeadForFynix, fynixRebookMeeting } from "@/server/domain/meeting-invitations";
 import { fynixDecideContest } from "@/server/domain/contests";
-import { answerForClientSchema, approveOverShareSchema, correctLeadSchema, decideContestSchema, markLostSchema, markRejectionReviewedSchema } from "@/server/domain/inputs";
+import { rebookMeetingSchema, answerForClientSchema, approveOverShareSchema, correctLeadSchema, decideContestSchema, markLostSchema, markRejectionReviewedSchema } from "@/server/domain/inputs";
 import { markRejectionReviewed } from "@/server/domain/rejection-reviews";
 import { field, runAction } from "@/server/fynix/run-action";
 
@@ -106,6 +109,31 @@ export async function clearOverShareAction(_previous: FormState, formData: FormD
     messages: { ...REFUSALS, "invalid-input": "This lead is not beyond a share any more. Refresh the page." },
     perform: async (deps, actor, input) => {
       await fynixApproveOverShare(deps, actor, input);
+    },
+  });
+}
+
+/** Fynix books a new time for a meeting that has to move or that nobody could take, and invites the people free then. Admin and staff; the domain audits it. */
+export async function fynixBookNewTimeAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runAction({
+    formData,
+    fieldNames: [],
+    build: () => ({
+      leadId: field(formData, "leadId"),
+      slot: field(formData, "proposedTimes"),
+      inviteeMemberIds: formData.getAll("inviteeMemberIds").filter((id): id is string => typeof id === "string" && id !== ""),
+    }),
+    schema: rebookMeetingSchema,
+    labels: { leadId: "Lead", slot: "Time", inviteeMemberIds: "People to invite" },
+    messages: { ...REFUSALS, "invalid-input": "Pick a time at least 48 hours away, when everyone you invite is free.", "invalid-transition": "This meeting can no longer be moved. Refresh the page." },
+    perform: async (deps, actor, input) => {
+      const parsed = rebookMeetingSchema.parse(input);
+      const setup = calendarSetupFromEnv();
+      if (setup !== null) {
+        const campaignId = await campaignOfLeadForFynix(deps, actor, parsed.leadId);
+        if (campaignId !== null) await assertLiveFreeForFynix({ authDb: deps.authDb, setup }, deps, actor, { campaignId, memberIds: parsed.inviteeMemberIds, slot: parsed.slot });
+      }
+      await fynixRebookMeeting(deps, actor, input);
     },
   });
 }

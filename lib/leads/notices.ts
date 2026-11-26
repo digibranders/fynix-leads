@@ -38,6 +38,7 @@ export type LeadNoticeEvent =
   | { readonly type: "lead_submitted" }
   | { readonly type: "times_proposed" }
   | { readonly type: "meeting_invited" }
+  | { readonly type: "meeting_moved" }
   | { readonly type: "meeting_scheduled" }
   | { readonly type: "postponement_proposed"; readonly by: "client" | "supply" }
   | { readonly type: "meeting_postponed" }
@@ -82,6 +83,8 @@ export function leadNotices(event: LeadNoticeEvent): readonly NoticeDelivery[] {
       return [lead(["client", "fynix", "partner_coordinator"], "lead_submitted", "Lead {ref} is waiting for a time", "A lead from {company} is ready. Pick one of the proposed times or propose others.")];
     case "meeting_invited":
       return [lead(["client", "fynix", "partner_coordinator"], "lead_submitted", "Lead {ref} has a meeting to accept", "A meeting with {company} is booked for the client team. Accept or decline it in your calendar.")];
+    case "meeting_moved":
+      return [lead(["source", "coordinator", "fynix"], "general", "The meeting for {ref} was moved", "The meeting with {company} has a new time and is waiting for the client team to accept it.")];
     case "times_proposed":
       return [lead(["source", "coordinator", "fynix"], "times_proposed", "The client proposed other times for {ref}", "The client could not use the times offered for {company}. Pick one of the new times.")];
     case "meeting_scheduled":

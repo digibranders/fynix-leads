@@ -5,7 +5,7 @@ import { agreement, aliasIdentity, campaign, campaignShare, hostBlock, hostHours
 import type { TenantActor } from "@/server/domain/alias-identity";
 import { saveDraft, submitDraft } from "@/server/domain/lead-drafts";
 import { submitLead } from "@/server/domain/leads";
-import { expireInvitations, listMyInvitations, rebookWithInvitations, remindInvitations, replyToInvitation } from "@/server/domain/meeting-invitations";
+import { expireInvitations, fynixRebookMeeting, listMyInvitations, rebookWithInvitations, remindInvitations, replyToInvitation } from "@/server/domain/meeting-invitations";
 import { withdrawLead } from "@/server/domain/lead-drafts";
 import { readTeamTimeForTenant } from "@/server/domain/team-availability";
 import { memberIdFor, refusal, userIn } from "@/server/domain/test-helpers";
@@ -323,12 +323,11 @@ describe("moving a meeting, leaving one, and the reminder", () => {
     expect((await listMyInvitations(clientDb(), cast.priya)).find((item) => item.meetingId === held.id)?.hasRoom).toBe(true);
   });
 
-  it("refuses a move by the wrong people, at the wrong stage, to a busy person, or too soon", async () => {
+  it("refuses a move at the wrong stage, to a busy person, or too soon", async () => {
     const { lead: booked, meeting: held } = await book(slot(3));
     // Still waiting for a reply: nothing to move yet.
     await expect(rebook(booked.id, slot(6))).rejects.toMatchObject({ code: "invalid-transition" });
     await lapse(held.id);
-    await expect(rebook(booked.id, slot(6), [cast.annaMember], cast.anna)).rejects.toMatchObject({ code: "not-authorised" });
     await expect(rebook(booked.id, new Date(Date.now() + 24 * 3_600_000))).rejects.toMatchObject({ code: "invalid-input" });
     const next = slot(6);
     await ownerDb().insert(hostBlock).values({ memberId: cast.annaMember, startsAt: new Date(next.getTime() - 3_600_000), endsAt: new Date(next.getTime() + 3_600_000), note: "Away" });
@@ -372,5 +371,41 @@ describe("moving a meeting, leaving one, and the reminder", () => {
     // A person who has answered is not reminded.
     await reply(cast.anna, held.id, "declined");
     expect(await remindInvitations(rig.deps(), new Date())).toBe(0);
+  });
+
+  it("lets the client of the campaign move a confirmed meeting, and tells the sending side", async () => {
+    const { lead: booked, meeting: held } = await book(slot(3));
+    await reply(cast.anna, held.id, "accepted");
+    const next = slot(8);
+    const moved = await rebookWithInvitations(clientDb(), rig.deps(), cast.priya, { leadId: booked.id, slot: next.toISOString(), inviteeMemberIds: [cast.annaMember, cast.priyaMember] });
+    expect(moved.meetingId).toBe(held.id);
+    expect((await leadRow(booked.id))?.stage).toBe("awaiting_reply");
+    expect((await meetingRow(held.id))?.scheduledStartTime.toISOString()).toBe(next.toISOString());
+    const history = await ownerDb().select({ action: leadHistory.action, role: leadHistory.actorRole }).from(leadHistory).where(eq(leadHistory.leadId, booked.id));
+    expect(history.find((row) => row.action === "lead.rebook")?.role).toBe("client");
+    const told = await ownerDb().execute<{ n: string }>(sql`select count(*)::text as n from notification where title like 'The meeting for % was moved'`);
+    expect(Number(told.rows[0]?.n)).toBeGreaterThan(0);
+  });
+
+  it("lets Fynix move a meeting for an agency, with an audit row, and refuses a time that is too soon", async () => {
+    const { lead: booked, meeting: held } = await book(slot(3));
+    await lapse(held.id);
+    await expect(fynixRebookMeeting(rig.deps(), rig.actor, { leadId: booked.id, slot: new Date(Date.now() + 24 * 3_600_000).toISOString(), inviteeMemberIds: [cast.annaMember] })).rejects.toMatchObject({ code: "invalid-input" });
+    const next = slot(6);
+    const moved = await fynixRebookMeeting(rig.deps(), rig.actor, { leadId: booked.id, slot: next.toISOString(), inviteeMemberIds: [cast.annaMember, cast.priyaMember] });
+    expect(moved.meetingId).toBe(held.id);
+    expect((await leadRow(booked.id))?.stage).toBe("awaiting_reply");
+    const history = await ownerDb().select({ action: leadHistory.action, role: leadHistory.actorRole }).from(leadHistory).where(eq(leadHistory.leadId, booked.id));
+    expect(history.find((row) => row.action === "lead.rebook")?.role).toBe("fynix");
+    const audit = await ownerDb().execute<{ n: string }>(sql`select count(*)::text as n from audit_log where action = 'lead.rebook'`);
+    expect(audit.rows[0]?.n).toBe("1");
+  });
+
+  it("refuses a move by a person who has nothing to do with the lead", async () => {
+    const { lead: booked, meeting: held } = await book(slot(3));
+    await lapse(held.id);
+    const outsider = { ...cast.agency, orgId: cast.anna.orgId, orgKind: "client" as const };
+    await expect(rebookWithInvitations(clientDb(), rig.deps(), { ...outsider, userId: cast.agency.userId }, { leadId: booked.id, slot: slot(6).toISOString(), inviteeMemberIds: [cast.annaMember] })).rejects.toBeInstanceOf(Error);
+    expect((await leadRow(booked.id))?.stage).toBe("reschedule_needed");
   });
 });

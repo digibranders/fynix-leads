@@ -43,6 +43,7 @@ const SENTENCES: Readonly<Record<string, string>> = {
   "lead.correct": "Lead corrected",
   "lead.answer_for_client": "Answered for the client",
   "lead.mark_lost": "Lead marked lost",
+  "lead.rebook": "Meeting moved to a new time",
   "lead.approve_over_share": "Lead beyond a share approved",
 };
 

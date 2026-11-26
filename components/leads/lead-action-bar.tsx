@@ -103,7 +103,7 @@ export function LeadActionBar({
       ) : null}
       {has("book_new_time") && context.people !== undefined ? (
         <FormSheet trigger={<Button type="button" variant="default"><Clock aria-hidden weight="bold" />Book a new time</Button>} title="Book a new time" description={`Move the meeting with ${who}.`}>
-          <BookNewTimeForm leadId={leadId} people={context.people} />
+          <BookNewTimeForm leadId={leadId} people={context.people} fynix={viewer === "fynix"} />
         </FormSheet>
       ) : null}
       {has("contest") && meetingId !== null ? (

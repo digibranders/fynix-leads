@@ -1,13 +1,14 @@
 import { sql } from "drizzle-orm";
 import { earliestBookable, freePeopleAt } from "@/lib/calendar/free-time";
 import type { Database } from "@/server/db/pool";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { lead, meeting } from "@/server/db/schema";
 import { withTenantScope, type ScopedTransaction } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import { databaseRefusal } from "@/server/domain/db-refusal";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError, type DomainErrorCode } from "@/server/domain/errors";
+import { fynixRead, fynixWorkWrite, type FynixActor } from "@/server/domain/fynix-write";
 import { rebookMeetingSchema, replyInvitationSchema } from "@/server/domain/inputs";
 import { generateInviteToken } from "@/server/domain/invite-token";
 import { parseInput } from "@/server/domain/parse";
@@ -164,29 +165,35 @@ export async function expireInvitations(deps: Pick<DomainDeps, "authDb">, now: D
   return result.rows.map((row) => ({ leadId: row.lead_id, meetingId: row.meeting_id }));
 }
 
+/** The part of a move that is the same for every caller: check everyone is free under their locks, then let the database function do the move and the invitations. */
+async function rebookIn(tx: ScopedTransaction, deps: Pick<DomainDeps, "randomBytes">, input: { readonly leadId: string; readonly campaignId: string; readonly slot: Date; readonly memberIds: readonly string[]; readonly now: Date }) {
+  const memberIds = await assertInviteesFree(tx, { campaignId: input.campaignId, slot: input.slot, memberIds: input.memberIds, now: input.now });
+  const invitations = memberIds.map((memberId) => ({ memberId, ...generateInviteToken(deps.randomBytes) }));
+  const due = new Date(input.slot.getTime() - REPLY_DEADLINE_HOURS * HOUR);
+  const moved = await tx.execute<{ meeting_id: string }>(
+    sql`select meeting_id from public.app_rebook_meeting(${input.leadId}::uuid, ${input.slot.toISOString()}::timestamptz, ${due.toISOString()}::timestamptz, ${`{${invitations.map((item) => item.memberId).join(",")}}`}::uuid[], ${`{${invitations.map((item) => item.tokenHash).join(",")}}`}::text[])`,
+  );
+  const meetingId = moved.rows[0]?.meeting_id;
+  if (meetingId === undefined) throw new Error("The rebooking returned no meeting");
+  await notify(tx, { type: "meeting_invited", leadId: input.leadId, meetingId });
+  await notify(tx, { type: "meeting_moved", leadId: input.leadId, meetingId });
+  return { meetingId, invitations: invitations.map(({ memberId, token }) => ({ memberId, token })) };
+}
+
 /**
- * The source of a lead moves its meeting to a new slot and invites the people free then. For a confirmed meeting that has not started, and for one nobody
- * could take. The meeting keeps its reference and its room, the lead goes back to Waiting for reply and the people are told. Every person is checked again under
- * a lock, like a first booking. The database function checks who is asking and the stage.
+ * The sender of a lead, or the client of its campaign, moves the meeting to a new slot and invites the people free then. For a confirmed meeting that has not
+ * started, and for one nobody could take. The meeting keeps its reference and its room, the lead goes back to Waiting for reply and the people are told. Every
+ * person is checked again under a lock, like a first booking. The database function checks who is asking and the stage.
  */
 export async function rebookWithInvitations(db: Database, deps: Pick<DomainDeps, "now" | "randomBytes">, actor: TenantActor, input: unknown): Promise<{ readonly meetingId: string; readonly invitations: readonly { readonly memberId: string; readonly token: string }[] }> {
-  if (actor.orgKind !== "agency") throw new DomainError("not-authorised", "Only agency or coordinator members can book a new time.");
   const parsed = parseInput(rebookMeetingSchema, input);
   const now = deps.now();
   try {
     return await withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
-      const [row] = await tx.select({ campaignId: lead.campaignId }).from(lead).where(and(eq(lead.id, parsed.leadId), eq(lead.sourceOrgId, actor.orgId))).limit(1);
+      // The database only shows a lead to the organisation that sent it or to the client it is for, so a lead of anyone else is simply not found.
+      const [row] = await tx.select({ campaignId: lead.campaignId }).from(lead).where(eq(lead.id, parsed.leadId)).limit(1);
       if (row === undefined) throw new DomainError("not-found", "There is no such lead.");
-      const memberIds = await assertInviteesFree(tx, { campaignId: row.campaignId, slot: parsed.slot, memberIds: parsed.inviteeMemberIds, now });
-      const invitations = memberIds.map((memberId) => ({ memberId, ...generateInviteToken(deps.randomBytes) }));
-      const due = new Date(parsed.slot.getTime() - REPLY_DEADLINE_HOURS * HOUR);
-      const moved = await tx.execute<{ meeting_id: string }>(
-        sql`select meeting_id from public.app_rebook_meeting(${parsed.leadId}::uuid, ${parsed.slot.toISOString()}::timestamptz, ${due.toISOString()}::timestamptz, ${`{${invitations.map((item) => item.memberId).join(",")}}`}::uuid[], ${`{${invitations.map((item) => item.tokenHash).join(",")}}`}::text[])`,
-      );
-      const meetingId = moved.rows[0]?.meeting_id;
-      if (meetingId === undefined) throw new Error("The rebooking returned no meeting");
-      await notify(tx, { type: "meeting_invited", leadId: parsed.leadId, meetingId });
-      return { meetingId, invitations: invitations.map(({ memberId, token }) => ({ memberId, token })) };
+      return rebookIn(tx, deps, { leadId: parsed.leadId, campaignId: row.campaignId, slot: parsed.slot, memberIds: parsed.inviteeMemberIds, now });
     });
   } catch (error) {
     if (error instanceof DomainError) throw error;
@@ -194,9 +201,33 @@ export async function rebookWithInvitations(db: Database, deps: Pick<DomainDeps,
   }
 }
 
-/** The campaign of a lead the organisation sent, or null. Used to check the people invited live before a move opens its transaction. */
+/** Fynix moves a meeting for an agency or a client. Open to admin and staff, like the other ways Fynix steps in; the audit row names the lead and the new time. */
+export async function fynixRebookMeeting(deps: Pick<DomainDeps, "fynixDb" | "now" | "randomBytes">, actor: FynixActor, input: unknown): Promise<{ readonly meetingId: string }> {
+  const parsed = parseInput(rebookMeetingSchema, input);
+  const now = deps.now();
+  try {
+    return await fynixWorkWrite(deps.fynixDb, actor, async ({ tx, audit }) => {
+      const [row] = await tx.select({ campaignId: lead.campaignId, publicRef: lead.publicRef, stage: lead.stage }).from(lead).where(eq(lead.id, parsed.leadId)).limit(1);
+      if (row === undefined) throw new DomainError("not-found", "There is no such lead.");
+      const moved = await rebookIn(tx, deps, { leadId: parsed.leadId, campaignId: row.campaignId, slot: parsed.slot, memberIds: parsed.inviteeMemberIds, now });
+      await audit({ action: "lead.rebook", subject: { table: "lead", id: parsed.leadId, ref: row.publicRef }, before: { stage: row.stage }, after: { stage: "awaiting_reply", slot: parsed.slot.toISOString(), invited: parsed.inviteeMemberIds.length } });
+      return { meetingId: moved.meetingId };
+    });
+  } catch (error) {
+    if (error instanceof DomainError) throw error;
+    return refused(error);
+  }
+}
+
+/** The campaign of a lead the organisation may see, or null. Used to check the people invited live before a move opens its transaction. */
 export async function campaignOfLead(db: Database, actor: TenantActor, leadId: string): Promise<string | null> {
-  const [row] = await withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, (tx) => tx.select({ campaignId: lead.campaignId }).from(lead).where(and(eq(lead.id, leadId), eq(lead.sourceOrgId, actor.orgId))).limit(1));
+  const [row] = await withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, (tx) => tx.select({ campaignId: lead.campaignId }).from(lead).where(eq(lead.id, leadId)).limit(1));
+  return row?.campaignId ?? null;
+}
+
+/** The campaign of any lead, for Fynix, or null. */
+export async function campaignOfLeadForFynix(deps: Pick<DomainDeps, "fynixDb">, actor: FynixActor, leadId: string): Promise<string | null> {
+  const [row] = await fynixRead(deps.fynixDb, actor, (tx) => tx.select({ campaignId: lead.campaignId }).from(lead).where(eq(lead.id, leadId)).limit(1));
   return row?.campaignId ?? null;
 }
 

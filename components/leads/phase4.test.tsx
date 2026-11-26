@@ -38,9 +38,11 @@ const bar = (over: Partial<BarProps> & { context?: LeadActionContext }) =>
   renderToStaticMarkup(<LeadActionBar viewer="client" stage="scheduled" leadId="l1" prospectName="Priya Nair" meetingId="m1" meetingTime={future} now={now} {...over} />);
 
 describe("the action bar after phase 4: the client", () => {
-  it("offers new times on a booked meeting and a pick when the supply side proposed", () => {
-    const html = bar({});
-    expect(html).toContain("Propose new times");
+  const people = [{ memberId: "h1", displayName: "Daniel Okafor", timeZone: "Europe/London", hours: [], busy: [] }];
+  it("offers a new time on a booked meeting and a pick when the supply side proposed", () => {
+    const html = bar({ context: { people } });
+    expect(html).toContain("Book a new time");
+    expect(html).not.toContain("Propose new times");
     expect(html).toContain("Reject lead");
     expect(html).not.toContain("Pick a new time");
     const picked = bar({ context: { openProposalBy: "supply", proposal: { id: "r1", times: ["2026-11-27T09:00:00Z"] } } });

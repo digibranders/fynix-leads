@@ -7,7 +7,9 @@ import { calendarConnection } from "@/server/db/schema";
 import type { Database } from "@/server/db/pool";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import { DomainError } from "@/server/domain/errors";
-import { readTeamTimeForTenant } from "@/server/domain/team-availability";
+import type { DomainDeps } from "@/server/domain/deps";
+import type { FynixActor } from "@/server/domain/fynix-write";
+import { readTeamTimeForFynix, readTeamTimeForTenant, type TeamMemberTime } from "@/server/domain/team-availability";
 
 const MEETING_MINUTES = 30;
 
@@ -21,6 +23,18 @@ export async function assertLiveFree(db: Database, deps: CalendarDeps | null, ac
   if (deps === null || input.memberIds.length === 0) return;
   const day = 86_400_000;
   const team = await readTeamTimeForTenant(db, actor, { campaignId: input.campaignId, from: new Date(input.slot.getTime() - day).toISOString(), to: new Date(input.slot.getTime() + day).toISOString() });
+  await checkLive(deps, team, input);
+}
+
+/** The same check for Fynix, which reads any client's team. */
+export async function assertLiveFreeForFynix(deps: CalendarDeps | null, fynix: Pick<DomainDeps, "fynixDb">, actor: FynixActor, input: { readonly campaignId: string; readonly memberIds: readonly string[]; readonly slot: Date }): Promise<void> {
+  if (deps === null || input.memberIds.length === 0) return;
+  const day = 86_400_000;
+  const team = await readTeamTimeForFynix(fynix, actor, { campaignId: input.campaignId, from: new Date(input.slot.getTime() - day).toISOString(), to: new Date(input.slot.getTime() + day).toISOString() });
+  await checkLive(deps, team, input);
+}
+
+async function checkLive(deps: CalendarDeps, team: readonly TeamMemberTime[], input: { readonly memberIds: readonly string[]; readonly slot: Date }): Promise<void> {
   const allowed = input.memberIds.filter((id) => team.some((person) => person.memberId === id));
   if (allowed.length === 0) return;
   const rows = await deps.authDb.select(connectionColumns).from(calendarConnection).where(and(inArray(calendarConnection.memberId, allowed), eq(calendarConnection.status, "connected")));

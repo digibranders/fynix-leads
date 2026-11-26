@@ -4,6 +4,7 @@ import { ActionForm, useFormState } from "@/components/fynix/forms/action-form";
 import { FormGroup, Hidden, TextAreaField } from "@/components/fynix/forms/form-parts";
 import { Notice } from "@/components/auth/notice";
 import { When } from "@/components/kit/when";
+import { fynixBookNewTimeAction } from "@/server/fynix/lead-actions";
 import { SlotPicker } from "@/components/leads/slot-picker";
 import type { CalendarPersonLike } from "@/lib/calendar/layout";
 import { TimesField } from "@/components/leads/lead-forms";
@@ -27,9 +28,9 @@ export function WithdrawLeadForm({ leadId, booked }: { leadId: string; booked: b
 }
 
 /** The source picks one new time when someone on the client team is free and invites them. The meeting keeps its link and goes back to Waiting for reply. */
-export function BookNewTimeForm({ leadId, people }: { leadId: string; people: readonly CalendarPersonLike[] }) {
+export function BookNewTimeForm({ leadId, people, fynix = false }: { leadId: string; people: readonly CalendarPersonLike[]; fynix?: boolean }) {
   return (
-    <ActionForm action={bookNewTimeAction} submitLabel="Book this time" pendingLabel="Booking" savedMessage="New time booked and the client team invited">
+    <ActionForm action={fynix ? fynixBookNewTimeAction : bookNewTimeAction} submitLabel="Book this time" pendingLabel="Booking" savedMessage="New time booked and the client team invited">
       <Hidden name="leadId" value={leadId} />
       <FormGroup>
         <p className="text-body text-ink-muted">Pick one time when someone from the client team is free, and who to invite. The first to accept takes the meeting. It keeps its link.</p>

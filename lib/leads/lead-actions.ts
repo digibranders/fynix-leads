@@ -60,6 +60,8 @@ export function availableActions(input: { readonly viewer: LeadViewer; readonly 
   const awaitingOutcome = stage === "outcome_due" || (stage === "scheduled" && meetingPassed);
   const booked = stage === "scheduled";
   const actions: LeadAction[] = [];
+  // The sender, the client and Fynix book a new time with the slot picker. A coordinator who did not send the lead keeps the older way: propose times for the other side to pick.
+  const canMove = stage === "reschedule_needed" || (booked && !meetingPassed);
 
   if (viewer === "fynix") {
     if (awaitingOutcome) actions.push("record_outcome");
@@ -69,6 +71,7 @@ export function availableActions(input: { readonly viewer: LeadViewer; readonly 
     }
     if (stage === "outcome_contested") actions.push("decide_contest");
     if (stage === "awaiting_client" || booked || stage === "awaiting_decision") actions.push("answer_for_client");
+    if (canMove) actions.push("book_new_time");
     if (stage !== "draft") actions.push("correct");
     if (LOSABLE.includes(stage)) actions.push("mark_lost");
     if (input.overShare === true && stage !== "draft") actions.push("clear_over_share");
@@ -84,7 +87,7 @@ export function availableActions(input: { readonly viewer: LeadViewer; readonly 
   } else if (awaitingOutcome) {
     actions.push("record_outcome");
   }
-  const mayRebook = viewer === "supply" && input.isSource === true && (stage === "reschedule_needed" || (booked && !meetingPassed));
+  const mayRebook = canMove && (viewer !== "supply" || input.isSource === true);
   if (mayRebook) actions.push("book_new_time");
   else if (booked && !meetingPassed) actions.push("postpone");
   if (booked && input.openProposalBy != null && input.openProposalBy !== side) actions.push("pick_new_time");

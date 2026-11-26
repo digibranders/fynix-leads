@@ -216,7 +216,7 @@ export async function bookNewTimeAction(_previous: FormState, formData: FormData
   return runTenantForm({
     formData,
     fieldNames: [],
-    kinds: ["agency"],
+    kinds: ["agency", "client"],
     build: () => ({
       leadId: field(formData, "leadId"),
       slot: field(formData, "proposedTimes"),
@@ -228,7 +228,7 @@ export async function bookNewTimeAction(_previous: FormState, formData: FormData
       ...STALE,
       "invalid-input": "Pick a time at least 48 hours away, when everyone you invite is free.",
       "invalid-transition": "This meeting can no longer be moved. Refresh the page.",
-      "not-authorised": "Only the team that sent this lead can book a new time.",
+      "not-authorised": "Only the team that sent this lead, its client or Fynix can book a new time.",
     },
     perform: async (context, input) => {
       const parsed = rebookMeetingSchema.parse(input);

@@ -98,6 +98,7 @@ export function leadEmailDeliveries(event: LeadEmailEvent, context: LeadEmailCon
     // The invitation email and the email that tells the agency a new time is needed are not built yet: people read both in the app.
     case "reschedule_needed":
     case "meeting_invited":
+    case "meeting_moved":
       return [];
     case "rejected_before_meeting":
     case "lead_withdrawn":
