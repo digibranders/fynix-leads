@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { CheckCircle, CircleNotch, FloppyDisk, PaperPlaneRight, WarningCircle } from "@phosphor-icons/react";
-import { useActionState, useState } from "react";
+import { useActionState, useLayoutEffect, useRef, useState } from "react";
 import { Panel, Tonal } from "@/components/kit/panel";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Choice } from "@/components/ui/choice";
@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SlotPicker } from "@/components/leads/slot-picker";
 import type { CalendarPersonLike } from "@/lib/calendar/layout";
+import { restoreTextValues, textValues, type FieldValues } from "@/lib/leads/form-values";
 import { IDLE_DRAFT_ACTION, IDLE_TENANT_ACTION } from "@/lib/tenant/action-state";
 import { saveDraftAction } from "@/server/domain/draft-actions";
 import { submitLeadAction } from "@/server/domain/lead-actions";
@@ -87,6 +88,30 @@ export function SubmitLeadForm({ campaigns, aliases, notLive = [], leadsHref, te
   const [state, formAction, pending] = useActionState(submitLeadAction, IDLE_TENANT_ACTION);
   const [draftState, draftAction, draftPending] = useActionState(saveDraftAction, IDLE_DRAFT_ACTION);
   const [campaignId, setCampaignId] = useState(draft?.campaignId ?? "");
+  // React clears the text fields when an action ends. The text is kept as it was sent and put back after an error and after a draft is saved, not after a lead is sent.
+  const formRef = useRef<HTMLFormElement>(null);
+  const kept = useRef<FieldValues>({});
+  // Only the answer to the button pressed last is shown, so a draft that was saved does not sit under an old complaint about the send.
+  const [lastPressed, setLastPressed] = useState<"send" | "draft" | null>(null);
+  const remember = () => {
+    if (formRef.current !== null) kept.current = textValues(formRef.current);
+  };
+  const submit = (formData: FormData) => {
+    remember();
+    setLastPressed("send");
+    formAction(formData);
+  };
+  const saveDraft = (formData: FormData) => {
+    remember();
+    setLastPressed("draft");
+    draftAction(formData);
+  };
+  useLayoutEffect(() => {
+    if (state.status === "error" && formRef.current !== null) restoreTextValues(formRef.current, kept.current);
+  }, [state]);
+  useLayoutEffect(() => {
+    if (draftState.status !== "idle" && formRef.current !== null) restoreTextValues(formRef.current, kept.current);
+  }, [draftState]);
   // The first save of a new draft answers with its id, so the next save and the final send both work on that draft.
   const draftId = draftState.leadId ?? draft?.id ?? "";
   const clientOrgId = campaigns.find((c) => c.id === campaignId)?.clientOrgId;
@@ -94,17 +119,17 @@ export function SubmitLeadForm({ campaigns, aliases, notLive = [], leadsHref, te
   const campaignAliases = clientOrgId === undefined ? [] : aliases.filter((a) => a.clientOrgId === clientOrgId);
 
   return (
-    <form action={formAction} noValidate>
+    <form ref={formRef} action={submit} noValidate>
       <input type="hidden" name="draftId" value={draftId} />
       <Panel className="overflow-visible">
         <div className="flex flex-col gap-3 p-3 md:p-4">
-          {draftState.status === "error" ? (
+          {lastPressed === "draft" && draftState.status === "error" ? (
             <p role="alert" className="flex items-start gap-2 rounded-md bg-red-soft px-4 py-3 text-body text-red-text">
               <WarningCircle aria-hidden size={18} weight="fill" className="mt-0.5 shrink-0" />
               <span>{draftState.message ?? "Could not save the draft."}</span>
             </p>
           ) : null}
-          {draftState.status === "success" ? (
+          {lastPressed === "draft" && draftState.status === "success" ? (
             <p role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-green-soft px-4 py-3 text-body text-green-text">
               <CheckCircle aria-hidden size={18} weight="fill" className="shrink-0" />
               <span>{draftState.message}</span>
@@ -113,13 +138,13 @@ export function SubmitLeadForm({ campaigns, aliases, notLive = [], leadsHref, te
               </Link>
             </p>
           ) : null}
-          {state.status === "error" ? (
+          {lastPressed === "send" && state.status === "error" ? (
             <p role="alert" className="flex items-start gap-2 rounded-md bg-red-soft px-4 py-3 text-body text-red-text">
               <WarningCircle aria-hidden size={18} weight="fill" className="mt-0.5 shrink-0" />
               <span>{state.message ?? "Could not submit the lead."}</span>
             </p>
           ) : null}
-          {state.status === "success" ? (
+          {lastPressed === "send" && state.status === "success" ? (
             <p role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-green-soft px-4 py-3 text-body text-green-text">
               <CheckCircle aria-hidden size={18} weight="fill" className="shrink-0" />
               <span>{state.message}</span>
@@ -232,7 +257,7 @@ export function SubmitLeadForm({ campaigns, aliases, notLive = [], leadsHref, te
             Cancel
           </Link>
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="submit" variant="secondary" size="lg" formAction={draftAction} disabled={draftPending || pending} aria-busy={draftPending}>
+            <Button type="submit" variant="secondary" size="lg" formAction={saveDraft} disabled={draftPending || pending} aria-busy={draftPending}>
               {draftPending ? <CircleNotch aria-hidden className="motion-safe:animate-spin" /> : <FloppyDisk aria-hidden weight="bold" />}
               Save draft
             </Button>
