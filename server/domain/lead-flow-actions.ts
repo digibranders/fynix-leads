@@ -10,7 +10,9 @@ import { clientReviewLead, decideLead } from "@/server/domain/leads";
 import { contestOutcome } from "@/server/domain/contests";
 import { withdrawLead } from "@/server/domain/lead-drafts";
 import { recordMeetingOutcome } from "@/server/domain/meetings";
-import { rebookWithInvitations } from "@/server/domain/meeting-invitations";
+import { calendarSetupFromEnv } from "@/server/calendar";
+import { assertLiveFree } from "@/server/calendar/live-check";
+import { campaignOfLead, rebookWithInvitations } from "@/server/domain/meeting-invitations";
 import { pickPostponement, proposePostponement } from "@/server/domain/postponement";
 import { requestRejectionReview } from "@/server/domain/rejection-reviews";
 import { field, runTenantForm } from "@/server/tenant/run-form";
@@ -229,6 +231,12 @@ export async function bookNewTimeAction(_previous: FormState, formData: FormData
       "not-authorised": "Only the team that sent this lead can book a new time.",
     },
     perform: async (context, input) => {
+      const parsed = rebookMeetingSchema.parse(input);
+      const setup = calendarSetupFromEnv();
+      const campaignId = setup === null ? null : await campaignOfLead(dbFor(context), actorOf(context), parsed.leadId);
+      if (setup !== null && campaignId !== null) {
+        await assertLiveFree(dbFor(context), { authDb: getDomain().authDb, setup }, actorOf(context), { campaignId, memberIds: parsed.inviteeMemberIds, slot: parsed.slot });
+      }
       await rebookWithInvitations(dbFor(context), getDomain(), actorOf(context), input);
     },
     revalidate: PAGES,

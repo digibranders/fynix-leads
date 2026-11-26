@@ -347,7 +347,7 @@ If item 2 or 3 fails, section 8.2 is revised before step F is planned.
 | C | Data layer: the free-time rules (`lib/calendar/free-time.ts`), the invitation table, and one read of each person's name, hours and busy time for the client, its agencies and Fynix. Lists of meetings by date range, which carry meeting details, move to D. Built. Plan: `docs/superpowers/plans/2026-11-26-calendar-step-c-free-time-data.md` | B |
 | D | Read-only calendar for every role: month, week, day. Built. The team is named by a campaign, not a client id, because a tenant never reads an organisation id | C |
 | E | One-slot booking, replies, the lead flow change, notices. Built, except the invitation email and the reply-by-email page (the token hashes are stored, nothing sends them yet) | D |
-| F | Calendar connection: sign-in, token store, providers, sync, own events, the broken-connection warning | E, and step 0 passed |
+| F | Calendar connection: sign-in, token store, providers, sync, own events, the broken-connection warning. Built behind `CALENDAR_SYNC_ENABLED`, off by default, and not proved against any real account: gate G5 comes first | E, and step 0 passed |
 | G | Moving and cancelling through the slot picker, reminders, Fynix warnings. Built for moving by the source, leaving, the in-app reminder and the Fynix agency filter; the warning for a broken calendar connection waits for step F | E |
 
 Each step gets its own plan in `docs/superpowers/plans/`, written when the step starts. Each ends with lint, typecheck, the tests of the files that changed, and one build. A step that touches `server/db`, grants or row-level security also runs the integration tests for those files.

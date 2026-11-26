@@ -1,5 +1,7 @@
 import { createDatabase } from "@/server/db/pool";
 import { sendLeadReminders } from "@/server/domain/lead-sweep";
+import { calendarSetupFromEnv } from "@/server/calendar";
+import { syncCalendars } from "@/server/calendar/sync";
 import { expireInvitations, remindInvitations } from "@/server/domain/meeting-invitations";
 import { getEnv } from "@/server/env";
 import { loadEnvLocal } from "@/server/env-file";
@@ -29,6 +31,12 @@ runScript(async () => {
     // A meeting nobody on the client team accepted by its deadline is let go, and the lead goes back to the agency for a new time.
     const lapsed = await expireInvitations({ authDb: auth.db }, now);
     console.log(`Invitations: ${lapsed.length} meetings nobody accepted were let go.`);
+    // Connected calendars are read for the next 60 days, one person at a time. Nothing runs while CALENDAR_SYNC_ENABLED is not true.
+    const calendars = calendarSetupFromEnv();
+    if (calendars !== null) {
+      const totals = await syncCalendars({ authDb: auth.db, setup: calendars }, now);
+      console.log(`Calendars: ${totals.synced} synced, ${totals.failed} failed, ${totals.broken} broken, ${totals.skipped} skipped.`);
+    }
     // A person who has not answered an invitation a day after it was sent is reminded once, in the app.
     const invitationReminders = await remindInvitations({ authDb: auth.db }, now);
     console.log(`Invitations: ${invitationReminders} reminders written.`);

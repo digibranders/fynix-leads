@@ -66,6 +66,17 @@ export const runtimeEnvSchema = z
     GOOGLE_MEET_CLIENT_ID: z.preprocess(emptyAsMissing, z.string().min(10).optional()),
     GOOGLE_MEET_CLIENT_SECRET: z.preprocess(emptyAsMissing, z.string().min(10).optional()),
     GOOGLE_MEET_REFRESH_TOKEN: z.preprocess(emptyAsMissing, z.string().min(10).optional()),
+    /**
+     * Calendar connection (calendar spec of 2026-11-26, section 8). `true` shows Connect calendar to client people and runs the calendar sync step; anything else is
+     * off: no Connect button, no sync, no call to Google or Microsoft, and the calendar runs on typed hours. Needs CALENDAR_TOKEN_KEY and at least one provider's pair.
+     */
+    CALENDAR_SYNC_ENABLED: z.preprocess(emptyAsMissing, z.enum(["true", "false"]).optional()),
+    /** 32 random bytes, base64 or base64url. Encrypts the refresh tokens and signs the sign-in state. Generate with: openssl rand -base64 32 */
+    CALENDAR_TOKEN_KEY: z.preprocess(emptyAsMissing, z.string().regex(/^[A-Za-z0-9+/_-]{43}=?$/, "must be 32 random bytes as base64 (openssl rand -base64 32)").optional()),
+    GOOGLE_CALENDAR_CLIENT_ID: z.preprocess(emptyAsMissing, z.string().min(10).optional()),
+    GOOGLE_CALENDAR_CLIENT_SECRET: z.preprocess(emptyAsMissing, z.string().min(10).optional()),
+    MICROSOFT_CALENDAR_CLIENT_ID: z.preprocess(emptyAsMissing, z.string().min(10).optional()),
+    MICROSOFT_CALENDAR_CLIENT_SECRET: z.preprocess(emptyAsMissing, z.string().min(10).optional()),
   })
   .refine((env) => !(env.PASSWORD_BREACH_CHECK === "off" && env.APP_ORIGIN.startsWith("https://")), {
     path: ["PASSWORD_BREACH_CHECK"],
@@ -84,6 +95,17 @@ export const runtimeEnvSchema = z
     path: ["MEET_PROVIDER"],
     message: "google needs GOOGLE_MEET_CLIENT_ID, GOOGLE_MEET_CLIENT_SECRET and GOOGLE_MEET_REFRESH_TOKEN",
   })
+  .refine((env) => env.CALENDAR_SYNC_ENABLED !== "true" || env.CALENDAR_TOKEN_KEY !== undefined, {
+    path: ["CALENDAR_TOKEN_KEY"],
+    message: "is required while CALENDAR_SYNC_ENABLED is true",
+  })
+  .refine(
+    (env) =>
+      env.CALENDAR_SYNC_ENABLED !== "true" ||
+      (env.GOOGLE_CALENDAR_CLIENT_ID !== undefined && env.GOOGLE_CALENDAR_CLIENT_SECRET !== undefined) ||
+      (env.MICROSOFT_CALENDAR_CLIENT_ID !== undefined && env.MICROSOFT_CALENDAR_CLIENT_SECRET !== undefined),
+    { path: ["CALENDAR_SYNC_ENABLED"], message: "needs the client id and secret of Google, Microsoft or both" },
+  )
   // Better Auth only marks cookies Secure when the origin is https. Read from process.env: Next.js always sets NODE_ENV.
   .refine((env) => !(process.env.NODE_ENV === "production" && env.APP_ORIGIN.startsWith("http://")), {
     path: ["APP_ORIGIN"],

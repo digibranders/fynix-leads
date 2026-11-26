@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { leadSubmitChecks, retryMessage } from "@/lib/auth/rate-limit-rules";
 import { getSessionContext } from "@/server/auth";
+import { calendarSetupFromEnv } from "@/server/calendar";
+import { assertLiveFree } from "@/server/calendar/live-check";
 import { firstBlockedLimit } from "@/server/auth/rate-limit";
 import { getDatabase } from "@/server/db/client";
 import { getDomain } from "@/server/domain";
@@ -77,6 +79,12 @@ export async function submitLeadAction(
       role: context.memberRole,
     };
 
+    // The people invited are asked about live, before the booking opens its transaction. Off, or with nobody connected, this does nothing.
+    const slot = proposedTimes[0];
+    const setup = calendarSetupFromEnv();
+    if (setup !== null && slot !== undefined && input.campaignId !== "") {
+      await assertLiveFree(db, { authDb: deps.authDb, setup }, actor, { campaignId: input.campaignId, memberIds: inviteeMemberIds, slot: new Date(slot) });
+    }
     if (draftId === "") {
       await submitLead(db, deps, actor, input);
     } else {

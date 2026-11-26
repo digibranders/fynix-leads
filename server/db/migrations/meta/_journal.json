@@ -736,6 +736,20 @@
       "when": 1795699578659,
       "tag": "0104_rebook_meeting_and_reminders",
       "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "7",
+      "when": 1795700293589,
+      "tag": "0105_calendar_connection_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1795700319128,
+      "tag": "0106_calendar_connection_grants",
+      "breakpoints": true
     }
   ]
 }

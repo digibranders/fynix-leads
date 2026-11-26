@@ -194,6 +194,12 @@ export async function rebookWithInvitations(db: Database, deps: Pick<DomainDeps,
   }
 }
 
+/** The campaign of a lead the organisation sent, or null. Used to check the people invited live before a move opens its transaction. */
+export async function campaignOfLead(db: Database, actor: TenantActor, leadId: string): Promise<string | null> {
+  const [row] = await withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, (tx) => tx.select({ campaignId: lead.campaignId }).from(lead).where(and(eq(lead.id, leadId), eq(lead.sourceOrgId, actor.orgId))).limit(1));
+  return row?.campaignId ?? null;
+}
+
 /** Reminds each person once, a day after their invitation, that a meeting is waiting for a reply. Runs as `leads_auth` from the sweep. Returns how many were written. */
 export async function remindInvitations(deps: Pick<DomainDeps, "authDb">, now: Date): Promise<number> {
   const result = await deps.authDb.execute<{ count: number }>(sql`select public.app_remind_invitations(${now.toISOString()}::timestamptz) as count`);
