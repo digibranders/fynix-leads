@@ -708,6 +708,27 @@
       "when": 1795697240757,
       "tag": "0100_team_reads_by_campaign",
       "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1795697992345,
+      "tag": "0101_awaiting_reply_stage",
+      "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1795698034756,
+      "tag": "0102_meeting_invitations",
+      "breakpoints": true
+    },
+    {
+      "idx": 103,
+      "version": "7",
+      "when": 1795698097401,
+      "tag": "0103_expire_invitations_notice",
+      "breakpoints": true
     }
   ]
 }

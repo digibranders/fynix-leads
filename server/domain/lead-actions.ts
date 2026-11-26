@@ -40,6 +40,8 @@ export async function submitLeadAction(
   const timesRaw = formData.getAll("proposedTimes");
   const proposedTimes = timesRaw.filter((t): t is string => typeof t === "string" && t.length > 0);
 
+  const inviteeMemberIds = formData.getAll("inviteeMemberIds").filter((id): id is string => typeof id === "string" && id.length > 0);
+
   const input = {
     campaignId: getField(formData, "campaignId"),
     aliasIdentityId: getField(formData, "aliasIdentityId"),
@@ -57,6 +59,7 @@ export async function submitLeadAction(
     bantNeed: getField(formData, "bantNeed"),
     bantTimeline: getField(formData, "bantTimeline"),
     proposedTimes,
+    inviteeMemberIds: inviteeMemberIds.length === 0 ? undefined : inviteeMemberIds,
   };
 
   const draftId = getField(formData, "draftId");
@@ -77,7 +80,7 @@ export async function submitLeadAction(
       // Sending a draft: the form's edits are saved to it first, then the full submission rules run on what it holds.
       await updateDraft(db, deps, actor, draftInput(formData, { leadId: draftId }));
       editsSaved = true;
-      await submitDraft(db, deps, actor, { leadId: draftId });
+      await submitDraft(db, deps, actor, { leadId: draftId, inviteeMemberIds: input.inviteeMemberIds });
     }
     revalidatePath("/agency/leads");
     revalidatePath("/coordinator/leads");

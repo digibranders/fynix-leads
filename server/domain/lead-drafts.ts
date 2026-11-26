@@ -8,7 +8,8 @@ import type { TenantActor } from "@/server/domain/alias-identity";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
 import { requireTeamMember } from "@/server/domain/host-availability";
-import { draftIdSchema, saveDraftSchema, submitLeadSchema, updateDraftSchema, withdrawLeadSchema } from "@/server/domain/inputs";
+import { bookWithInvitations } from "@/server/domain/meeting-invitations";
+import { draftIdSchema, saveDraftSchema, submitDraftSchema, submitLeadSchema, updateDraftSchema, withdrawLeadSchema } from "@/server/domain/inputs";
 import { notify } from "@/server/domain/notices";
 import { parseInput } from "@/server/domain/parse";
 import { insertWithPublicRef } from "@/server/domain/refs";
@@ -172,9 +173,9 @@ export async function discardDraft(db: Database, deps: Pick<DomainDeps, "now">, 
  * Sends a draft to the client: the full submission rules run on what the draft holds (every field, the alias, the host, the exclusion list, duplicates and
  * the share), the lead is released, the stage becomes `awaiting_client` and `submitted_at` is the moment it was sent.
  */
-export async function submitDraft(db: Database, deps: Pick<DomainDeps, "now">, actor: TenantActor, input: unknown) {
+export async function submitDraft(db: Database, deps: Pick<DomainDeps, "now" | "randomBytes">, actor: TenantActor, input: unknown) {
   requireAgency(actor);
-  const { leadId } = parseInput(draftIdSchema, input);
+  const { leadId, inviteeMemberIds: invitees } = parseInput(submitDraftSchema, input);
   return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
     const [draft] = await tx
       .select({ ...agencyLeadColumns })
@@ -202,15 +203,19 @@ export async function submitDraft(db: Database, deps: Pick<DomainDeps, "now">, a
       bantTimeline: draft.bantTimeline,
       proposedTimes: draft.proposedTimes,
     });
+    if (invitees !== undefined && (complete.proposedTimes.length !== 1 || !invitees.includes(complete.hostMemberId))) {
+      throw new DomainError("invalid-input", "Book one time, and invite the person you chose.");
+    }
     const checked = await checkSubmission(tx, deps, actor, complete, draft.id);
     const now = checked.now;
+    const stage = invitees === undefined ? "awaiting_client" : "awaiting_reply";
     const [updated] = await tx
       .update(lead)
       .set({
         prospectDomain: checked.normalizedDomain,
         prospectLinkedinUrl: checked.normalizedLinkedin,
         prospectEmail: checked.normalizedEmail,
-        stage: "awaiting_client",
+        stage,
         released: true,
         overShare: checked.overShare,
         submittedAt: now,
@@ -225,12 +230,18 @@ export async function submitDraft(db: Database, deps: Pick<DomainDeps, "now">, a
       actorRole: "agency",
       action: "lead.submit",
       fromStage: "draft",
-      toStage: "awaiting_client",
-      note: "Lead submitted with proposed meeting times",
+      toStage: stage,
+      note: invitees === undefined ? "Lead submitted with proposed meeting times" : "Lead submitted with a meeting time for the client team to accept",
       snapshot: { publicRef: updated.publicRef, campaignId: updated.campaignId, proposedTimes: updated.proposedTimes, overShare: checked.overShare },
       createdAt: now,
     });
-    await notify(tx, { type: "lead_submitted", leadId: draft.id });
+    const slot = complete.proposedTimes[0];
+    if (invitees !== undefined && slot !== undefined) {
+      const booked = await bookWithInvitations(tx, deps, { leadId: draft.id, campaignId: draft.campaignId, slot, memberIds: invitees, now });
+      await notify(tx, { type: "meeting_invited", leadId: draft.id, meetingId: booked.meetingId });
+    } else {
+      await notify(tx, { type: "lead_submitted", leadId: draft.id });
+    }
     if (checked.overShare) await notify(tx, { type: "lead_over_share", leadId: draft.id });
     return updated;
   });

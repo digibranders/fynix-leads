@@ -185,7 +185,7 @@ describe("Aliases", () => {
 describe("Submit a lead", () => {
   it("names why each campaign is not live instead of saying nothing is assigned", () => {
     const html = renderToStaticMarkup(
-      <SubmitLeadForm campaigns={[]} aliases={[]} hosts={[]} leadsHref="/agency/leads" notLive={[{ campaignId: "c1", name: "UK finance teams", reason: "The client has not accepted the agreement yet." }]} />,
+      <SubmitLeadForm campaigns={[]} aliases={[]} leadsHref="/agency/leads" notLive={[{ campaignId: "c1", name: "UK finance teams", reason: "The client has not accepted the agreement yet." }]} />,
     );
     expect(html).toContain("Not live yet: The client has not accepted the agreement yet.");
     expect(html).toContain("UK finance teams");

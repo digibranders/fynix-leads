@@ -46,7 +46,8 @@ function checkedRange(from: Date, to: Date): Interval {
   return range;
 }
 
-async function assemble(tx: ScopedTransaction, campaignId: string, range: Interval): Promise<readonly TeamMemberTime[]> {
+/** Reads the team of a campaign's client inside a transaction that already has its scope, so a booking sees the same busy time it locks. */
+export async function readTeamTimeIn(tx: ScopedTransaction, campaignId: string, range: Interval): Promise<readonly TeamMemberTime[]> {
   const people = await tx.execute<PersonRow>(sql`select member_id, display_name, time_zone from public.app_team_people_for_campaign(${campaignId}::uuid)`);
   if (people.rows.length === 0) return [];
   const ids = people.rows.map((row) => row.member_id);
@@ -80,7 +81,7 @@ export async function readTeamTimeForTenant(db: Database, actor: TenantActor, in
   const parsed = parseInput(teamTimeSchema, input);
   const range = checkedRange(parsed.from, parsed.to);
   try {
-    return await withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, (tx) => assemble(tx, parsed.campaignId, range));
+    return await withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, (tx) => readTeamTimeIn(tx, parsed.campaignId, range));
   } catch (error) {
     return refused(error);
   }
@@ -91,7 +92,7 @@ export async function readTeamTimeForFynix(deps: Pick<DomainDeps, "fynixDb">, ac
   const parsed = parseInput(teamTimeSchema, input);
   const range = checkedRange(parsed.from, parsed.to);
   try {
-    return await fynixRead(deps.fynixDb, actor, (tx) => assemble(tx, parsed.campaignId, range));
+    return await fynixRead(deps.fynixDb, actor, (tx) => readTeamTimeIn(tx, parsed.campaignId, range));
   } catch (error) {
     return refused(error);
   }

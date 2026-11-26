@@ -1,5 +1,6 @@
 import { createDatabase } from "@/server/db/pool";
 import { sendLeadReminders } from "@/server/domain/lead-sweep";
+import { expireInvitations } from "@/server/domain/meeting-invitations";
 import { getEnv } from "@/server/env";
 import { loadEnvLocal } from "@/server/env-file";
 import { importJoinRecords, sendMeetingReminderEmails, sendReminderEmails, sendWaitingReminders, sweepLeadsWithEmails } from "@/server/mail/launch-sweep";
@@ -25,6 +26,9 @@ runScript(async () => {
     const emails = launchEmailsEnabled();
     const enqueue = { enabled: emails, origin: env.APP_ORIGIN };
     const swept = await sweepLeadsWithEmails(auth.db, now, enqueue);
+    // A meeting nobody on the client team accepted by its deadline is let go, and the lead goes back to the agency for a new time.
+    const lapsed = await expireInvitations({ authDb: auth.db }, now);
+    console.log(`Invitations: ${lapsed.length} meetings nobody accepted were let go.`);
     const reminders = await sendLeadReminders({ authDb: auth.db }, now);
     console.log(`Lead sweep: ${swept.length} accepted automatically${swept.length === 0 ? "" : ` (${swept.map((row) => row.publicRef).join(", ")})`}, ${reminders.length} reminders sent as notices.`);
     // The daily reminder is the newest step and the least urgent: a fault in it is reported and the steps after it still run. Only the error's name is logged,

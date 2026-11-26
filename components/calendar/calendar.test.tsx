@@ -2,10 +2,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { CalendarData, CalendarMeeting } from "@/server/domain/calendar-data";
 
+vi.mock("@/server/domain/team-actions", () => ({ replyInvitationAction: async () => ({ status: "idle" as const }) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => undefined }), usePathname: () => "/agency/calendar" }));
 
 const { DayGrid, MonthGrid, WeekGrid } = await import("@/components/calendar/calendar-grids");
 const { CalendarScreen } = await import("@/components/calendar/calendar-screen");
+const { InvitationsPanel } = await import("@/components/calendar/invitations-panel");
 
 const week = [1, 2, 3, 4, 5].map((weekday) => ({ weekday, startMinute: 540, endMinute: 1020 }));
 const anna = { memberId: "a", displayName: "Anna Rao", timeZone: "UTC", hours: week, busy: [{ start: "2026-12-03T12:00:00.000Z", end: "2026-12-03T13:00:00.000Z" }] };
@@ -86,6 +88,41 @@ describe("the calendar screen", () => {
 
   it("draws every view and uses no dashes in its words", () => {
     const html = (["month", "week", "day"] as const).map((view) => render({}, view)).join("");
+    expect(html).not.toMatch(/[–—]/);
+    expect(html).not.toMatch(/\bhosts?\b/i);
+  });
+});
+
+describe("the meeting invitations", () => {
+  const invitation = { meetingId: "m1", meetingRef: "MTG-AAAA", company: "Nordvik Cold Chain", campaignName: "UK logistics", startsAt: "2026-12-03T10:00:00.000Z", minutes: 30, reply: "invited" as const, replyDueAt: "2026-12-02T10:00:00.000Z" };
+  const render = (reply: "invited" | "accepted" | "released") => renderToStaticMarkup(<InvitationsPanel invitations={[{ ...invitation, reply }]} />);
+
+  it("shows nothing when there are no invitations", () => {
+    expect(renderToStaticMarkup(<InvitationsPanel invitations={[]} />)).toBe("");
+  });
+
+  it("offers Accept and Decline while a reply is waiting, with the deadline", () => {
+    const html = render("invited");
+    expect(html).toContain("Nordvik Cold Chain");
+    expect(html).toContain("Waiting for your reply");
+    expect(html).toContain("Reply by");
+    expect(html).toContain('value="accepted"');
+    expect(html).toContain('value="declined"');
+  });
+
+  it("offers only Decline after accepting and only Accept after someone else took it", () => {
+    const accepted = render("accepted");
+    expect(accepted).toContain("You accepted");
+    expect(accepted).not.toContain('value="accepted"');
+    expect(accepted).toContain('value="declined"');
+    const released = render("released");
+    expect(released).toContain("Someone else accepted first");
+    expect(released).toContain('value="accepted"');
+    expect(released).not.toContain('value="declined"');
+  });
+
+  it("uses no dashes and no host in its words", () => {
+    const html = (["invited", "accepted", "released"] as const).map(render).join("");
     expect(html).not.toMatch(/[–—]/);
     expect(html).not.toMatch(/\bhosts?\b/i);
   });

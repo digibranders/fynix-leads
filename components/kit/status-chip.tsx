@@ -18,6 +18,7 @@ const campaignLook = (status: CampaignStatus): Look => ({ label: campaignStatusL
 export const LEAD: Record<LeadStage, Look> = {
   draft: { label: "Draft", variant: "quiet" },
   awaiting_client: { label: "Awaiting client", variant: "amber" },
+  awaiting_reply: { label: "Waiting for reply", variant: "amber" },
   scheduled: { label: "Scheduled", variant: "blue" },
   outcome_due: { label: "Outcome due", variant: "teal" },
   reschedule_needed: { label: "Reschedule needed", variant: "amber" },

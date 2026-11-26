@@ -8,8 +8,9 @@ import { getDatabase } from "@/server/db/client";
 import { getDomain } from "@/server/domain";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import { addOwnBlock, removeOwnBlock, setOwnHours } from "@/server/domain/hosts-tenant";
-import { createCoordinatorPartnerAgencySchema, issueInviteSchema, memberDetailsSchema, ownBlockSchema, ownHoursSchema, ownProfileSchema, uuidSchema } from "@/server/domain/inputs";
+import { createCoordinatorPartnerAgencySchema, issueInviteSchema, memberDetailsSchema, replyInvitationSchema, ownBlockSchema, ownHoursSchema, ownProfileSchema, uuidSchema } from "@/server/domain/inputs";
 import { issueTenantInvite } from "@/server/domain/invites";
+import { replyToInvitation } from "@/server/domain/meeting-invitations";
 import { updateOwnMemberDetails } from "@/server/domain/members";
 import { field, runTenantForm } from "@/server/tenant/run-form";
 import { addPartnerAgencyAsCoordinator, setMemberMeetingEmails, updateOwnFynixProfile, updateOwnProfile } from "@/server/domain/team";
@@ -24,6 +25,7 @@ const TENANTS = ["client", "agency"] as const;
 const EVERYONE = ["client", "agency", "fynix"] as const;
 const TEAM_PAGES = ["/client/team", "/coordinator/team", "/agency/team", "/coordinator/agencies", "/fynix"] as const;
 const HOURS_PAGES = ["/client/hours"] as const;
+const INVITATION_PAGES = ["/client"] as const;
 const PROFILE_PAGES = ["/client", "/coordinator", "/agency", "/fynix"] as const;
 
 function actorOf(context: SessionContext): TenantActor {
@@ -186,5 +188,21 @@ export async function removeOwnBlockAction(_previous: FormState, formData: FormD
       await removeOwnBlock(dbFor(context), actorOf(context), blockInput.parse(input).blockId);
     },
     revalidate: HOURS_PAGES,
+  });
+}
+
+/** A client person accepts or declines an invitation to a meeting. The first to accept takes it; the form posts `meetingId` and, from the button pressed, `reply`. */
+export async function replyInvitationAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runTenantForm({
+    formData,
+    fieldNames: [],
+    kinds: ["client"],
+    build: () => ({ meetingId: field(formData, "meetingId"), reply: field(formData, "reply") }),
+    schema: replyInvitationSchema,
+    labels: { meetingId: "Meeting", reply: "Answer" },
+    perform: async (context, input) => {
+      await replyToInvitation(dbFor(context), getDomain(), actorOf(context), input);
+    },
+    revalidate: INVITATION_PAGES,
   });
 }

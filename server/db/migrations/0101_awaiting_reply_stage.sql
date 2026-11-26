@@ -1,0 +1,2 @@
+ALTER TABLE "lead" DROP CONSTRAINT "lead_stage_check";--> statement-breakpoint
+ALTER TABLE "lead" ADD CONSTRAINT "lead_stage_check" CHECK ("lead"."stage" IN ('draft', 'awaiting_client', 'awaiting_reply', 'scheduled', 'outcome_due', 'reschedule_needed', 'held', 'client_no_show', 'prospect_no_show', 'awaiting_decision', 'accepted', 'delivered', 'disputed', 'declined', 'withdrawn', 'lost', 'rejected', 'outcome_contested'));

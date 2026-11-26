@@ -346,7 +346,7 @@ If item 2 or 3 fails, section 8.2 is revised before step F is planned.
 | B | Client team instead of hosts (section 4): anyone at the client can be chosen, default working hours, the go-live rule, screens and words. One person is still chosen per lead until step E. Plan: `docs/superpowers/plans/2026-11-26-calendar-step-b-client-team.md` | A |
 | C | Data layer: the free-time rules (`lib/calendar/free-time.ts`), the invitation table, and one read of each person's name, hours and busy time for the client, its agencies and Fynix. Lists of meetings by date range, which carry meeting details, move to D. Built. Plan: `docs/superpowers/plans/2026-11-26-calendar-step-c-free-time-data.md` | B |
 | D | Read-only calendar for every role: month, week, day. Built. The team is named by a campaign, not a client id, because a tenant never reads an organisation id | C |
-| E | One-slot booking, replies, the lead flow change, emails and notices | D |
+| E | One-slot booking, replies, the lead flow change, notices. Built, except the invitation email and the reply-by-email page (the token hashes are stored, nothing sends them yet) | D |
 | F | Calendar connection: sign-in, token store, providers, sync, own events, the broken-connection warning | E, and step 0 passed |
 | G | Moving and cancelling through the slot picker, reminders, Fynix warnings | E |
 

@@ -35,7 +35,7 @@ export interface FreeRun {
   readonly of: number;
 }
 
-function timeOf(person: CalendarPersonLike): PersonTime {
+export function personTime(person: CalendarPersonLike): PersonTime {
   return {
     availability: { timeZone: person.timeZone, hours: person.hours, blocks: [] },
     busy: person.busy.map((span) => ({ start: new Date(span.start), end: new Date(span.end) })),
@@ -58,7 +58,7 @@ function slotsOf(dayKey: string, zone: string): { readonly slot: Interval; reado
 
 /** One person's day as stretches of the same state, in the viewer's zone. */
 export function dayRuns(person: CalendarPersonLike, dayKey: string, zone: string, now: Date): Run[] {
-  const time = timeOf(person);
+  const time = personTime(person);
   const runs: Run[] = [];
   for (const { slot, minute } of slotsOf(dayKey, zone)) {
     const state = stateOf(slot, time, now);
@@ -71,7 +71,7 @@ export function dayRuns(person: CalendarPersonLike, dayKey: string, zone: string
 
 /** How many of the people are free in each stretch of a day. A stretch where nobody is free is left out. */
 export function freeRuns(people: readonly CalendarPersonLike[], dayKey: string, zone: string, now: Date): FreeRun[] {
-  const times = people.map(timeOf);
+  const times = people.map(personTime);
   const runs: FreeRun[] = [];
   for (const { slot, minute } of slotsOf(dayKey, zone)) {
     const free = times.filter((time) => isSlotFree(slot, time, now)).length;
@@ -85,7 +85,7 @@ export function freeRuns(people: readonly CalendarPersonLike[], dayKey: string, 
 
 /** The half hours of a day in which at least one person is free. */
 export function freeSlotCount(people: readonly CalendarPersonLike[], dayKey: string, zone: string, now: Date): number {
-  const times = people.map(timeOf);
+  const times = people.map(personTime);
   return slotsOf(dayKey, zone).filter(({ slot }) => times.some((time) => isSlotFree(slot, time, now))).length;
 }
 

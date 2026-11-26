@@ -76,7 +76,7 @@ function groupByClient(campaigns: readonly CampaignRef[]): { readonly label: str
   return [...groups.entries()].map(([label, ids]) => ({ label, ids }));
 }
 
-function toPerson(row: TeamMemberTime): CalendarPerson {
+export function toPerson(row: TeamMemberTime): CalendarPerson {
   return {
     memberId: row.memberId,
     displayName: row.displayName,

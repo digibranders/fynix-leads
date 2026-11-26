@@ -37,9 +37,11 @@ export type NoticeSide = "client" | "agency" | "coordinator" | "fynix";
 export type LeadNoticeEvent =
   | { readonly type: "lead_submitted" }
   | { readonly type: "times_proposed" }
+  | { readonly type: "meeting_invited" }
   | { readonly type: "meeting_scheduled" }
   | { readonly type: "postponement_proposed"; readonly by: "client" | "supply" }
   | { readonly type: "meeting_postponed" }
+  | { readonly type: "reschedule_needed" }
   | { readonly type: "rejected_before_meeting"; readonly by: "client" | "fynix"; readonly note: string }
   | { readonly type: "lead_withdrawn"; readonly note: string }
   | { readonly type: "lead_lost"; readonly note: string }
@@ -78,6 +80,8 @@ export function leadNotices(event: LeadNoticeEvent): readonly NoticeDelivery[] {
   switch (event.type) {
     case "lead_submitted":
       return [lead(["client", "fynix", "partner_coordinator"], "lead_submitted", "Lead {ref} is waiting for a time", "A lead from {company} is ready. Pick one of the proposed times or propose others.")];
+    case "meeting_invited":
+      return [lead(["client", "fynix", "partner_coordinator"], "lead_submitted", "Lead {ref} has a meeting to accept", "A meeting with {company} is booked for the client team. Accept or decline it in your calendar.")];
     case "times_proposed":
       return [lead(["source", "coordinator", "fynix"], "times_proposed", "The client proposed other times for {ref}", "The client could not use the times offered for {company}. Pick one of the new times.")];
     case "meeting_scheduled":
@@ -86,6 +90,9 @@ export function leadNotices(event: LeadNoticeEvent): readonly NoticeDelivery[] {
       return event.by === "client"
         ? [lead(SUPPLY_AND_FYNIX, "times_proposed", "The client proposed new times for {ref}", "The client asks to move the meeting with {company}. Pick one of the new times.")]
         : [lead(["client", "fynix"], "times_proposed", "New times proposed for {ref}", "The meeting with {company} needs a new time. Pick one of the proposed times.")];
+    // The same words are written by the database for a lapsed invitation (`app_expire_invitations`, migration 0103), and a test holds them equal.
+    case "reschedule_needed":
+      return [lead(SUPPLY_AND_FYNIX, "general", "A new time is needed for {ref}", "Nobody at the client could take the meeting with {company}. Pick another time.")];
     case "meeting_postponed":
       return [lead(EVERYONE, "meeting_postponed", "Meeting moved for {ref}", "The meeting with {company} has a new time.")];
     case "rejected_before_meeting":

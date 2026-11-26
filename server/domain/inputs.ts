@@ -344,6 +344,8 @@ export const submitLeadSchema = z
     bantNeed: name(500),
     bantTimeline: name(500),
     proposedTimes: z.array(instant).min(1, "at least one proposed meeting time is required").max(3, "at most 3 proposed meeting times"),
+    /** One slot and the client people to invite to it (calendar spec of 2026-11-26): `proposedTimes` then holds that one time and `hostMemberId` is the first person invited. */
+    inviteeMemberIds: z.array(z.uuid()).min(1, "invite at least one person").max(20, "at most 20 people").optional(),
   })
   .strict();
 export type SubmitLeadInput = z.input<typeof submitLeadSchema>;
@@ -376,6 +378,8 @@ export type SaveDraftInput = z.input<typeof saveDraftSchema>;
 export const updateDraftSchema = z.object({ leadId: z.uuid(), ...draftFields }).strict();
 export type UpdateDraftInput = z.input<typeof updateDraftSchema>;
 export const draftIdSchema = z.object({ leadId: z.uuid() }).strict();
+/** Sending a draft, with the client people to invite when its one time is a booking (calendar spec of 2026-11-26). */
+export const submitDraftSchema = z.object({ leadId: z.uuid(), inviteeMemberIds: z.array(z.uuid()).min(1, "invite at least one person").max(20, "at most 20 people").optional() }).strict();
 
 /** Withdrawing a submitted lead carries an optional note for the history. */
 export const withdrawLeadSchema = z.object({ leadId: z.uuid(), note: optionalText(1000).optional() }).strict();
@@ -529,6 +533,9 @@ export const groupIdSchema = z.object({ groupId: z.uuid() }).strict();
 
 export const hostAvailabilitySchema = z.object({ hostMemberId: z.uuid(), campaignId: z.uuid() }).strict();
 export const checkProposedTimesSchema = z.object({ hostMemberId: z.uuid(), campaignId: z.uuid(), proposedTimes: z.array(instant).max(3) }).strict();
+
+/** A client person's answer to an invitation to a meeting. */
+export const replyInvitationSchema = z.object({ meetingId: z.uuid(), reply: z.enum(["accepted", "declined"]) }).strict();
 
 /** A calendar read: the team of a campaign's client between two moments. A campaign, not a client id, because an agency never reads an organisation id. The length of the range is checked by `assertRange` and again by the database. */
 export const teamTimeSchema = z.object({ campaignId: z.uuid(), from: instant, to: instant }).strict();
