@@ -7,9 +7,11 @@ import { Panel, Tonal } from "@/components/kit/panel";
 import { Meter } from "@/components/kit/stat";
 import { StatusChip } from "@/components/kit/status-chip";
 import { buttonVariants } from "@/components/ui/button";
+import type { AgreementFacts, AgreementSide } from "@/lib/campaign-agreement";
 import { campaignTabLabel, countByTab, DEFAULT_CAMPAIGN_TAB, inCampaignTab, isClosed, type CampaignTab } from "@/lib/campaign-status";
 import { cn } from "@/lib/utils";
 import type { TenantCampaign } from "@/server/domain/campaigns-tenant";
+import { CampaignAgreementStatus } from "./campaign-agreement-status";
 import { CampaignBriefButton } from "./campaign-brief";
 import { AssignCampaignButton, TakeBackButton } from "./campaign-shares";
 
@@ -28,6 +30,15 @@ function day(value: string): string {
   return DAY.format(new Date(`${value}T00:00:00Z`));
 }
 
+/** The agreement of each campaign as the client or the coordinator sees it, and where it is accepted. */
+export interface AgreementConfig {
+  readonly side: AgreementSide;
+  readonly href: string;
+  readonly canAccept: boolean;
+  /** The current version of each campaign that has one, by campaign id. */
+  readonly byCampaign: Readonly<Record<string, AgreementFacts>>;
+}
+
 export interface AssignConfig {
   readonly ownOrgId: string;
   readonly agencies: readonly { readonly id: string; readonly name: string }[];
@@ -35,7 +46,7 @@ export interface AssignConfig {
 }
 
 /** The campaigns a portal can see, read only: what each is, when it runs, its target and how it is going. Fynix creates and assigns them. */
-export function CampaignsView({ campaigns, portal, basePath, tab = DEFAULT_CAMPAIGN_TAB, submitHref, assign }: { readonly campaigns: readonly TenantCampaign[]; readonly portal: Portal; readonly basePath: string; readonly tab?: CampaignTab; readonly submitHref?: string; readonly assign?: AssignConfig }) {
+export function CampaignsView({ campaigns, portal, basePath, tab = DEFAULT_CAMPAIGN_TAB, submitHref, assign, agreement }: { readonly campaigns: readonly TenantCampaign[]; readonly portal: Portal; readonly basePath: string; readonly tab?: CampaignTab; readonly submitHref?: string; readonly assign?: AssignConfig; readonly agreement?: AgreementConfig }) {
   if (campaigns.length === 0) {
     return (
       <Panel>
@@ -129,6 +140,10 @@ export function CampaignsView({ campaigns, portal, basePath, tab = DEFAULT_CAMPA
                       {allocated} of {row.monthlyTarget} a month assigned{allocated > row.monthlyTarget ? ", more than the target" : ""}
                     </p>
                   </Tonal>
+                ) : null}
+
+                {agreement !== undefined && !closed ? (
+                  <CampaignAgreementStatus side={agreement.side} campaignId={row.id} agreement={agreement.byCampaign[row.id] ?? null} href={agreement.href} canAccept={agreement.canAccept} live={row.status === "active"} />
                 ) : null}
 
                 {row.brief !== null || canAssign || canSubmit ? (

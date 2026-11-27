@@ -102,7 +102,6 @@ export const PORTALS: Record<PortalKind, PortalConfig> = {
           { label: "Campaigns", icon: "megaphone", href: "/coordinator/campaigns" },
           { label: "Partner agencies", icon: "users", href: "/coordinator/agencies" },
           { label: "Team", icon: "team", href: "/coordinator/team" },
-          { label: "Aliases", icon: "badge", href: "/coordinator/aliases" },
           { label: "Agreement", icon: "handshake", href: "/coordinator/agreement" },
         ],
       },
@@ -128,7 +127,6 @@ export const PORTALS: Record<PortalKind, PortalConfig> = {
         label: "Setup",
         items: [
           { label: "Campaigns", icon: "megaphone", href: "/agency/campaigns" },
-          { label: "My aliases", icon: "badge", href: "/agency/aliases" },
           { label: "Team", icon: "team", href: "/agency/team" },
         ],
       },

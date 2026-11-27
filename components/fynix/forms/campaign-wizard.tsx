@@ -3,7 +3,7 @@
 import { ArrowLeft, ArrowRight } from "@phosphor-icons/react";
 import Link from "next/link";
 import { cn } from "cn";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { Notice } from "@/components/auth/notice";
 import { SubmitButton } from "@/components/auth/submit-button";
 import { Tonal } from "@/components/kit/panel";
@@ -14,12 +14,14 @@ import { QualifyingQuestionsView } from "@/components/campaigns/qualifying-quest
 import { RichText } from "@/components/ui/rich-text";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { meetingTerms, REPORTING_PROTOCOL } from "@/lib/fynix/campaign-terms";
+import { browserTimeZone } from "@/lib/fynix/time-zones";
 import type { QualifyingItem } from "@/lib/qualifying-items";
 import { isHtmlEmpty } from "@/lib/rich-text-view";
 import type { CampaignChoices, CampaignHeader } from "@/server/domain/campaign-overview";
 import { createCampaignAction, updateCampaignAction } from "@/server/fynix/actions";
 import { ActionForm, useFormState } from "./action-form";
 import { FormGroup, Hidden, NumberField, SelectField, TextAreaField, TextField, TimeZoneField } from "./form-parts";
+import { AgreementFields } from "./campaign-agreement-fields";
 import { BrandFields, QualificationFields, QuestionsFields } from "./campaign-forms";
 
 type Snapshot = Readonly<Record<string, string>>;
@@ -155,6 +157,15 @@ function Summary({ snapshot, mode, missing, onFix }: { snapshot: Snapshot; mode:
         {mode.kind === "edit" ? <Row label="Meeting length">{`${snapshot.meetingMinutes ?? ""} minutes`}</Row> : null}
       </SummarySection>
 
+      {mode.kind === "create" ? (
+        <SummarySection title="Agreement">
+          <Row label="Publishing">{snapshot.publishAgreement === "later" ? "Later, from the campaign page. The campaign cannot go live until it is published and accepted." : "Now, when the campaign is created. The managers of the client and the coordinator are told."}</Row>
+          <Row label="Counting rules" wide>
+            {plain(snapshot.agreementRules)}
+          </Row>
+        </SummarySection>
+      ) : null}
+
       <SummarySection title="Brand and service information">
         <Row label="How the client is introduced" wide>
           {rich(snapshot.pitchIntroduction)}
@@ -217,7 +228,7 @@ function Summary({ snapshot, mode, missing, onFix }: { snapshot: Snapshot; mode:
   );
 }
 
-type TabKey = "campaign" | "brand" | "qualification" | "questions" | "summary";
+type TabKey = "campaign" | "brand" | "qualification" | "questions" | "agreement" | "summary";
 
 /** In the order of the set-up sheet; the last tab is the summary, where the campaign is created or saved. Every tab stays in the page, so all of them post with the form. */
 const TABS: readonly { readonly value: TabKey; readonly label: string }[] = [
@@ -225,8 +236,12 @@ const TABS: readonly { readonly value: TabKey; readonly label: string }[] = [
   { value: "brand", label: "Brand and service" },
   { value: "qualification", label: "Qualification" },
   { value: "questions", label: "Qualifying questions" },
+  { value: "agreement", label: "Agreement" },
   { value: "summary", label: "Summary" },
 ];
+
+/** A campaign being edited has no Agreement tab: its agreement is published and accepted from the campaign page. */
+const tabsFor = (mode: { readonly kind: "create" | "edit" }): typeof TABS => (mode.kind === "create" ? TABS : TABS.filter((entry) => entry.value !== "agreement"));
 
 /** The tab a form field lives in, so a problem the server found opens the tab that holds it. */
 function tabOf(field: string): TabKey {
@@ -270,7 +285,12 @@ function EditCampaignTab({ campaign }: { campaign: CampaignHeader }) {
   );
 }
 
+/** The browser's zone does not change while the page is open, so there is nothing to subscribe to. */
+const subscribeNothing = (): (() => void) => () => undefined;
+
 function CreateCampaignTab({ choices, initial }: { choices: CampaignChoices; initial: Initial }) {
+  // A new campaign starts in the zone of the browser it is made in (the server cannot know it). Until the browser answers, and if it never does, it is London.
+  const zone = useSyncExternalStore(subscribeNothing, () => browserTimeZone() ?? "Europe/London", () => "Europe/London");
   return (
     <FormGroup title="Campaign">
       <TextField name="name" label="Campaign name" />
@@ -284,7 +304,7 @@ function CreateCampaignTab({ choices, initial }: { choices: CampaignChoices; ini
         <NumberField name="monthlyTarget" label="Meetings per month" />
         <NumberField name="totalTarget" label="Meetings in total" helper="The package." />
       </div>
-      <TimeZoneField defaultValue="Europe/London" helper="Counting uses it. Search, or type Area/City." />
+      <TimeZoneField key={zone} defaultValue={zone} helper="Counting uses it. It starts as the zone of this browser. Search, or type Area/City." />
     </FormGroup>
   );
 }
@@ -305,7 +325,7 @@ function Steps({ tab, goTo, mode, snapshot, missing }: { tab: TabKey; goTo: (tab
       {missing.length > 0 && tab === "campaign" ? <Notice tone="red">{`Fill in ${missing.join(", ")} to continue.`}</Notice> : null}
       <Tabs value={tab} onValueChange={(next) => goTo(next as TabKey, root.current?.closest("form") ?? null)} className="gap-4">
         <TabsList variant="line" aria-label="Campaign details">
-          {TABS.map((entry) => (
+          {tabsFor(mode).map((entry) => (
             <TabsTrigger key={entry.value} value={entry.value}>
               {entry.label}
             </TabsTrigger>
@@ -323,6 +343,11 @@ function Steps({ tab, goTo, mode, snapshot, missing }: { tab: TabKey; goTo: (tab
         <TabsContent value="questions" keepMounted>
           <QuestionsFields brief={brief} />
         </TabsContent>
+        {mode.kind === "create" ? (
+          <TabsContent value="agreement" keepMounted>
+            <AgreementFields />
+          </TabsContent>
+        ) : null}
         <TabsContent value="summary">
           <Summary snapshot={snapshot} mode={mode} missing={missing} onFix={() => goTo("campaign", null)} />
         </TabsContent>
@@ -365,9 +390,10 @@ function CampaignEditor({ mode, cancelHref }: { mode: Mode; cancelHref: string }
     [required],
   );
 
-  const index = TABS.findIndex((entry) => entry.value === tab);
-  const nextTab = TABS[index + 1]?.value;
-  const previousTab = TABS[index - 1]?.value;
+  const tabs = tabsFor(mode);
+  const index = tabs.findIndex((entry) => entry.value === tab);
+  const nextTab = tabs[index + 1]?.value;
+  const previousTab = tabs[index - 1]?.value;
   const create = mode.kind === "create";
 
   return (

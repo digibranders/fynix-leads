@@ -1,0 +1,2 @@
+ALTER TABLE "lead" DROP CONSTRAINT "lead_draft_complete";--> statement-breakpoint
+ALTER TABLE "lead" ADD CONSTRAINT "lead_draft_complete" CHECK ("lead"."stage" = 'draft' OR NOT "lead"."released" OR "lead"."host_member_id" IS NOT NULL);

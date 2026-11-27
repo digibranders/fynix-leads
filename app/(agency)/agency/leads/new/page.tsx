@@ -23,7 +23,7 @@ async function SubmitLead({ searchParams }: { searchParams: PageProps<"/agency/l
   return (
     <div className="flex max-w-3xl flex-col gap-4">
       <PageHeader title={draft === null ? "Submit a lead" : "Continue a draft"} description="Prospect details, the qualification answers, and one meeting time with the client people to invite. Save a draft with only a campaign and a name." />
-      <SubmitLeadForm campaigns={options.campaigns} aliases={options.aliases} notLive={notLive} leadsHref="/agency/leads" teams={teams} draft={draft} />
+      <SubmitLeadForm campaigns={options.campaigns} notLive={notLive} leadsHref="/agency/leads" teams={teams} draft={draft} />
     </div>
   );
 }

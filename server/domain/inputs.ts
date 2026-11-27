@@ -357,7 +357,8 @@ const qualificationChecks = z.array(qualificationCheck).max(MAX_QUALIFICATION_CH
 export const submitLeadSchema = z
   .object({
     campaignId: z.uuid(),
-    aliasIdentityId: z.uuid(),
+    /** Not asked for any more: a lead is sent under the client's name. A caller that still sends one is checked as before. */
+    aliasIdentityId: z.uuid().optional(),
     hostMemberId: z.uuid(),
     prospectName: name(120),
     prospectTitle: name(120),

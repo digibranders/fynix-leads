@@ -60,7 +60,7 @@ export function AgreementsView({ cards, canAccept, emptyText, otherLabel }: { re
   return (
     <ul className="flex flex-col gap-4">
       {cards.map((card) => (
-        <li key={card.campaignId}>
+        <li key={card.campaignId} id={`campaign-${card.campaignId}`} className="scroll-mt-20">
           <Panel aria-label={card.campaignName} className="flex flex-col gap-5 p-6">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">

@@ -27,14 +27,6 @@ export interface CampaignOption {
   readonly checklist: readonly QualificationCheck[];
 }
 
-export interface AliasOption {
-  readonly id: string;
-  readonly displayName: string;
-  readonly clientOrgId: string | null;
-  readonly clientName: string;
-  readonly aliasEmail: string;
-}
-
 export interface NotLiveCampaign {
   readonly campaignId: string;
   readonly name: string;
@@ -66,7 +58,6 @@ export interface DraftPrefill {
 
 interface Props {
   readonly campaigns: readonly CampaignOption[];
-  readonly aliases: readonly AliasOption[];
   /** Campaigns that take no leads, each with the reason in words that name no person. */
   readonly notLive?: readonly NotLiveCampaign[];
   /** Where the leads of this portal are listed, for the link after a lead is sent. */
@@ -95,7 +86,7 @@ function withDraftTicks(asked: readonly QualificationCheck[], saved: readonly Qu
 }
 
 /** A lead submission: four tonal groups of fields in one panel, and one primary action in a sticky foot. Field names are the ones the action reads. */
-export function SubmitLeadForm({ campaigns, aliases, notLive = [], leadsHref, teams = {}, draft = null }: Props) {
+export function SubmitLeadForm({ campaigns, notLive = [], leadsHref, teams = {}, draft = null }: Props) {
   const [state, formAction, pending] = useActionState(submitLeadAction, IDLE_TENANT_ACTION);
   const [draftState, draftAction, draftPending] = useActionState(saveDraftAction, IDLE_DRAFT_ACTION);
   const [campaignId, setCampaignId] = useState(draft?.campaignId ?? "");
@@ -128,9 +119,6 @@ export function SubmitLeadForm({ campaigns, aliases, notLive = [], leadsHref, te
   }, [draftState]);
   // The first save of a new draft answers with its id, so the next save and the final send both work on that draft.
   const draftId = draftState.leadId ?? draft?.id ?? "";
-  const clientOrgId = campaigns.find((c) => c.id === campaignId)?.clientOrgId;
-  // An alias fronts one client, so the list follows the campaign chosen.
-  const campaignAliases = clientOrgId === undefined ? [] : aliases.filter((a) => a.clientOrgId === clientOrgId);
 
   return (
     <form ref={formRef} action={submit} noValidate>
@@ -168,8 +156,8 @@ export function SubmitLeadForm({ campaigns, aliases, notLive = [], leadsHref, te
             </p>
           ) : null}
 
-          <Group title="Campaign and sender" note="The campaign sets which alias you can choose.">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <Group title="Campaign" note="The client sees the lead under their own name.">
+            <div className="grid grid-cols-1 gap-4">
               <Field id="lead-campaign" label="Campaign">
                 <Choice
                   id="lead-campaign"
@@ -181,18 +169,6 @@ export function SubmitLeadForm({ campaigns, aliases, notLive = [], leadsHref, te
                   placeholder="Select a campaign"
                   emptyLabel={notLive.length > 0 ? "No campaign is live yet" : "No campaigns are assigned to you yet"}
                   options={campaigns.map((c) => ({ value: c.id, label: `${c.name} (${c.clientName})` }))}
-                />
-              </Field>
-              <Field id="lead-alias" label="Client alias">
-                <Choice
-                  key={`alias-${campaignId}`}
-                  id="lead-alias"
-                  name="aliasIdentityId"
-                  defaultValue={campaignId === draft?.campaignId ? (draft?.aliasIdentityId ?? "") : ""}
-                  required
-                  placeholder="Select a verified alias"
-                  emptyLabel={campaignId === "" ? "Choose a campaign first" : "No verified alias for this client yet"}
-                  options={campaignAliases.map((a) => ({ value: a.id, label: `${a.displayName}, ${a.clientName} (${a.aliasEmail})` }))}
                 />
               </Field>
             </div>

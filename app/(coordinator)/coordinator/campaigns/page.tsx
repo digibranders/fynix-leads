@@ -7,6 +7,7 @@ import { PageSkeleton } from "@/components/kit/skeletons";
 import { parseCampaignTab } from "@/lib/campaign-status";
 import { getDatabase } from "@/server/db/client";
 import { listAssignableAgencies } from "@/server/domain/campaign-shares-tenant";
+import { listCurrentAgreements } from "@/server/domain/agreements-tenant";
 import { listTenantCampaigns } from "@/server/domain/campaigns-tenant";
 import { requireCoordinator } from "@/server/coordinator/session";
 
@@ -16,12 +17,12 @@ async function Campaigns({ searchParams }: { searchParams: PageProps<"/coordinat
   const params = await searchParams;
   const view = await requireCoordinator();
   const db = getDatabase("leads_agency").db;
-  const [campaigns, agencies] = await Promise.all([listTenantCampaigns(db, view.actor, "coordinator"), listAssignableAgencies(db, view.actor)]);
+  const [campaigns, agencies, agreements] = await Promise.all([listTenantCampaigns(db, view.actor, "coordinator"), listAssignableAgencies(db, view.actor), listCurrentAgreements(db, view.actor)]);
   return (
     <div className="flex flex-col gap-4">
       <PageHeader title="Campaigns" description="The campaigns Fynix has assigned to you. Split each one between your own team and your partner agencies." />
       <CampaignsSummary campaigns={campaigns} />
-      <CampaignsView campaigns={campaigns} basePath="/coordinator/campaigns" tab={parseCampaignTab(params.status, campaigns)} portal="coordinator" submitHref="/coordinator/leads/new" assign={{ ownOrgId: view.actor.orgId, agencies, canManage: view.canWrite }} />
+      <CampaignsView campaigns={campaigns} basePath="/coordinator/campaigns" tab={parseCampaignTab(params.status, campaigns)} portal="coordinator" submitHref="/coordinator/leads/new" assign={{ ownOrgId: view.actor.orgId, agencies, canManage: view.canWrite }} agreement={{ side: "coordinator", href: "/coordinator/agreement", canAccept: view.canWrite, byCampaign: Object.fromEntries(agreements.map((entry) => [entry.campaignId, { version: entry.version, clientAcceptedAt: entry.clientAcceptedAt, coordinatorAcceptedAt: entry.coordinatorAcceptedAt }])) }} />
     </div>
   );
 }

@@ -58,29 +58,36 @@ export async function checkSubmission(
     throw new DomainError("not-authorised", "The signed-in user is not an active agency member.");
   }
 
-  // 2. Validate alias identity exists and is verified
-  const [aliasRow] = await tx
-    .select({
-      id: aliasIdentity.id,
-      memberId: aliasIdentity.memberId,
-      verifiedAt: aliasIdentity.verifiedAt,
-      clientOrgId: aliasIdentity.clientOrgId,
-      status: aliasIdentity.status,
-    })
-    .from(aliasIdentity)
-    .where(eq(aliasIdentity.id, parsed.aliasIdentityId))
-    .limit(1);
+  // 2. An alias is not asked for any more. One that a caller still sends is checked as before.
+  const aliasRow =
+    parsed.aliasIdentityId === undefined
+      ? undefined
+      : (
+          await tx
+            .select({
+              id: aliasIdentity.id,
+              memberId: aliasIdentity.memberId,
+              verifiedAt: aliasIdentity.verifiedAt,
+              clientOrgId: aliasIdentity.clientOrgId,
+              status: aliasIdentity.status,
+            })
+            .from(aliasIdentity)
+            .where(eq(aliasIdentity.id, parsed.aliasIdentityId))
+            .limit(1)
+        )[0];
 
-  if (aliasRow === undefined) {
-    throw new DomainError("not-found", "There is no such alias identity.");
-  }
+  if (parsed.aliasIdentityId !== undefined) {
+    if (aliasRow === undefined) {
+      throw new DomainError("not-found", "There is no such alias identity.");
+    }
 
-  if (aliasRow.status !== "active") {
-    throw new DomainError("invalid-input", "That alias has been retired.");
-  }
+    if (aliasRow.status !== "active") {
+      throw new DomainError("invalid-input", "That alias has been retired.");
+    }
 
-  if (aliasRow.verifiedAt === null) {
-    throw new DomainError("alias-not-verified", "The selected alias identity has not been verified.");
+    if (aliasRow.verifiedAt === null) {
+      throw new DomainError("alias-not-verified", "The selected alias identity has not been verified.");
+    }
   }
 
   // 3. Validate campaign exists, is active, and actor org is assigned
@@ -106,11 +113,13 @@ export async function checkSubmission(
 
   // An alias is a name used towards one client: it cannot front a lead for another client's campaign. An alias left without a client by the
   // phase 2 backfill (migration 0078) has to be edited to pick its client first.
-  if (aliasRow.clientOrgId === null) {
-    throw new DomainError("invalid-input", "That alias has no client yet. Edit it and choose the client first.");
-  }
-  if (aliasRow.clientOrgId !== campaignRow.clientOrgId) {
-    throw new DomainError("invalid-input", "That alias is for a different client than this campaign.");
+  if (aliasRow !== undefined) {
+    if (aliasRow.clientOrgId === null) {
+      throw new DomainError("invalid-input", "That alias has no client yet. Edit it and choose the client first.");
+    }
+    if (aliasRow.clientOrgId !== campaignRow.clientOrgId) {
+      throw new DomainError("invalid-input", "That alias is for a different client than this campaign.");
+    }
   }
 
   // Check assignment: actor org is coordinator itself, or has a campaign_share record
@@ -215,7 +224,7 @@ export async function submitLead(
             campaignId: parsed.campaignId,
             sourceOrgId: actor.orgId,
             submittedByUserId: actor.userId,
-            aliasIdentityId: parsed.aliasIdentityId,
+            aliasIdentityId: parsed.aliasIdentityId ?? null,
             hostMemberId: parsed.hostMemberId,
             prospectName: parsed.prospectName,
             prospectTitle: parsed.prospectTitle,

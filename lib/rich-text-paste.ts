@@ -82,20 +82,42 @@ export function pasteToBlocks(paste: { readonly html?: string | undefined; reado
   return liftListMarks(lines.map((line) => block("paragraph", line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"))));
 }
 
-/** The blocks as editor HTML: paragraphs, headings and lists, with consecutive items joined into one list. */
+/** Items as nested lists: an item one level deeper than the one before it opens a list inside it, and the type of list (bullets or numbers) follows each item. */
+function listHtml(items: readonly Block[]): string {
+  let html = "";
+  const stack: ("ul" | "ol")[] = [];
+  for (const item of items) {
+    const tag = item.ordered ? "ol" : "ul";
+    // A list cannot start more than one level below the one it is in.
+    const depth = Math.min(item.depth, stack.length);
+    while (stack.length > depth + 1) html += `</li></${stack.pop()}>`;
+    if (stack.length === depth + 1) {
+      if (stack[depth] === tag) html += "</li>";
+      else {
+        html += `</li></${stack.pop()}><${tag}>`;
+        stack.push(tag);
+      }
+    } else {
+      html += `<${tag}>`;
+      stack.push(tag);
+    }
+    html += `<li><p>${item.html}</p>`;
+  }
+  while (stack.length > 0) html += `</li></${stack.pop()}>`;
+  return html;
+}
+
+/** The blocks as editor HTML: paragraphs, headings and lists (nested as they were), with consecutive items joined into one list. */
 export function blocksToHtml(blocks: readonly Block[]): string {
   const parts: string[] = [];
-  let open: { tag: "ul" | "ol"; items: string[] } | null = null;
+  let items: Block[] = [];
   const close = () => {
-    if (open !== null) parts.push(`<${open.tag}>${open.items.map((item) => `<li><p>${item}</p></li>`).join("")}</${open.tag}>`);
-    open = null;
+    if (items.length > 0) parts.push(listHtml(items));
+    items = [];
   };
   for (const entry of blocks) {
     if (entry.kind === "item") {
-      const tag = entry.ordered ? "ol" : "ul";
-      if (open !== null && open.tag !== tag) close();
-      open ??= { tag, items: [] };
-      open.items.push(entry.html);
+      items.push(entry);
       continue;
     }
     close();
@@ -108,7 +130,10 @@ export function blocksToHtml(blocks: readonly Block[]): string {
 }
 
 const boldLine = (entry: Block): boolean => /^<strong>[\s\S]*<\/strong>$/.test(entry.html.trim()) && (entry.html.match(/<strong>/g) ?? []).length === 1;
-const looksLikeHeading = (entry: Block): boolean => entry.kind === "heading" || (entry.kind === "paragraph" && entry.text.length <= 100 && (boldLine(entry) || entry.text.endsWith(":")));
+/** A line that ends in a colon is a heading only when it is short ("Services:"). A whole sentence that leads into a list ("Share these when a prospect asks:") is body text. */
+const HEADING_COLON_MAX = 48;
+const looksLikeHeading = (entry: Block): boolean =>
+  entry.kind === "heading" || (entry.kind === "paragraph" && entry.text.length <= 100 && (boldLine(entry) || (entry.text.endsWith(":") && entry.text.length <= HEADING_COLON_MAX)));
 
 /** Removes a leading label such as "Q1." or "<strong>Answer</strong>:" from a block, whatever formatting wraps it. */
 function stripLead(html: string, word: string): string {
@@ -163,7 +188,7 @@ export function parseQuestions(blocks: readonly Block[]): QuestionItem[] {
 export type Section<K extends string> = { readonly key: K | null; readonly title: string; readonly html: string };
 
 /**
- * Splits a document into sections by its headings. A heading is a heading style, a short bold line, a short line ending in a colon, or any short
+ * Splits a document into sections by its headings. A heading is a heading style, a short bold line, a short line ending in a colon (a long sentence ending in one is body text), or any short
  * line that matches one of the field names asked for. Text before the first heading, and sections whose heading matches nothing, come back with a
  * null key so the person can say where they go.
  */
@@ -172,7 +197,7 @@ export function splitSections<K extends string>(blocks: readonly Block[], matche
   const sections: { key: K | null; title: string; blocks: Block[] }[] = [];
   for (const entry of blocks) {
     const key = entry.kind === "paragraph" || entry.kind === "heading" ? match(entry) : null;
-    const heading = entry.kind !== "item" && entry.kind !== "row" && entry.text.length <= 140 && (key !== null || looksLikeHeading(entry));
+    const heading = entry.kind !== "item" && entry.kind !== "row" && entry.text.length <= (entry.kind === "heading" ? 140 : 80) && (key !== null || looksLikeHeading(entry));
     if (heading) {
       sections.push({ key, title: entry.text.replace(/[:?]\s*$/, ""), blocks: [] });
       continue;

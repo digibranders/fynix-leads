@@ -70,3 +70,13 @@ export const COMMON_TIME_ZONES = [
 export function looksLikeTimeZone(text: string): boolean {
   return /^UTC$/i.test(text) || /^[A-Za-z]+(?:\/[A-Za-z0-9_+-]+)+$/.test(text);
 }
+
+/** The zone this browser says it is in, or null when it says nothing usable. A new campaign starts there, and the person can change it. */
+export function browserTimeZone(): string | null {
+  try {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return typeof zone === "string" && looksLikeTimeZone(zone) ? zone : null;
+  } catch {
+    return null;
+  }
+}

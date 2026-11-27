@@ -1,14 +1,16 @@
 import { and, asc, count, desc, eq, gt, inArray, isNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import type { GoLiveState } from "@/lib/campaign-status";
 import type { CampaignStatus } from "@/lib/domain/campaign-status";
 import { countedMonth, isCountedStage } from "@/lib/domain/counting-month";
 import { summariseShares, type ShareSummary } from "@/lib/domain/share-allocation";
 import type { HoursWindow } from "@/lib/domain/weekly-hours";
-import { auditLog, campaign, campaignShare, clientContact, hostBlock, hostHours, lead, member, organisation } from "@/server/db/schema";
+import { agreement, auditLog, campaign, campaignShare, clientContact, hostBlock, hostHours, lead, member, organisation } from "@/server/db/schema";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
 import { fynixRead, type FynixActor } from "@/server/domain/fynix-write";
 import { acceptedByBothSides, readAgreements, type AgreementHistory, type AgreementSide } from "@/server/domain/agreements";
+import { readGoLiveState } from "@/server/domain/campaign-rules";
 import { uuidSchema } from "@/server/domain/inputs";
 import type { QualifyingItem } from "@/lib/qualifying-items";
 import { parseInput } from "@/server/domain/parse";
@@ -127,6 +129,8 @@ export interface CampaignHeader {
   readonly activeHostCount: number;
   /** When the campaign was closed; null while it is not closed. */
   readonly closedAt: Date | null;
+  /** For a campaign being set up: what stands between it and going live. Null for any other status. */
+  readonly goLive: (GoLiveState & { readonly published: boolean }) | null;
   readonly brief: CampaignBrief;
 }
 
@@ -188,8 +192,14 @@ export async function readCampaignHeader(deps: DomainDeps, actor: FynixActor, pu
       .from(clientContact)
       .where(and(eq(clientContact.clientOrgId, row.clientOrgId), isNull(clientContact.removedAt)))
       .orderBy(asc(clientContact.createdAt), asc(clientContact.name));
+    // What a campaign being set up still needs before it can be made active, so the page can say so instead of refusing at the button.
+    let goLive: CampaignHeader["goLive"] = null;
+    if (row.status === "draft") {
+      const [published] = await tx.select({ n: count() }).from(agreement).where(and(eq(agreement.campaignId, row.id), eq(agreement.party, "client"), eq(agreement.status, "current")));
+      goLive = { ...(await readGoLiveState(tx, row.id)), published: (published?.n ?? 0) > 0 };
+    }
     const { id, publicRef: ref, name, status, clientOrgId, clientName, clientRef, coordinatorOrgId, coordinatorName, timeZone, meetingMinutes, closedAt, ...brief } = row;
-    return { id, publicRef: ref, name, status, clientOrgId, clientName, clientRef, coordinatorOrgId, coordinatorName, timeZone, meetingMinutes, clientContacts, activeHostCount: hosts?.n ?? 0, closedAt, brief };
+    return { id, publicRef: ref, name, status, clientOrgId, clientName, clientRef, coordinatorOrgId, coordinatorName, timeZone, meetingMinutes, clientContacts, activeHostCount: hosts?.n ?? 0, closedAt, goLive, brief };
   });
 }
 

@@ -5,7 +5,7 @@ import { tallyCampaigns, type CampaignCounts } from "@/lib/fynix/campaign-counts
 import { campaign, clientCollateral, clientContact, clientProfile, member, organisation } from "@/server/db/schema";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
-import { readClientContacts, type ClientContactRecord } from "@/server/domain/client-contacts";
+import { readClientContacts, type ClientContactWithAccess } from "@/server/domain/client-contacts";
 import { fynixRead, type FynixActor } from "@/server/domain/fynix-write";
 import { readActivity, readPeople, type ActivityRow, type PersonRow } from "@/server/domain/people-overview";
 import { contactColumns, type ClientProfileRecord, type CollateralRecord, type OrganisationContact } from "@/server/domain/organisations";
@@ -68,7 +68,7 @@ export interface ClientDetail {
   readonly profile: ClientProfileRecord | null;
   readonly collateral: readonly CollateralRecord[];
   /** The contact people Fynix keeps for the client. Not logins. */
-  readonly contacts: readonly ClientContactRecord[];
+  readonly contacts: readonly ClientContactWithAccess[];
   readonly people: readonly PersonRow[];
   readonly campaigns: readonly ClientCampaignRow[];
   readonly campaignCounts: CampaignCounts;

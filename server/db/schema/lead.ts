@@ -134,8 +134,8 @@ export const lead = pgTable(
     }),
     check("lead_decision_source_check", sql`${table.decisionSource} IS NULL OR ${table.decisionSource} IN ('client', 'auto', 'fynix')`),
     check("lead_decision_note_length", sql`${table.decisionNote} IS NULL OR char_length(btrim(${table.decisionNote})) BETWEEN 1 AND 1000`),
-    // A draft, and a discarded draft (never released), may lack an alias and a host; every lead the client has seen has both.
-    check("lead_draft_complete", sql`${table.stage} = 'draft' OR NOT ${table.released} OR (${table.aliasIdentityId} IS NOT NULL AND ${table.hostMemberId} IS NOT NULL)`),
+    // A draft, and a discarded draft (never released), may lack a host; every lead the client has seen has one. An alias is no longer asked for (2026-11-27): a lead is sent under the client's name.
+    check("lead_draft_complete", sql`${table.stage} = 'draft' OR NOT ${table.released} OR ${table.hostMemberId} IS NOT NULL`),
     check("lead_draft_not_released", sql`${table.stage} <> 'draft' OR NOT ${table.released}`),
     check("lead_public_ref_format", sql`${table.publicRef} ~ '^LD-[0-9A-HJKMNP-TV-Z]{4}$'`),
     check(

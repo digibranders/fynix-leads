@@ -1,5 +1,5 @@
-import { and, asc, eq, isNull } from "drizzle-orm";
-import { clientContact } from "@/server/db/schema";
+import { and, asc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
+import { clientContact, invite, member, user } from "@/server/db/schema";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
 import type { ScopedTransaction } from "@/server/db/scope";
@@ -21,6 +21,14 @@ export interface ClientContactRecord {
   readonly createdAt: Date;
 }
 
+/** Whether a saved contact has been given a login: none, an invite still open, or an account in the client. */
+export type ContactAccess = "none" | "invited" | "has-login";
+
+/** A saved contact with the state of their access, for the client page. */
+export interface ClientContactWithAccess extends ClientContactRecord {
+  readonly access: ContactAccess;
+}
+
 export const clientContactColumns = {
   id: clientContact.id,
   clientOrgId: clientContact.clientOrgId,
@@ -32,14 +40,31 @@ export const clientContactColumns = {
 };
 
 /** The live contacts of one client, oldest first. Open to staff. */
-export async function listClientContacts(deps: DomainDeps, actor: FynixActor, clientOrgId: string): Promise<readonly ClientContactRecord[]> {
+export async function listClientContacts(deps: DomainDeps, actor: FynixActor, clientOrgId: string): Promise<readonly ClientContactWithAccess[]> {
   const id = parseInput(uuidSchema, clientOrgId);
   return fynixRead(deps.fynixDb, actor, (tx) => readClientContacts(tx, id));
 }
 
-/** The same read inside a transaction the caller already holds, for the client page. */
-export async function readClientContacts(tx: ScopedTransaction, clientOrgId: string): Promise<readonly ClientContactRecord[]> {
-  return tx.select(clientContactColumns).from(clientContact).where(and(eq(clientContact.clientOrgId, clientOrgId), isNull(clientContact.removedAt))).orderBy(asc(clientContact.createdAt), asc(clientContact.name));
+/** The same read inside a transaction the caller already holds, for the client page. Each contact is marked by the email: an account in the client, or an invite still open. */
+export async function readClientContacts(tx: ScopedTransaction, clientOrgId: string): Promise<readonly ClientContactWithAccess[]> {
+  const rows = await tx.select(clientContactColumns).from(clientContact).where(and(eq(clientContact.clientOrgId, clientOrgId), isNull(clientContact.removedAt))).orderBy(asc(clientContact.createdAt), asc(clientContact.name));
+  const emails = rows.flatMap((row) => (row.email === null ? [] : [row.email.toLowerCase()]));
+  if (emails.length === 0) return rows.map((row) => ({ ...row, access: "none" as const }));
+  const people = await tx
+    .select({ email: user.email })
+    .from(member)
+    .innerJoin(user, eq(user.id, member.userId))
+    .where(and(eq(member.orgId, clientOrgId), inArray(sql`lower(${user.email})`, emails)));
+  const open = await tx
+    .select({ email: invite.email })
+    .from(invite)
+    .where(and(eq(invite.orgId, clientOrgId), isNull(invite.redeemedAt), isNull(invite.revokedAt), gt(invite.expiresAt, sql`now()`), inArray(sql`lower(${invite.email})`, emails)));
+  const withLogin = new Set(people.map((row) => row.email.toLowerCase()));
+  const invited = new Set(open.map((row) => row.email.toLowerCase()));
+  return rows.map((row) => {
+    const email = row.email?.toLowerCase();
+    return { ...row, access: email !== undefined && withLogin.has(email) ? ("has-login" as const) : email !== undefined && invited.has(email) ? ("invited" as const) : ("none" as const) };
+  });
 }
 
 /** Adds a contact person to a client. Only a Fynix admin. Nobody is invited and nothing is sent. */

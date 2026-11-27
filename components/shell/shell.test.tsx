@@ -48,7 +48,8 @@ describe("SidebarContent", () => {
     expect(html).toContain("Rejections");
     expect(html).toContain("3 waiting");
     expect(html.match(/aria-current="page"/g)).toHaveLength(1);
-    expect(render("agency")).toContain("My aliases");
+    expect(render("agency")).toContain("Campaigns");
+    expect(render("agency")).not.toContain("My aliases");
     expect(render("coordinator")).toContain("Partner agencies");
   });
 });

@@ -75,7 +75,7 @@ function QuestionsPasteBody({ open, onOpenChange, existing, onApply }: Questions
   };
   return (
     <Dialog open={open} onOpenChange={(next) => (next ? onOpenChange(true) : close())}>
-      <DialogContent className="max-h-[88dvh] max-w-2xl gap-4 overflow-y-auto">
+      <DialogContent className="max-h-[88dvh] gap-4 overflow-y-auto sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>Paste questions from Word</DialogTitle>
           <DialogDescription>A numbered list, Q1 and Answer lines, bullets under a question, or a table with a question column and an answer column. You check them before they are added.</DialogDescription>
@@ -198,7 +198,7 @@ function SectionsPasteBody<K extends string>({ open, onOpenChange, title, descri
   const placed = sections.filter((_, index) => target(index) !== "skip").length;
   return (
     <Dialog open={open} onOpenChange={(next) => (next ? onOpenChange(true) : close())}>
-      <DialogContent className="max-h-[88dvh] max-w-2xl gap-4 overflow-y-auto">
+      <DialogContent className="max-h-[88dvh] gap-4 overflow-y-auto sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>

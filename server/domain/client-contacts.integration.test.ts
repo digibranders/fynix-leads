@@ -90,6 +90,14 @@ describe("inviting a saved contact to the portal", () => {
     expect((await listClientContacts(rig.deps(), rig.actor, client.id)).map((person) => person.name)).toEqual(["Maya Rao"]);
   });
 
+  it("marks a contact as invited once an invite is open, and as having a login after it is used", async () => {
+    await publishApprovedTerms(rig);
+    const { client, contact } = await clientWith({ name: "Maya Rao", email: "maya@orchard.example" });
+    expect((await listClientContacts(rig.deps(), rig.actor, client.id))[0]?.access).toBe("none");
+    await inviteClientContact(rig.deps(), rig.actor, contact.id);
+    expect((await listClientContacts(rig.deps(), rig.actor, client.id))[0]?.access).toBe("invited");
+  });
+
   it("asks for an email first, in plain words, and sends nothing; a job title is not needed", async () => {
     await publishApprovedTerms(rig);
     const noEmail = await clientWith({ name: "Dev Patel", jobTitle: "Head of Ops" });
