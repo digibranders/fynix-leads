@@ -17,32 +17,37 @@ const meeting: CalendarMeeting = { id: "m1", ref: "MTG-AAAA", start: "2026-12-03
 const href = (day: string) => `/agency/calendar?view=day&date=${day}`;
 
 describe("the day view", () => {
-  it("has a lane for each person, with a word for free, busy and not working", () => {
-    const html = renderToStaticMarkup(<DayGrid people={[anna, ben]} dayKey="2026-12-03" zone="UTC" now={NOW} />);
+  it("has a lane for each person and shows only what is booked, with no word for free time or working hours", () => {
+    const html = renderToStaticMarkup(<DayGrid people={[anna, ben]} dayKey="2026-12-03" zone="UTC" />);
     expect(html).toContain("Anna Rao");
     expect(html).toContain("Ben Okafor");
-    for (const word of ["Free", "Busy", "Not working"]) expect(html).toContain(word);
+    expect(html).toContain("Booked");
+    for (const word of ["Free", "Busy", "Not working", "Too soon"]) expect(html).not.toContain(word);
+  });
+
+  it("covers the whole day, from midnight", () => {
+    const html = renderToStaticMarkup(<DayGrid people={[anna]} dayKey="2026-12-03" zone="UTC" />);
+    for (const hour of ["00:00", "03:00", "23:00"]) expect(html).toContain(hour);
   });
 });
 
 describe("the week view", () => {
   const days = ["2026-11-30", "2026-12-01", "2026-12-02", "2026-12-03", "2026-12-04", "2026-12-05", "2026-12-06"];
-  const render = () => renderToStaticMarkup(<WeekGrid people={[anna, ben]} days={days} meetings={[meeting]} zone="UTC" now={NOW} todayKey="2026-12-01" dayHref={href} />);
+  const render = () => renderToStaticMarkup(<WeekGrid days={days} meetings={[meeting]} zone="UTC" todayKey="2026-12-01" dayHref={href} />);
 
-  it("says how many people are free, shows the meeting and links each day to its own view", () => {
+  it("shows the meeting, no free time, and links each day to its own view", () => {
     const html = render();
-    expect(html).toContain("2 of 2 free");
-    expect(html).toContain("1 of 2 free");
+    expect(html).not.toMatch(/free/i);
     expect(html).toContain("10:00 Nordvik Cold Chain");
     expect(html).toContain('href="/agency/calendar?view=day&amp;date=2026-12-03"');
   });
 });
 
 describe("the month view", () => {
-  it("shows the meetings of a day and how many free times are left", () => {
-    const html = renderToStaticMarkup(<MonthGrid people={[anna, ben]} dateKey="2026-12-03" meetings={[meeting]} zone="UTC" now={NOW} todayKey="2026-12-01" dayHref={href} />);
+  it("shows the meetings of a day and no free times", () => {
+    const html = renderToStaticMarkup(<MonthGrid dateKey="2026-12-03" meetings={[meeting]} zone="UTC" todayKey="2026-12-01" dayHref={href} />);
     expect(html).toContain("10:00 Nordvik Cold Chain");
-    expect(html).toContain("16 free times");
+    expect(html).not.toMatch(/free/i);
     expect(html).toContain('href="/agency/calendar?view=day&amp;date=2026-12-24"');
   });
 });
