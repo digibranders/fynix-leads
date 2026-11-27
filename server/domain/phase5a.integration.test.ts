@@ -5,6 +5,7 @@ import type { Database } from "@/server/db/pool";
 import { withTenantScope } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import { closeCampaign, reopenCampaign, updateCampaign } from "@/server/domain/campaigns";
+import { removeCampaignShare, setCampaignShare } from "@/server/domain/shares";
 import { publishAgreement } from "@/server/domain/agreements";
 import { contestOutcome, fynixDecideContest } from "@/server/domain/contests";
 import { fynixAnswerForClient, fynixMarkLost } from "@/server/domain/fynix-lead-actions";
@@ -416,6 +417,24 @@ describe("notices at every lead event", () => {
     const published = await ownerDb().select({ userId: notification.userId, link: notification.link }).from(notification).where(eq(notification.kind, "agreement_published"));
     expect(published.map((row) => row.userId).sort()).toEqual(ids(cast.clientActor, cast.coordinator));
     expect(published.find((row) => row.userId === cast.coordinator.userId)?.link).toBe("/coordinator/agreement");
+  });
+
+  it("tells an agency alone when a share of a campaign is given to it or taken from it, and a changed number tells nobody", async () => {
+    await ownerDb().delete(campaignShare).where(and(eq(campaignShare.campaignId, cast.campaignId), eq(campaignShare.agencyOrgId, cast.partner.orgId)));
+    await clearNotices();
+    await setCampaignShare(rig.deps(), rig.actor, { campaignId: cast.campaignId, agencyOrgId: cast.partner.orgId, monthlyShare: 4 });
+    const shared = await ownerDb().select({ userId: notification.userId, orgId: notification.orgId, link: notification.link }).from(notification).where(eq(notification.kind, "campaign_shared"));
+    expect(shared.length).toBeGreaterThan(0);
+    expect(shared.every((row) => row.orgId === cast.partner.orgId)).toBe(true);
+    expect(shared.map((row) => row.userId)).toContain(cast.partner.userId);
+    expect(shared.find((row) => row.userId === cast.partner.userId)?.link).toBe("/agency/campaigns");
+    await clearNotices();
+    await setCampaignShare(rig.deps(), rig.actor, { campaignId: cast.campaignId, agencyOrgId: cast.partner.orgId, monthlyShare: 5 });
+    expect(await ownerDb().select({ id: notification.id }).from(notification).where(eq(notification.kind, "campaign_shared"))).toEqual([]);
+    await removeCampaignShare(rig.deps(), rig.actor, { campaignId: cast.campaignId, agencyOrgId: cast.partner.orgId });
+    const unshared = await ownerDb().select({ orgId: notification.orgId }).from(notification).where(eq(notification.kind, "campaign_unshared"));
+    expect(unshared.length).toBeGreaterThan(0);
+    expect(unshared.every((row) => row.orgId === cast.partner.orgId)).toBe(true);
   });
 
   it("lets a person read and mark read only their own notices, Fynix too", async () => {

@@ -7,6 +7,7 @@ import { assertCampaignOpen } from "@/server/domain/campaign-rules";
 import { DomainError } from "@/server/domain/errors";
 import { fynixRead, fynixWrite, type FynixActor } from "@/server/domain/fynix-write";
 import { removeCampaignShareSchema, setCampaignShareSchema, uuidSchema } from "@/server/domain/inputs";
+import { notify } from "@/server/domain/notices";
 import { parseInput } from "@/server/domain/parse";
 import { snapshotShare } from "@/server/domain/snapshots";
 
@@ -75,6 +76,8 @@ export async function setCampaignShare(deps: DomainDeps, actor: FynixActor, inpu
       before: existing === undefined ? null : snapshotShare({ campaignId: target.id, agencyOrgId: agency.id, monthlyShare: existing.monthlyShare }),
       after: snapshotShare({ campaignId: target.id, agencyOrgId: agency.id, monthlyShare: saved.monthlyShare }),
     });
+    // A new share tells the agency; changing the number of a share it already holds does not.
+    if (existing === undefined) await notify(tx, { type: "campaign_shared", campaignId: target.id, agencyOrgId: agency.id });
     return {
       share: { campaignId: target.id, agencyOrgId: agency.id, agencyRef: agency.publicRef, agencyName: agency.name, monthlyShare: saved.monthlyShare },
       summary: await summarise(tx, target.id),
@@ -104,6 +107,7 @@ export async function removeCampaignShare(deps: DomainDeps, actor: FynixActor, i
       before: snapshotShare({ campaignId: target.id, agencyOrgId: parsed.agencyOrgId, monthlyShare: existing.monthlyShare }),
       after: null,
     });
+    await notify(tx, { type: "campaign_unshared", campaignId: target.id, agencyOrgId: parsed.agencyOrgId });
     return summarise(tx, target.id);
   });
 }

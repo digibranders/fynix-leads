@@ -108,6 +108,8 @@ export async function createCampaign(deps: DomainDeps, actor: FynixActor, input:
       return row;
     });
     await audit({ action: "campaign.create", subject: { table: "campaign", id: created.id, ref: created.publicRef }, before: null, after: snapshotCampaign(created) });
+    // The coordinator is chosen when the campaign is made and never changes, so this is the one moment it is told.
+    await notify(tx, { type: "campaign_assigned", campaignId: created.id });
     return record(created);
   });
 }

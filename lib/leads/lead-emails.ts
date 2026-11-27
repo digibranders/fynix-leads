@@ -171,7 +171,7 @@ export function leadEmailDeliveries(event: LeadEmailEvent, context: LeadEmailCon
 }
 
 /** The people an email about a campaign (and no lead) can go to: the managers of its two sides. */
-export type CampaignEmailAudience = "client_managers" | "coordinator_managers";
+export type CampaignEmailAudience = "client_managers" | "coordinator_managers" | `agency_managers:${string}`;
 
 export interface CampaignEmailDelivery {
   readonly template: LaunchTemplate;
@@ -179,8 +179,21 @@ export interface CampaignEmailDelivery {
   readonly params: LaunchParams;
 }
 
-/** Which emails a campaign event sends. Only a new agreement version sends one: both sides must accept it. */
+/** Which emails a campaign event sends: a new agreement version, and a campaign made active, assigned, shared or unshared. */
 export function campaignEmailDeliveries(event: CampaignNoticeEvent, campaign: { readonly campaignName: string }): readonly CampaignEmailDelivery[] {
-  if (event.type !== "agreement_published") return [];
-  return [{ template: "agreement_published_info", audience: ["client_managers", "coordinator_managers"], params: { campaignName: campaign.campaignName, version: event.version } }];
+  const campaignName = campaign.campaignName;
+  switch (event.type) {
+    case "agreement_published":
+      return [{ template: "agreement_published_info", audience: ["client_managers", "coordinator_managers"], params: { campaignName, version: event.version } }];
+    case "campaign_active":
+      return [{ template: "campaign_update_info", audience: ["client_managers", "coordinator_managers"], params: { campaignName, change: "active" } }];
+    case "campaign_assigned":
+      return [{ template: "campaign_update_info", audience: ["coordinator_managers"], params: { campaignName, change: "assigned" } }];
+    case "campaign_shared":
+      return [{ template: "campaign_update_info", audience: [`agency_managers:${event.agencyOrgId}`], params: { campaignName, change: "shared" } }];
+    case "campaign_unshared":
+      return [{ template: "campaign_update_info", audience: [`agency_managers:${event.agencyOrgId}`], params: { campaignName, change: "unshared" } }];
+    default:
+      return [];
+  }
 }

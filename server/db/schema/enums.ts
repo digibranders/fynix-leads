@@ -38,6 +38,7 @@ export const emailTemplate = pgEnum("email_template", [
   "contest_decided_info",
   "review_requested_info",
   "agreement_published_info",
+  "campaign_update_info",
   "target_met_info",
   "share_met_info",
   "over_share_info",

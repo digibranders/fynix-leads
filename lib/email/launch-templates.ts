@@ -38,6 +38,7 @@ export const LAUNCH_TEMPLATES = [
   "contest_decided_info",
   "review_requested_info",
   "agreement_published_info",
+  "campaign_update_info",
   "target_met_info",
   "share_met_info",
   "over_share_info",
@@ -107,6 +108,8 @@ const paramsSchema = z.object({
   waiting: z.number().int().min(1).max(2_147_483_647).optional(),
   /** Fynix's daily summary: each client with leads waiting, and how many. The sweep sends at most `SUMMARY_CLIENTS_MAX`. */
   clients: z.array(z.object({ name: text, waiting: z.number().int().min(1).max(2_147_483_647) })).min(1).max(SUMMARY_CLIENTS_MAX).optional(),
+  /** What happened to a campaign, for the one email about a campaign that is not an agreement. */
+  change: z.enum(["active", "assigned", "shared", "unshared"]).optional(),
   /** An agreement's version number. */
   version: z.number().int().min(1).max(100_000).optional(),
   // Added by the database for a prospect letter:
@@ -148,6 +151,7 @@ const REQUIRED: Readonly<Record<LaunchTemplate, readonly Field[]>> = {
   contest_decided_info: [...PORTAL_BASE, "decided"],
   review_requested_info: PORTAL_BASE,
   agreement_published_info: ["campaignName", "version"],
+  campaign_update_info: ["campaignName", "change"],
   target_met_info: [...PORTAL_BASE, "campaignName", "scope", "reached", "target"],
   share_met_info: [...PORTAL_BASE, "campaignName", "period", "reached", "target"],
   over_share_info: PORTAL_BASE,
@@ -216,6 +220,16 @@ function portalLayout(content: LaunchContent): Layout {
       join: false,
       open: { intro: "Open the agreement:", label: "Open the agreement" },
     };
+  }
+  if (content.template === "campaign_update_info") {
+    const name = need(params.campaignName);
+    const lines = {
+      active: { subject: `The campaign ${name} is active`, paragraphs: ["Leads can now be submitted for this campaign.", "Open it to see the brief, the agreement and the leads."] },
+      assigned: { subject: `The campaign ${name} is assigned to you`, paragraphs: ["Fynix gave this campaign to your organisation.", "Open it to read the brief and the agreement."] },
+      shared: { subject: `The campaign ${name} is shared with you`, paragraphs: ["You can submit leads for this campaign once it is active.", "Open it to see the brief."] },
+      unshared: { subject: `The campaign ${name} is no longer shared with you`, paragraphs: ["You cannot submit new leads for it. Leads already sent finish their course."] },
+    }[need(params.change)];
+    return { ...lines, join: false, open: { intro: "Open the campaign:", label: "Open the campaign" } };
   }
   const ref = need(params.ref);
   const company = need(params.company);
