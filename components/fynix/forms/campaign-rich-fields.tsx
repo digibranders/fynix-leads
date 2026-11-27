@@ -12,6 +12,7 @@ import { useFormState } from "./action-form";
 import { FormGroup } from "./form-parts";
 import { PasteButton, QuestionsPasteDialog, SectionsPasteDialog, type SectionTarget } from "./paste-dialog";
 import { RichEditor, RichField } from "./rich-editor";
+import { TagInput } from "./tag-input";
 
 /** What the three tabs that take long or listed answers need from a campaign. A campaign being created has none. */
 export type RichBrief = {
@@ -99,9 +100,9 @@ export function BrandFields({ brief }: { brief: RichBrief | null }) {
 
 type CriteriaKey = "jobTitles" | "industries" | "geography";
 
-const CRITERIA: readonly (SectionTarget<CriteriaKey> & { readonly helper?: string })[] = [
-  { key: "jobTitles", label: "Target decision-makers", helper: "Job titles. Separate with commas.", test: /decision|job title|titles|roles?\b|persona/i },
-  { key: "industries", label: "Target industries", helper: "Separate with commas.", test: /industr|sector|vertical/i },
+const CRITERIA: readonly (SectionTarget<CriteriaKey> & { readonly helper?: string; readonly list?: boolean; readonly placeholder?: string })[] = [
+  { key: "jobTitles", label: "Target decision-makers", helper: "Job titles. Type one and press Enter to add it.", list: true, placeholder: "For example: Head of Marketing", test: /decision|job title|titles|roles?\b|persona/i },
+  { key: "industries", label: "Target industries", helper: "Type one and press Enter to add it.", list: true, placeholder: "For example: Logistics", test: /industr|sector|vertical/i },
   { key: "geography", label: "Target geographical markets", test: /geograph|market|region|countr|location/i },
 ];
 
@@ -137,15 +138,27 @@ export function QualificationFields({ brief }: { brief: RichBrief | null }) {
         const shown = state.status === "error" ? (state.values[entry.key] ?? values[entry.key]) : values[entry.key];
         return (
           <Field key={entry.key} id={id} label={entry.label} {...(entry.helper === undefined ? {} : { helper: entry.helper })} {...(error === undefined ? {} : { error })}>
-            <Input
-              id={id}
-              name={entry.key}
-              autoComplete="off"
-              value={shown}
-              onChange={(event) => setValues((current) => ({ ...current, [entry.key]: event.target.value }))}
-              aria-invalid={error === undefined ? undefined : true}
-              aria-describedby={error !== undefined || entry.helper !== undefined ? `${id}-message` : undefined}
-            />
+            {entry.list === true ? (
+              <TagInput
+                id={id}
+                name={entry.key}
+                value={shown}
+                onChange={(next) => setValues((current) => ({ ...current, [entry.key]: next }))}
+                {...(entry.placeholder === undefined ? {} : { placeholder: entry.placeholder })}
+                invalid={error !== undefined}
+                describedBy={error !== undefined || entry.helper !== undefined ? `${id}-message` : undefined}
+              />
+            ) : (
+              <Input
+                id={id}
+                name={entry.key}
+                autoComplete="off"
+                value={shown}
+                onChange={(event) => setValues((current) => ({ ...current, [entry.key]: event.target.value }))}
+                aria-invalid={error === undefined ? undefined : true}
+                aria-describedby={error !== undefined || entry.helper !== undefined ? `${id}-message` : undefined}
+              />
+            )}
           </Field>
         );
       })}

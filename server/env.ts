@@ -48,7 +48,7 @@ export const runtimeEnvSchema = z
     BREVO_API_KEY: z.preprocess(emptyAsMissing, z.string().min(20, "must be at least 20 characters").optional()),
     /**
      * The master switch of the launch emails (phase 6: every email of the Meet note's table, prospect letters included). Off unless it is `true`: then the app sends the
-     * invite, the password reset and the alias code exactly as before and queues nothing else. `true` needs a neutral sender address (below).
+     * invite, the password reset and the alias code exactly as before and queues nothing else. With no neutral sender address (below) every launch email but the prospect letters goes out from the default sender; prospect letters wait for a neutral one (`hasNeutralSender`, and the outbox refuses them from a Fynix address).
      */
     LAUNCH_EMAILS_ENABLED: z.preprocess(emptyAsMissing, z.enum(["true", "false"]).optional()),
     /** The address every message goes out from. Unset means hello@fynix.digital, as today. The neutral domain's address goes here at the switch (gate G3). */
@@ -85,11 +85,6 @@ export const runtimeEnvSchema = z
   .refine((env) => !(env.APP_ORIGIN.startsWith("https://") && env.BREVO_API_KEY === undefined), {
     path: ["BREVO_API_KEY"],
     message: "is required on an https deployment, so invites and reset links are really sent",
-  })
-  // The launch emails never go out as hello@fynix.digital: a prospect letter must not name Fynix anywhere, headers included.
-  .refine((env) => env.LAUNCH_EMAILS_ENABLED !== "true" || (env.MAIL_SENDER_ADDRESS !== undefined && !/fynix/i.test(env.MAIL_SENDER_ADDRESS) && !/fynix/i.test(env.MAIL_SENDER_NAME ?? "")), {
-    path: ["MAIL_SENDER_ADDRESS"],
-    message: "is required, and neither it nor MAIL_SENDER_NAME may name Fynix, while LAUNCH_EMAILS_ENABLED is true",
   })
   .refine((env) => env.MEET_PROVIDER !== "google" || (env.GOOGLE_MEET_CLIENT_ID !== undefined && env.GOOGLE_MEET_CLIENT_SECRET !== undefined && env.GOOGLE_MEET_REFRESH_TOKEN !== undefined), {
     path: ["MEET_PROVIDER"],

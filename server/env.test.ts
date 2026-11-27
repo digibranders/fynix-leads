@@ -128,12 +128,11 @@ describe("the phase 6 switches", () => {
     expect(describeEnvProblems({ ...environment, LAUNCH_EMAILS_ENABLED: "false", MEET_PROVIDER: "none" }, runtimeEnvSchema)).toEqual([]);
   });
 
-  it("refuse the launch emails without a neutral sender address, and one that names Fynix", () => {
+  it("accept the launch emails with the default Fynix sender: prospect letters are held back elsewhere, not by the environment", () => {
     const environment = { ...completeEnvironment(), LAUNCH_EMAILS_ENABLED: "true" };
-    expect(describeEnvProblems(environment, runtimeEnvSchema)).toEqual(["MAIL_SENDER_ADDRESS: missing"]);
-    expect(describeEnvProblems({ ...environment, MAIL_SENDER_ADDRESS: "hello@fynix.digital" }, runtimeEnvSchema)).toEqual([expect.stringMatching(/^MAIL_SENDER_ADDRESS: invalid, .*may name Fynix/)]);
-    expect(describeEnvProblems({ ...environment, MAIL_SENDER_ADDRESS: "meetings@neutral.example", MAIL_SENDER_NAME: "Fynix Meetings" }, runtimeEnvSchema)).toHaveLength(1);
-    expect(describeEnvProblems({ ...environment, MAIL_SENDER_ADDRESS: "meetings@neutral.example", MAIL_SENDER_NAME: "Meetings" }, runtimeEnvSchema)).toEqual([]);
+    expect(describeEnvProblems(environment, runtimeEnvSchema)).toEqual([]);
+    expect(describeEnvProblems({ ...environment, MAIL_SENDER_ADDRESS: "hello@fynix.digital" }, runtimeEnvSchema)).toEqual([]);
+    expect(describeEnvProblems({ ...environment, MAIL_SENDER_ADDRESS: "not an address" }, runtimeEnvSchema)).toHaveLength(1);
   });
 
   it("refuse google rooms without the three Google variables, and values that are not one of the words", () => {
