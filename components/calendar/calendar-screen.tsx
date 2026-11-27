@@ -22,23 +22,7 @@ const isMeetingStatus = (value: string): value is MeetingStatus => (MEETING_STAT
 const button = "inline-flex h-8 items-center justify-center rounded-sm px-3 text-body font-semibold transition-colors max-md:h-10";
 
 function Legend({ view }: { readonly view: CalendarView }) {
-  const items =
-    view === "day"
-      ? [
-          ["bg-green-soft", "Free"],
-          ["bg-navy-07", "Busy"],
-          ["bg-navy-03", "Too soon to book"],
-          ["bg-navy-04", "Not working"],
-        ]
-      : view === "week"
-        ? [
-            ["bg-green-soft", "How many people are free"],
-            ["bg-blue-soft", "Meeting"],
-          ]
-        : [
-            ["bg-blue-soft", "Meeting"],
-            ["bg-green-soft", "Free times left"],
-          ];
+  const items = view === "day" ? [["bg-navy-07", "Booked"]] : [["bg-blue-soft", "Meeting"]];
   return (
     <ul className="flex flex-wrap gap-x-4 gap-y-1 px-5 pb-3 text-label text-ink-muted" aria-label="What the colours mean">
       {items.map(([swatch, label]) => (
@@ -87,7 +71,7 @@ function MeetingList({ meetings }: { readonly meetings: readonly CalendarMeeting
 }
 
 /**
- * The calendar of a role: the people of one client, when each is free or busy, and the meetings the viewer may read. Month, week and day, the client chosen
+ * The calendar of a role: the people of one client, the time each has booked, and the meetings the viewer may read. Month, week and day, the client chosen
  * where there is a choice. All of it is in the address, so a link opens the same view. Laid out in the viewer's own time zone.
  */
 export function CalendarScreen({ data, query, basePath, now }: { readonly data: CalendarData; readonly query: CalendarQuery; readonly basePath: string; readonly now: string }) {
@@ -169,11 +153,11 @@ export function CalendarScreen({ data, query, basePath, now }: { readonly data: 
             This client has nobody on its team to show.
           </EmptyState>
         ) : query.view === "day" ? (
-          <DayGrid people={data.people} dayKey={query.date} zone={zone} now={nowDate} />
+          <DayGrid people={data.people} dayKey={query.date} zone={zone} />
         ) : query.view === "week" ? (
-          <WeekGrid people={data.people} days={days} meetings={data.meetings} zone={zone} now={nowDate} todayKey={todayKey} dayHref={dayHref} />
+          <WeekGrid days={days} meetings={data.meetings} zone={zone} todayKey={todayKey} dayHref={dayHref} />
         ) : (
-          <MonthGrid people={data.people} dateKey={query.date} meetings={data.meetings} zone={zone} now={nowDate} todayKey={todayKey} dayHref={dayHref} />
+          <MonthGrid dateKey={query.date} meetings={data.meetings} zone={zone} todayKey={todayKey} dayHref={dayHref} />
         )}
       </Panel>
       <MeetingList meetings={shown} />
