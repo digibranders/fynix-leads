@@ -53,6 +53,11 @@ export function CampaignBriefButton({ name, brief }: { readonly name: string; re
       brief.pitchIntroduction, brief.pitchServices, brief.pitchDifferentiator, brief.pitchCollaterals, brief.pitchCaseStudies, brief.qualifyingQuestions, brief.firstEmail, brief.secondEmail,
     ].every((value) => value.trim() === "") &&
     brief.industries.length + brief.jobTitles.length + brief.technologies.length + brief.qualifyingItems.length === 0;
+  // A section with nothing in it is left out, so the brief shows what Fynix wrote and no empty headings (new campaigns have no budget, authority, need or timeline answers).
+  const filled = (...values: readonly string[]) => values.some((value) => !isHtmlEmpty(value));
+  const hasQualification = filled(brief.bantBudget, brief.bantAuthority, brief.bantNeed, brief.bantTimeline);
+  const hasBrand = filled(brief.pitchIntroduction, brief.pitchServices, brief.pitchDifferentiator, brief.pitchCollaterals, brief.pitchCaseStudies);
+  const hasQuestions = qualifyingItemsFor(brief.qualifyingItems, brief.qualifyingQuestions).length > 0;
   return (
     <>
       <Button type="button" variant="secondary" size="sm" onClick={() => setOpen(true)}>
@@ -60,7 +65,7 @@ export function CampaignBriefButton({ name, brief }: { readonly name: string; re
         View brief
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[85dvh] max-w-xl gap-4 overflow-y-auto">
+        <DialogContent className="max-h-[85dvh] gap-4 overflow-y-auto sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle>{name}: brief</DialogTitle>
             <DialogDescription>What this campaign looks for and how a lead is qualified. Fynix keeps it up to date.</DialogDescription>
@@ -80,35 +85,41 @@ export function CampaignBriefButton({ name, brief }: { readonly name: string; re
                 <Line label="Technologies" value={brief.technologies} />
                 <Line label="Ideal customer" value={brief.icp} />
               </Section>
-              <Section title="Qualification">
-                <Line label="Budget" value={brief.bantBudget} />
-                <Line label="Authority" value={brief.bantAuthority} />
-                <Line label="Need" value={brief.bantNeed} />
-                <Line label="Timeline" value={brief.bantTimeline} />
-              </Section>
-              <Section title="Brand and service information">
-                <RichLine label="How the client is introduced" value={brief.pitchIntroduction} />
-                <RichLine label="Services" value={brief.pitchServices} />
-                <RichLine label="What sets them apart" value={brief.pitchDifferentiator} />
-                <RichLine label="Marketing collaterals" value={brief.pitchCollaterals} />
-                <RichLine label="Case studies" value={brief.pitchCaseStudies} />
-              </Section>
-              <Section title="Critical qualifying questions">
-                {qualifyingItemsFor(brief.qualifyingItems, brief.qualifyingQuestions).length === 0 ? null : (
+              {hasQualification ? (
+                <Section title="Qualification">
+                  <Line label="Budget" value={brief.bantBudget} />
+                  <Line label="Authority" value={brief.bantAuthority} />
+                  <Line label="Need" value={brief.bantNeed} />
+                  <Line label="Timeline" value={brief.bantTimeline} />
+                </Section>
+              ) : null}
+              {hasBrand ? (
+                <Section title="Brand and service information">
+                  <RichLine label="How the client is introduced" value={brief.pitchIntroduction} />
+                  <RichLine label="Services" value={brief.pitchServices} />
+                  <RichLine label="What sets them apart" value={brief.pitchDifferentiator} />
+                  <RichLine label="Marketing collaterals" value={brief.pitchCollaterals} />
+                  <RichLine label="Case studies" value={brief.pitchCaseStudies} />
+                </Section>
+              ) : null}
+              {hasQuestions ? (
+                <Section title="Critical qualifying questions">
                   <div>
                     <QualifyingQuestionsView items={brief.qualifyingItems} legacyText={brief.qualifyingQuestions} />
                   </div>
-                )}
-              </Section>
+                </Section>
+              ) : null}
               {brief.firstEmail.trim() === "" && brief.secondEmail.trim() === "" ? null : (
                 <Section title="Email copies">
                   <Line label="First email" value={brief.firstEmail} />
                   <Line label="Second email" value={brief.secondEmail} />
                 </Section>
               )}
-              <Section title="Instructions">
-                <Line label="From Fynix" value={brief.instructions} />
-              </Section>
+              {brief.instructions.trim() === "" ? null : (
+                <Section title="Instructions">
+                  <Line label="From Fynix" value={brief.instructions} />
+                </Section>
+              )}
             </>
           )}
         </DialogContent>

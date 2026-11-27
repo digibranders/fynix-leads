@@ -35,7 +35,7 @@ describe("agreementProgress", () => {
     for (const side of ["client", "coordinator"] as const) {
       for (const facts of [null, { version: 1, clientAcceptedAt: null, coordinatorAcceptedAt: null }, { version: 1, clientAcceptedAt: T, coordinatorAcceptedAt: null }, { version: 1, clientAcceptedAt: T, coordinatorAcceptedAt: T }]) {
         const progress = agreementProgress(side, facts, false);
-        expect(`${progress.title} ${progress.body}`).not.toMatch(/[–—!]/);
+        expect(`${progress.title} ${progress.body}`).not.toMatch(/[\u2013\u2014!]/);
       }
     }
   });
