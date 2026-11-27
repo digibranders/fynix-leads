@@ -148,7 +148,7 @@ export function RichEditor({ id, value, onChange, label, invalid = false, descri
     extensions: EXTENSIONS,
     content: viewHtml(value),
     immediatelyRender: false,
-    editorProps: { attributes: { id, role: "textbox", "aria-multiline": "true", "aria-label": label, ...(describedBy === undefined ? {} : { "aria-describedby": describedBy }), class: cn("rich px-3 py-2.5 text-[13.5px] outline-none", minHeight) } },
+    editorProps: { attributes: { id, role: "textbox", "aria-multiline": "true", "aria-label": label, ...(describedBy === undefined ? {} : { "aria-describedby": describedBy }), class: cn("rich px-3 py-2.5 text-[13.5px] outline-none [&_em]:italic [&_strong]:font-bold [&_u]:underline", minHeight) } },
     onUpdate: ({ editor: current }) => {
       const html = current.isEmpty ? "" : current.getHTML();
       lastEmitted.current = html;
@@ -166,7 +166,7 @@ export function RichEditor({ id, value, onChange, label, invalid = false, descri
   return (
     <div className={cn(CONTROL, "flex flex-col rounded-sm focus-within:bg-surface focus-within:shadow-[inset_0_0_0_2px_var(--navy)]")} aria-invalid={invalid ? true : undefined}>
       {editor === null ? <div className="h-9 shadow-[inset_0_-1px_0_var(--line)]" /> : <Toolbar editor={editor} />}
-      {editor === null ? <div className={cn("rich px-3 py-2.5 text-[13.5px]", minHeight)} dangerouslySetInnerHTML={{ __html: viewHtml(value) }} /> : <EditorContent editor={editor} />}
+      {editor === null ? <div className={cn("rich px-3 py-2.5 text-[13.5px] [&_em]:italic [&_strong]:font-bold [&_u]:underline", minHeight)} dangerouslySetInnerHTML={{ __html: viewHtml(value) }} /> : <EditorContent editor={editor} />}
     </div>
   );
 }

@@ -157,13 +157,13 @@ interface Sent {
 }
 
 /** An agency submits a lead whose prospect has an email and a phone, so a notice that leaked either would show. */
-async function sent(from: "coordinator" | "partner" = "coordinator", time = nextWeekdayAt(10, 3)): Promise<Sent> {
+async function sent(from: "coordinator" | "partner" = "coordinator", time = nextWeekdayAt(10, 3), withAlias = true): Promise<Sent> {
   counter += 1;
   const sender = from === "coordinator" ? cast.coordinator : cast.partner;
   const email = `marta${counter}@nordvik-cold.example`;
   await submitLead(agencyDb(), rig.deps(), sender, {
     campaignId: cast.campaignId,
-    aliasIdentityId: from === "coordinator" ? cast.coordinatorAlias : cast.partnerAlias,
+    ...(withAlias ? { aliasIdentityId: from === "coordinator" ? cast.coordinatorAlias : cast.partnerAlias } : {}),
     hostMemberId: cast.hostMemberId,
     prospectName: `Marta Lindqvist ${counter}`,
     prospectTitle: "Head of Logistics",
@@ -355,6 +355,17 @@ describe("a submitted lead, a proposal of other times and a booked meeting", () 
     expect(booking?.params).toMatchObject({ ref: one.publicRef, calendar: { sequence: 0 } });
     expect(booking?.params.meetUrl).toBeNull();
     await ownerDb().update(member).set({ meetingEmails: true }).where(eq(member.userId, cast.clientColleague.userId));
+  });
+
+  it("signs a prospect letter in the client's name when the lead has no alias, and sets no reply address", async () => {
+    emailsOn();
+    await prospectEmailOn();
+    const lead = await sent("coordinator", nextWeekdayAt(10, 3), false);
+    await clientReviewLead(clientDb(), rig.deps(), cast.clientActor, { leadId: lead.leadId, action: "accept", selectedMeetingTime: lead.time });
+    const [letter] = await mails("prospect_confirmed");
+    const brand = rig.world().campaigns[0]?.client.name;
+    expect(letter).toMatchObject({ senderName: brand, replyTo: null, link: null, status: "pending" });
+    expect(letter?.params).toMatchObject({ signerName: brand, signerTitle: "Meetings team", clientBrand: brand });
   });
 
   it("writes no prospect letter until the campaign has a privacy link and the switch, and then writes exactly one, in the alias's name", async () => {

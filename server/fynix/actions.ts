@@ -7,6 +7,7 @@ import { fieldErrors, type FormState } from "@/lib/fynix/form-state";
 import { parseHoursGrid } from "@/lib/fynix/hours-form";
 import { sendQueuedMail } from "@/server/domain";
 import { publishAgreement } from "@/server/domain/agreements";
+import { DomainError } from "@/server/domain/errors";
 import { addHostBlock, removeHostBlock, setHostHours } from "@/server/domain/availability";
 import {
   memberDetailsSchema,
@@ -131,7 +132,16 @@ export async function createCampaignAction(_previous: FormState, formData: FormD
     labels: CAMPAIGN_LABELS,
     perform: async (deps, actor, input) => {
       const created = await createCampaign(deps, actor, input);
-      return { redirectTo: `/fynix/campaigns/${created.publicRef}` };
+      // The agreement is the next thing the campaign needs, so the admin lands on it. When it is published now, it goes with the same numbers the campaign has.
+      if (field(formData, "publishAgreement") !== "later") {
+        try {
+          await publishAgreement(deps, actor, { campaignId: created.id, monthlyTarget: Number(field(formData, "monthlyTarget")), totalTarget: Number(field(formData, "totalTarget")), rules: field(formData, "agreementRules").trim() });
+        } catch (error) {
+          // The campaign stands. The Agreements tab it opens on says nothing is published and offers to publish it.
+          if (!(error instanceof DomainError)) throw error;
+        }
+      }
+      return { redirectTo: `/fynix/campaigns/${created.publicRef}/agreements` };
     },
   });
 }

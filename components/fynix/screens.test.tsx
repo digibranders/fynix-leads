@@ -220,6 +220,7 @@ const header: CampaignHeader = {
   clientContacts: [],
   activeHostCount: 3,
   closedAt: null,
+  goLive: null,
   brief: { startDate: "2026-12-01", endDate: "2027-05-31", monthlyTarget: 12, totalTarget: 72, geography: "", industries: [], companySize: "", icp: "", jobTitles: [], seniority: "", technologies: [], bantBudget: "", bantAuthority: "", bantNeed: "", bantTimeline: "", instructions: "", pitchIntroduction: "", pitchServices: "", pitchDifferentiator: "", pitchCollaterals: "", pitchCaseStudies: "", qualifyingQuestions: "", qualifyingItems: [], firstEmail: "", secondEmail: "", primaryContactId: null, internalNotes: null },
 };
 
@@ -362,6 +363,17 @@ describe("Clients", () => {
 });
 
 describe("Campaign header", () => {
+  it("lists what a campaign being set up still needs, and says when it is ready", () => {
+    const waiting = renderToStaticMarkup(<CampaignTitle campaign={{ ...header, status: "draft", goLive: { agreed: false, clientAccepted: true, coordinatorAccepted: false, hasHost: true, published: true } }} />);
+    expect(waiting).toContain("Before it can go live");
+    expect(waiting).toContain("Accepted by the coordinator");
+    expect(waiting).toContain("/fynix/campaigns/CMP-7Q2X/agreements");
+    const ready = renderToStaticMarkup(<CampaignTitle campaign={{ ...header, status: "draft", goLive: { agreed: true, clientAccepted: true, coordinatorAccepted: true, hasHost: true, published: true } }} />);
+    expect(ready).toContain("Ready to go live");
+    expect(renderToStaticMarkup(<CampaignTitle campaign={header} />)).not.toContain("Before it can go live");
+  });
+
+
   it("shows the status, the parties, the zone and the four sub-pages, and Edit only for an admin", () => {
     const admin = renderToStaticMarkup(<CampaignTitle campaign={header} canWrite />);
     expect(admin).toContain("Active");

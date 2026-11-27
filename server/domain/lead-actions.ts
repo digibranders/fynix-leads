@@ -46,7 +46,7 @@ export async function submitLeadAction(
 
   const input = {
     campaignId: getField(formData, "campaignId"),
-    aliasIdentityId: getField(formData, "aliasIdentityId"),
+    aliasIdentityId: getField(formData, "aliasIdentityId") || undefined,
     hostMemberId: getField(formData, "hostMemberId"),
     prospectName: getField(formData, "prospectName"),
     prospectTitle: getField(formData, "prospectTitle"),
@@ -68,7 +68,6 @@ export async function submitLeadAction(
   // The choices a person can forget are named in plain words, instead of a field name and a format error.
   if (getField(formData, "draftId") === "") {
     if (input.campaignId === "") return { status: "error", message: "Choose a campaign." };
-    if (input.aliasIdentityId === "") return { status: "error", message: "Choose a client alias." };
   }
   // A lead is submitted with one time and the people to invite. The older way, up to three times for the client to choose from, is no longer offered.
   if (proposedTimes.length === 0) return { status: "error", message: "Pick a day and a start time for the meeting." };

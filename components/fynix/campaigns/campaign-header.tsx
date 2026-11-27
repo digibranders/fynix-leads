@@ -6,6 +6,7 @@ import { formatDate, meetingLength, zoneCity } from "@/lib/fynix/format";
 import type { CampaignHeader } from "@/server/domain/campaign-overview";
 import { PencilSimple } from "@phosphor-icons/react/dist/ssr";
 import { EditCampaignButton } from "./campaign-edit-actions";
+import { GoLiveChecklist } from "./go-live-checklist";
 import { CloseCampaignButton, MakeActiveButton, ReopenButton } from "./campaign-lifecycle-actions";
 import { CampaignTabs } from "./campaign-tabs";
 
@@ -49,6 +50,7 @@ export function CampaignTitle({ campaign, canWrite = false }: { campaign: Campai
         }
         actions={canWrite ? <Actions campaign={campaign} /> : null}
       />
+      <GoLiveChecklist campaign={campaign} />
       <CampaignTabs reference={campaign.publicRef} hostCount={campaign.activeHostCount} />
     </div>
   );

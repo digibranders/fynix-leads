@@ -73,6 +73,18 @@ describe("splitSections", () => {
     expect(sections[1]?.html).toContain("<ul>");
     expect(richToText(sections[2]?.html ?? "")).toBe("Fast.");
   });
+  it("keeps nested bullets nested, and bold and italic with them", () => {
+    const html = "<h2>Services</h2><ul><li><p><b>Billing:</b> invoices plus:</p><ul><li><p>Cost per mile</p></li><li><p>Empty running</p></li></ul></li><li><p><i>Integrations</i></p></li></ul>";
+    const [section] = splitSections(pasteToBlocks({ html }), matchers);
+    expect(section?.html).toBe("<ul><li><p><strong>Billing:</strong> invoices plus:</p><ul><li><p>Cost per mile</p></li><li><p>Empty running</p></li></ul></li><li><p><em>Integrations</em></p></li></ul>");
+  });
+  it("does not take a sentence that ends in a colon for a heading", () => {
+    const html = "<h2>Marketing collateral</h2><p>Share these when a prospect asks for something to read before the call:</p><ul><li>Overview</li></ul>";
+    const sections = splitSections(pasteToBlocks({ html }), [{ key: "collateral", test: /collateral/i }] as const);
+    expect(sections.map((section) => section.key)).toEqual(["collateral"]);
+    expect(sections[0]?.html).toContain("Share these when a prospect asks");
+    expect(sections[0]?.html).toContain("<ul>");
+  });
   it("gives text before any heading a null key", () => {
     const sections = splitSections(pasteToBlocks({ text: "Some words\nServices:\nSEO" }), matchers);
     expect(sections.map((section) => section.key)).toEqual([null, "services"]);

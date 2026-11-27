@@ -8,5 +8,5 @@ import { viewHtml } from "@/lib/rich-text-view";
 export function RichText({ value, className }: { readonly value: string; readonly className?: string }) {
   const html = viewHtml(value);
   if (html === "") return null;
-  return <div className={cn("rich whitespace-normal", className)} dangerouslySetInnerHTML={{ __html: html }} />;
+  return <div className={cn("rich whitespace-normal [&_em]:italic [&_strong]:font-bold [&_u]:underline", className)} dangerouslySetInnerHTML={{ __html: html }} />;
 }
