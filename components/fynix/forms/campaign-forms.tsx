@@ -1,9 +1,11 @@
 "use client";
 
-import { closeCampaignAction, publishAgreementAction, setLetterOpeningAction, setPrivacyLinkAction, setShareAction, updateCampaignAction } from "@/server/fynix/actions";
-import type { CampaignHeader } from "@/server/domain/campaign-overview";
+import { closeCampaignAction, publishAgreementAction, setLetterOpeningAction, setPrivacyLinkAction, setShareAction } from "@/server/fynix/actions";
 import { ActionForm } from "./action-form";
-import { FormGroup, Hidden, NumberField, SelectField, TextAreaField, TextField, TimeZoneField } from "./form-parts";
+import { BrandFields, QualificationFields, QuestionsFields } from "./campaign-rich-fields";
+import { FormGroup, Hidden, NumberField, SelectField, TextAreaField, TextField } from "./form-parts";
+
+export { BrandFields, QualificationFields, QuestionsFields };
 
 type Defaults = {
   readonly monthlyTarget: number;
@@ -48,89 +50,6 @@ export function ShareForm({ campaignId, options, agency, suggested }: { campaign
           </>
         )}
         <NumberField name="monthlyShare" label="Meetings per month" defaultValue={agency !== undefined ? String(agency.monthlyShare) : suggested === undefined || suggested === 0 ? "" : String(suggested)} />
-      </FormGroup>
-    </ActionForm>
-  );
-}
-
-type Brief = CampaignHeader["brief"];
-
-/** What the campaign looks for: who the decision-makers are, the industries and the markets. Job titles and industries are lists, separated with commas. */
-export function QualificationFields({ brief }: { brief: Brief | null }) {
-  return (
-    <FormGroup title="Qualification criteria">
-      <TextField name="jobTitles" label="Target decision-makers" defaultValue={brief?.jobTitles.join(", ") ?? ""} helper="Job titles. Separate with commas." />
-      <TextField name="industries" label="Target industries" defaultValue={brief?.industries.join(", ") ?? ""} helper="Separate with commas." />
-      <TextField name="geography" label="Target geographical markets" defaultValue={brief?.geography ?? ""} />
-    </FormGroup>
-  );
-}
-
-/** The answers about the client's brand and services, in the order of the set-up sheet. Free text. */
-export function BrandFields({ brief }: { brief: Brief | null }) {
-  return (
-    <FormGroup title="Brand and service information">
-      <TextAreaField name="pitchIntroduction" label="How do you introduce your brand to prospects?" defaultValue={brief?.pitchIntroduction ?? ""} />
-      <TextAreaField name="pitchServices" label="What services do you offer?" defaultValue={brief?.pitchServices ?? ""} />
-      <TextAreaField name="pitchDifferentiator" label="What is your key differentiating factor (USP)?" defaultValue={brief?.pitchDifferentiator ?? ""} />
-      <TextAreaField name="pitchCollaterals" label="What marketing collaterals are available?" defaultValue={brief?.pitchCollaterals ?? ""} helper="Paste links or describe them." />
-      <TextAreaField name="pitchCaseStudies" label="Are there any case studies or success stories?" defaultValue={brief?.pitchCaseStudies ?? ""} />
-    </FormGroup>
-  );
-}
-
-/** The questions the sales team asks a prospect to qualify them for a meeting. Free text. */
-export function QuestionsFields({ brief }: { brief: Brief | null }) {
-  return (
-    <FormGroup title="Critical qualifying questions">
-      <TextAreaField name="qualifyingQuestions" label="Questions to ask a prospect" defaultValue={brief?.qualifyingQuestions ?? ""} helper="The 5 to 6 key questions our sales team asks prospects to qualify them for a meeting. One per line." />
-    </FormGroup>
-  );
-}
-
-/** The two emails sent to prospects: the first introduction, and the follow-up. Free text. */
-export function EmailFields({ brief }: { brief: Brief | null }) {
-  return (
-    <FormGroup title="Email copies">
-      <TextAreaField name="firstEmail" label="First email" defaultValue={brief?.firstEmail ?? ""} helper="The initial introduction, highlighting the key offerings and value proposition." />
-      <TextAreaField name="secondEmail" label="Second email" defaultValue={brief?.secondEmail ?? ""} helper="The follow-up for prospects who do not respond to the first email." />
-    </FormGroup>
-  );
-}
-
-/** Changes a campaign's details, brief and settings. Its status changes with Make active, Close and Reopen on the campaign page. */
-export function EditCampaignForm({ campaign }: { campaign: CampaignHeader }) {
-  const { brief } = campaign;
-  return (
-    <ActionForm action={updateCampaignAction} submitLabel="Save changes" pendingLabel="Saving">
-      <Hidden name="campaignId" value={campaign.id} />
-      <FormGroup title="Campaign">
-        <TextField name="name" label="Campaign name" defaultValue={campaign.name} />
-        <SelectField
-          name="primaryContactId"
-          label="Contact person"
-          options={campaign.clientContacts.map((person) => ({ value: person.id, label: person.jobTitle === null ? person.name : `${person.name}, ${person.jobTitle}` }))}
-          defaultValue={brief.primaryContactId ?? ""}
-          placeholder="No contact person chosen"
-          helper={campaign.clientContacts.length === 0 ? "This client has no contact people yet. Add them on the client page." : "Approves the leads and gives feedback for this campaign."}
-        />
-        <div className="grid grid-cols-2 gap-3">
-          <TextField name="startDate" label="Starts" type="date" defaultValue={brief.startDate} />
-          <TextField name="endDate" label="Ends" type="date" defaultValue={brief.endDate} />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <NumberField name="monthlyTarget" label="Meetings per month" defaultValue={String(brief.monthlyTarget)} />
-          <NumberField name="totalTarget" label="Meetings in total" defaultValue={String(brief.totalTarget)} />
-        </div>
-        <TimeZoneField defaultValue={campaign.timeZone} helper="Counting uses it. Search, or type Area/City." />
-        <NumberField name="meetingMinutes" label="Meeting length, minutes" defaultValue={String(campaign.meetingMinutes)} />
-      </FormGroup>
-      <BrandFields brief={brief} />
-      <QualificationFields brief={brief} />
-      <QuestionsFields brief={brief} />
-      <EmailFields brief={brief} />
-      <FormGroup title="For Fynix">
-        <TextAreaField name="internalNotes" label="Internal notes" defaultValue={brief.internalNotes ?? ""} helper="For Fynix only. Nobody outside Fynix sees this." />
       </FormGroup>
     </ActionForm>
   );

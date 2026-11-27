@@ -1,5 +1,8 @@
 import { z } from "zod";
 import { CAMPAIGN_STATUSES } from "@/lib/domain/campaign-status";
+import { MAX_QUALIFYING_CHARS, MAX_QUALIFYING_ITEMS } from "@/lib/qualifying-items";
+import { MAX_QUALIFICATION_CHECKS } from "@/lib/qualification-checks";
+import { isRichEmpty, richToHtml } from "@/lib/rich-text";
 import { MEETING_MINUTES_MAX, MEETING_MINUTES_MIN, isIanaTimeZone } from "@/lib/domain/campaign-settings";
 
 /**
@@ -9,6 +12,16 @@ import { MEETING_MINUTES_MAX, MEETING_MINUTES_MIN, isIanaTimeZone } from "@/lib/
  */
 const name = (max: number) => z.string().trim().min(1, "is required").max(max, `must be at most ${max} characters`);
 const optionalText = (max: number) => z.string().trim().max(max, `must be at most ${max} characters`);
+/** Rich text from the editor: cleaned to the small subset (lib/rich-text.ts) before it is checked or saved; plain text becomes paragraphs and empty markup becomes empty. */
+const richText = (max: number) =>
+  z
+    .string()
+    .transform((value) => {
+      const html = richToHtml(value);
+      return isRichEmpty(html) ? "" : html;
+    })
+    .pipe(z.string().max(max, `must be at most ${max} characters`));
+const qualifyingItem = z.object({ question: richText(MAX_QUALIFYING_CHARS), answer: richText(MAX_QUALIFYING_CHARS) }).strict();
 const list = z.array(name(80)).max(30, "must have at most 30 entries");
 const count = z.number().int().min(0).max(1_000_000);
 
@@ -136,12 +149,17 @@ const campaignOptional = {
   /** Fynix only: no tenant role can read it. */
   internalNotes: optionalText(4000).nullable(),
   /** What is taken when the campaign is set up: free text, Fynix only (migration 0083). */
-  pitchIntroduction: optionalText(4000),
-  pitchServices: optionalText(4000),
-  pitchDifferentiator: optionalText(4000),
-  pitchCollaterals: optionalText(4000),
-  pitchCaseStudies: optionalText(4000),
+  pitchIntroduction: richText(20_000),
+  pitchServices: richText(20_000),
+  pitchDifferentiator: richText(20_000),
+  pitchCollaterals: richText(20_000),
+  pitchCaseStudies: richText(20_000),
   qualifyingQuestions: optionalText(6000),
+  /** The questions with the answers hoped for, rich text (migration 0110). A row with neither a question nor an answer is dropped. */
+  qualifyingItems: z
+    .array(qualifyingItem)
+    .max(MAX_QUALIFYING_ITEMS, `must have at most ${MAX_QUALIFYING_ITEMS} questions`)
+    .transform((items) => items.filter((item) => item.question !== "" || item.answer !== "")),
   firstEmail: optionalText(10_000),
   secondEmail: optionalText(10_000),
   /** One of the client's contact people, who approves leads for this campaign. `null` clears it. */
@@ -326,6 +344,12 @@ export const removeExclusionSchema = z
   .strict();
 export type RemoveExclusionInput = z.infer<typeof removeExclusionSchema>;
 
+/** One check of the lead's checklist (lib/qualification-checks.ts): what was asked, what passing looks like, and whether the agency ticked it. */
+const qualificationCheck = z
+  .object({ kind: z.enum(["criteria", "question"]), label: z.string().trim().min(1, "is required").max(1000, "must be at most 1000 characters"), expected: z.string().trim().max(2000, "must be at most 2000 characters"), passed: z.boolean() })
+  .strict();
+const qualificationChecks = z.array(qualificationCheck).max(MAX_QUALIFICATION_CHECKS, `must have at most ${MAX_QUALIFICATION_CHECKS} checks`);
+
 export const submitLeadSchema = z
   .object({
     campaignId: z.uuid(),
@@ -343,11 +367,18 @@ export const submitLeadSchema = z
     bantAuthority: name(500),
     bantNeed: name(500),
     bantTimeline: name(500),
+    /** The checklist and the agency's note. A check left unticked needs the note to say why: the lead still goes through (decision of 2026-11-27). */
+    qualificationChecks: qualificationChecks.default([]),
+    qualificationNotes: optionalText(2000).default(""),
     proposedTimes: z.array(instant).min(1, "at least one proposed meeting time is required").max(3, "at most 3 proposed meeting times"),
     /** One slot and the client people to invite to it (calendar spec of 2026-11-26): `proposedTimes` then holds that one time and `hostMemberId` is the first person invited. */
     inviteeMemberIds: z.array(z.uuid()).min(1, "invite at least one person").max(20, "at most 20 people").optional(),
   })
-  .strict();
+  .strict()
+  .refine((input) => input.qualificationChecks.every((check) => check.passed) || input.qualificationNotes !== "", {
+    path: ["qualificationNotes"],
+    message: "must say which checks were not passed, and why",
+  });
 export type SubmitLeadInput = z.input<typeof submitLeadSchema>;
 export type SubmitLeadParsed = z.output<typeof submitLeadSchema>;
 
@@ -371,6 +402,8 @@ const draftFields = {
   bantAuthority: draftText(500).optional(),
   bantNeed: draftText(500).optional(),
   bantTimeline: draftText(500).optional(),
+  qualificationChecks: qualificationChecks.optional(),
+  qualificationNotes: optionalText(2000).optional(),
   proposedTimes: z.array(instant).max(3, "at most 3 proposed meeting times").optional(),
 };
 export const saveDraftSchema = z.object({ campaignId: z.uuid(), ...draftFields }).strict();

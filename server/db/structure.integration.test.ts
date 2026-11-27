@@ -693,7 +693,7 @@ describe("phase 1D: what a tenant role holds on the six set-up tables", () => {
     // Migrations 0054 and 0064: both tenant roles read the brief. Nobody but Fynix reads the notes or the settings.
     const brief = ["geography", "industries", "company_size", "icp", "job_titles", "seniority", "technologies", "bant_budget", "bant_authority", "bant_need", "bant_timeline", "instructions"];
     // Migration 0084: and the answers taken when a campaign is set up. The contact person (primary_contact_id) is Fynix's alone.
-    const setUp = ["pitch_introduction", "pitch_services", "pitch_differentiator", "pitch_collaterals", "pitch_case_studies", "qualifying_questions", "first_email", "second_email"];
+    const setUp = ["pitch_introduction", "pitch_services", "pitch_differentiator", "pitch_collaterals", "pitch_case_studies", "qualifying_questions", "qualifying_items", "first_email", "second_email"];
     // Migration 0075: the client reads the privacy link of its campaigns and whether prospect email is on. An agency reads neither.
     const privacy = role === "leads_client" ? ["client_privacy_url", "prospect_email_enabled"] : [];
     expect([...campaignColumns].sort()).toEqual([...basics, ...brief, ...setUp, ...privacy].sort());

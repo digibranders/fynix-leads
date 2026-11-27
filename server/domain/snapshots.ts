@@ -1,4 +1,5 @@
 import type { JsonObject } from "@/server/domain/audit";
+import type { QualifyingItem } from "@/lib/qualifying-items";
 import type { OrganisationContact } from "@/server/domain/organisations";
 
 /**
@@ -82,6 +83,7 @@ export interface CampaignRow {
   readonly pitchCollaterals: string;
   readonly pitchCaseStudies: string;
   readonly qualifyingQuestions: string;
+  readonly qualifyingItems: readonly QualifyingItem[];
   readonly firstEmail: string;
   readonly secondEmail: string;
   readonly primaryContactId: string | null;
@@ -119,6 +121,7 @@ export function snapshotCampaign(row: CampaignRow): JsonObject {
     pitchCollaterals: row.pitchCollaterals,
     pitchCaseStudies: row.pitchCaseStudies,
     qualifyingQuestions: row.qualifyingQuestions,
+    qualifyingItems: row.qualifyingItems,
     firstEmail: row.firstEmail,
     secondEmail: row.secondEmail,
     primaryContactId: row.primaryContactId,

@@ -56,7 +56,7 @@ import { field, numberField, runAction } from "@/server/fynix/run-action";
 const CAMPAIGN_FIELDS = [
   "name", "clientOrgId", "agencyOrgId", "startDate", "endDate", "monthlyTarget", "totalTarget", "geography", "industries", "companySize", "icp", "jobTitles",
   "seniority", "technologies", "bantBudget", "bantAuthority", "bantNeed", "bantTimeline", "instructions", "internalNotes", "timeZone", "meetingMinutes", "status",
-  "pitchIntroduction", "pitchServices", "pitchDifferentiator", "pitchCollaterals", "pitchCaseStudies", "qualifyingQuestions", "firstEmail", "secondEmail", "primaryContactId",
+  "pitchIntroduction", "pitchServices", "pitchDifferentiator", "pitchCollaterals", "pitchCaseStudies", "qualifyingQuestions", "qualifyingItems", "firstEmail", "secondEmail", "primaryContactId",
 ] as const;
 
 const CAMPAIGN_LABELS = {
@@ -65,12 +65,21 @@ const CAMPAIGN_LABELS = {
   technologies: "Technologies", bantBudget: "Budget", bantAuthority: "Authority", bantNeed: "Need", bantTimeline: "Timeline", instructions: "Instructions",
   internalNotes: "Internal notes", timeZone: "Time zone", meetingMinutes: "Meeting length", status: "Status",
   pitchIntroduction: "Introduction", pitchServices: "Services", pitchDifferentiator: "What sets them apart", pitchCollaterals: "Collaterals", pitchCaseStudies: "Case studies",
-  qualifyingQuestions: "Qualifying questions", firstEmail: "First email", secondEmail: "Second email", primaryContactId: "Contact person",
+  qualifyingQuestions: "Qualifying questions", qualifyingItems: "Qualifying questions", firstEmail: "First email", secondEmail: "Second email", primaryContactId: "Contact person",
 } as const;
 
 /** "a, b, c" or one per line as a list of trimmed, non-empty entries. */
 function listField(formData: FormData, name: string): string[] {
   return field(formData, name).split(/[,\n]/).map((entry) => entry.trim()).filter((entry) => entry !== "");
+}
+
+/** The questions posted as JSON by the questions editor. Anything that is not a list of {question, answer} goes to the schema as it is, which refuses it. */
+function itemsField(formData: FormData): unknown {
+  try {
+    return JSON.parse(field(formData, "qualifyingItems") || "[]") as unknown;
+  } catch {
+    return "not a list";
+  }
 }
 
 /** The brief and settings of a campaign as the domain takes them. A blank time zone or length is left out, so the defaults apply. */
@@ -101,6 +110,7 @@ function campaignBody(formData: FormData) {
     pitchCollaterals: field(formData, "pitchCollaterals"),
     pitchCaseStudies: field(formData, "pitchCaseStudies"),
     qualifyingQuestions: field(formData, "qualifyingQuestions"),
+    qualifyingItems: itemsField(formData),
     firstEmail: field(formData, "firstEmail"),
     secondEmail: field(formData, "secondEmail"),
     ...(timeZone === "" ? {} : { timeZone }),

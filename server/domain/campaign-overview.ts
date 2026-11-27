@@ -10,6 +10,7 @@ import { DomainError } from "@/server/domain/errors";
 import { fynixRead, type FynixActor } from "@/server/domain/fynix-write";
 import { acceptedByBothSides, readAgreements, type AgreementHistory, type AgreementSide } from "@/server/domain/agreements";
 import { uuidSchema } from "@/server/domain/inputs";
+import type { QualifyingItem } from "@/lib/qualifying-items";
 import { parseInput } from "@/server/domain/parse";
 
 /**
@@ -99,6 +100,7 @@ export interface CampaignBrief {
   readonly pitchCollaterals: string;
   readonly pitchCaseStudies: string;
   readonly qualifyingQuestions: string;
+  readonly qualifyingItems: readonly QualifyingItem[];
   readonly firstEmail: string;
   readonly secondEmail: string;
   /** The client's contact person who approves leads for this campaign, if one is chosen. */
@@ -167,6 +169,7 @@ export async function readCampaignHeader(deps: DomainDeps, actor: FynixActor, pu
         pitchCollaterals: campaign.pitchCollaterals,
         pitchCaseStudies: campaign.pitchCaseStudies,
         qualifyingQuestions: campaign.qualifyingQuestions,
+        qualifyingItems: campaign.qualifyingItems,
         firstEmail: campaign.firstEmail,
         secondEmail: campaign.secondEmail,
         primaryContactId: campaign.primaryContactId,

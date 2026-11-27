@@ -9,7 +9,7 @@ import { firstBlockedLimit } from "@/server/auth/rate-limit";
 import { getDatabase } from "@/server/db/client";
 import { getDomain } from "@/server/domain";
 import { DomainError } from "@/server/domain/errors";
-import { draftInput } from "@/server/domain/lead-form-fields";
+import { draftInput, qualificationInput } from "@/server/domain/lead-form-fields";
 import { submitDraft, updateDraft } from "@/server/domain/lead-drafts";
 import { submitLead } from "@/server/domain/leads";
 
@@ -60,6 +60,7 @@ export async function submitLeadAction(
     bantAuthority: getField(formData, "bantAuthority"),
     bantNeed: getField(formData, "bantNeed"),
     bantTimeline: getField(formData, "bantTimeline"),
+    ...qualificationInput(formData),
     proposedTimes,
     inviteeMemberIds: inviteeMemberIds.length === 0 ? undefined : inviteeMemberIds,
   };

@@ -1,3 +1,4 @@
+import { QualificationChecklistView } from "@/components/leads/qualification-checklist-view";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -136,6 +137,7 @@ async function Review({ searchParams }: { searchParams: PageProps<"/client/revie
                 ]}
               />
               {selected.prospectNotes ? <Quote>{selected.prospectNotes}</Quote> : null}
+              <QualificationChecklistView checks={selected.qualification.checks} notes={selected.qualification.notes} />
             </div>
 
             <ReviewPanel

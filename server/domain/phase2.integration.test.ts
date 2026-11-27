@@ -182,9 +182,9 @@ describe("why an agency's campaign is not live", () => {
 
 describe("the client's brief of its own campaign", () => {
   it("reads the brief, never the internal notes, and not another client's campaign", async () => {
-    await updateCampaign(rig.deps(), rig.actor, campaignId, { geography: "Benelux", icp: "Cold chain operators", jobTitles: ["Head of Operations"], instructions: "Lead with the case study", pitchIntroduction: "We move chilled goods.", qualifyingQuestions: "What do you ship?", firstEmail: "Hello", secondEmail: "Following up", internalNotes: "INTERNAL margin is thin" });
+    await updateCampaign(rig.deps(), rig.actor, campaignId, { geography: "Benelux", icp: "Cold chain operators", jobTitles: ["Head of Operations"], instructions: "Lead with the case study", pitchIntroduction: "We move chilled goods.", qualifyingQuestions: "What do you ship?", qualifyingItems: [{ question: "How often?", answer: "Weekly" }], firstEmail: "Hello", secondEmail: "Following up", internalNotes: "INTERNAL margin is thin" });
     const brief = await readCampaignBrief(clientDb(), clientActor, campaignId);
-    expect(brief).toMatchObject({ geography: "Benelux", icp: "Cold chain operators", jobTitles: ["Head of Operations"], instructions: "Lead with the case study", pitchIntroduction: "We move chilled goods.", qualifyingQuestions: "What do you ship?", firstEmail: "Hello", secondEmail: "Following up" });
+    expect(brief).toMatchObject({ geography: "Benelux", icp: "Cold chain operators", jobTitles: ["Head of Operations"], instructions: "Lead with the case study", pitchIntroduction: "<p>We move chilled goods.</p>", qualifyingQuestions: "What do you ship?", qualifyingItems: [{ question: "<p>How often?</p>", answer: "<p>Weekly</p>" }], firstEmail: "Hello", secondEmail: "Following up" });
     expect(JSON.stringify(brief)).not.toContain("INTERNAL");
     expect(Object.keys(brief)).not.toContain("internalNotes");
     expect((await refusal(readCampaignBrief(clientDb(), otherClientActor, campaignId))).code).toBe("not-found");

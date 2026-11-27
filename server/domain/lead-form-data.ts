@@ -70,6 +70,8 @@ export async function loadDraftPrefill(db: Database, actor: TenantActor, publicR
     bantAuthority: row.bantAuthority,
     bantNeed: row.bantNeed,
     bantTimeline: row.bantTimeline,
+    qualificationChecks: row.qualificationChecks,
+    qualificationNotes: row.qualificationNotes,
     proposedTimes: timesOf(row.proposedTimes),
   };
 }

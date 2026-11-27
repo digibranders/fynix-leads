@@ -4,7 +4,7 @@ import type { LeadActionContext } from "@/components/leads/lead-action-bar";
 import type { LeadRecord } from "@/server/domain/lead-record";
 
 // The forms call server actions, which need a running app. The screens only need their buttons and fields to render.
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => undefined, refresh: () => undefined }) }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/client/leads/l1", useRouter: () => ({ push: () => undefined, refresh: () => undefined }) }));
 const action = async () => ({ status: "idle" as const });
 vi.mock("@/server/domain/lead-flow-actions", () => ({ pickTimeAction: action, proposeTimesAction: action, rejectLeadAction: action, decideLeadAction: action, recordOutcomeAction: action, withdrawLeadAction: action, proposePostponementAction: action, pickPostponementAction: action, contestOutcomeAction: action, requestRejectionReviewAction: action }));
 vi.mock("@/server/fynix/actions", () => ({ overturnRejectionAction: action, fynixRecordOutcomeAction: action }));
@@ -153,6 +153,7 @@ const record = (over: Partial<LeadRecord> = {}): LeadRecord => ({
   campaignStatus: "active",
   prospect: { name: "Priya Nair", title: "CFO", company: "Harbour Freight", domain: "harbour.example", linkedinUrl: "https://linkedin.com/in/priya", email: "priya@harbour.example", phone: null, notes: null },
   bant: { budget: "50k", authority: "Signs", need: "Audit", timeline: "Q1" },
+  qualification: { checks: [], notes: "" },
   proposedTimes: [],
   scheduledMeetingTime: future,
   host: { name: "Daniel Okafor", jobTitle: "Head of Sales" },
@@ -255,12 +256,14 @@ describe("drafts and the lead form", () => {
     expect(view({})).not.toContain("?show=drafts");
   });
   it("the lead form has Save draft beside Submit, and a draft starts it filled in with the campaign locked", () => {
-    const base = { campaigns: [{ id: "c1", name: "UK", clientOrgId: "k1", clientName: "Kestrel" }], aliases: [], teams: { c1: [{ memberId: "h1", displayName: "Daniel Okafor", timeZone: "Europe/London", hours: [1, 2, 3, 4, 5].map((weekday) => ({ weekday, startMinute: 540, endMinute: 1020 })), busy: [] }] }, leadsHref: "/agency/leads" };
+    const base = { campaigns: [{ id: "c1", name: "UK", clientOrgId: "k1", clientName: "Kestrel", checklist: [{ kind: "criteria" as const, label: "The prospect is a target decision-maker", expected: "COO", passed: false }, { kind: "question" as const, label: "Do you own a depot?", expected: "Yes", passed: false }] }], aliases: [], teams: { c1: [{ memberId: "h1", displayName: "Daniel Okafor", timeZone: "Europe/London", hours: [1, 2, 3, 4, 5].map((weekday) => ({ weekday, startMinute: 540, endMinute: 1020 })), busy: [] }] }, leadsHref: "/agency/leads" };
     const fresh = renderToStaticMarkup(<SubmitLeadForm {...base} />);
     expect(fresh).toContain("Save draft");
     expect(fresh).toContain("Submit lead");
     expect(fresh).toContain('name="draftId" value=""');
-    const prefill = { id: "d1", campaignId: "c1", aliasIdentityId: null, hostMemberId: "h1", prospectName: "Priya Nair", prospectTitle: "", prospectCompany: "Harbour Freight", prospectDomain: "", prospectLinkedinUrl: "", prospectEmail: "", prospectPhone: null, prospectNotes: "Call back", bantBudget: "", bantAuthority: "", bantNeed: "", bantTimeline: "", proposedTimes: ["2026-11-27T09:00:00.000Z"] };
+    // The checklist is the last group, once a campaign is known; a fresh form has none to show yet.
+    expect(fresh).toContain("Qualification checklist");
+    const prefill = { id: "d1", campaignId: "c1", aliasIdentityId: null, hostMemberId: "h1", prospectName: "Priya Nair", prospectTitle: "", prospectCompany: "Harbour Freight", prospectDomain: "", prospectLinkedinUrl: "", prospectEmail: "", prospectPhone: null, prospectNotes: "Call back", bantBudget: "", bantAuthority: "", bantNeed: "", bantTimeline: "", qualificationChecks: [], qualificationNotes: "", proposedTimes: ["2026-11-27T09:00:00.000Z"] };
     const filled = renderToStaticMarkup(<SubmitLeadForm {...base} draft={prefill} />);
     expect(filled).toContain('name="draftId" value="d1"');
     expect(filled).toContain('value="Priya Nair"');

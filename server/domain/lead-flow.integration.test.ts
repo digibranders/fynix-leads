@@ -217,6 +217,27 @@ describe("choosing a client team member for a lead", () => {
     expect(stored).toEqual({ hostMemberId: colleague.id, stage: "awaiting_client" });
   });
 
+  it("keeps the checklist and the note with the lead, needs the note when a check is not ticked, and shows both to the client", async () => {
+    const checks = [
+      { kind: "criteria" as const, label: "The prospect is a target decision-maker", expected: "COO", passed: true },
+      { kind: "question" as const, label: "Do you own a depot?", expected: "Yes", passed: false },
+    ];
+    const base = input(cast.hostMemberId, "Q");
+    // A check not ticked and no note: refused, and nothing is stored.
+    expect((await refusal(submitLead(agencyDb(), rig.deps(), cast.coordinator, { ...base, qualificationChecks: checks }))).code).toBe("invalid-input");
+    expect(await ownerDb().select({ id: lead.id }).from(lead).where(eq(lead.prospectEmail, "lead@teamchoiceq.example"))).toHaveLength(0);
+    // With the note it goes through, and the client reads the same checklist.
+    await submitLead(agencyDb(), rig.deps(), cast.coordinator, { ...base, qualificationChecks: checks, qualificationNotes: "They sub-contract their depots." });
+    const [stored] = await ownerDb().select({ id: lead.id, checks: lead.qualificationChecks, notes: lead.qualificationNotes }).from(lead).where(eq(lead.prospectEmail, "lead@teamchoiceq.example"));
+    expect(stored?.checks).toEqual(checks);
+    expect(stored?.notes).toBe("They sub-contract their depots.");
+    const seen = (await listClientLeads(clientDb(), cast.clientActor)).find((row) => row.id === stored?.id);
+    expect(seen?.qualificationChecks).toEqual(checks);
+    expect(seen?.qualificationNotes).toBe("They sub-contract their depots.");
+    // A lead with every check ticked needs no note.
+    await submitLead(agencyDb(), rig.deps(), cast.coordinator, { ...input(cast.hostMemberId, "R"), qualificationChecks: checks.map((check) => ({ ...check, passed: true })) });
+  });
+
   it("refuses a person of another client, and a suspended person of this one", async () => {
     const otherClientMember = (await ownerDb().select({ id: member.id }).from(member).where(eq(member.userId, cast.otherClient.userId)))[0];
     if (otherClientMember === undefined) throw new Error("No other client member");

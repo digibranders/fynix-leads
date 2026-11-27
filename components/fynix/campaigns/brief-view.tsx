@@ -1,5 +1,9 @@
 import { Info } from "@phosphor-icons/react/dist/ssr";
+import { QualifyingQuestionsView } from "@/components/campaigns/qualifying-questions";
 import { Panel, PanelHeader } from "@/components/kit/panel";
+import { RichText } from "@/components/ui/rich-text";
+import { qualifyingItemsFor } from "@/lib/qualifying-items";
+import { isHtmlEmpty } from "@/lib/rich-text-view";
 import type { CampaignHeader } from "@/server/domain/campaign-overview";
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -11,6 +15,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
+const rich = (value: string): React.ReactNode => (isHtmlEmpty(value) ? <span className="text-ink-muted">Not set</span> : <RichText value={value} />);
 const text = (value: string): React.ReactNode => (value.trim() === "" ? <span className="text-ink-muted">Not set</span> : value);
 const list = (values: readonly string[]): React.ReactNode => (values.length === 0 ? <span className="text-ink-muted">Not set</span> : values.join(", "));
 
@@ -60,21 +65,24 @@ export function BriefView({ campaign }: { campaign: CampaignHeader }) {
             <Row label="Target geographical markets">{text(brief.geography)}</Row>
           </Group>
           <Group title="Critical qualifying questions">
-            <Row label="Questions">{text(brief.qualifyingQuestions)}</Row>
+            <Row label="Questions">{qualifyingItemsFor(brief.qualifyingItems, brief.qualifyingQuestions).length === 0 ? text("") : <QualifyingQuestionsView items={brief.qualifyingItems} legacyText={brief.qualifyingQuestions} />}</Row>
           </Group>
         </div>
         <Group title="Brand and service information">
-          <Row label="How the client is introduced">{text(brief.pitchIntroduction)}</Row>
-          <Row label="Services">{text(brief.pitchServices)}</Row>
-          <Row label="What sets them apart">{text(brief.pitchDifferentiator)}</Row>
-          <Row label="Marketing collaterals">{text(brief.pitchCollaterals)}</Row>
-          <Row label="Case studies">{text(brief.pitchCaseStudies)}</Row>
+          <Row label="How the client is introduced">{rich(brief.pitchIntroduction)}</Row>
+          <Row label="Services">{rich(brief.pitchServices)}</Row>
+          <Row label="What sets them apart">{rich(brief.pitchDifferentiator)}</Row>
+          <Row label="Marketing collaterals">{rich(brief.pitchCollaterals)}</Row>
+          <Row label="Case studies">{rich(brief.pitchCaseStudies)}</Row>
         </Group>
       </div>
-      <Group title="Email copies">
-        <Row label="First email">{text(brief.firstEmail)}</Row>
-        <Row label="Second email">{text(brief.secondEmail)}</Row>
-      </Group>
+      {/* The emails are not asked for any more; copies entered earlier still show. */}
+      {brief.firstEmail.trim() === "" && brief.secondEmail.trim() === "" ? null : (
+        <Group title="Email copies">
+          <Row label="First email">{text(brief.firstEmail)}</Row>
+          <Row label="Second email">{text(brief.secondEmail)}</Row>
+        </Group>
+      )}
       {earlier.length > 0 ? (
         <Group title="Earlier details">
           {earlier.map(([label, value]) => (

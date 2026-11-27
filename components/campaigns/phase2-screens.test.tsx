@@ -89,7 +89,7 @@ const campaign = (over: Partial<TenantCampaign>): TenantCampaign => ({
   inProgress: 2,
   share: 12,
   agencies: [{ agencyOrgId: "ag1", name: "Calder Bay", monthlyShare: 4, delivered: 1 }],
-  brief: { geography: "UK", industries: [], companySize: "", icp: "", jobTitles: [], seniority: "", technologies: [], bantBudget: "", bantAuthority: "", bantNeed: "", bantTimeline: "", instructions: "", pitchIntroduction: "", pitchServices: "", pitchDifferentiator: "", pitchCollaterals: "", pitchCaseStudies: "", qualifyingQuestions: "", firstEmail: "", secondEmail: "" },
+  brief: { geography: "UK", industries: [], companySize: "", icp: "", jobTitles: [], seniority: "", technologies: [], bantBudget: "", bantAuthority: "", bantNeed: "", bantTimeline: "", instructions: "", pitchIntroduction: "", pitchServices: "", pitchDifferentiator: "", pitchCollaterals: "", pitchCaseStudies: "", qualifyingQuestions: "", qualifyingItems: [], firstEmail: "", secondEmail: "" },
   ...over,
 });
 const assign = { ownOrgId: "o1", agencies: [{ id: "ag1", name: "Calder Bay" }], canManage: true };

@@ -11,8 +11,8 @@ const { AddAgencyForm, AddCoordinatorForm, EditOrganisationForm, FYNIX_ROLES, In
 const { AddClientForm } = await import("@/components/fynix/forms/client-forms");
 const { EditContactForm } = await import("@/components/fynix/forms/contact-forms");
 const { EditPersonForm } = await import("@/components/fynix/forms/people-forms");
-const { EditCampaignForm, NewAgreementForm, ShareForm } = await import("@/components/fynix/forms/campaign-forms");
-const { CreateCampaignWizard } = await import("@/components/fynix/forms/campaign-wizard");
+const { NewAgreementForm, ShareForm } = await import("@/components/fynix/forms/campaign-forms");
+const { CreateCampaignWizard, EditCampaignEditor } = await import("@/components/fynix/forms/campaign-wizard");
 const { BlockForm, HoursForm } = await import("@/components/fynix/forms/availability-forms");
 const { PublishTermsForm } = await import("@/components/fynix/forms/settings-forms");
 const { DEFAULT_COUNTING_RULES } = await import("@/lib/fynix/campaign-terms");
@@ -148,27 +148,30 @@ describe("the forms render", () => {
 
   it("New campaign starts with the details in the sheet's order and keeps the terms for the review step", () => {
     const html = renderToStaticMarkup(<CreateCampaignWizard choices={{ clients: [{ id: "c1", name: "Halden Foods" }], coordinators: [{ id: "s1", name: "Brightpath" }], contacts: [{ id: "p1", clientOrgId: "c1", name: "Maya Rao", jobTitle: null }] }} cancelHref="/fynix/campaigns" />);
-    for (const name of ["name", "agencyOrgId", "startDate", "endDate", "monthlyTarget", "totalTarget", "timeZone", "pitchIntroduction", "pitchServices", "pitchDifferentiator", "pitchCollaterals", "pitchCaseStudies", "jobTitles", "industries", "geography", "qualifyingQuestions", "firstEmail", "secondEmail"]) {
+    for (const name of ["name", "agencyOrgId", "startDate", "endDate", "monthlyTarget", "totalTarget", "timeZone", "pitchIntroduction", "pitchServices", "pitchDifferentiator", "pitchCollaterals", "pitchCaseStudies", "jobTitles", "industries", "geography", "qualifyingItems", "qualifyingQuestions"]) {
       expect(html, name).toContain(`name="${name}"`);
     }
-    for (const text of ["Contact person", "Brand and service information", "Qualification criteria", "Critical qualifying questions", "Email copies", "Continue"]) expect(html).toContain(text);
+    for (const text of ["Contact person", "Brand and service information", "Qualification criteria", "Critical qualifying questions", "Qualifying questions", "Summary", "Continue"]) expect(html).toContain(text);
     // The terms and the Create button belong to step 2.
     expect(html).not.toContain("Meeting terms and conditions");
     expect(html).not.toContain("Create campaign");
+    // The emails are not asked for any more.
+    for (const name of ["firstEmail", "secondEmail"]) expect(html).not.toContain(`name="${name}"`);
   });
 
   it("Edit campaign starts from what is stored, fixes the client and offers only the moves a status may make", () => {
     const campaign = {
       id: "k1", publicRef: "CMP-4M6R", name: "Retail grocery buyers", status: "draft" as const, clientOrgId: "c1", clientName: "Halden", clientRef: "ORG-HAL1", coordinatorOrgId: "s1", coordinatorName: "Brightpath", timeZone: "Europe/London", meetingMinutes: 30, clientContacts: [], activeHostCount: 0, closedAt: null,
-      brief: { startDate: "2026-12-01", endDate: "2027-05-31", monthlyTarget: 20, totalTarget: 120, geography: "United Kingdom", industries: ["Retail", "Food"], companySize: "", icp: "", jobTitles: [], seniority: "", technologies: [], bantBudget: "", bantAuthority: "", bantNeed: "", bantTimeline: "", instructions: "", pitchIntroduction: "We sell grocery software.", pitchServices: "", pitchDifferentiator: "", pitchCollaterals: "", pitchCaseStudies: "", qualifyingQuestions: "", firstEmail: "", secondEmail: "", primaryContactId: null, internalNotes: "Careful" },
+      brief: { startDate: "2026-12-01", endDate: "2027-05-31", monthlyTarget: 20, totalTarget: 120, geography: "United Kingdom", industries: ["Retail", "Food"], companySize: "", icp: "", jobTitles: [], seniority: "", technologies: [], bantBudget: "", bantAuthority: "", bantNeed: "", bantTimeline: "", instructions: "", pitchIntroduction: "We sell grocery software.", pitchServices: "", pitchDifferentiator: "", pitchCollaterals: "", pitchCaseStudies: "", qualifyingQuestions: "", qualifyingItems: [], firstEmail: "", secondEmail: "", primaryContactId: null, internalNotes: "Careful" },
     };
-    const html = renderToStaticMarkup(<EditCampaignForm campaign={campaign} />);
+    const html = renderToStaticMarkup(<EditCampaignEditor campaign={campaign} cancelHref="/fynix/campaigns/CMP-4M6R" />);
     expect(html).toContain('name="campaignId" value="k1"');
     expect(html).toContain("Retail grocery buyers");
     expect(html).toContain("Retail, Food");
     expect(html).toContain("Careful");
     expect(html).toContain("We sell grocery software.");
     expect(html).not.toContain('name="clientOrgId"');
-    expect(html).toContain("Save changes");
+    expect(html).toContain("Continue");
+    expect(html).not.toContain('name="firstEmail"');
   });
 });

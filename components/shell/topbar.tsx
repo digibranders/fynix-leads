@@ -20,6 +20,9 @@ interface Props {
 /** The id of the marker at the top of the page. The strip reads it to know when the page has scrolled past its large title. */
 export const TOP_SENTINEL_ID = "top-sentinel";
 
+/** The slot in the strip where a page's actions land from `md` up (see `PageHeader`). */
+export const TOPBAR_ACTIONS_ID = "topbar-actions";
+
 /**
  * The strip above the page. From `md` it is the trail on the left and search on the right, on the canvas. On a phone it is a glass strip
  * that stays at the top: the brand mark and search at the sides, and the section's name fading in between once the page has scrolled
@@ -56,7 +59,7 @@ export function Topbar({ portal, unreadNotices = 0 }: Props) {
   return (
     <header
       data-scrolled={scrolled}
-      className="glass-top sticky top-0 z-30 flex h-[calc(var(--topbar-h)+env(safe-area-inset-top,0px))] items-center gap-3 px-4 pt-[env(safe-area-inset-top,0px)] md:h-(--topbar-h) md:px-7 md:pt-0"
+      className="glass-top sticky top-0 z-30 flex h-[calc(56px+env(safe-area-inset-top,0px))] items-center gap-3 px-4 pt-[env(safe-area-inset-top,0px)] md:h-(--topbar-h) md:px-7 md:pt-0"
     >
       <Link href={portal.homeHref} aria-label={`${portal.label} home`} className="grid size-9 shrink-0 place-items-center rounded-[12px] bg-peach text-navy shadow-btn-peach md:hidden">
         <Funnel aria-hidden weight="fill" size={17} />
@@ -76,8 +79,8 @@ export function Topbar({ portal, unreadNotices = 0 }: Props) {
         <ol className="flex items-center gap-2 text-body text-ink-muted">
           <li className="flex shrink-0 items-center gap-2.5">
             {Glyph !== null ? (
-              <span aria-hidden className="grid size-8 place-items-center rounded-[10px] bg-navy-05 text-ink-2">
-                <Glyph size={17} weight="fill" />
+              <span aria-hidden className="grid size-7 place-items-center rounded-[9px] bg-navy-05 text-ink-2">
+                <Glyph size={15} weight="fill" />
               </span>
             ) : null}
             <span className="max-lg:hidden">{portal.label}</span>
@@ -96,13 +99,15 @@ export function Topbar({ portal, unreadNotices = 0 }: Props) {
         </ol>
       </nav>
 
+      <div id={TOPBAR_ACTIONS_ID} className="flex items-center gap-2 max-md:hidden empty:hidden" />
+
       <NoticeBell seeAllHref={`${portal.homeHref}/notices`} unread={unreadNotices} />
 
       <button
         type="button"
         onClick={() => setPaletteOpen(true)}
         aria-label="Search"
-        className="flex h-(--h-control) items-center gap-2 rounded-sm bg-navy-05 px-2.5 text-body text-ink-muted transition-colors hover:bg-navy-08 hover:text-ink max-md:size-9 max-md:justify-center max-md:rounded-[12px] max-md:bg-surface max-md:px-0 max-md:shadow-raised md:w-[300px]"
+        className="flex h-(--h-control) items-center gap-2 rounded-sm bg-navy-05 px-2.5 text-body text-ink-muted transition-colors hover:bg-navy-08 hover:text-ink max-md:size-9 max-md:justify-center max-md:rounded-[12px] max-md:bg-surface max-md:px-0 max-md:shadow-raised md:w-[260px]"
       >
         <MagnifyingGlass aria-hidden size={15} />
         <span className="flex-1 text-left max-md:hidden">Search</span>

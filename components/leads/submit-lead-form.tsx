@@ -9,7 +9,9 @@ import { Choice } from "@/components/ui/choice";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { QualificationChecklist } from "@/components/leads/qualification-checklist";
 import { SlotPicker } from "@/components/leads/slot-picker";
+import type { QualificationCheck } from "@/lib/qualification-checks";
 import type { CalendarPersonLike } from "@/lib/calendar/layout";
 import { restoreTextValues, textValues, type FieldValues } from "@/lib/leads/form-values";
 import { IDLE_DRAFT_ACTION, IDLE_TENANT_ACTION } from "@/lib/tenant/action-state";
@@ -21,6 +23,8 @@ export interface CampaignOption {
   readonly name: string;
   readonly clientOrgId: string;
   readonly clientName: string;
+  /** The checks the campaign asks for: its qualification criteria and qualifying questions. */
+  readonly checklist: readonly QualificationCheck[];
 }
 
 export interface AliasOption {
@@ -55,6 +59,8 @@ export interface DraftPrefill {
   readonly bantAuthority: string;
   readonly bantNeed: string;
   readonly bantTimeline: string;
+  readonly qualificationChecks: readonly QualificationCheck[];
+  readonly qualificationNotes: string;
   readonly proposedTimes: readonly string[];
 }
 
@@ -83,11 +89,19 @@ function Group({ title, note, children }: { title: string; note?: string; childr
   );
 }
 
+/** The campaign's checks, with the tick each one had in a draft when it asked for the same thing. */
+function withDraftTicks(asked: readonly QualificationCheck[], saved: readonly QualificationCheck[]): QualificationCheck[] {
+  return asked.map((check) => ({ ...check, passed: saved.some((old) => old.kind === check.kind && old.label === check.label && old.passed) }));
+}
+
 /** A lead submission: four tonal groups of fields in one panel, and one primary action in a sticky foot. Field names are the ones the action reads. */
 export function SubmitLeadForm({ campaigns, aliases, notLive = [], leadsHref, teams = {}, draft = null }: Props) {
   const [state, formAction, pending] = useActionState(submitLeadAction, IDLE_TENANT_ACTION);
   const [draftState, draftAction, draftPending] = useActionState(saveDraftAction, IDLE_DRAFT_ACTION);
   const [campaignId, setCampaignId] = useState(draft?.campaignId ?? "");
+  // The ticks, one set for the campaign chosen. They start unticked, or as the draft had them (a check of the draft that the campaign still asks for keeps its tick).
+  const [ticks, setTicks] = useState<{ readonly campaignId: string; readonly checks: readonly QualificationCheck[] }>(() => ({ campaignId: draft?.campaignId ?? "", checks: withDraftTicks(campaigns.find((c) => c.id === draft?.campaignId)?.checklist ?? [], draft?.qualificationChecks ?? []) }));
+  const checklist = ticks.campaignId === campaignId ? ticks.checks : withDraftTicks(campaigns.find((c) => c.id === campaignId)?.checklist ?? [], []);
   // React clears the text fields when an action ends. The text is kept as it was sent and put back after an error and after a draft is saved, not after a lead is sent.
   const formRef = useRef<HTMLFormElement>(null);
   const kept = useRef<FieldValues>({});
@@ -249,6 +263,10 @@ export function SubmitLeadForm({ campaigns, aliases, notLive = [], leadsHref, te
             ) : (
               <SlotPicker key={campaignId} people={teams[campaignId] ?? []} initialTime={campaignId === draft?.campaignId ? (draft?.proposedTimes[0] ?? null) : null} />
             )}
+          </Group>
+
+          <Group title="Qualification checklist" note="Tick each check the prospect passed. If one was not passed, say which and why in the notes. The lead can still be sent.">
+            {campaignId === "" ? <p className="text-label text-ink-muted">Choose a campaign to see its checks.</p> : <QualificationChecklist checks={checklist} onChange={(next) => setTicks({ campaignId, checks: next })} notesDefault={campaignId === draft?.campaignId ? draft?.qualificationNotes : undefined} />}
           </Group>
         </div>
 
