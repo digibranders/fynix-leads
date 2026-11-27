@@ -10,9 +10,9 @@ const busy = (from: string, to: string) => ({ start: from, end: to });
 describe("dayRuns", () => {
   it("splits a day into not working, free and not working, in the viewer's zone", () => {
     expect(dayRuns(person(), "2026-12-03", "Europe/London", NOW)).toEqual([
-      { state: "off", fromMinute: 360, toMinute: 540 },
+      { state: "off", fromMinute: 0, toMinute: 540 },
       { state: "free", fromMinute: 540, toMinute: 1020 },
-      { state: "off", fromMinute: 1020, toMinute: 1320 },
+      { state: "off", fromMinute: 1020, toMinute: 1440 },
     ]);
   });
 
@@ -32,10 +32,11 @@ describe("dayRuns", () => {
 
   it("lays the person's hours out in a viewer's own zone", () => {
     const runs = dayRuns(person(), "2026-12-03", "Asia/Kolkata", NOW);
-    // 09:00 to 17:00 in London is 14:30 to 22:30 in India, and the grid ends at 22:00.
+    // 09:00 to 17:00 in London is 14:30 to 22:30 in India, and the grid shows the whole day.
     expect(runs).toEqual([
-      { state: "off", fromMinute: 360, toMinute: 870 },
-      { state: "free", fromMinute: 870, toMinute: 1320 },
+      { state: "off", fromMinute: 0, toMinute: 870 },
+      { state: "free", fromMinute: 870, toMinute: 1350 },
+      { state: "off", fromMinute: 1350, toMinute: 1440 },
     ]);
   });
 });
