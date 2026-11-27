@@ -2,6 +2,7 @@ import { and, eq, getTableColumns, sql } from "drizzle-orm";
 import { mergeIntervals, type Interval } from "@/lib/calendar/free-time";
 import type { CalendarSetup } from "@/server/calendar";
 import { decryptToken, encryptToken } from "@/server/calendar/crypto";
+import { memberIdOf, type PersonRef } from "@/server/calendar/person";
 import { CalendarAuthError, type CalendarEvent, type CalendarProvider, type CalendarProviderName } from "@/server/calendar/provider";
 import type { Database } from "@/server/db/pool";
 import { calendarConnection, member, memberBusy } from "@/server/db/schema";
@@ -94,7 +95,12 @@ export async function syncConnection(deps: CalendarDeps, row: ConnectionRow, now
 
 /** Syncs every working connection, one person at a time. A fault with one never stops the others. Runs as `leads_auth` from `pnpm leads:sweep`. */
 export async function syncCalendars(deps: CalendarDeps, now: Date): Promise<Readonly<Record<SyncResult, number>>> {
-  const rows = await deps.authDb.select(connectionColumns).from(calendarConnection).where(eq(calendarConnection.status, "connected"));
+  // Only client people are synced: an agency or Fynix person's calendar is read live for their own screen.
+  const rows = await deps.authDb
+    .select(connectionColumns)
+    .from(calendarConnection)
+    .innerJoin(member, eq(member.id, calendarConnection.memberId))
+    .where(and(eq(calendarConnection.status, "connected"), eq(member.orgKind, "client")));
   const totals: Record<SyncResult, number> = { synced: 0, broken: 0, failed: 0, skipped: 0 };
   for (const row of rows) {
     try {
@@ -120,14 +126,10 @@ export interface OwnEvent {
  * Reads the signed-in person's own events live, with titles, for the range on screen. Nothing is stored or cached: the result goes to that one request. A portal
  * meeting that comes back is dropped. A provider that does not answer is named in `problems` and the rest is shown.
  */
-export async function readOwnEvents(deps: CalendarDeps, who: { readonly userId: string; readonly orgId: string }, range: Interval, now: Date): Promise<{ readonly events: readonly OwnEvent[]; readonly problems: readonly CalendarProviderName[] }> {
-  const [person] = await deps.authDb
-    .select({ id: member.id })
-    .from(member)
-    .where(and(eq(member.userId, who.userId), eq(member.orgId, who.orgId), eq(member.orgKind, "client"), eq(member.status, "active")))
-    .limit(1);
-  if (person === undefined) return { events: [], problems: [] };
-  const rows = await deps.authDb.select(connectionColumns).from(calendarConnection).where(and(eq(calendarConnection.memberId, person.id), eq(calendarConnection.status, "connected")));
+export async function readOwnEvents(deps: CalendarDeps, who: PersonRef, range: Interval, now: Date): Promise<{ readonly events: readonly OwnEvent[]; readonly problems: readonly CalendarProviderName[] }> {
+  const personId = await memberIdOf(deps.authDb, who);
+  if (personId === null) return { events: [], problems: [] };
+  const rows = await deps.authDb.select(connectionColumns).from(calendarConnection).where(and(eq(calendarConnection.memberId, personId), eq(calendarConnection.status, "connected")));
   const reads = await Promise.all(
     rows.map(async (row): Promise<{ readonly events: readonly OwnEvent[]; readonly problem: CalendarProviderName | null }> => {
       const provider = deps.setup.providers[row.provider as CalendarProviderName];

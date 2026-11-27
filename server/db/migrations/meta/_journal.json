@@ -771,6 +771,20 @@
       "when": 1795704703617,
       "tag": "0109_invitation_links",
       "breakpoints": true
+    },
+    {
+      "idx": 110,
+      "version": "7",
+      "when": 1795766388507,
+      "tag": "0110_calendar_any_person",
+      "breakpoints": true
+    },
+    {
+      "idx": 111,
+      "version": "7",
+      "when": 1795766389195,
+      "tag": "0111_calendar_any_person_functions",
+      "breakpoints": true
     }
   ]
 }
