@@ -1,8 +1,8 @@
 import { and, eq, sql } from "drizzle-orm";
 import { decryptToken, encryptToken } from "@/server/calendar/crypto";
+import { memberIdOf, personWhere, type PersonRef } from "@/server/calendar/person";
 import { connectionColumns, syncConnection, type CalendarDeps } from "@/server/calendar/sync";
 import { CALENDAR_PROVIDERS, type CalendarProviderName } from "@/server/calendar/provider";
-import type { TenantActor } from "@/server/domain/alias-identity";
 import { DomainError } from "@/server/domain/errors";
 import type { Database } from "@/server/db/pool";
 import { calendarConnection, member } from "@/server/db/schema";
@@ -10,16 +10,6 @@ import { withTenantScope } from "@/server/db/scope";
 import { fynixRead, type FynixActor } from "@/server/domain/fynix-write";
 
 export const isProviderName = (value: unknown): value is CalendarProviderName => typeof value === "string" && (CALENDAR_PROVIDERS as readonly string[]).includes(value);
-
-/** The client member a signed-in user is, or null (an agency or Fynix person has no calendar to connect). */
-export async function clientMemberId(authDb: Database, who: { readonly userId: string; readonly orgId: string }): Promise<string | null> {
-  const [row] = await authDb
-    .select({ id: member.id })
-    .from(member)
-    .where(and(eq(member.userId, who.userId), eq(member.orgId, who.orgId), eq(member.orgKind, "client"), eq(member.status, "active")))
-    .limit(1);
-  return row?.id ?? null;
-}
 
 /**
  * Stores a new connection (or replaces the person's earlier one for that provider, which also makes a broken one work again) and reads its calendar at once, so
@@ -33,13 +23,15 @@ export async function saveConnection(deps: CalendarDeps, input: { readonly membe
     .onConflictDoUpdate({ target: [calendarConnection.memberId, calendarConnection.provider], set: { refreshTokenEnc: encrypted, status: "connected", failedSyncs: 0, updatedAt: now } })
     .returning();
   if (row === undefined) throw new Error("The connection was not saved");
-  await syncConnection(deps, row, now);
+  // Only a client person's busy time is kept. An agency or Fynix person is never invited to a meeting, so their calendar is read live for their own screen and nothing is stored.
+  const [owner] = await deps.authDb.select({ kind: member.orgKind }).from(member).where(eq(member.id, input.memberId)).limit(1);
+  if (owner?.kind === "client") await syncConnection(deps, row, now);
 }
 
 /** Ends a connection: the token is revoked where the provider allows it (a failure never stops this), then the row and its busy times are removed. */
-export async function disconnectCalendar(deps: CalendarDeps, who: { readonly userId: string; readonly orgId: string }, provider: CalendarProviderName): Promise<void> {
-  const memberId = await clientMemberId(deps.authDb, who);
-  if (memberId === null) throw new DomainError("not-authorised", "Only a person of a client has a calendar to disconnect.");
+export async function disconnectCalendar(deps: CalendarDeps, who: PersonRef, provider: CalendarProviderName): Promise<void> {
+  const memberId = await memberIdOf(deps.authDb, who);
+  if (memberId === null) throw new DomainError("not-authorised", "Only a signed-in person has a calendar to disconnect.");
   const [row] = await deps.authDb.select(connectionColumns).from(calendarConnection).where(and(eq(calendarConnection.memberId, memberId), eq(calendarConnection.provider, provider))).limit(1);
   if (row === undefined) return;
   try {
@@ -56,15 +48,15 @@ export interface MyCalendarConnection {
   readonly lastSyncedAt: Date | null;
 }
 
-/** The signed-in client person's own connections: provider, state and last sync. Never a token. */
-export async function listMyCalendarConnections(db: Database, actor: TenantActor): Promise<readonly MyCalendarConnection[]> {
-  if (actor.orgKind !== "client") return [];
-  const rows = await withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, (tx) =>
-    tx.execute<{ provider: string; status: string; last_synced_at: Date | string | null }>(sql`select provider, status, last_synced_at from public.app_my_calendar_connections()`),
-  );
-  return rows.rows.flatMap((row) =>
-    isProviderName(row.provider) ? [{ provider: row.provider, status: row.status === "broken" ? ("broken" as const) : ("connected" as const), lastSyncedAt: row.last_synced_at === null ? null : new Date(row.last_synced_at) }] : [],
-  );
+/** The signed-in person's own connections: provider, state and last sync. Never a token. Read as `leads_auth` for the one person the session names. */
+export async function listMyCalendarConnections(authDb: Database, who: PersonRef): Promise<readonly MyCalendarConnection[]> {
+  const rows = await authDb
+    .select({ provider: calendarConnection.provider, status: calendarConnection.status, lastSyncedAt: calendarConnection.lastSyncedAt })
+    .from(calendarConnection)
+    .innerJoin(member, eq(member.id, calendarConnection.memberId))
+    .where(personWhere(who))
+    .orderBy(calendarConnection.provider);
+  return rows.flatMap((row) => (isProviderName(row.provider) ? [{ provider: row.provider, status: row.status === "broken" ? ("broken" as const) : ("connected" as const), lastSyncedAt: row.lastSyncedAt }] : []));
 }
 
 export interface CalendarWarning {

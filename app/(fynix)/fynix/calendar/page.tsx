@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Notice } from "@/components/auth/notice";
 import { CalendarScreen } from "@/components/calendar/calendar-screen";
+import { OwnEvents } from "@/components/calendar/own-events-section";
 import { PageHeader } from "@/components/kit/page-header";
 import { PageSkeleton } from "@/components/kit/skeletons";
 import { parseCalendarQuery } from "@/lib/calendar/view";
@@ -30,6 +31,9 @@ async function Calendar({ searchParams }: { searchParams: PageProps<"/fynix/cale
         </Notice>
       )}
       <CalendarScreen data={data} query={query} basePath="/fynix/calendar" now={now.toISOString()} />
+      <Suspense fallback={null}>
+        <OwnEvents who={{ userId: view.actor.userId, kind: "fynix", orgId: null }} query={query} now={now} />
+      </Suspense>
     </div>
   );
 }
