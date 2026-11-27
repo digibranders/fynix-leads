@@ -45,6 +45,9 @@ const event = (startHours: number, hours = 1, over: Partial<CalendarEvent> = {})
   ...over,
 });
 
+/** The person a screen names to the calendar code: the user, the kind of organisation and the organisation. */
+const ref = (actor: TenantActor) => ({ userId: actor.userId, kind: actor.orgKind, orgId: actor.orgId });
+
 let cast: { campaignId: string; agency: TenantActor; person: TenantActor; personMember: string; personOrg: string };
 
 beforeEach(async () => {
@@ -150,7 +153,7 @@ describe("a connection that stops working", () => {
     const warnings = await listCalendarWarnings(fynixDb(), rig.actor);
     expect(warnings).toHaveLength(1);
     expect(warnings[0]).toMatchObject({ provider: "google" });
-    expect(await listMyCalendarConnections(clientDb(), cast.person)).toMatchObject([{ provider: "google", status: "broken" }]);
+    expect(await listMyCalendarConnections(rig.deps().authDb, ref(cast.person))).toMatchObject([{ provider: "google", status: "broken" }]);
   });
 
   it("counts other faults and is broken on the third in a row, and a good read in between starts the count again", async () => {
@@ -202,9 +205,9 @@ describe("disconnecting", () => {
   it("revokes the token, then removes the connection and its busy times; the person can see only their own", async () => {
     const d = deps();
     await saveConnection(d, { memberId: cast.personMember, provider: "google", refreshToken: "refresh-of-code-1" }, NOW);
-    expect(await listMyCalendarConnections(clientDb(), cast.person)).toHaveLength(1);
-    expect(await listMyCalendarConnections(clientDb(), { ...cast.person, userId: cast.agency.userId })).toEqual([]);
-    await disconnectCalendar(d, { userId: cast.person.userId, orgId: cast.person.orgId }, "google");
+    expect(await listMyCalendarConnections(rig.deps().authDb, ref(cast.person))).toHaveLength(1);
+    expect(await listMyCalendarConnections(rig.deps().authDb, { ...ref(cast.person), userId: cast.agency.userId })).toEqual([]);
+    await disconnectCalendar(d, ref(cast.person), "google");
     expect(d.provider.revoked).toEqual(["refresh-of-code-1"]);
     expect(await owner().select().from(calendarConnection)).toEqual([]);
     expect(await busyRows()).toEqual([]);
@@ -218,7 +221,7 @@ describe("a person's own events", () => {
     const d = deps(own);
     await saveConnection(d, { memberId: cast.personMember, provider: "google", refreshToken: "refresh-of-code-1" }, NOW);
     const before = JSON.stringify([await owner().select().from(calendarConnection), await busyRows()]);
-    const result = await readOwnEvents(d, { userId: cast.person.userId, orgId: cast.person.orgId }, { start: NOW, end: new Date(NOW.getTime() + 48 * HOUR) }, NOW);
+    const result = await readOwnEvents(d, ref(cast.person), { start: NOW, end: new Date(NOW.getTime() + 48 * HOUR) }, NOW);
     expect(result.events.map((item) => item.title)).toEqual(["Dentist"]);
     expect(result.problems).toEqual([]);
     expect(own.reads.at(-1)).toBe(true);
@@ -226,14 +229,14 @@ describe("a person's own events", () => {
     expect(JSON.stringify([await owner().select().from(calendarConnection), await busyRows()]).replace(/"updatedAt":"[^"]+"/g, "")).toBe(before.replace(/"updatedAt":"[^"]+"/g, ""));
   });
 
-  it("are empty for a person who is not a client person, and name a provider that did not answer", async () => {
+  it("are empty for a person who has not connected, and name a provider that did not answer", async () => {
     const d = deps();
     await saveConnection(d, { memberId: cast.personMember, provider: "google", refreshToken: "refresh-of-code-1" }, NOW);
-    expect((await readOwnEvents(d, { userId: cast.agency.userId, orgId: cast.agency.orgId }, { start: NOW, end: new Date(NOW.getTime() + HOUR) }, NOW)).events).toEqual([]);
+    expect((await readOwnEvents(d, { userId: cast.agency.userId, kind: "agency", orgId: cast.agency.orgId }, { start: NOW, end: new Date(NOW.getTime() + HOUR) }, NOW)).events).toEqual([]);
     const quiet = vi.spyOn(console, "error").mockImplementation(() => undefined);
     try {
       const failing = deps(fakeCalendarProvider({ failing: new Set(["refresh-of-code-1"]) }));
-      expect((await readOwnEvents(failing, { userId: cast.person.userId, orgId: cast.person.orgId }, { start: NOW, end: new Date(NOW.getTime() + HOUR) }, NOW)).problems).toEqual(["google"]);
+      expect((await readOwnEvents(failing, ref(cast.person), { start: NOW, end: new Date(NOW.getTime() + HOUR) }, NOW)).problems).toEqual(["google"]);
     } finally {
       quiet.mockRestore();
     }
@@ -267,5 +270,32 @@ describe("the live check at booking", () => {
     reader.refreshed.length = 0;
     await assertLiveFree(agencyDb(), deps(reader), cast.agency, { campaignId: cast.campaignId, memberIds: [stranger], slot });
     expect(reader.refreshed).toEqual([]);
+  });
+});
+
+describe("a person of an agency", () => {
+  it("can connect and sees their own events, but nothing of theirs is kept as busy time", async () => {
+    const own = fakeCalendarProvider({ events: { "refresh-of-code-1": [event(5, 1, { title: "Agency standup" })] } });
+    const d = deps(own);
+    const agencyMember = await memberIdFor(rig, cast.agency.userId);
+    await saveConnection(d, { memberId: agencyMember, provider: "google", refreshToken: "refresh-of-code-1" }, NOW);
+    expect(await busyRows()).toEqual([]);
+    expect(await listMyCalendarConnections(rig.deps().authDb, ref(cast.agency))).toMatchObject([{ provider: "google", status: "connected" }]);
+    expect(await listMyCalendarConnections(rig.deps().authDb, ref(cast.person))).toEqual([]);
+    const result = await readOwnEvents(d, ref(cast.agency), { start: NOW, end: new Date(NOW.getTime() + 48 * HOUR) }, NOW);
+    expect(result.events.map((item) => item.title)).toEqual(["Agency standup"]);
+    expect(await syncCalendars(d, NOW)).toEqual({ synced: 0, broken: 0, failed: 0, skipped: 0 });
+    expect(await busyRows()).toEqual([]);
+    await disconnectCalendar(d, ref(cast.agency), "google");
+    expect(await owner().select().from(calendarConnection)).toEqual([]);
+  });
+
+  it("is not warned about to Fynix when the connection breaks, which is about client people", async () => {
+    const d = deps(fakeCalendarProvider({ events: {}, refused: new Set(["refresh-of-code-1"]) }));
+    const agencyMember = await memberIdFor(rig, cast.agency.userId);
+    await saveConnection(d, { memberId: agencyMember, provider: "google", refreshToken: "refresh-of-code-1" }, NOW);
+    await readOwnEvents(d, ref(cast.agency), { start: NOW, end: new Date(NOW.getTime() + HOUR) }, NOW);
+    expect(await listMyCalendarConnections(rig.deps().authDb, ref(cast.agency))).toMatchObject([{ status: "broken" }]);
+    expect(await listCalendarWarnings(fynixDb(), rig.actor)).toEqual([]);
   });
 });

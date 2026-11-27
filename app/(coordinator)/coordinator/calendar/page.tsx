@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { CalendarScreen } from "@/components/calendar/calendar-screen";
+import { OwnEvents } from "@/components/calendar/own-events-section";
 import { PageHeader } from "@/components/kit/page-header";
 import { PageSkeleton } from "@/components/kit/skeletons";
 import { parseCalendarQuery } from "@/lib/calendar/view";
@@ -22,6 +23,9 @@ async function Calendar({ searchParams }: { searchParams: PageProps<"/coordinato
     <div className="flex flex-col gap-4">
       <PageHeader title="Calendar" description="When the people at each client are free or busy. Choose a client to see its team." />
       <CalendarScreen data={data} query={query} basePath="/coordinator/calendar" now={now.toISOString()} />
+      <Suspense fallback={null}>
+        <OwnEvents who={{ userId: view.actor.userId, kind: "agency", orgId: view.actor.orgId }} query={query} now={now} />
+      </Suspense>
     </div>
   );
 }
