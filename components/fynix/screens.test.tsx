@@ -36,7 +36,7 @@ const { BriefView } = await import("@/components/fynix/campaigns/brief-view");
 const { ClientsTable } = await import("@/components/fynix/clients/clients-table");
 const { CampaignTitle } = await import("@/components/fynix/campaigns/campaign-header");
 
-vi.mock("next/navigation", () => ({ useSelectedLayoutSegment: () => "hosts", useRouter: () => ({ push: () => undefined }) }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/fynix/a/b", useSelectedLayoutSegment: () => "hosts", useRouter: () => ({ push: () => undefined }) }));
 
 const NO_CONTACT: OrganisationContact = { contactName: null, contactEmail: null, contactPhone: null, website: null, address: null, notes: null };
 const FULL_CONTACT: OrganisationContact = { contactName: "Asha Rao", contactEmail: "asha@northgate.example", contactPhone: "+44 20 7946 0958", website: "https://northgate.example", address: "12 Mill Lane\nLeeds LS1 4AB", notes: "Prefers email." };
@@ -219,7 +219,7 @@ const header: CampaignHeader = {
   clientContacts: [],
   activeHostCount: 3,
   closedAt: null,
-  brief: { startDate: "2026-12-01", endDate: "2027-05-31", monthlyTarget: 12, totalTarget: 72, geography: "", industries: [], companySize: "", icp: "", jobTitles: [], seniority: "", technologies: [], bantBudget: "", bantAuthority: "", bantNeed: "", bantTimeline: "", instructions: "", pitchIntroduction: "", pitchServices: "", pitchDifferentiator: "", pitchCollaterals: "", pitchCaseStudies: "", qualifyingQuestions: "", firstEmail: "", secondEmail: "", primaryContactId: null, internalNotes: null },
+  brief: { startDate: "2026-12-01", endDate: "2027-05-31", monthlyTarget: 12, totalTarget: 72, geography: "", industries: [], companySize: "", icp: "", jobTitles: [], seniority: "", technologies: [], bantBudget: "", bantAuthority: "", bantNeed: "", bantTimeline: "", instructions: "", pitchIntroduction: "", pitchServices: "", pitchDifferentiator: "", pitchCollaterals: "", pitchCaseStudies: "", qualifyingQuestions: "", qualifyingItems: [], firstEmail: "", secondEmail: "", primaryContactId: null, internalNotes: null },
 };
 
 describe("Campaigns", () => {

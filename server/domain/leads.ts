@@ -229,6 +229,8 @@ export async function submitLead(
             bantAuthority: parsed.bantAuthority,
             bantNeed: parsed.bantNeed,
             bantTimeline: parsed.bantTimeline,
+            qualificationChecks: parsed.qualificationChecks,
+            qualificationNotes: parsed.qualificationNotes,
             stage: invitees === undefined ? "awaiting_client" : "awaiting_reply",
             proposedTimes: parsed.proposedTimes,
             overShare,

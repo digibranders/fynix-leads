@@ -1,4 +1,5 @@
 import { and, eq } from "drizzle-orm";
+import type { QualificationCheck } from "@/lib/qualification-checks";
 import { extractDomainFromEmail, normaliseDomain, normaliseLinkedinUrl } from "@/lib/leads/normalize";
 import { agencyLeadColumns } from "@/server/db/columns";
 import type { Database } from "@/server/db/pool";
@@ -35,7 +36,7 @@ function draftValues(parsed: Record<string, unknown>) {
   const text = (key: string) => {
     if (parsed[key] !== undefined) out[key] = parsed[key];
   };
-  for (const key of ["prospectName", "prospectTitle", "prospectCompany", "prospectPhone", "prospectNotes", "bantBudget", "bantAuthority", "bantNeed", "bantTimeline", "aliasIdentityId", "hostMemberId"]) text(key);
+  for (const key of ["prospectName", "prospectTitle", "prospectCompany", "prospectPhone", "prospectNotes", "bantBudget", "bantAuthority", "bantNeed", "bantTimeline", "qualificationChecks", "qualificationNotes", "aliasIdentityId", "hostMemberId"]) text(key);
   const email = parsed.prospectEmail;
   if (typeof email === "string") out.prospectEmail = email.trim().toLowerCase();
   if (typeof parsed.prospectDomain === "string") out.prospectDomain = parsed.prospectDomain === "" ? "" : normaliseDomain(parsed.prospectDomain);
@@ -55,6 +56,8 @@ function draftValues(parsed: Record<string, unknown>) {
     bantAuthority: string;
     bantNeed: string;
     bantTimeline: string;
+    qualificationChecks: QualificationCheck[];
+    qualificationNotes: string;
     aliasIdentityId: string | null;
     hostMemberId: string | null;
     proposedTimes: string[];
@@ -106,6 +109,8 @@ export async function saveDraft(db: Database, deps: Pick<DomainDeps, "randomByte
           bantAuthority: values.bantAuthority ?? "",
           bantNeed: values.bantNeed ?? "",
           bantTimeline: values.bantTimeline ?? "",
+          qualificationChecks: values.qualificationChecks ?? [],
+          qualificationNotes: values.qualificationNotes ?? "",
           stage: "draft",
           released: false,
           proposedTimes: values.proposedTimes ?? [],
@@ -201,6 +206,8 @@ export async function submitDraft(db: Database, deps: Pick<DomainDeps, "now" | "
       bantAuthority: draft.bantAuthority,
       bantNeed: draft.bantNeed,
       bantTimeline: draft.bantTimeline,
+      qualificationChecks: draft.qualificationChecks,
+      qualificationNotes: draft.qualificationNotes,
       proposedTimes: draft.proposedTimes,
     });
     if (invitees !== undefined && (complete.proposedTimes.length !== 1 || !invitees.includes(complete.hostMemberId))) {

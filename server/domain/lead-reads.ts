@@ -1,3 +1,4 @@
+import { checklistFor, type QualificationCheck } from "@/lib/qualification-checks";
 import {
   and,
   desc,
@@ -210,6 +211,11 @@ export async function getLeadSubmissionOptions(
         name: campaign.name,
         clientOrgId: campaign.clientOrgId,
         clientName: campaignClientName(campaign.id),
+        jobTitles: campaign.jobTitles,
+        industries: campaign.industries,
+        geography: campaign.geography,
+        qualifyingQuestions: campaign.qualifyingQuestions,
+        qualifyingItems: campaign.qualifyingItems,
       })
       .from(campaign)
       .where(and(eq(campaign.agencyOrgId, actor.orgId), eq(campaign.status, "active")));
@@ -220,14 +226,20 @@ export async function getLeadSubmissionOptions(
         name: campaign.name,
         clientOrgId: campaign.clientOrgId,
         clientName: campaignClientName(campaign.id),
+        jobTitles: campaign.jobTitles,
+        industries: campaign.industries,
+        geography: campaign.geography,
+        qualifyingQuestions: campaign.qualifyingQuestions,
+        qualifyingItems: campaign.qualifyingItems,
       })
       .from(campaign)
       .innerJoin(campaignShare, eq(campaign.id, campaignShare.campaignId))
       .where(and(eq(campaignShare.agencyOrgId, actor.orgId), eq(campaign.status, "active")));
 
-    const campaignMap = new Map<string, { id: string; name: string; clientOrgId: string; clientName: string }>();
-    for (const c of [...coordinatorCampaigns, ...shareCampaigns]) {
-      campaignMap.set(c.id, c);
+    // Each campaign brings the checklist its qualification criteria and qualifying questions make, for the lead form to tick.
+    const campaignMap = new Map<string, { id: string; name: string; clientOrgId: string; clientName: string; checklist: QualificationCheck[] }>();
+    for (const { jobTitles, industries, geography, qualifyingQuestions, qualifyingItems, ...c } of [...coordinatorCampaigns, ...shareCampaigns]) {
+      campaignMap.set(c.id, { ...c, checklist: checklistFor({ jobTitles, industries, geography, qualifyingQuestions, qualifyingItems }) });
     }
     const campaigns = Array.from(campaignMap.values());
 

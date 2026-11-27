@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
-import { boolean, check, date, foreignKey, index, integer, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import { boolean, check, date, foreignKey, index, integer, jsonb, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import type { QualifyingItem } from "@/lib/qualifying-items";
 import { clientContact } from "./client-contact";
 import { campaignStatus, organisationKind } from "./enums";
 import { organisation } from "./organisation";
@@ -77,6 +78,11 @@ export const campaign = pgTable(
     pitchCollaterals: text("pitch_collaterals").notNull().default(""),
     pitchCaseStudies: text("pitch_case_studies").notNull().default(""),
     qualifyingQuestions: text("qualifying_questions").notNull().default(""),
+    /**
+     * The same questions as a list, each with the answer hoped for, both as rich text (migration 0110). When it is empty the old single text box above
+     * is shown instead, one question per line, so campaigns set up before it keep their questions.
+     */
+    qualifyingItems: jsonb("qualifying_items").$type<QualifyingItem[]>().notNull().default([]),
     firstEmail: text("first_email").notNull().default(""),
     secondEmail: text("second_email").notNull().default(""),
     /** The person at the client who approves leads and gives feedback for this campaign: one of the client's contact people. Null until chosen. */

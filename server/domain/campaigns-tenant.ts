@@ -8,6 +8,7 @@ import { withTenantScope } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import { DomainError } from "@/server/domain/errors";
 import { campaignClientName } from "@/server/db/client-name";
+import type { QualifyingItem } from "@/lib/qualifying-items";
 
 /** One agency's line on a coordinator's campaign: the monthly share it holds and what it has delivered. */
 export interface CampaignAgencyLine {
@@ -38,6 +39,7 @@ export interface CampaignBrief {
   readonly pitchCollaterals: string;
   readonly pitchCaseStudies: string;
   readonly qualifyingQuestions: string;
+  readonly qualifyingItems: readonly QualifyingItem[];
   readonly firstEmail: string;
   readonly secondEmail: string;
 }
@@ -63,7 +65,7 @@ export interface TenantCampaign {
   readonly brief: CampaignBrief;
 }
 
-const NO_BRIEF: CampaignBrief = { geography: "", industries: [], companySize: "", icp: "", jobTitles: [], seniority: "", technologies: [], bantBudget: "", bantAuthority: "", bantNeed: "", bantTimeline: "", instructions: "", pitchIntroduction: "", pitchServices: "", pitchDifferentiator: "", pitchCollaterals: "", pitchCaseStudies: "", qualifyingQuestions: "", firstEmail: "", secondEmail: "" };
+const NO_BRIEF: CampaignBrief = { geography: "", industries: [], companySize: "", icp: "", jobTitles: [], seniority: "", technologies: [], bantBudget: "", bantAuthority: "", bantNeed: "", bantTimeline: "", instructions: "", pitchIntroduction: "", pitchServices: "", pitchDifferentiator: "", pitchCollaterals: "", pitchCaseStudies: "", qualifyingQuestions: "", qualifyingItems: [], firstEmail: "", secondEmail: "" };
 
 const IN_PROGRESS = new Set(["awaiting_client", "awaiting_reply", "scheduled", "outcome_due", "reschedule_needed", "held", "awaiting_decision"]);
 

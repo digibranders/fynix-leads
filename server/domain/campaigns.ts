@@ -53,6 +53,7 @@ const campaignColumns = {
   pitchCollaterals: campaign.pitchCollaterals,
   pitchCaseStudies: campaign.pitchCaseStudies,
   qualifyingQuestions: campaign.qualifyingQuestions,
+  qualifyingItems: campaign.qualifyingItems,
   firstEmail: campaign.firstEmail,
   secondEmail: campaign.secondEmail,
   primaryContactId: campaign.primaryContactId,

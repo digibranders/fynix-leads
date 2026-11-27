@@ -44,12 +44,40 @@ describe("what a campaign takes when it is set up", () => {
       secondEmail: "Following up",
       primaryContactId: contact.id,
     });
-    expect(await stored(created.id)).toMatchObject({ pitchIntroduction: "We move chilled goods.", qualifyingQuestions: "What do you ship?\nHow often?", firstEmail: "Hello", secondEmail: "Following up", primaryContactId: contact.id });
+    expect(await stored(created.id)).toMatchObject({ pitchIntroduction: "<p>We move chilled goods.</p>", pitchServices: "<p>Cold chain</p>", qualifyingQuestions: "What do you ship?\nHow often?", firstEmail: "Hello", secondEmail: "Following up", primaryContactId: contact.id });
+  });
+
+  it("stores the questions with their expected answers as cleaned rich text, and drops empty rows", async () => {
+    const created = await createCampaign(rig.deps(), rig.actor, {
+      ...base(),
+      pitchServices: '<p>We <strong>move</strong> goods</p><script>alert(1)</script><ul><li onclick="x()">Cold chain</li></ul>',
+      qualifyingItems: [
+        { question: "<p>What do you ship?</p>", answer: '<ul><li>Chilled</li><li><a href="javascript:alert(1)">Frozen</a></li></ul>' },
+        { question: "<p></p>", answer: "" },
+        { question: "How often?", answer: "" },
+      ],
+    });
+    const row = await stored(created.id);
+    expect(row?.pitchServices).toBe("<p>We <strong>move</strong> goods</p><ul><li>Cold chain</li></ul>");
+    expect(row?.qualifyingItems).toEqual([
+      { question: "<p>What do you ship?</p>", answer: '<ul><li>Chilled</li><li><a target="_blank" rel="noopener noreferrer nofollow">Frozen</a></li></ul>' },
+      { question: "<p>How often?</p>", answer: "" },
+    ]);
+    // Replacing the list on an existing campaign, and clearing it.
+    await updateCampaign(rig.deps(), rig.actor, created.id, { qualifyingItems: [{ question: "One?", answer: "Yes" }] });
+    expect((await stored(created.id))?.qualifyingItems).toEqual([{ question: "<p>One?</p>", answer: "<p>Yes</p>" }]);
+    await updateCampaign(rig.deps(), rig.actor, created.id, { qualifyingItems: [] });
+    expect((await stored(created.id))?.qualifyingItems).toEqual([]);
+  });
+
+  it("refuses more than 30 questions", async () => {
+    const many = Array.from({ length: 31 }, (_, index) => ({ question: `Question ${index}?`, answer: "" }));
+    expect((await refusal(createCampaign(rig.deps(), rig.actor, { ...base(), qualifyingItems: many }))).code).toBe("invalid-input");
   });
 
   it("leaves them empty when they are not given", async () => {
     const created = await createCampaign(rig.deps(), rig.actor, base());
-    expect(await stored(created.id)).toMatchObject({ pitchIntroduction: "", qualifyingQuestions: "", firstEmail: "", secondEmail: "", primaryContactId: null });
+    expect(await stored(created.id)).toMatchObject({ pitchIntroduction: "", qualifyingQuestions: "", qualifyingItems: [], firstEmail: "", secondEmail: "", primaryContactId: null });
   });
 
   it("refuses a contact person who belongs to another client, or has been removed", async () => {

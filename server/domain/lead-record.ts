@@ -1,3 +1,4 @@
+import type { QualificationCheck } from "@/lib/qualification-checks";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import type { CampaignStatus } from "@/lib/domain/campaign-status";
@@ -85,6 +86,8 @@ export interface LeadRecord {
     readonly notes: string | null;
   };
   readonly bant: { readonly budget: string; readonly authority: string; readonly need: string; readonly timeline: string };
+  /** The checklist the source agency ticked when it sent the lead, and its note (migration 0111). Empty for a lead sent before checklists. */
+  readonly qualification: { readonly checks: readonly QualificationCheck[]; readonly notes: string };
   readonly proposedTimes: readonly string[];
   readonly scheduledMeetingTime: Date | null;
   /** The host: a name for the client and Fynix, a job title for the supply side. */
@@ -216,6 +219,7 @@ export async function getLeadRecordForClient(db: Database, actor: TenantActor, l
       campaignStatus: row.campaignStatus,
       prospect: { name: row.prospectName, title: row.prospectTitle, company: row.prospectCompany, domain: row.prospectDomain, linkedinUrl: row.prospectLinkedinUrl, email: row.prospectEmail, phone: row.prospectPhone, notes: row.prospectNotes },
       bant: { budget: row.bantBudget, authority: row.bantAuthority, need: row.bantNeed, timeline: row.bantTimeline },
+      qualification: { checks: row.qualificationChecks, notes: row.qualificationNotes },
       proposedTimes: times(row.proposedTimes),
       scheduledMeetingTime: row.scheduledMeetingTime,
       host: { name: hostRow?.name ?? null, jobTitle: hostRow?.jobTitle ?? null },
@@ -275,6 +279,7 @@ export async function getLeadRecordForSupply(db: Database, actor: TenantActor, l
       campaignStatus: row.campaignStatus,
       prospect: { name: row.prospectName, title: row.prospectTitle, company: row.prospectCompany, domain: row.prospectDomain, linkedinUrl: row.prospectLinkedinUrl, email: row.prospectEmail, phone: row.prospectPhone, notes: row.prospectNotes },
       bant: { budget: row.bantBudget, authority: row.bantAuthority, need: row.bantNeed, timeline: row.bantTimeline },
+      qualification: { checks: row.qualificationChecks, notes: row.qualificationNotes },
       proposedTimes: times(row.proposedTimes),
       scheduledMeetingTime: row.scheduledMeetingTime,
       // The supply side reads neither the name nor the job title of a client person here. The lead form is where it picks one, by name.
@@ -355,6 +360,7 @@ export async function getLeadRecordForFynix(deps: DomainDeps, actor: FynixActor,
       campaignStatus: row.campaignStatus,
       prospect: { name: l.prospectName, title: l.prospectTitle, company: l.prospectCompany, domain: l.prospectDomain, linkedinUrl: l.prospectLinkedinUrl, email: l.prospectEmail, phone: l.prospectPhone, notes: l.prospectNotes },
       bant: { budget: l.bantBudget, authority: l.bantAuthority, need: l.bantNeed, timeline: l.bantTimeline },
+      qualification: { checks: l.qualificationChecks, notes: l.qualificationNotes },
       proposedTimes: times(l.proposedTimes),
       scheduledMeetingTime: l.scheduledMeetingTime,
       host: { name: row.hostName ?? null, jobTitle: row.hostJobTitle },

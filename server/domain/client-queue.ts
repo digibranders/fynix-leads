@@ -1,3 +1,4 @@
+import type { QualificationCheck } from "@/lib/qualification-checks";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { CampaignStatus } from "@/lib/domain/campaign-status";
 import { clientLeadColumns } from "@/server/db/columns";
@@ -17,6 +18,8 @@ export interface AvailabilityItem {
   readonly prospectDomain: string;
   readonly prospectNotes: string | null;
   readonly bant: { readonly budget: string; readonly authority: string; readonly need: string; readonly timeline: string };
+  /** The checklist the agency ticked when it sent the lead, and its note. */
+  readonly qualification: { readonly checks: readonly QualificationCheck[]; readonly notes: string };
   readonly proposedTimes: readonly string[];
   readonly submittedAt: Date;
   readonly campaignName: string;
@@ -74,6 +77,7 @@ export async function listClientQueues(db: Database, actor: TenantActor): Promis
         prospectDomain: row.prospectDomain,
         prospectNotes: row.prospectNotes,
         bant: { budget: row.bantBudget, authority: row.bantAuthority, need: row.bantNeed, timeline: row.bantTimeline },
+        qualification: { checks: row.qualificationChecks, notes: row.qualificationNotes },
         proposedTimes: times(row.proposedTimes),
         submittedAt: row.submittedAt,
         campaignName: row.campaignName,

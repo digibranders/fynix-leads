@@ -1,3 +1,4 @@
+import { QualificationChecklistView } from "@/components/leads/qualification-checklist-view";
 import Link from "next/link";
 import { ArrowLeft, PencilSimple } from "@phosphor-icons/react/dist/ssr";
 import { ClosedTag } from "@/components/kit/closed-tag";
@@ -239,7 +240,7 @@ export function LeadRecordView({
 
           <Panel aria-label="Qualification">
             <PanelHeader title="Qualification" />
-            <div className="px-5 pb-5">
+            <div className="flex flex-col gap-4 px-5 pb-5">
               <Facts
                 items={[
                   ["Budget", bant.budget],
@@ -248,6 +249,7 @@ export function LeadRecordView({
                   ["Timeline", bant.timeline],
                 ]}
               />
+              <QualificationChecklistView checks={record.qualification.checks} notes={record.qualification.notes} />
             </div>
           </Panel>
         </div>

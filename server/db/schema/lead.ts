@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { boolean, check, foreignKey, jsonb, pgTable, text, timestamp, unique, uuid } from "drizzle-orm/pg-core";
+import type { QualificationCheck } from "@/lib/qualification-checks";
 import { aliasIdentity } from "./alias-identity";
 import { user } from "./auth";
 import { campaign } from "./campaign";
@@ -59,6 +60,10 @@ export const lead = pgTable(
     bantAuthority: text("bant_authority").notNull(),
     bantNeed: text("bant_need").notNull(),
     bantTimeline: text("bant_timeline").notNull(),
+    // The checklist the agency ticked when it submitted (migration 0111): one check for each qualification criterion and qualifying question of the campaign, as asked
+    // then, and the note the agency wrote, which says why a check was not passed. Written by the source organisation while the lead is a draft.
+    qualificationChecks: jsonb("qualification_checks").$type<QualificationCheck[]>().notNull().default([]),
+    qualificationNotes: text("qualification_notes").notNull().default(""),
 
     // Lifecycle state machine
     stage: text("stage").notNull().default("awaiting_client"),

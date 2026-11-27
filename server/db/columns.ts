@@ -73,6 +73,7 @@ export const agencyCampaignBriefColumns = {
   pitchCollaterals: campaign.pitchCollaterals,
   pitchCaseStudies: campaign.pitchCaseStudies,
   qualifyingQuestions: campaign.qualifyingQuestions,
+  qualifyingItems: campaign.qualifyingItems,
   firstEmail: campaign.firstEmail,
   secondEmail: campaign.secondEmail,
 } as const;
@@ -97,6 +98,8 @@ const sharedLeadColumns = {
   bantAuthority: lead.bantAuthority,
   bantNeed: lead.bantNeed,
   bantTimeline: lead.bantTimeline,
+  qualificationChecks: lead.qualificationChecks,
+  qualificationNotes: lead.qualificationNotes,
   stage: lead.stage,
   declineReason: lead.declineReason,
   disputeReason: lead.disputeReason,
