@@ -142,7 +142,7 @@ export function declaredVariables(): { readonly runtime: string[]; readonly tool
 
 /** The variable names roles.ts derives, for the same check. */
 export function derivedVariables(): { readonly runtime: string[]; readonly tooling: string[] } {
-  const runtime = [...RUNTIME_ROLES.map((role) => urlVariable(role, "dev")), "BETTER_AUTH_SECRET", "APP_ORIGIN", "PASSWORD_BREACH_CHECK", "BREVO_API_KEY", "REQUIRE_FYNIX_2FA", "LAUNCH_EMAILS_ENABLED", "MAIL_SENDER_ADDRESS", "MAIL_SENDER_NAME", "MEET_PROVIDER", "GOOGLE_MEET_CLIENT_ID", "GOOGLE_MEET_CLIENT_SECRET", "GOOGLE_MEET_REFRESH_TOKEN"];
+  const runtime = [...RUNTIME_ROLES.map((role) => urlVariable(role, "dev")), "BETTER_AUTH_SECRET", "APP_ORIGIN", "PASSWORD_BREACH_CHECK", "BREVO_API_KEY", "REQUIRE_FYNIX_2FA", "LAUNCH_EMAILS_ENABLED", "MAIL_SENDER_ADDRESS", "MAIL_SENDER_NAME", "MEET_PROVIDER", "GOOGLE_MEET_CLIENT_ID", "GOOGLE_MEET_CLIENT_SECRET", "GOOGLE_MEET_REFRESH_TOKEN", "CALENDAR_SYNC_ENABLED", "CALENDAR_TOKEN_KEY", "GOOGLE_CALENDAR_CLIENT_ID", "GOOGLE_CALENDAR_CLIENT_SECRET", "MICROSOFT_CALENDAR_CLIENT_ID", "MICROSOFT_CALENDAR_CLIENT_SECRET"];
   const tooling = [
     "DATABASE_URL_ADMIN",
     urlVariable("leads_owner", "dev"),
