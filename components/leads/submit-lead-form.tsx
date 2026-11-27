@@ -240,21 +240,8 @@ export function SubmitLeadForm({ campaigns, aliases, notLive = [], leadsHref, te
             </div>
           </Group>
 
-          <Group title="Qualification" note="Budget, authority, need and timeline, as the prospect confirmed them.">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <Field id="bant-budget" label="Budget">
-                <Input id="bant-budget" name="bantBudget" defaultValue={draft?.bantBudget} type="text" required placeholder="Confirmed budget or spend bracket" />
-              </Field>
-              <Field id="bant-authority" label="Authority">
-                <Input id="bant-authority" name="bantAuthority" defaultValue={draft?.bantAuthority} type="text" required placeholder="Role in buying or signing" />
-              </Field>
-              <Field id="bant-need" label="Need">
-                <Input id="bant-need" name="bantNeed" defaultValue={draft?.bantNeed} type="text" required placeholder="Pain point or active evaluation" />
-              </Field>
-              <Field id="bant-timeline" label="Timeline">
-                <Input id="bant-timeline" name="bantTimeline" defaultValue={draft?.bantTimeline} type="text" required placeholder="For example Q1 rollout" />
-              </Field>
-            </div>
+          <Group title="Qualification checklist" note="Tick each check the prospect passed. If one was not passed, say which and why in the notes. The lead can still be sent.">
+            {campaignId === "" ? <p className="text-label text-ink-muted">Choose a campaign to see its checks.</p> : <QualificationChecklist checks={checklist} onChange={(next) => setTicks({ campaignId, checks: next })} notesDefault={campaignId === draft?.campaignId ? draft?.qualificationNotes : undefined} />}
           </Group>
 
           <Group title="Meeting time" note="Pick one time when someone from the client team is free, and who to invite. The first to accept takes it.">
@@ -263,10 +250,6 @@ export function SubmitLeadForm({ campaigns, aliases, notLive = [], leadsHref, te
             ) : (
               <SlotPicker key={campaignId} people={teams[campaignId] ?? []} initialTime={campaignId === draft?.campaignId ? (draft?.proposedTimes[0] ?? null) : null} />
             )}
-          </Group>
-
-          <Group title="Qualification checklist" note="Tick each check the prospect passed. If one was not passed, say which and why in the notes. The lead can still be sent.">
-            {campaignId === "" ? <p className="text-label text-ink-muted">Choose a campaign to see its checks.</p> : <QualificationChecklist checks={checklist} onChange={(next) => setTicks({ campaignId, checks: next })} notesDefault={campaignId === draft?.campaignId ? draft?.qualificationNotes : undefined} />}
           </Group>
         </div>
 
