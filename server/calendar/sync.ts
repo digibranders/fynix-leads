@@ -25,13 +25,23 @@ export interface CalendarDeps {
 /** Only the error's name is logged, never its message, which could carry a response. */
 const logFault = (what: string, error: unknown): void => console.error(`${what} (${error instanceof Error ? error.name : "unknown error"}).`);
 
+/** Access tokens of the live own-events read, so a click on the calendar does not refresh a token every time. Kept per connection until a minute before they expire, and dropped when the stored refresh token changes. */
+const liveTokens = new Map<string, { readonly forRefreshToken: string; readonly accessToken: string; readonly expiresAt: number }>();
+const TOKEN_MARGIN_MS = 60_000;
+
 /** The refresh token in use now. A provider that issues a new one with every refresh (Microsoft) has it stored at once, before anything else can fail. */
-async function accessTokenFor(deps: CalendarDeps, provider: CalendarProvider, row: ConnectionRow, now: Date): Promise<string> {
+async function accessTokenFor(deps: CalendarDeps, provider: CalendarProvider, row: ConnectionRow, now: Date, options: { readonly reuse?: boolean } = {}): Promise<string> {
+  const reuse = options.reuse === true;
+  const kept = reuse ? liveTokens.get(row.id) : undefined;
+  if (kept !== undefined && kept.forRefreshToken === row.refreshTokenEnc && kept.expiresAt - TOKEN_MARGIN_MS > now.getTime()) return kept.accessToken;
   const refreshToken = decryptToken(row.refreshTokenEnc, deps.setup.key);
   const tokens = await provider.refresh(refreshToken);
+  let stored = row.refreshTokenEnc;
   if (tokens.refreshToken !== null && tokens.refreshToken !== refreshToken) {
-    await deps.authDb.update(calendarConnection).set({ refreshTokenEnc: encryptToken(tokens.refreshToken, deps.setup.key), updatedAt: now }).where(eq(calendarConnection.id, row.id));
+    stored = encryptToken(tokens.refreshToken, deps.setup.key);
+    await deps.authDb.update(calendarConnection).set({ refreshTokenEnc: stored, updatedAt: now }).where(eq(calendarConnection.id, row.id));
   }
+  if (reuse) liveTokens.set(row.id, { forRefreshToken: stored, accessToken: tokens.accessToken, expiresAt: tokens.expiresAt.getTime() });
   return tokens.accessToken;
 }
 
@@ -118,22 +128,25 @@ export async function readOwnEvents(deps: CalendarDeps, who: { readonly userId: 
     .limit(1);
   if (person === undefined) return { events: [], problems: [] };
   const rows = await deps.authDb.select(connectionColumns).from(calendarConnection).where(and(eq(calendarConnection.memberId, person.id), eq(calendarConnection.status, "connected")));
-  const events: OwnEvent[] = [];
-  const problems: CalendarProviderName[] = [];
-  for (const row of rows) {
-    const provider = deps.setup.providers[row.provider as CalendarProviderName];
-    if (provider === undefined) continue;
-    try {
-      const own: readonly CalendarEvent[] = await provider.listEvents(await accessTokenFor(deps, provider, row, now), range, { withTitles: true });
-      for (const event of own) {
-        if (!event.busy || event.icalUid?.endsWith(PORTAL_UID_SUFFIX) === true) continue;
-        events.push({ provider: provider.name, title: event.title ?? "Busy", start: event.start, end: event.end, allDay: event.allDay });
+  const reads = await Promise.all(
+    rows.map(async (row): Promise<{ readonly events: readonly OwnEvent[]; readonly problem: CalendarProviderName | null }> => {
+      const provider = deps.setup.providers[row.provider as CalendarProviderName];
+      if (provider === undefined) return { events: [], problem: null };
+      try {
+        const own: readonly CalendarEvent[] = await provider.listEvents(await accessTokenFor(deps, provider, row, now, { reuse: true }), range, { withTitles: true });
+        const mine = own
+          .filter((event) => event.busy && event.icalUid?.endsWith(PORTAL_UID_SUFFIX) !== true)
+          .map((event): OwnEvent => ({ provider: provider.name, title: event.title ?? "Busy", start: event.start, end: event.end, allDay: event.allDay }));
+        return { events: mine, problem: null };
+      } catch (error) {
+        liveTokens.delete(row.id);
+        if (error instanceof CalendarAuthError) await markBroken(deps, row, now);
+        else logFault("A calendar could not be read", error);
+        return { events: [], problem: row.provider as CalendarProviderName };
       }
-    } catch (error) {
-      if (error instanceof CalendarAuthError) await markBroken(deps, row, now);
-      else logFault("A calendar could not be read", error);
-      problems.push(row.provider as CalendarProviderName);
-    }
-  }
+    }),
+  );
+  const events = reads.flatMap((read) => read.events);
+  const problems = reads.flatMap((read) => (read.problem === null ? [] : [read.problem]));
   return { events: events.sort((a, b) => a.start.getTime() - b.start.getTime()).slice(0, 500), problems };
 }
