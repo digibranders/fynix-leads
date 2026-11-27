@@ -799,6 +799,20 @@
       "when": 1795782635598,
       "tag": "0113_member_role_grant",
       "breakpoints": true
+    },
+    {
+      "idx": 114,
+      "version": "7",
+      "when": 1795784230747,
+      "tag": "0114_campaign_update_notices",
+      "breakpoints": true
+    },
+    {
+      "idx": 115,
+      "version": "7",
+      "when": 1795784251625,
+      "tag": "0115_campaign_update_functions",
+      "breakpoints": true
     }
   ]
 }

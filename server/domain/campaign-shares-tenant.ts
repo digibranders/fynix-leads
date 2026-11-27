@@ -5,6 +5,7 @@ import { withTenantScope } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import { assertCampaignOpen, requireOpenCampaign } from "@/server/domain/campaign-rules";
 import { DomainError } from "@/server/domain/errors";
+import { notify } from "@/server/domain/notices";
 import { removeCampaignShareSchema, setCampaignShareSchema } from "@/server/domain/inputs";
 import { parseInput } from "@/server/domain/parse";
 
@@ -49,6 +50,7 @@ export async function assignCampaignShare(db: Database, actor: TenantActor, inpu
         .limit(1);
       if (existing === undefined) {
         await tx.insert(campaignShare).values({ campaignId: parsed.campaignId, agencyOrgId: parsed.agencyOrgId, monthlyShare: parsed.monthlyShare });
+        await notify(tx, { type: "campaign_shared", campaignId: parsed.campaignId, agencyOrgId: parsed.agencyOrgId });
       } else {
         await tx.update(campaignShare).set({ monthlyShare: parsed.monthlyShare, updatedAt: new Date() }).where(eq(campaignShare.id, existing.id));
       }
@@ -69,6 +71,7 @@ export async function unassignCampaignShare(db: Database, actor: TenantActor, in
         .where(and(eq(campaignShare.campaignId, parsed.campaignId), eq(campaignShare.agencyOrgId, parsed.agencyOrgId)))
         .returning({ id: campaignShare.id });
       if (removed.length === 0) throw new DomainError("not-found", "That agency does not hold this campaign.");
+      await notify(tx, { type: "campaign_unshared", campaignId: parsed.campaignId, agencyOrgId: parsed.agencyOrgId });
     });
   } catch (error) {
     refusal(error);

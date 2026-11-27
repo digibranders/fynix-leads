@@ -25,5 +25,9 @@ export const NOTICE_KINDS = [
   "agreement_published",
   "campaign_active",
   "campaign_closed",
+  "campaign_assigned",
+  "campaign_shared",
+  "campaign_unshared",
+  "agreement_accepted",
 ] as const;
 export type NoticeKind = (typeof NOTICE_KINDS)[number];

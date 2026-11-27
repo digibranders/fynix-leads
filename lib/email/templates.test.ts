@@ -159,6 +159,7 @@ const FIXTURES: Record<EmailTemplate, EmailContent> = {
   contest_decided_info: portal("contest_decided_info", { decided: "client_no_show", note: "The room record shows nobody from the client.", noteFrom: "Fynix" }),
   review_requested_info: portal("review_requested_info"),
   agreement_published_info: { template: "agreement_published_info", params: { campaignName: "UK freight decision makers", version: 3 } } as EmailContent,
+  campaign_update_info: { template: "campaign_update_info", params: { campaignName: "UK freight decision makers", change: "shared" } } as EmailContent,
   target_met_info: portal("target_met_info", { campaignName: "UK freight decision makers", scope: "month", period: "November 2026", reached: 12, target: 12 }),
   share_met_info: portal("share_met_info", { campaignName: "UK freight decision makers", period: "November 2026", reached: 5, target: 5 }),
   over_share_info: portal("over_share_info"),
@@ -272,6 +273,13 @@ describe("every template, rendered", () => {
     expect(agreement.html).toContain("Open the agreement");
     expect(agreement.all).not.toContain("Open the lead");
     expect(everyRendering(FIXTURES.leads_waiting_daily, PORTAL_LINK).html).toContain("Open the oldest lead");
+  });
+
+  it("the campaign update email names the campaign and its own button", () => {
+    const update = everyRendering(FIXTURES.campaign_update_info, PORTAL_LINK);
+    expect(update.subject).toBe("The campaign UK freight decision makers is shared with you");
+    expect(update.html).toContain("Open the campaign");
+    expect(update.all).not.toContain("Open the lead");
   });
 
   it("the cancelled email gives the note, labelled with who wrote it", () => {

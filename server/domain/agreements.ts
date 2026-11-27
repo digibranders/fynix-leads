@@ -154,7 +154,7 @@ export async function recordAgreementAcceptance(deps: DomainDeps, actor: FynixAc
   const parsed = parseInput(recordAgreementAcceptanceSchema, input);
   return fynixWrite(deps.fynixDb, actor, async ({ tx, audit }) => {
     const [target] = await tx
-      .select({ id: agreement.id, party: agreement.party, version: agreement.version, status: agreement.status, clientOrgId: campaign.clientOrgId, coordinatorOrgId: campaign.agencyOrgId, campaignRef: campaign.publicRef, campaignStatus: campaign.status })
+      .select({ id: agreement.id, campaignId: agreement.campaignId, party: agreement.party, version: agreement.version, status: agreement.status, clientOrgId: campaign.clientOrgId, coordinatorOrgId: campaign.agencyOrgId, campaignRef: campaign.publicRef, campaignStatus: campaign.status })
       .from(agreement)
       .innerJoin(campaign, eq(campaign.id, agreement.campaignId))
       .where(eq(agreement.id, parsed.agreementId))
@@ -184,6 +184,7 @@ export async function recordAgreementAcceptance(deps: DomainDeps, actor: FynixAc
       before: null,
       after: { ...snapshotAcceptance({ agreementId: target.id, userId: parsed.userId, networkAddress: parsed.networkAddress }), side },
     });
+    await notify(tx, { type: "agreement_accepted", campaignId: target.campaignId, side: side === "supplier" ? "coordinator" : "client", version: target.version });
     return { agreementId: target.id, side, userId: parsed.userId, acceptedAt: created.acceptedAt, networkAddress: parsed.networkAddress };
   });
 }
@@ -209,6 +210,7 @@ export async function acceptAgreementByTenant(
     const [target] = await tx
       .select({
         id: agreement.id,
+        campaignId: agreement.campaignId,
         party: agreement.party,
         version: agreement.version,
         status: agreement.status,
@@ -242,6 +244,7 @@ export async function acceptAgreementByTenant(
         });
 
       if (created === undefined) throw new Error("The acceptance insert returned no row");
+      await notify(tx, { type: "agreement_accepted", campaignId: target.campaignId, side: actor.orgKind === "client" ? "client" : "coordinator", version: target.version });
 
       return {
         agreementId: target.id,

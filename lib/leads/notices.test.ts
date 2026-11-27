@@ -28,7 +28,17 @@ const LEAD_EVENTS: readonly LeadNoticeEvent[] = [
   { type: "lead_over_share" },
 ];
 
-const CAMPAIGN_EVENTS: readonly CampaignNoticeEvent[] = [{ type: "campaign_active" }, { type: "campaign_closed" }, { type: "agreement_published", version: 3 }];
+const AGENCY = "0f6c1e5a-3f0a-4a53-9d1e-5b0b6a7c9e21";
+const CAMPAIGN_EVENTS: readonly CampaignNoticeEvent[] = [
+  { type: "campaign_active" },
+  { type: "campaign_closed" },
+  { type: "agreement_published", version: 3 },
+  { type: "campaign_assigned" },
+  { type: "campaign_shared", agencyOrgId: AGENCY },
+  { type: "campaign_unshared", agencyOrgId: AGENCY },
+  { type: "agreement_accepted", side: "client", version: 2 },
+  { type: "agreement_accepted", side: "coordinator", version: 2 },
+];
 
 const written = (deliveries: readonly { title: string; body: string }[]): string => deliveries.map((entry) => `${entry.title} ${entry.body}`).join(" ");
 
@@ -48,9 +58,16 @@ describe("the notice catalogue", () => {
     for (const event of CAMPAIGN_EVENTS) {
       for (const delivery of campaignNotices(event)) {
         expect(NOTICE_KINDS, event.type).toContain(delivery.kind);
-        for (const audience of delivery.audience) expect(NOTICE_AUDIENCES, event.type).toContain(audience);
+        for (const audience of delivery.audience) expect(audience.startsWith("agency:") || (NOTICE_AUDIENCES as readonly string[]).includes(audience), event.type).toBe(true);
       }
     }
+  });
+
+  it("tells a share's agency alone, and the other side's managers and Fynix about an acceptance", () => {
+    expect(campaignNotices({ type: "campaign_shared", agencyOrgId: AGENCY })[0]?.audience).toEqual([`agency:${AGENCY}`]);
+    expect(campaignNotices({ type: "campaign_assigned" })[0]?.audience).toEqual(["coordinator"]);
+    expect(campaignNotices({ type: "agreement_accepted", side: "client", version: 2 })[0]?.audience).toEqual(["coordinator_managers", "fynix"]);
+    expect(campaignNotices({ type: "agreement_accepted", side: "coordinator", version: 2 })[0]?.audience).toEqual(["client_managers", "fynix"]);
   });
 
   it("writes no dash, no exclamation mark, no email address and no word 'supplier' in any text", () => {

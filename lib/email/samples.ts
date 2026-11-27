@@ -56,6 +56,7 @@ export const SAMPLES: Readonly<Record<EmailTemplate, EmailContent>> = {
   contest_decided_info: portal("contest_decided_info", { decided: "held", note: "This is a sample note, not a real one.", noteFrom: "Fynix" }),
   review_requested_info: portal("review_requested_info"),
   agreement_published_info: { template: "agreement_published_info", params: { campaignName: "Sample campaign", version: 2 } } as EmailContent,
+  campaign_update_info: { template: "campaign_update_info", params: { campaignName: "Sample campaign", change: "active" } } as EmailContent,
   target_met_info: portal("target_met_info", { campaignName: "Sample campaign", scope: "month", period: "December 2026", reached: 12, target: 12 }),
   share_met_info: portal("share_met_info", { campaignName: "Sample campaign", period: "December 2026", reached: 5, target: 5 }),
   over_share_info: portal("over_share_info"),
@@ -114,6 +115,7 @@ export const CATALOG: readonly CatalogGroup[] = [
     audience: "Agreements, targets and shares",
     entries: [
       { template: "agreement_published_info", title: "Agreement needs acceptance", when: "Fynix publishes a new agreement version. It goes to the managers of the client and of the coordinator." },
+      { template: "campaign_update_info", title: "Campaign update", when: "A campaign is made active, given to a coordinator, or shared with or taken from an agency. The managers of the side concerned get it." },
       { template: "target_met_info", title: "Target met", when: "A campaign reaches its monthly or its total target. It goes to the client, the coordinator and Fynix, once." },
       { template: "share_met_info", title: "Share met", when: "An agency reaches its monthly share. It goes to that agency, once." },
       { template: "over_share_info", title: "Beyond a share", when: "A lead is submitted beyond its sender's share. It goes to Fynix." },

@@ -19,7 +19,8 @@ import type { NoticeKind } from "./notice-kinds";
  * managers, `shared_agencies` the agencies holding a share, `fynix` every Fynix person.
  */
 export const NOTICE_AUDIENCES = ["client", "client_managers", "source", "coordinator", "partner_coordinator", "coordinator_managers", "shared_agencies", "fynix"] as const;
-export type NoticeAudience = (typeof NOTICE_AUDIENCES)[number];
+/** `agency:<organisation id>` is one named agency's people: the one a share was just given to or taken from. */
+export type NoticeAudience = (typeof NOTICE_AUDIENCES)[number] | `agency:${string}`;
 
 export type NoticeTarget = "lead" | "campaign" | "agreement";
 
@@ -55,7 +56,17 @@ export type LeadNoticeEvent =
   | { readonly type: "review_requested" }
   | { readonly type: "lead_over_share" };
 
-export type CampaignNoticeEvent = { readonly type: "campaign_active" } | { readonly type: "campaign_closed" } | { readonly type: "agreement_published"; readonly version: number };
+export type CampaignNoticeEvent =
+  | { readonly type: "campaign_active" }
+  | { readonly type: "campaign_closed" }
+  | { readonly type: "agreement_published"; readonly version: number }
+  /** Fynix gave the campaign to a coordinator. */
+  | { readonly type: "campaign_assigned" }
+  /** A share of the campaign was given to an agency, or taken away. Only that agency is told. */
+  | { readonly type: "campaign_shared"; readonly agencyOrgId: string }
+  | { readonly type: "campaign_unshared"; readonly agencyOrgId: string }
+  /** A manager accepted the agreement for their own side. The other side's managers and Fynix are told. */
+  | { readonly type: "agreement_accepted"; readonly side: "client" | "coordinator"; readonly version: number };
 
 const SUPPLY_AND_FYNIX = ["source", "coordinator", "fynix"] as const;
 const EVERYONE = ["client", "source", "coordinator", "fynix"] as const;
@@ -146,5 +157,21 @@ export function campaignNotices(event: CampaignNoticeEvent): readonly NoticeDeli
       return [campaign(["client", "coordinator", "shared_agencies", "fynix"], "campaign_closed", "Campaign {ref} is closed", "No new leads can be submitted. Leads already sent finish their course.", "campaign")];
     case "agreement_published":
       return [campaign(["client_managers", "coordinator_managers"], "agreement_published", "Agreement version {version} for {ref} needs your acceptance".replace("{version}", String(event.version)), "A new version of the agreement is published. The old one stays in force until both sides accept the new one.", "agreement")];
+    case "campaign_assigned":
+      return [campaign(["coordinator"], "campaign_assigned", "Campaign {ref} is assigned to you", "Fynix gave this campaign to your organisation. Open it to read the brief and the agreement.", "campaign")];
+    case "campaign_shared":
+      return [campaign([`agency:${event.agencyOrgId}`], "campaign_shared", "Campaign {ref} is shared with you", "You can submit leads for it once the campaign is active.", "campaign")];
+    case "campaign_unshared":
+      return [campaign([`agency:${event.agencyOrgId}`], "campaign_unshared", "Campaign {ref} is no longer shared with you", "You cannot submit new leads for it. Leads already sent finish their course.", "campaign")];
+    case "agreement_accepted":
+      return [
+        campaign(
+          [event.side === "client" ? "coordinator_managers" : "client_managers", "fynix"],
+          "agreement_accepted",
+          `The ${event.side === "client" ? "client" : "coordinator"} accepted version ${event.version} of the agreement for {ref}`,
+          "It comes into force when both sides have accepted it.",
+          "agreement",
+        ),
+      ];
   }
 }

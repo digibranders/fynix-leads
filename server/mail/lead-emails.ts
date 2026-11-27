@@ -105,11 +105,10 @@ export async function claimTargetNotices(db: EmailExecutor, leadId: string, opti
 }
 
 /**
- * Queues the email of a campaign event: only a new agreement version has one, to the managers of both sides (`lib/leads/lead-emails.ts`). Only Fynix publishes
- * an agreement, and the database function refuses anyone else. Does nothing while `LAUNCH_EMAILS_ENABLED` is not `true`.
+ * Queues the email of a campaign event (`lib/leads/lead-emails.ts`): a new agreement version, and a campaign made active, assigned, shared or unshared. The database
+ * functions decide who may queue each and who gets it. Does nothing while `LAUNCH_EMAILS_ENABLED` is not `true`.
  */
 export async function enqueueCampaignEmails(db: EmailExecutor, event: CampaignNoticeEvent & { readonly campaignId: string }, options: EnqueueOptions = {}): Promise<number> {
-  if (event.type !== "agreement_published") return 0;
   if (!(options.enabled ?? launchEmailsEnabled())) return 0;
   const origin = options.origin ?? process.env.APP_ORIGIN;
   if (origin === undefined || origin === "") throw new Error("APP_ORIGIN must be set to queue the launch emails.");
@@ -121,8 +120,10 @@ export async function enqueueCampaignEmails(db: EmailExecutor, event: CampaignNo
   for (const delivery of campaignEmailDeliveries(rest, { campaignName })) {
     const content = parseLaunchContent(delivery.template, delivery.params);
     const stored = renderEmail(content, null);
+    // The agreement email is Fynix's alone to queue; the update email may also be queued by the coordinator who shares a campaign with an agency.
+    const queue = delivery.template === "campaign_update_info" ? sql.raw("public.app_enqueue_campaign_update_email") : sql.raw("public.app_enqueue_campaign_email");
     const result = await db.execute<{ n: number }>(
-      sql`select public.app_enqueue_campaign_email(${campaignId}::uuid, ${textArray(delivery.audience)}::text[], ${delivery.template}, ${JSON.stringify(content.params)}::jsonb, ${stored.subject}, ${stored.text}, ${origin}) as n`,
+      sql`select ${queue}(${campaignId}::uuid, ${textArray(delivery.audience)}::text[], ${delivery.template}, ${JSON.stringify(content.params)}::jsonb, ${stored.subject}, ${stored.text}, ${origin}) as n`,
     );
     written += result.rows[0]?.n ?? 0;
   }

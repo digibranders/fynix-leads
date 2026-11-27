@@ -112,12 +112,23 @@ describe("who gets which email", () => {
     expect(leadEmailDeliveries(summary, CONTEXT)[0]?.params.clients).toEqual([{ name: "Kestrel Logistics", waiting: 3 }]);
   });
 
-  it("a new agreement version goes to the managers of both sides, and other campaign events send no email", () => {
-    expect(campaignEmailDeliveries({ type: "agreement_published", version: 3 }, { campaignName: "UK freight" })).toEqual([
+  it("a new agreement version goes to the managers of both sides; a campaign update goes to the side it concerns; closing and acceptance send none", () => {
+    const campaign = { campaignName: "UK freight" };
+    expect(campaignEmailDeliveries({ type: "agreement_published", version: 3 }, campaign)).toEqual([
       { template: "agreement_published_info", audience: ["client_managers", "coordinator_managers"], params: { campaignName: "UK freight", version: 3 } },
     ]);
-    expect(campaignEmailDeliveries({ type: "campaign_active" }, { campaignName: "UK freight" })).toEqual([]);
-    expect(campaignEmailDeliveries({ type: "campaign_closed" }, { campaignName: "UK freight" })).toEqual([]);
+    expect(campaignEmailDeliveries({ type: "campaign_active" }, campaign)).toEqual([
+      { template: "campaign_update_info", audience: ["client_managers", "coordinator_managers"], params: { campaignName: "UK freight", change: "active" } },
+    ]);
+    expect(campaignEmailDeliveries({ type: "campaign_assigned" }, campaign)).toEqual([
+      { template: "campaign_update_info", audience: ["coordinator_managers"], params: { campaignName: "UK freight", change: "assigned" } },
+    ]);
+    expect(campaignEmailDeliveries({ type: "campaign_shared", agencyOrgId: "a1" }, campaign)).toEqual([
+      { template: "campaign_update_info", audience: ["agency_managers:a1"], params: { campaignName: "UK freight", change: "shared" } },
+    ]);
+    expect(campaignEmailDeliveries({ type: "campaign_unshared", agencyOrgId: "a1" }, campaign)[0]?.params.change).toBe("unshared");
+    expect(campaignEmailDeliveries({ type: "campaign_closed" }, campaign)).toEqual([]);
+    expect(campaignEmailDeliveries({ type: "agreement_accepted", side: "client", version: 1 }, campaign)).toEqual([]);
   });
 
   it("a request to review a rejection goes to Fynix alone", () => {
