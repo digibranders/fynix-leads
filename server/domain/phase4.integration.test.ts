@@ -658,18 +658,19 @@ describe("the host's availability on the lead form", () => {
     await ownerDb().insert(hostBlock).values({ memberId: cast.hostMemberId, startsAt: new Date("2030-01-07T14:00:00Z"), endsAt: new Date("2030-01-07T16:00:00Z"), note: "Private dentist" });
   });
 
-  it("gives the supply side the host's name, title, zone, hours and blocked times, and never a note, an email or a phone", async () => {
+  it("gives the supply side the name, zone, hours and blocked times of a client team member, and never a job title, a note, an email or a phone", async () => {
     const availability = await getHostAvailability(agencyDb(), rig.deps(), cast.coordinator, cast.hostMemberId, cast.campaignId);
-    expect(availability).toMatchObject({ displayName: cast.hostName, jobTitle: "Chief Operating Officer", timeZone: "Europe/London", hours: [{ weekday: 1, startMinute: 540, endMinute: 1020 }] });
+    expect(availability).toMatchObject({ displayName: cast.hostName, timeZone: "Europe/London", hours: [{ weekday: 1, startMinute: 540, endMinute: 1020 }] });
     expect(availability.blocks).toHaveLength(1);
     const text = JSON.stringify(availability);
-    for (const forbidden of [cast.clientUserEmail, "Private dentist", "phone"]) expect(text, forbidden).not.toContain(forbidden);
+    for (const forbidden of [cast.clientUserEmail, "Private dentist", "phone", "Chief Operating Officer", "jobTitle"]) expect(text, forbidden).not.toContain(forbidden);
     expect((await refusal(getHostAvailability(agencyDb(), rig.deps(), cast.otherAgency, cast.hostMemberId, cast.campaignId))).code).toBe("not-found");
     expect((await refusal(getHostAvailability(clientDb(), rig.deps(), cast.clientActor, cast.hostMemberId, cast.campaignId))).code).toBe("not-authorised");
     expect((await refusal(getHostAvailability(agencyDb(), rig.deps(), cast.coordinator, cast.coordinator.userId, cast.campaignId))).code).toBe("not-found");
-    // The form's host list now carries names.
+    // The form's list carries the names of the client team and nothing else.
     const options = await getLeadSubmissionOptions(agencyDb(), cast.coordinator);
-    expect(options.hosts).toEqual([{ id: cast.hostMemberId, campaignId: cast.campaignId, name: cast.hostName, jobTitle: "Chief Operating Officer" }]);
+    expect(options.hosts).toContainEqual({ id: cast.hostMemberId, campaignId: cast.campaignId, name: cast.hostName });
+    for (const person of options.hosts) expect(Object.keys(person).sort()).toEqual(["campaignId", "id", "name"]);
     await denied(asTenant(clientDb(), cast.clientActor, (tx) => tx.execute(sql`select * from public.app_campaign_host_names(${cast.campaignId}::uuid)`)), /permission denied for function app_campaign_host_names/);
   });
 

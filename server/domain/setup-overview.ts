@@ -1,10 +1,10 @@
 import { and, asc, eq, inArray, isNotNull, isNull, notExists } from "drizzle-orm";
-import { agreement, agreementAcceptance, campaign, campaignHost, member, organisation } from "@/server/db/schema";
+import { agreement, agreementAcceptance, campaign, member, organisation } from "@/server/db/schema";
 import type { DomainDeps } from "@/server/domain/deps";
 import { fynixRead, type FynixActor } from "@/server/domain/fynix-write";
 import type { SetupFindings } from "@/lib/fynix/setup-checklist";
 
-/** Clients and coordinators with no active manager, open campaigns with no active host, and campaign agreements a side has not accepted. Fynix read, open to staff. */
+/** Clients and coordinators with no active manager, open campaigns whose client has no active team member, and campaign agreements a side has not accepted. Fynix read, open to staff. */
 export async function readSetupFindings(deps: DomainDeps, actor: FynixActor): Promise<SetupFindings> {
   return fynixRead(deps.fynixDb, actor, async (tx) => {
     const noManager = (kind: "client" | "agency", partner = false) =>
@@ -43,7 +43,7 @@ export async function readSetupFindings(deps: DomainDeps, actor: FynixActor): Pr
       tx
         .select({ name: campaign.name, ref: campaign.publicRef })
         .from(campaign)
-        .where(and(open, notExists(tx.select({ one: campaignHost.memberId }).from(campaignHost).where(and(eq(campaignHost.campaignId, campaign.id), eq(campaignHost.active, true))))))
+        .where(and(open, notExists(tx.select({ one: member.id }).from(member).where(and(eq(member.orgId, campaign.clientOrgId), eq(member.status, "active"))))))
         .orderBy(asc(campaign.name)),
       notAccepted("client"),
       notAccepted("supplier"),

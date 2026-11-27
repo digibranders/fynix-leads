@@ -1,39 +1,21 @@
-import { PencilSimple, Plus, Trash } from "@phosphor-icons/react/dist/ssr";
+import { EnvelopeSimple, PencilSimple, Trash } from "@phosphor-icons/react/dist/ssr";
 import { ListRow } from "@/components/kit/list";
 import { Panel, PanelHeader } from "@/components/kit/panel";
 import { Button } from "@/components/ui/button";
 import type { ClientContactRecord } from "@/server/domain/client-contacts";
-import { removeClientContactAction } from "@/server/fynix/actions";
-import { AddContactForm, EditContactPersonForm } from "../forms/contact-person-forms";
+import { inviteClientContactAction, removeClientContactAction } from "@/server/fynix/actions";
+import { EditContactPersonForm } from "../forms/contact-person-forms";
 import { FormSheet } from "../forms/form-sheet";
 import { InlineAction } from "../forms/inline-action";
 
-/** The people Fynix speaks to at the client. Contacts, not logins: the People tab holds the people who sign in. An admin adds, edits and removes; staff read. */
-export function ContactsPanel({ clientOrgId, contacts, canWrite }: { clientOrgId: string; contacts: readonly ClientContactRecord[]; canWrite: boolean }) {
+/** Contacts saved before every person of a client had a login. An admin invites, edits and removes one; staff read. New people join through the People tab. */
+export function ContactsPanel({ contacts, canWrite }: { contacts: readonly ClientContactRecord[]; canWrite: boolean }) {
   return (
-    <Panel aria-label="Contact people">
-      <PanelHeader
-        title="Contact people"
-        count={contacts.length}
-        action={
-          canWrite ? (
-            <FormSheet
-              trigger={
-                <Button variant="secondary" size="sm">
-                  <Plus aria-hidden />
-                  Add contact
-                </Button>
-              }
-              title="Add contact"
-              description="Someone Fynix speaks to at the client. Nobody is invited and nothing is sent."
-            >
-              <AddContactForm clientOrgId={clientOrgId} />
-            </FormSheet>
-          ) : null
-        }
-      />
+    <Panel aria-label="Saved contacts">
+      <PanelHeader title="Saved contacts" count={contacts.length} />
+      <p className="px-5 pb-2 text-body text-ink-muted">Saved from before. Invite one to give them a login.</p>
       {contacts.length === 0 ? (
-        <p className="px-5 pb-5 text-body text-ink-muted">No contact people yet.</p>
+        <p className="px-5 pb-5 text-body text-ink-muted">No saved contacts.</p>
       ) : (
         <ul className="flex flex-col pb-3">
           {contacts.map((person) => (
@@ -44,6 +26,10 @@ export function ContactsPanel({ clientOrgId, contacts, canWrite }: { clientOrgId
               trailing={
                 canWrite ? (
                   <span className="flex items-center gap-1">
+                    <InlineAction action={inviteClientContactAction} fields={{ contactId: person.id }} label={`Invite ${person.name} to the portal`} variant="secondary" size="sm" savedMessage="Invite sent">
+                      <EnvelopeSimple aria-hidden />
+                      Invite to portal
+                    </InlineAction>
                     <FormSheet
                       trigger={
                         <Button variant="ghost" size="sm">

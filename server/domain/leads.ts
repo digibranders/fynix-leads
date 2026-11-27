@@ -13,7 +13,6 @@ import type { Database } from "@/server/db/pool";
 import {
   aliasIdentity,
   campaign,
-  campaignHost,
   campaignShare,
   lead,
   leadHistory,
@@ -24,6 +23,7 @@ import { withTenantScope, type ScopedTransaction } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
+import { requireTeamMember } from "@/server/domain/host-availability";
 import { fynixWorkWrite, type FynixActor } from "@/server/domain/fynix-write";
 import {
   clientReviewLeadSchema,
@@ -34,6 +34,7 @@ import {
 } from "@/server/domain/inputs";
 import { parseInput } from "@/server/domain/parse";
 import { notify } from "@/server/domain/notices";
+import { bookWithInvitations } from "@/server/domain/meeting-invitations";
 import { insertWithPublicRef } from "@/server/domain/refs";
 import { resolveReview } from "@/server/domain/rejection-reviews";
 import { createRoomSafely, type MeetRoom } from "@/server/meet/provider";
@@ -124,22 +125,8 @@ export async function checkSubmission(
     throw new DomainError("not-authorised", "Your organisation is not assigned to this campaign.");
   }
 
-  // 4. Validate host member exists and is active on this campaign
-  const [hostRow] = await tx
-    .select({ memberId: campaignHost.memberId, active: campaignHost.active })
-    .from(campaignHost)
-    .where(
-      and(
-        eq(campaignHost.campaignId, parsed.campaignId),
-        eq(campaignHost.memberId, parsed.hostMemberId),
-        eq(campaignHost.active, true),
-      ),
-    )
-    .limit(1);
-
-  if (hostRow === undefined) {
-    throw new DomainError("not-found", "The specified host is not an active host for this campaign.");
-  }
+  // 4. The chosen person is an active member of the campaign's client.
+  await requireTeamMember(tx, parsed.campaignId, parsed.hostMemberId);
 
   // 5. Check client exclusion list
   const normalizedEmail = parsed.prospectEmail.trim().toLowerCase();
@@ -207,6 +194,10 @@ export async function submitLead(
     throw new DomainError("not-authorised", "Only agency or coordinator members can submit leads.");
   }
   const parsed = parseInput(submitLeadSchema, input);
+  const invitees = parsed.inviteeMemberIds;
+  if (invitees !== undefined && (parsed.proposedTimes.length !== 1 || !invitees.includes(parsed.hostMemberId))) {
+    throw new DomainError("invalid-input", "Book one time, and invite the person you chose.");
+  }
 
   return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
     const checked = await checkSubmission(tx, deps, actor, parsed);
@@ -238,7 +229,7 @@ export async function submitLead(
             bantAuthority: parsed.bantAuthority,
             bantNeed: parsed.bantNeed,
             bantTimeline: parsed.bantTimeline,
-            stage: "awaiting_client",
+            stage: invitees === undefined ? "awaiting_client" : "awaiting_reply",
             proposedTimes: parsed.proposedTimes,
             overShare,
             duplicateOverride: false,
@@ -262,8 +253,8 @@ export async function submitLead(
       actorRole: "agency",
       action: "lead.submit",
       fromStage: null,
-      toStage: "awaiting_client",
-      note: "Lead submitted with proposed meeting times",
+      toStage: invitees === undefined ? "awaiting_client" : "awaiting_reply",
+      note: invitees === undefined ? "Lead submitted with proposed meeting times" : "Lead submitted with a meeting time for the client team to accept",
       snapshot: {
         publicRef: created.publicRef,
         campaignId: created.campaignId,
@@ -274,7 +265,14 @@ export async function submitLead(
       },
       createdAt: now,
     });
-    await notify(tx, { type: "lead_submitted", leadId: created.id });
+    if (invitees !== undefined) {
+      const slot = parsed.proposedTimes[0];
+      if (slot === undefined) throw new DomainError("invalid-input", "Book one time.");
+      const booked = await bookWithInvitations(tx, deps, { leadId: created.id, campaignId: created.campaignId, slot, memberIds: invitees, now });
+      await notify(tx, { type: "meeting_invited", leadId: created.id, meetingId: booked.meetingId });
+    } else {
+      await notify(tx, { type: "lead_submitted", leadId: created.id });
+    }
     if (overShare) await notify(tx, { type: "lead_over_share", leadId: created.id });
 
     return created;
@@ -295,7 +293,7 @@ export async function bookMeeting(
   now: Date,
   room: MeetRoom | null = null,
 ): Promise<string> {
-  if (leadRow.hostMemberId === null) throw new DomainError("invalid-lead-stage", "A lead with no host cannot be booked.");
+  if (leadRow.hostMemberId === null) throw new DomainError("invalid-lead-stage", "A lead with no client team member chosen cannot be booked.");
   const hostMemberId = leadRow.hostMemberId;
   const booked = await insertWithPublicRef(tx, { prefix: "MTG", constraint: "meeting_public_ref_unique", randomBytes }, async (innerTx, publicRef: string) => {
     const [row] = await innerTx

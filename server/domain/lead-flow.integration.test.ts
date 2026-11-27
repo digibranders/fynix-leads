@@ -76,6 +76,7 @@ beforeEach(async () => {
   const clientMember = await memberOf(clientUser.id);
   const coordinatorMember = await memberOf(coordinatorUser.id);
   await owner.insert(campaignHost).values({ campaignId: target.id, clientOrgId: target.client.id, memberId: clientMember, jobTitle: "Chief Operating Officer" });
+  await owner.update(member).set({ jobTitle: "Chief Operating Officer" }).where(eq(member.id, clientMember));
   for (const weekday of [1, 2, 3, 4, 5]) await owner.insert(hostHours).values({ memberId: clientMember, timeZone: "Europe/London", weekday, startMinute: 0, endMinute: 1440 });
   const admin = world.users[0];
   if (admin === undefined) throw new Error("No Fynix admin");
@@ -187,6 +188,43 @@ async function denied(work: Promise<unknown>, pattern: RegExp): Promise<void> {
   throw new Error(`Expected a refusal matching ${pattern}, but the statement was allowed.`);
 }
 const clientCount = async (): Promise<number> => (await getClientOverviewMetrics(clientDb(), cast.clientActor)).deliveredCount;
+
+describe("choosing a client team member for a lead", () => {
+  const input = (hostMemberId: string, tag: string) => ({
+    campaignId: cast.campaignId,
+    aliasIdentityId: cast.coordinatorAlias,
+    hostMemberId,
+    prospectName: `Team Choice ${tag}`,
+    prospectTitle: "Head of Logistics",
+    prospectCompany: `Teamchoice ${tag} Ltd`,
+    prospectDomain: `teamchoice${tag}.example`,
+    prospectLinkedinUrl: `https://www.linkedin.com/in/teamchoice${tag}`,
+    prospectEmail: `lead@teamchoice${tag}.example`,
+    bantBudget: "Confirmed",
+    bantAuthority: "Signs off",
+    bantNeed: "Replacing a manual process",
+    bantTimeline: "One quarter",
+    proposedTimes: [nextWeekdayAt(10, 3)],
+  });
+
+  it("accepts any active person of the campaign's client, though nobody ever made them a host", async () => {
+    const [colleagueUser] = await ownerDb().insert(user).values({ email: "colleague@kestrel-team.example", name: "Colleague Teammate" }).returning({ id: user.id });
+    if (colleagueUser === undefined) throw new Error("No colleague user");
+    const [colleague] = await ownerDb().insert(member).values({ userId: colleagueUser.id, orgId: cast.clientActor.orgId, orgKind: "client", role: "member", displayName: "Colleague Teammate" }).returning({ id: member.id });
+    if (colleague === undefined) throw new Error("No colleague member");
+    await submitLead(agencyDb(), rig.deps(), cast.coordinator, input(colleague.id, "A"));
+    const [stored] = await ownerDb().select({ hostMemberId: lead.hostMemberId, stage: lead.stage }).from(lead).where(eq(lead.prospectEmail, "lead@teamchoicea.example"));
+    expect(stored).toEqual({ hostMemberId: colleague.id, stage: "awaiting_client" });
+  });
+
+  it("refuses a person of another client, and a suspended person of this one", async () => {
+    const otherClientMember = (await ownerDb().select({ id: member.id }).from(member).where(eq(member.userId, cast.otherClient.userId)))[0];
+    if (otherClientMember === undefined) throw new Error("No other client member");
+    expect((await refusal(submitLead(agencyDb(), rig.deps(), cast.coordinator, input(otherClientMember.id, "B")))).code).toBe("not-found");
+    await ownerDb().update(member).set({ status: "suspended" }).where(eq(member.id, cast.hostMemberId));
+    expect((await refusal(submitLead(agencyDb(), rig.deps(), cast.coordinator, input(cast.hostMemberId, "C")))).code).toBe("not-found");
+  });
+});
 
 describe("picking a time", () => {
   it("only books the meeting: the lead is scheduled, not accepted, and counts nothing", async () => {
@@ -477,17 +515,17 @@ describe("what each portal reads of a lead", () => {
     expect(await refusal(getLeadRecordForClient(agencyDb(), cast.coordinator, one.publicRef))).toMatchObject({ code: "not-authorised" });
   });
 
-  it("gives the coordinator and the sending agency the note as from the client, without the person, and the host as a job title", async () => {
+  it("gives the coordinator and the sending agency the note as from the client, without the person, and nothing about the host", async () => {
     const one = await decided();
     const forCoordinator = await getLeadRecordForSupply(agencyDb(), cast.coordinator, one.publicRef);
     const forPartner = await getLeadRecordForSupply(agencyDb(), cast.partner, one.publicRef);
-    expect(forCoordinator).toMatchObject({ stage: "accepted", decision: { note: "Strong fit, the demo is booked.", source: "client", byName: null }, host: { name: null, jobTitle: "Chief Operating Officer" }, source: { own: false, name: cast.partnerName } });
+    expect(forCoordinator).toMatchObject({ stage: "accepted", decision: { note: "Strong fit, the demo is booked.", source: "client", byName: null }, host: { name: null, jobTitle: null }, source: { own: false, name: cast.partnerName } });
     expect(forPartner).toMatchObject({ decision: { source: "client", byName: null }, source: { own: true }, alias: { displayName: "Piet Ridge" } });
     // The coordinator may not read a partner agency's alias.
     expect(forCoordinator.alias).toBeNull();
     for (const record of [forCoordinator, forPartner]) {
       const text = JSON.stringify(record);
-      for (const forbidden of [cast.clientUserName, cast.clientUserEmail, cast.clientActor.userId, cast.hostMemberId, "decisionBy"]) expect(text, forbidden).not.toContain(forbidden);
+      for (const forbidden of [cast.clientUserName, cast.clientUserEmail, cast.clientActor.userId, cast.hostMemberId, "Chief Operating Officer", "decisionBy"]) expect(text, forbidden).not.toContain(forbidden);
       expect(record.history.find((entry) => entry.action === "lead.decide_accept")).toMatchObject({ by: "client", actorName: null, note: "Strong fit, the demo is booked." });
     }
     expect(await refusal(getLeadRecordForSupply(agencyDb(), cast.otherAgency, one.publicRef))).toMatchObject({ code: "not-found" });

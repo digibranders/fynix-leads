@@ -124,12 +124,11 @@ describe("Campaign cards", () => {
   });
 });
 
-describe("Hosts", () => {
+describe("Working hours", () => {
   const host = (over: object = {}) => ({
     memberId: "m1",
     name: "Priya Nair",
     jobTitle: "Head of Ops",
-    assignments: [{ campaignId: "c1", name: "UK finance teams", closed: false }, { campaignId: "c2", name: "Old campaign", closed: true }],
     own: false,
     windows: [],
     week: [{ day: "Monday", ranges: ["09:00 to 17:00"] }],
@@ -137,23 +136,28 @@ describe("Hosts", () => {
     blocks: [{ id: "b1", startsAt: "2026-12-01T09:00:00Z", endsAt: "2026-12-01T17:00:00Z", note: null }],
     ...over,
   });
-  const manage = { campaigns: [{ id: "c1", name: "UK finance teams" }], people: [{ memberId: "m2", name: "Tom Ellis" }] };
+  it("lists the people of the client and offers no way to add or pause anyone", () => {
+    const html = renderToStaticMarkup(<HostsView hosts={[host()]} basePath="/client/hours" />);
+    expect(html).toContain("Priya Nair");
+    expect(html).not.toContain("Add host");
+    expect(html).not.toContain("Pause");
+    expect(html).not.toContain("UK finance teams");
+  });
 
-  it("lets a manager add a host and pause one on an open campaign only", () => {
-    const html = renderToStaticMarkup(<HostsView hosts={[host()]} basePath="/client/hosts" manage={manage} />);
-    expect(html).toContain("Add host");
-    expect(html).toContain("Pause on UK finance teams");
-    expect(html).not.toContain("Pause on Old campaign");
-    expect(html).toContain("Closed");
+  it("says what a person with no hours counts as", () => {
+    const own = renderToStaticMarkup(<HostsView hosts={[host({ own: true, week: [{ day: "Monday", ranges: [] }] })]} basePath="/client/hours" />);
+    expect(own).toContain("Until you set your hours, you count as free Monday to Friday, 09:00 to 17:00.");
+    const other = renderToStaticMarkup(<HostsView hosts={[host({ week: [{ day: "Monday", ranges: [] }] })]} basePath="/client/hours" />);
+    expect(other).toContain("Until they set their hours, they count as free Monday to Friday, 09:00 to 17:00.");
   });
 
   it("gives a person their own hours and blocked times, and nobody else's", () => {
-    const own = renderToStaticMarkup(<HostsView hosts={[host({ own: true })]} basePath="/client/hosts" />);
+    const own = renderToStaticMarkup(<HostsView hosts={[host({ own: true })]} basePath="/client/hours" />);
     expect(own).toContain("Edit my hours");
     expect(own).toContain("Block a time");
     expect(own).toContain("Remove");
     expect(own).not.toContain("Add host");
-    const other = renderToStaticMarkup(<HostsView hosts={[host()]} basePath="/client/hosts" />);
+    const other = renderToStaticMarkup(<HostsView hosts={[host()]} basePath="/client/hours" />);
     expect(other).not.toContain("Edit my hours");
     expect(other).not.toContain("Block a time");
   });
@@ -181,7 +185,7 @@ describe("Aliases", () => {
 describe("Submit a lead", () => {
   it("names why each campaign is not live instead of saying nothing is assigned", () => {
     const html = renderToStaticMarkup(
-      <SubmitLeadForm campaigns={[]} aliases={[]} hosts={[]} leadsHref="/agency/leads" notLive={[{ campaignId: "c1", name: "UK finance teams", reason: "The client has not accepted the agreement yet." }]} />,
+      <SubmitLeadForm campaigns={[]} aliases={[]} leadsHref="/agency/leads" notLive={[{ campaignId: "c1", name: "UK finance teams", reason: "The client has not accepted the agreement yet." }]} />,
     );
     expect(html).toContain("Not live yet: The client has not accepted the agreement yet.");
     expect(html).toContain("UK finance teams");

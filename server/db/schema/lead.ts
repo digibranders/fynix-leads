@@ -135,7 +135,7 @@ export const lead = pgTable(
     check("lead_public_ref_format", sql`${table.publicRef} ~ '^LD-[0-9A-HJKMNP-TV-Z]{4}$'`),
     check(
       "lead_stage_check",
-      sql`${table.stage} IN ('draft', 'awaiting_client', 'scheduled', 'outcome_due', 'reschedule_needed', 'held', 'client_no_show', 'prospect_no_show', 'awaiting_decision', 'accepted', 'delivered', 'disputed', 'declined', 'withdrawn', 'lost', 'rejected', 'outcome_contested')`,
+      sql`${table.stage} IN ('draft', 'awaiting_client', 'awaiting_reply', 'scheduled', 'outcome_due', 'reschedule_needed', 'held', 'client_no_show', 'prospect_no_show', 'awaiting_decision', 'accepted', 'delivered', 'disputed', 'declined', 'withdrawn', 'lost', 'rejected', 'outcome_contested')`,
     ),
     check("lead_prospect_name_length", sql`char_length(btrim(${table.prospectName})) BETWEEN 1 AND 120 AND ${table.prospectName} = btrim(${table.prospectName})`),
     check("lead_prospect_title_length", sql`(NOT ${table.released} AND ${table.prospectTitle} = '') OR (char_length(btrim(${table.prospectTitle})) BETWEEN 1 AND 120 AND ${table.prospectTitle} = btrim(${table.prospectTitle}))`),

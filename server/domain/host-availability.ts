@@ -1,7 +1,7 @@
 import { and, asc, eq, gt, sql } from "drizzle-orm";
-import { proposedTimeWarnings, type HostAvailability, type ProposedTimeWarning } from "@/lib/leads/host-hours";
+import { proposedTimeWarnings, withDefaultHours, type HostAvailability, type ProposedTimeWarning } from "@/lib/leads/host-hours";
 import type { Database } from "@/server/db/pool";
-import { campaignHost, hostBlock, hostHours } from "@/server/db/schema";
+import { hostBlock, hostHours } from "@/server/db/schema";
 import { withTenantScope, type ScopedTransaction } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import type { DomainDeps } from "@/server/domain/deps";
@@ -10,31 +10,40 @@ import { checkProposedTimesSchema, hostAvailabilitySchema } from "@/server/domai
 import { parseInput } from "@/server/domain/parse";
 
 /**
- * What the lead form shows about a host (lead flow decision and the owner's note of 2026-11-24: the supply side sees the host's name). A name, a job title,
- * the zone and weekly windows the host takes meetings in, and the times it has blocked, with no note and never an email or a phone: the agency role holds no
- * grant on them, and the name comes from a database function that answers for the hosts of a campaign the caller serves.
+ * What the lead form shows about a person of the client (owner decisions of 2026-11-24 and 2026-11-26: the supply side sees the name and nothing else). A name,
+ * the zone and weekly windows the person takes meetings in, and the times they have blocked, with no note and never a job title, an email or a phone: the
+ * agency role holds no grant on them, and the name comes from a database function that answers for the team of a campaign the caller serves.
  */
 export interface HostAvailabilityRecord extends HostAvailability {
   readonly hostMemberId: string;
   readonly displayName: string;
-  readonly jobTitle: string;
 }
 
-/** The active hosts of a campaign the organisation serves, with their names and titles. */
-export async function listCampaignHostChoices(tx: ScopedTransaction, campaignId: string) {
-  const rows = await tx.execute<{ member_id: string; display_name: string; job_title: string }>(sql`select member_id, display_name, job_title from public.app_campaign_host_names(${campaignId}::uuid)`);
-  return rows.rows.map((row) => ({ memberId: row.member_id, displayName: row.display_name, jobTitle: row.job_title }));
+export interface TeamChoice {
+  readonly memberId: string;
+  readonly displayName: string;
+  /** The client's own time zone, for a person who has set no hours. */
+  readonly timeZone: string | null;
+}
+
+/** The active people of the campaign's client, for a campaign the organisation serves. A name and the client's zone, never a job title or an email. */
+export async function listCampaignTeam(tx: ScopedTransaction, campaignId: string): Promise<readonly TeamChoice[]> {
+  const rows = await tx.execute<{ member_id: string; display_name: string; time_zone: string | null }>(
+    sql`select member_id, display_name, time_zone from public.app_campaign_team(${campaignId}::uuid)`,
+  );
+  return rows.rows.map((row) => ({ memberId: row.member_id, displayName: row.display_name, timeZone: row.time_zone }));
+}
+
+/** The chosen person must be an active member of the campaign's client. The lead form, a draft and the hours read all ask here. */
+export async function requireTeamMember(tx: ScopedTransaction, campaignId: string, memberId: string): Promise<TeamChoice> {
+  const choice = (await listCampaignTeam(tx, campaignId)).find((person) => person.memberId === memberId);
+  if (choice === undefined) throw new DomainError("not-found", "That person is not an active member of this client's team.");
+  return choice;
 }
 
 async function readAvailability(tx: ScopedTransaction, actor: TenantActor, hostMemberId: string, campaignId: string, now: Date): Promise<HostAvailabilityRecord> {
-  if (actor.orgKind !== "agency") throw new DomainError("not-authorised", "Only agency or coordinator members pick a host for a lead.");
-  const [active] = await tx
-    .select({ memberId: campaignHost.memberId })
-    .from(campaignHost)
-    .where(and(eq(campaignHost.campaignId, campaignId), eq(campaignHost.memberId, hostMemberId), eq(campaignHost.active, true)))
-    .limit(1);
-  const named = active === undefined ? undefined : (await listCampaignHostChoices(tx, campaignId)).find((choice) => choice.memberId === hostMemberId);
-  if (named === undefined) throw new DomainError("not-found", "The specified host is not an active host for this campaign.");
+  if (actor.orgKind !== "agency") throw new DomainError("not-authorised", "Only agency or coordinator members pick a client team member for a lead.");
+  const named = await requireTeamMember(tx, campaignId, hostMemberId);
 
   const windows = await tx
     .select({ weekday: hostHours.weekday, startMinute: hostHours.startMinute, endMinute: hostHours.endMinute, timeZone: hostHours.timeZone })
@@ -46,17 +55,12 @@ async function readAvailability(tx: ScopedTransaction, actor: TenantActor, hostM
     .from(hostBlock)
     .where(and(eq(hostBlock.memberId, hostMemberId), gt(hostBlock.endsAt, now)))
     .orderBy(asc(hostBlock.startsAt));
-  return {
-    hostMemberId,
-    displayName: named.displayName,
-    jobTitle: named.jobTitle,
-    timeZone: windows[0]?.timeZone ?? null,
-    hours: windows.map(({ weekday, startMinute, endMinute }) => ({ weekday, startMinute, endMinute })),
-    blocks,
-  };
+  const own: HostAvailability = { timeZone: windows[0]?.timeZone ?? null, hours: windows.map(({ weekday, startMinute, endMinute }) => ({ weekday, startMinute, endMinute })), blocks };
+  // A person who has set no hours is taken to work Monday to Friday, 09:00 to 17:00 in the client's time zone.
+  return { hostMemberId, displayName: named.displayName, ...withDefaultHours(own, named.timeZone) };
 }
 
-/** The host's weekly hours with their IANA time zone and the blocked times still to come, for the form's second time zone and its time list. */
+/** The person's weekly hours with their IANA time zone and the blocked times still to come, for the form's second time zone and its time list. */
 export async function getHostAvailability(db: Database, deps: Pick<DomainDeps, "now">, actor: TenantActor, hostMemberId: string, campaignId: string): Promise<HostAvailabilityRecord> {
   const parsed = parseInput(hostAvailabilitySchema, { hostMemberId, campaignId });
   return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, (tx) => readAvailability(tx, actor, parsed.hostMemberId, parsed.campaignId, deps.now()));

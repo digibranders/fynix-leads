@@ -5,11 +5,14 @@ import { getDatabase } from "@/server/db/client";
 import { getDomain } from "@/server/domain";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import type { SessionContext } from "@/server/auth/session-context";
-import { clientReviewLeadSchema, contestOutcomeSchema, decideLeadSchema, pickPostponementSchema, proposePostponementSchema, recordMeetingOutcomeSchema, requestRejectionReviewSchema, withdrawLeadSchema } from "@/server/domain/inputs";
+import { rebookMeetingSchema, clientReviewLeadSchema, contestOutcomeSchema, decideLeadSchema, pickPostponementSchema, proposePostponementSchema, recordMeetingOutcomeSchema, requestRejectionReviewSchema, withdrawLeadSchema } from "@/server/domain/inputs";
 import { clientReviewLead, decideLead } from "@/server/domain/leads";
 import { contestOutcome } from "@/server/domain/contests";
 import { withdrawLead } from "@/server/domain/lead-drafts";
 import { recordMeetingOutcome } from "@/server/domain/meetings";
+import { calendarSetupFromEnv } from "@/server/calendar";
+import { assertLiveFree } from "@/server/calendar/live-check";
+import { campaignOfLead, rebookWithInvitations } from "@/server/domain/meeting-invitations";
 import { pickPostponement, proposePostponement } from "@/server/domain/postponement";
 import { requestRejectionReview } from "@/server/domain/rejection-reviews";
 import { field, runTenantForm } from "@/server/tenant/run-form";
@@ -203,6 +206,38 @@ export async function requestRejectionReviewAction(_previous: FormState, formDat
     messages: { ...STALE, "invalid-lead-stage": "A review can be asked for a rejection the client made after the meeting. Refresh the page." },
     perform: async (context, input) => {
       await requestRejectionReview(dbFor(context), getDomain(), actorOf(context), input);
+    },
+    revalidate: PAGES,
+  });
+}
+
+/** The source books a new time for a meeting that has to move or that nobody could take, and invites the people free then. The form posts one `proposedTimes` and the `inviteeMemberIds`. */
+export async function bookNewTimeAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runTenantForm({
+    formData,
+    fieldNames: [],
+    kinds: ["agency", "client"],
+    build: () => ({
+      leadId: field(formData, "leadId"),
+      slot: field(formData, "proposedTimes"),
+      inviteeMemberIds: formData.getAll("inviteeMemberIds").filter((id): id is string => typeof id === "string" && id !== ""),
+    }),
+    schema: rebookMeetingSchema,
+    labels: { leadId: "Lead", slot: "Time", inviteeMemberIds: "People to invite" },
+    messages: {
+      ...STALE,
+      "invalid-input": "Pick a time at least 48 hours away, when everyone you invite is free.",
+      "invalid-transition": "This meeting can no longer be moved. Refresh the page.",
+      "not-authorised": "Only the team that sent this lead, its client or Fynix can book a new time.",
+    },
+    perform: async (context, input) => {
+      const parsed = rebookMeetingSchema.parse(input);
+      const setup = calendarSetupFromEnv();
+      const campaignId = setup === null ? null : await campaignOfLead(dbFor(context), actorOf(context), parsed.leadId);
+      if (setup !== null && campaignId !== null) {
+        await assertLiveFree(dbFor(context), { authDb: getDomain().authDb, setup }, actorOf(context), { campaignId, memberIds: parsed.inviteeMemberIds, slot: parsed.slot });
+      }
+      await rebookWithInvitations(dbFor(context), getDomain(), actorOf(context), input);
     },
     revalidate: PAGES,
   });

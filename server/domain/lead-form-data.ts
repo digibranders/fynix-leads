@@ -1,26 +1,48 @@
-import type { HostAvailability } from "@/lib/leads/host-hours";
+import type { CalendarPersonLike } from "@/lib/calendar/layout";
 import type { Database } from "@/server/db/pool";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import type { DomainDeps } from "@/server/domain/deps";
-import { getHostAvailability } from "@/server/domain/host-availability";
+import { toPerson } from "@/server/domain/calendar-data";
 import { getOwnDraft } from "@/server/domain/lead-reads";
+import type { FynixActor } from "@/server/domain/fynix-write";
+import { readTeamTimeForFynix, readTeamTimeForTenant } from "@/server/domain/team-availability";
+
+/** How far ahead the lead form offers times. A calendar read covers at most 62 days. */
+const OFFER_DAYS = 60;
+
+/**
+ * The client team of each campaign the lead form offers, with working hours and busy time for the next 60 days, by campaign id. The form works out the free times
+ * from it. A campaign whose team cannot be read is left out and the form says it cannot offer times.
+ */
+export async function loadCampaignTeams(db: Database, deps: Pick<DomainDeps, "now">, actor: TenantActor, campaignIds: readonly string[]): Promise<Record<string, readonly CalendarPersonLike[]>> {
+  const from = deps.now();
+  const to = new Date(from.getTime() + OFFER_DAYS * 86_400_000);
+  const entries = await Promise.all(
+    [...new Set(campaignIds)].map(async (campaignId) => {
+      try {
+        return [campaignId, (await readTeamTimeForTenant(db, actor, { campaignId, from: from.toISOString(), to: to.toISOString() })).map(toPerson)] as const;
+      } catch (error) {
+        console.error(`A client team could not be read for the lead form (${error instanceof Error ? error.name : "unknown error"}).`);
+        return null;
+      }
+    }),
+  );
+  return Object.fromEntries(entries.filter((entry) => entry !== null));
+}
 
 /** The proposed times a draft holds, as ISO strings. */
 const timesOf = (value: unknown): string[] => (Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : []);
 
-/**
- * The weekly hours, blocked times and zone of each host the lead form offers, by member id. A host's hours do not depend on the campaign, so a host that
- * serves two campaigns is read once. A host whose hours cannot be read (just paused, say) is left out and the form says it cannot check.
- */
-export async function loadHostAvailability(db: Database, deps: Pick<DomainDeps, "now">, actor: TenantActor, hosts: readonly { readonly id: string; readonly campaignId: string }[]): Promise<Record<string, HostAvailability>> {
-  const firstCampaign = new Map<string, string>();
-  for (const host of hosts) if (!firstCampaign.has(host.id)) firstCampaign.set(host.id, host.campaignId);
+/** The same for Fynix, which reads any client's team: for booking a new time from the lead record. */
+export async function loadCampaignTeamsForFynix(deps: Pick<DomainDeps, "now" | "fynixDb">, actor: FynixActor, campaignIds: readonly string[]): Promise<Record<string, readonly CalendarPersonLike[]>> {
+  const from = deps.now();
+  const to = new Date(from.getTime() + OFFER_DAYS * 86_400_000);
   const entries = await Promise.all(
-    [...firstCampaign].map(async ([memberId, campaignId]) => {
+    [...new Set(campaignIds)].map(async (campaignId) => {
       try {
-        const { timeZone, hours, blocks } = await getHostAvailability(db, deps, actor, memberId, campaignId);
-        return [memberId, { timeZone, hours, blocks } satisfies HostAvailability] as const;
-      } catch {
+        return [campaignId, (await readTeamTimeForFynix(deps, actor, { campaignId, from: from.toISOString(), to: to.toISOString() })).map(toPerson)] as const;
+      } catch (error) {
+        console.error(`A client team could not be read for the lead form (${error instanceof Error ? error.name : "unknown error"}).`);
         return null;
       }
     }),

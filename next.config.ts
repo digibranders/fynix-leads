@@ -23,6 +23,8 @@ const nextConfig: NextConfig = {
       // The reset token is in the URL of this page: send no referrer from it and cache nothing.
       { source: "/reset-password", headers: [{ key: "Referrer-Policy", value: "no-referrer" }, { key: "Cache-Control", value: "no-store" }] },
       { source: "/sign-in", headers: [{ key: "Cache-Control", value: "no-store" }] },
+      // The invitation token is in the URL of the reply page, like the invite token below.
+      { source: "/reply", headers: [{ key: "Referrer-Policy", value: "no-referrer" }, { key: "Cache-Control", value: "no-store" }] },
       // The invite token is in the URL of this page, like the reset token above.
       { source: "/accept-invite", headers: [{ key: "Referrer-Policy", value: "no-referrer" }, { key: "Cache-Control", value: "no-store" }] },
     ];

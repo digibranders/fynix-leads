@@ -2,12 +2,14 @@ import { and, eq } from "drizzle-orm";
 import { extractDomainFromEmail, normaliseDomain, normaliseLinkedinUrl } from "@/lib/leads/normalize";
 import { agencyLeadColumns } from "@/server/db/columns";
 import type { Database } from "@/server/db/pool";
-import { aliasIdentity, campaign, campaignHost, lead, leadHistory, meeting, meetingReschedule } from "@/server/db/schema";
+import { aliasIdentity, campaign, lead, leadHistory, meeting, meetingReschedule } from "@/server/db/schema";
 import { withTenantScope, type ScopedTransaction } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError } from "@/server/domain/errors";
-import { draftIdSchema, saveDraftSchema, submitLeadSchema, updateDraftSchema, withdrawLeadSchema } from "@/server/domain/inputs";
+import { requireTeamMember } from "@/server/domain/host-availability";
+import { bookWithInvitations } from "@/server/domain/meeting-invitations";
+import { draftIdSchema, saveDraftSchema, submitDraftSchema, submitLeadSchema, updateDraftSchema, withdrawLeadSchema } from "@/server/domain/inputs";
 import { notify } from "@/server/domain/notices";
 import { parseInput } from "@/server/domain/parse";
 import { insertWithPublicRef } from "@/server/domain/refs";
@@ -66,12 +68,7 @@ async function checkDraftRefs(tx: ScopedTransaction, campaignId: string, values:
     if (row === undefined) throw new DomainError("not-found", "There is no such alias identity.");
   }
   if (values.hostMemberId !== undefined && values.hostMemberId !== null) {
-    const [row] = await tx
-      .select({ memberId: campaignHost.memberId })
-      .from(campaignHost)
-      .where(and(eq(campaignHost.campaignId, campaignId), eq(campaignHost.memberId, values.hostMemberId), eq(campaignHost.active, true)))
-      .limit(1);
-    if (row === undefined) throw new DomainError("not-found", "The specified host is not an active host for this campaign.");
+    await requireTeamMember(tx, campaignId, values.hostMemberId);
   }
 }
 
@@ -176,9 +173,9 @@ export async function discardDraft(db: Database, deps: Pick<DomainDeps, "now">, 
  * Sends a draft to the client: the full submission rules run on what the draft holds (every field, the alias, the host, the exclusion list, duplicates and
  * the share), the lead is released, the stage becomes `awaiting_client` and `submitted_at` is the moment it was sent.
  */
-export async function submitDraft(db: Database, deps: Pick<DomainDeps, "now">, actor: TenantActor, input: unknown) {
+export async function submitDraft(db: Database, deps: Pick<DomainDeps, "now" | "randomBytes">, actor: TenantActor, input: unknown) {
   requireAgency(actor);
-  const { leadId } = parseInput(draftIdSchema, input);
+  const { leadId, inviteeMemberIds: invitees } = parseInput(submitDraftSchema, input);
   return withTenantScope(db, { orgId: actor.orgId, userId: actor.userId }, async (tx) => {
     const [draft] = await tx
       .select({ ...agencyLeadColumns })
@@ -206,15 +203,19 @@ export async function submitDraft(db: Database, deps: Pick<DomainDeps, "now">, a
       bantTimeline: draft.bantTimeline,
       proposedTimes: draft.proposedTimes,
     });
+    if (invitees !== undefined && (complete.proposedTimes.length !== 1 || !invitees.includes(complete.hostMemberId))) {
+      throw new DomainError("invalid-input", "Book one time, and invite the person you chose.");
+    }
     const checked = await checkSubmission(tx, deps, actor, complete, draft.id);
     const now = checked.now;
+    const stage = invitees === undefined ? "awaiting_client" : "awaiting_reply";
     const [updated] = await tx
       .update(lead)
       .set({
         prospectDomain: checked.normalizedDomain,
         prospectLinkedinUrl: checked.normalizedLinkedin,
         prospectEmail: checked.normalizedEmail,
-        stage: "awaiting_client",
+        stage,
         released: true,
         overShare: checked.overShare,
         submittedAt: now,
@@ -229,12 +230,18 @@ export async function submitDraft(db: Database, deps: Pick<DomainDeps, "now">, a
       actorRole: "agency",
       action: "lead.submit",
       fromStage: "draft",
-      toStage: "awaiting_client",
-      note: "Lead submitted with proposed meeting times",
+      toStage: stage,
+      note: invitees === undefined ? "Lead submitted with proposed meeting times" : "Lead submitted with a meeting time for the client team to accept",
       snapshot: { publicRef: updated.publicRef, campaignId: updated.campaignId, proposedTimes: updated.proposedTimes, overShare: checked.overShare },
       createdAt: now,
     });
-    await notify(tx, { type: "lead_submitted", leadId: draft.id });
+    const slot = complete.proposedTimes[0];
+    if (invitees !== undefined && slot !== undefined) {
+      const booked = await bookWithInvitations(tx, deps, { leadId: draft.id, campaignId: draft.campaignId, slot, memberIds: invitees, now });
+      await notify(tx, { type: "meeting_invited", leadId: draft.id, meetingId: booked.meetingId });
+    } else {
+      await notify(tx, { type: "lead_submitted", leadId: draft.id });
+    }
     if (checked.overShare) await notify(tx, { type: "lead_over_share", leadId: draft.id });
     return updated;
   });
@@ -255,7 +262,7 @@ export async function withdrawLead(db: Database, deps: Pick<DomainDeps, "now">, 
       .where(and(eq(lead.id, parsed.leadId), eq(lead.sourceOrgId, actor.orgId)))
       .limit(1);
     if (row === undefined) throw new DomainError("not-found", "There is no such lead.");
-    if (row.stage !== "awaiting_client" && row.stage !== "scheduled") throw new DomainError("invalid-lead-stage", "A lead can be withdrawn before its meeting only.");
+    if (!["awaiting_client", "awaiting_reply", "reschedule_needed", "scheduled"].includes(row.stage)) throw new DomainError("invalid-lead-stage", "A lead can be withdrawn before its meeting only.");
 
     const now = deps.now();
     const note = parsed.note === undefined || parsed.note === "" ? "Withdrawn by the agency before the meeting" : parsed.note;
@@ -266,11 +273,10 @@ export async function withdrawLead(db: Database, deps: Pick<DomainDeps, "now">, 
       .returning(agencyLeadColumns);
     if (updated === undefined) throw new DomainError("invalid-lead-stage", "This lead was changed by someone else. Refresh the page.");
 
-    if (row.stage === "scheduled") {
-      const booked = await tx.update(meeting).set({ outcome: "cancelled", updatedAt: now }).where(and(eq(meeting.leadId, row.id), eq(meeting.outcome, "scheduled"))).returning({ id: meeting.id });
-      for (const entry of booked) {
-        await tx.update(meetingReschedule).set({ status: "superseded", resolvedAt: now }).where(and(eq(meetingReschedule.meetingId, entry.id), eq(meetingReschedule.status, "open")));
-      }
+    // Any hold on the client team ends with the meeting: the cancelled meeting is no longer busy time and its invitations can no longer be answered.
+    const booked = await tx.update(meeting).set({ outcome: "cancelled", updatedAt: now }).where(and(eq(meeting.leadId, row.id), eq(meeting.outcome, "scheduled"))).returning({ id: meeting.id });
+    for (const entry of booked) {
+      await tx.update(meetingReschedule).set({ status: "superseded", resolvedAt: now }).where(and(eq(meetingReschedule.meetingId, entry.id), eq(meetingReschedule.status, "open")));
     }
     await tx.insert(leadHistory).values({
       leadId: row.id,

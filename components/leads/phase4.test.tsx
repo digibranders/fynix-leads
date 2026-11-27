@@ -19,7 +19,7 @@ const { AnswerForClientForm, ClearOverShareForm, CorrectLeadForm, DecideContestF
 const { AskReviewForm, ContestOutcomeForm, PickNewTimeForm, PostponeForm, WithdrawLeadForm } = await import("@/components/leads/phase4-forms");
 const { DraftsTable } = await import("@/components/leads/drafts-table");
 const { SubmitLeadForm } = await import("@/components/leads/submit-lead-form");
-const { HostTimesField } = await import("@/components/leads/host-times");
+const { SlotPicker } = await import("@/components/leads/slot-picker");
 const { SourceLeadsView } = await import("@/components/leads/source-leads-view");
 const { ContestsTable } = await import("@/components/fynix/rejections/contests-table");
 const { RejectionsTable } = await import("@/components/fynix/rejections/rejections-table");
@@ -38,9 +38,11 @@ const bar = (over: Partial<BarProps> & { context?: LeadActionContext }) =>
   renderToStaticMarkup(<LeadActionBar viewer="client" stage="scheduled" leadId="l1" prospectName="Priya Nair" meetingId="m1" meetingTime={future} now={now} {...over} />);
 
 describe("the action bar after phase 4: the client", () => {
-  it("offers new times on a booked meeting and a pick when the supply side proposed", () => {
-    const html = bar({});
-    expect(html).toContain("Propose new times");
+  const people = [{ memberId: "h1", displayName: "Daniel Okafor", timeZone: "Europe/London", hours: [], busy: [] }];
+  it("offers a new time on a booked meeting and a pick when the supply side proposed", () => {
+    const html = bar({ context: { people } });
+    expect(html).toContain("Book a new time");
+    expect(html).not.toContain("Propose new times");
     expect(html).toContain("Reject lead");
     expect(html).not.toContain("Pick a new time");
     const picked = bar({ context: { openProposalBy: "supply", proposal: { id: "r1", times: ["2026-11-27T09:00:00Z"] } } });
@@ -59,9 +61,11 @@ describe("the action bar after phase 4: the client", () => {
 
 describe("the action bar after phase 4: the supply side", () => {
   it("lets the source withdraw before the meeting and propose new times, and nobody else withdraw", () => {
-    const own = bar({ viewer: "supply", context: { isSource: true } });
+    const own = bar({ viewer: "supply", context: { isSource: true, people: [{ memberId: "h1", displayName: "Daniel Okafor", timeZone: "Europe/London", hours: [], busy: [] }] } });
     expect(own).toContain("Withdraw lead");
-    expect(own).toContain("Propose new times");
+    expect(own).toContain("Book a new time");
+    expect(own).not.toContain("Propose new times");
+    expect(bar({ viewer: "supply", context: { isSource: false } })).toContain("Propose new times");
     expect(bar({ viewer: "supply", context: { isSource: false } })).not.toContain("Withdraw lead");
     expect(bar({ viewer: "supply", stage: "awaiting_client", meetingTime: null, context: { isSource: true } })).toContain("Withdraw lead");
     expect(bar({ viewer: "supply", stage: "scheduled", meetingTime: past, context: { isSource: true } })).not.toContain("Withdraw lead");
@@ -251,7 +255,7 @@ describe("drafts and the lead form", () => {
     expect(view({})).not.toContain("?show=drafts");
   });
   it("the lead form has Save draft beside Submit, and a draft starts it filled in with the campaign locked", () => {
-    const base = { campaigns: [{ id: "c1", name: "UK", clientOrgId: "k1", clientName: "Kestrel" }], aliases: [], hosts: [{ id: "h1", campaignId: "c1", name: "Daniel Okafor", jobTitle: "Head of Sales" }], leadsHref: "/agency/leads" };
+    const base = { campaigns: [{ id: "c1", name: "UK", clientOrgId: "k1", clientName: "Kestrel" }], aliases: [], teams: { c1: [{ memberId: "h1", displayName: "Daniel Okafor", timeZone: "Europe/London", hours: [1, 2, 3, 4, 5].map((weekday) => ({ weekday, startMinute: 540, endMinute: 1020 })), busy: [] }] }, leadsHref: "/agency/leads" };
     const fresh = renderToStaticMarkup(<SubmitLeadForm {...base} />);
     expect(fresh).toContain("Save draft");
     expect(fresh).toContain("Submit lead");
@@ -265,28 +269,39 @@ describe("drafts and the lead form", () => {
   });
 });
 
-describe("the time list follows the host", () => {
+describe("the meeting time follows the client team", () => {
   const week = [1, 2, 3, 4, 5].map((weekday) => ({ weekday, startMinute: 540, endMinute: 1020 }));
-  it("shows the host's weekly hours and zone, and asks for a host first when there is none", () => {
-    const html = renderToStaticMarkup(<HostTimesField availability={{ timeZone: "Europe/London", hours: week, blocks: [] }} hostName="Daniel Okafor" />);
-    expect(html).toContain("Daniel Okafor&#x27;s hours");
-    expect(html).toContain("Mon to Fri 9:00 am to 5:00 pm");
+  const daniel = { memberId: "h1", displayName: "Daniel Okafor", timeZone: "Europe/London", hours: week, busy: [] as { start: string; end: string }[] };
+  /** The next Wednesday at least ten days away, at 10:00 UTC, which is inside the 9 to 5 week in London in winter and summer. */
+  const wednesday = (() => {
+    const day = new Date(Date.now() + 10 * 86_400_000);
+    while (day.getUTCDay() !== 3) day.setUTCDate(day.getUTCDate() + 1);
+    day.setUTCHours(10, 0, 0, 0);
+    return day.toISOString();
+  })();
+  it("says when the client has nobody to invite, then names the client's zone and asks for a day", () => {
+    expect(renderToStaticMarkup(<SlotPicker people={[]} />)).toContain("no team members to invite yet");
+    const html = renderToStaticMarkup(<SlotPicker people={[daniel]} />);
     expect(html).toContain("Europe/London");
     expect(html).toContain("Pick a day");
-    expect(renderToStaticMarkup(<HostTimesField availability={null} hostName={null} />)).toContain("Choose a host");
+    expect(html).not.toContain("Who to invite");
   });
-  it("warns, without blocking, for a saved time outside the hours and for a host with no hours", () => {
-    const outside = renderToStaticMarkup(<HostTimesField availability={{ timeZone: "Europe/London", hours: week, blocks: [] }} hostName="D" initialTimes={["2026-11-28T09:00:00.000Z"]} />);
-    expect(outside).toContain("outside the host&#x27;s working hours");
-    expect(outside).toContain("You can still send the lead");
-    const none = renderToStaticMarkup(<HostTimesField availability={{ timeZone: null, hours: [], blocks: [] }} hostName="D" initialTimes={["2026-11-27T09:00:00.000Z"]} />);
-    expect(none).toContain("has not set working hours");
-    expect(renderToStaticMarkup(<HostTimesField availability={{ timeZone: "Europe/London", hours: week, blocks: [] }} hostName="D" initialTimes={["2026-11-27T10:00:00.000Z"]} />)).not.toContain("You can still send the lead");
+  it("ticks everyone who is free at the chosen time and posts the time, the first person and the invited people", () => {
+    const busy = { ...daniel, memberId: "h2", displayName: "Amara Bello", busy: [{ start: new Date(new Date(wednesday).getTime() - 600_000).toISOString(), end: new Date(new Date(wednesday).getTime() + 3_600_000).toISOString() }] };
+    const html = renderToStaticMarkup(<SlotPicker people={[daniel, busy]} initialTime={wednesday} />);
+    expect(html).toContain("Who to invite");
+    expect(html).toContain("Daniel Okafor");
+    expect(html).toContain("Busy then");
+    expect(html).toContain(`name="proposedTimes" value="${wednesday}"`);
+    expect(html).toContain('name="hostMemberId" value="h1"');
+    expect(html).toContain('name="inviteeMemberIds" value="h1"');
+    expect(html).not.toContain('name="inviteeMemberIds" value="h2"');
   });
-  it("shows the same moment in the host's zone and in the viewer's", () => {
-    const html = renderToStaticMarkup(<HostTimesField availability={{ timeZone: "Asia/Kolkata", hours: week, blocks: [] }} hostName="D" initialTimes={["2026-11-27T09:00:00.000Z"]} />);
-    expect(html).toContain("Host: Fri 27 Nov, 2:30 pm IST");
-    expect(html).toContain("For you:");
+  it("says so when nobody is free at a saved time", () => {
+    const html = renderToStaticMarkup(<SlotPicker people={[daniel]} initialTime="2026-11-27T09:00:00.000Z" />);
+    expect(html).toContain("Nobody is free then");
+    expect(html).toContain('name="hostMemberId" value=""');
+    expect(html).not.toContain('name="inviteeMemberIds"');
   });
 });
 

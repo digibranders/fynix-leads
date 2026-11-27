@@ -3,12 +3,15 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { BREACH_CHECK_UNAVAILABLE, GENERIC_FAILURE, retryMessage } from "@/lib/auth/messages";
+import type { InvitationLinkState } from "@/lib/domain/invitation-link-state";
 import type { InviteFormState } from "@/lib/domain/invite-form-state";
 import { ACCOUNT_EXISTS, TERMS_CHANGED, TERMS_NOT_ACCEPTED, unavailableMessage } from "@/lib/domain/invite-messages";
 import { getAuthServices } from "@/server/auth";
 import { clientAddressFrom } from "@/server/auth/client-address";
 import { signInWithPassword } from "@/server/auth/sign-in";
 import { getDomain } from "@/server/domain";
+import { DomainError } from "@/server/domain/errors";
+import { answerInvitationLink } from "@/server/domain/invitation-links";
 import { redeemInvite } from "@/server/domain/redeem-invite";
 
 /**
@@ -69,4 +72,24 @@ export async function redeemInviteAction(_previous: InviteFormState, formData: F
     console.error("Signing in after an invite failed", error instanceof Error ? error.name : "unknown error");
   }
   redirect(signedIn ? DEFAULT_LANDING : "/sign-in?invite=accepted");
+}
+
+const INVITATION_REFUSALS = {
+  expired: "The time to reply to this invitation has passed.",
+  closed: "This meeting is no longer waiting for a reply.",
+  invalid: "This link is not valid.",
+} as const;
+
+/** The answer from the link in an invitation email. A public endpoint: it checks everything again from the token, and says no more than the reply page already does. */
+export async function answerInvitationLinkAction(_previous: InvitationLinkState, formData: FormData): Promise<InvitationLinkState> {
+  try {
+    const answer = await answerInvitationLink(getDomain(), { token: field(formData, "token"), reply: field(formData, "reply"), address: clientAddressFrom(await headers()) });
+    if (answer.status === "done") return { status: "answered", reply: answer.reply, confirmed: answer.confirmed, needsNewTime: answer.needsNewTime };
+    if (answer.status === "rate-limited") return { status: "refused", message: retryMessage(answer.retryAfterSeconds) };
+    return { status: "refused", message: INVITATION_REFUSALS[answer.status] };
+  } catch (error) {
+    if (error instanceof DomainError) return { status: "refused", message: "Choose Accept or Decline." };
+    console.error("Answering an invitation failed", error instanceof Error ? error.name : "unknown error");
+    return { status: "refused", message: GENERIC_FAILURE };
+  }
 }

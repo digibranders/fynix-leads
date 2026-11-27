@@ -32,7 +32,7 @@ function Slot({ iso, index, checked, hostZone, onSelect }: { iso: string; index:
       </span>
       {hostZone !== null && hostZone !== zone ? (
         <span suppressHydrationWarning className={cn("text-caption", checked ? "text-on-navy-muted" : "text-ink-muted")}>
-          {formatTimeInZone(at, hostZone)} {zoneAbbreviation(at, hostZone)} for the host
+          {formatTimeInZone(at, hostZone)} {zoneAbbreviation(at, hostZone)} in the client&apos;s zone
         </span>
       ) : null}
       {checked ? <CheckCircle aria-hidden weight="fill" size={18} className="absolute top-3 right-3 text-peach" /> : null}

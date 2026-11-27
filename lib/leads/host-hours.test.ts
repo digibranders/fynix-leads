@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isOutsideHostHours, proposedTimeWarnings, quarterHourSlotsForHost, type HostAvailability } from "./host-hours";
+import { DEFAULT_HOURS, isOutsideHostHours, proposedTimeWarnings, quarterHourSlotsForHost, withDefaultHours, type HostAvailability } from "./host-hours";
 
 /** Monday to Friday, 09:00 to 17:00 in London, with one blocked afternoon. 2027-01-04 is a Monday. */
 const availability: HostAvailability = {
@@ -74,5 +74,34 @@ describe("proposedTimeWarnings", () => {
   it("gives one warning when the host has not set any hours", () => {
     const warnings = proposedTimeWarnings([new Date("2027-01-04T10:00:00Z"), new Date("2027-01-04T11:00:00Z")], { timeZone: null, hours: [], blocks: [] });
     expect(warnings.map((entry) => entry.code)).toEqual(["no_host_hours"]);
+  });
+});
+
+describe("withDefaultHours", () => {
+  const none: HostAvailability = { timeZone: null, hours: [], blocks: [] };
+
+  it("gives a person with no hours Monday to Friday, 09:00 to 17:00 in the client's zone", () => {
+    const assumed = withDefaultHours(none, "Europe/London");
+    expect(assumed.timeZone).toBe("Europe/London");
+    expect(assumed.hours).toEqual(DEFAULT_HOURS);
+    // 2026-12-02 is a Wednesday and 2026-12-05 a Saturday. London is on UTC in December.
+    expect(isOutsideHostHours(new Date("2026-12-02T10:00:00Z"), assumed)).toBe(false);
+    expect(isOutsideHostHours(new Date("2026-12-02T17:00:00Z"), assumed)).toBe(true);
+    expect(isOutsideHostHours(new Date("2026-12-05T10:00:00Z"), assumed)).toBe(true);
+  });
+
+  it("leaves a person's own hours alone", () => {
+    expect(withDefaultHours(availability, "America/New_York")).toBe(availability);
+  });
+
+  it("uses Europe/London when the client has no zone or a wrong one", () => {
+    expect(withDefaultHours(none, null).timeZone).toBe("Europe/London");
+    expect(withDefaultHours(none, "Not/AZone").timeZone).toBe("Europe/London");
+  });
+
+  it("keeps the person's blocked times", () => {
+    const block = { startsAt: new Date("2026-12-02T10:00:00Z"), endsAt: new Date("2026-12-02T11:00:00Z") };
+    const assumed = withDefaultHours({ ...none, blocks: [block] }, "Europe/London");
+    expect(isOutsideHostHours(new Date("2026-12-02T10:30:00Z"), assumed)).toBe(true);
   });
 });

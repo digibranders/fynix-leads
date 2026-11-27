@@ -2,10 +2,11 @@ import Link from "next/link";
 import { Check, Clock, X } from "@phosphor-icons/react/dist/ssr";
 import { FormSheet } from "@/components/fynix/forms/form-sheet";
 import { Button, buttonVariants } from "@/components/ui/button";
+import type { CalendarPersonLike } from "@/lib/calendar/layout";
 import { availableActions, type LeadActionFacts, type LeadViewer } from "@/lib/leads/lead-actions";
 import { AnswerForClientForm, ClearOverShareForm, CorrectLeadForm, DecideContestForm, MarkLostForm, MarkReviewedForm, type CorrectableLead } from "./fynix-lead-forms";
 import { DecideLeadForm, OverturnRejectionForm, ProposeTimesForm, RecordOutcomeForm, RejectLeadForm } from "./lead-forms";
-import { AskReviewForm, ContestOutcomeForm, PickNewTimeForm, PostponeForm, WithdrawLeadForm } from "./phase4-forms";
+import { AskReviewForm, BookNewTimeForm, ContestOutcomeForm, PickNewTimeForm, PostponeForm, WithdrawLeadForm } from "./phase4-forms";
 
 /** What the forms of the newer actions need: an open proposal to pick from, the time left of a window, the lead's details for Fynix's correction. */
 export interface LeadActionContext extends LeadActionFacts {
@@ -17,6 +18,8 @@ export interface LeadActionContext extends LeadActionFacts {
   readonly contestedOutcome?: string | null;
   readonly proposedTimes?: readonly string[];
   readonly details?: CorrectableLead;
+  /** The client team with their hours and busy time, for booking a new time. */
+  readonly people?: readonly CalendarPersonLike[];
 }
 
 /**
@@ -96,6 +99,11 @@ export function LeadActionBar({
       {has("postpone") && meetingId !== null ? (
         <FormSheet trigger={<Button type="button" variant="secondary">Propose new times</Button>} title="Propose new times" description={`Move the meeting with ${who}.`}>
           <PostponeForm meetingId={meetingId} />
+        </FormSheet>
+      ) : null}
+      {has("book_new_time") && context.people !== undefined ? (
+        <FormSheet trigger={<Button type="button" variant="default"><Clock aria-hidden weight="bold" />Book a new time</Button>} title="Book a new time" description={`Move the meeting with ${who}.`}>
+          <BookNewTimeForm leadId={leadId} people={context.people} fynix={viewer === "fynix"} />
         </FormSheet>
       ) : null}
       {has("contest") && meetingId !== null ? (

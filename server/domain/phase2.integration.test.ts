@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { agreementAcceptance, campaign, campaignHost, campaignShare, hostBlock, hostHours, member, user } from "@/server/db/schema";
+import { agreementAcceptance, campaign, campaignShare, hostBlock, hostHours, member, user } from "@/server/db/schema";
 import { withTenantScope } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import { acceptAgreementByTenant } from "@/server/domain/agreements";
@@ -9,12 +9,11 @@ import { readCampaignActivity } from "@/server/domain/campaign-activity";
 import { closeCampaign, updateCampaign } from "@/server/domain/campaigns";
 import { listCampaignReadiness, listTenantCampaigns, readCampaignBrief } from "@/server/domain/campaigns-tenant";
 import { assignCampaignShare, unassignCampaignShare } from "@/server/domain/campaign-shares-tenant";
-import { addClientHost, addOwnBlock, pauseClientHost, removeOwnBlock, setOwnHours } from "@/server/domain/hosts-tenant";
+import { addOwnBlock, removeOwnBlock, setOwnHours } from "@/server/domain/hosts-tenant";
 import { publishAgreement } from "@/server/domain/agreements";
-import { addCampaignHost } from "@/server/domain/hosts";
 import { createPartnerAgency } from "@/server/domain/coordinators";
 import { setCampaignShare } from "@/server/domain/shares";
-import { agreeNumbers, auditRowsFor, firstCampaign, memberIdFor, refusal, setMemberRole, userIn } from "@/server/domain/test-helpers";
+import { agreeNumbers, firstCampaign, memberIdFor, refusal, setMemberRole, userIn } from "@/server/domain/test-helpers";
 import { openDomainRig } from "@/server/domain/testing";
 
 /**
@@ -151,12 +150,14 @@ describe("the one agreement, accepted by both sides", () => {
 });
 
 describe("why an agency's campaign is not live", () => {
-  it("walks from no agreement, to no host, to waiting for Fynix, to live, to closed, and names nobody", async () => {
+  it("walks from no agreement, to no client team member, to waiting for Fynix, to live, to closed, and names nobody", async () => {
     const reason = async () => (await listCampaignReadiness(agencyDb(), coordinatorActor)).find((row) => row.campaignId === campaignId);
     expect(await reason()).toMatchObject({ bucket: "setting-up", notLiveReason: "Neither the client nor the coordinator has accepted the agreement yet." });
     await agreeNumbers(rig, campaignId);
-    expect((await reason())?.notLiveReason).toBe("The campaign has no active host yet.");
-    await addCampaignHost(rig.deps(), rig.actor, { campaignId, memberId: await memberIdFor(rig, clientActor.userId), jobTitle: "Head of Sales" });
+    const clientMember = await memberIdFor(rig, clientActor.userId);
+    await rig.dbs.owner.db.update(member).set({ status: "suspended" }).where(eq(member.id, clientMember));
+    expect((await reason())?.notLiveReason).toBe("The client has no active team member yet.");
+    await rig.dbs.owner.db.update(member).set({ status: "active" }).where(eq(member.id, clientMember));
     expect((await reason())?.notLiveReason).toBe("Fynix has not made it active yet.");
     await updateCampaign(rig.deps(), rig.actor, campaignId, { status: "active" });
     expect(await reason()).toMatchObject({ bucket: "active", notLiveReason: null });
@@ -195,59 +196,12 @@ describe("the client's brief of its own campaign", () => {
   });
 });
 
-describe("hosts, as the client", () => {
-  it("lets a manager add a person of its own organisation as a host, change the title by adding again after a pause, and pause one", async () => {
-    const colleague = await addKestrelPerson("Priya Rao");
-    const added = await addClientHost(clientDb(), clientActor, { campaignId, memberId: colleague.memberId, jobTitle: "Head of Sales" });
-    expect(added).toEqual({ campaignId, memberId: colleague.memberId, jobTitle: "Head of Sales", active: true });
-    expect((await refusal(addClientHost(clientDb(), clientActor, { campaignId, memberId: colleague.memberId, jobTitle: "Again" }))).code).toBe("invalid-transition");
-    expect(await pauseClientHost(clientDb(), clientActor, { campaignId, memberId: colleague.memberId })).toMatchObject({ active: false });
-    expect((await refusal(pauseClientHost(clientDb(), clientActor, { campaignId, memberId: colleague.memberId }))).code).toBe("invalid-transition");
-    expect(await addClientHost(clientDb(), clientActor, { campaignId, memberId: colleague.memberId, jobTitle: "VP Sales" })).toMatchObject({ jobTitle: "VP Sales", active: true });
-    expect(await rig.dbs.owner.db.select().from(campaignHost).where(eq(campaignHost.campaignId, campaignId))).toHaveLength(1);
-    expect((await auditRowsFor(rig, "campaign_host.add"))).toHaveLength(0);
-  });
-
-  it("refuses a person who is not a manager, someone from another organisation, another client's campaign, and an agency", async () => {
-    const colleague = await addKestrelPerson("Priya Rao");
-    const plain: TenantActor = { ...clientActor, role: "member" };
-    // The seeded manager was promoted in the database; the domain trusts the actor it is handed, the database holds the line.
-    expect((await refusal(addClientHost(clientDb(), plain, { campaignId, memberId: colleague.memberId, jobTitle: "x" }))).code).toBe("not-authorised");
-    expect((await refusal(pauseClientHost(clientDb(), plain, { campaignId, memberId: colleague.memberId }))).code).toBe("not-authorised");
-    const haldenPerson = await memberIdFor(rig, otherClientActor.userId);
-    expect((await refusal(addClientHost(clientDb(), clientActor, { campaignId, memberId: haldenPerson, jobTitle: "x" }))).code).toBe("not-a-client-member");
-    expect((await refusal(addClientHost(clientDb(), otherClientActor, { campaignId, memberId: haldenPerson, jobTitle: "x" }))).code).toBe("not-found");
-    expect((await refusal(addClientHost(agencyDb(), coordinatorActor, { campaignId, memberId: colleague.memberId, jobTitle: "x" }))).code).toBe("not-authorised");
-    // Straight at the table, a plain member and an agency are stopped by the database.
-    const asPlainMember = { orgId: clientActor.orgId, userId: colleague.userId };
-    await expect(
-      withTenantScope(clientDb(), asPlainMember, (tx) => tx.insert(campaignHost).values({ campaignId, clientOrgId: clientActor.orgId, memberId: colleague.memberId, jobTitle: "Sneaky" })),
-    ).rejects.toThrow();
-    await expect(
-      withTenantScope(agencyDb(), { orgId: coordinatorActor.orgId, userId: coordinatorActor.userId }, (tx) => tx.update(campaignHost).set({ active: false })),
-    ).rejects.toMatchObject({ cause: { code: "42501" } });
-    expect(await rig.dbs.owner.db.select().from(campaignHost)).toEqual([]);
-  });
-
-  it("refuses a closed campaign, and a suspended person", async () => {
-    const colleague = await addKestrelPerson("Priya Rao");
-    await rig.dbs.owner.db.update(member).set({ status: "suspended" }).where(eq(member.id, colleague.memberId));
-    expect((await refusal(addClientHost(clientDb(), clientActor, { campaignId, memberId: colleague.memberId, jobTitle: "x" }))).code).toBe("not-a-client-member");
-    const active = await addKestrelPerson("Sam Okoye");
-    await addClientHost(clientDb(), clientActor, { campaignId, memberId: active.memberId, jobTitle: "Head of Sales" });
-    await closeCampaign(rig.deps(), rig.actor, campaignId);
-    expect((await refusal(pauseClientHost(clientDb(), clientActor, { campaignId, memberId: active.memberId }))).code).toBe("campaign-closed");
-    expect((await refusal(addClientHost(clientDb(), clientActor, { campaignId, memberId: active.memberId, jobTitle: "x" }))).code).toBe("campaign-closed");
-  });
-});
-
-describe("a host's own hours and blocked times", () => {
+describe("a client team member's own hours and blocked times", () => {
   const monday = { weekday: 1, startMinute: 540, endMinute: 1020 };
 
   it("lets any person set their own weekly hours and blocks, even when the campaign is closed", async () => {
     const colleague = await addKestrelPerson("Priya Rao");
     const plain: TenantActor = { userId: colleague.userId, orgId: clientActor.orgId, orgKind: "client", role: "member" };
-    await addClientHost(clientDb(), clientActor, { campaignId, memberId: colleague.memberId, jobTitle: "Head of Sales" });
     await closeCampaign(rig.deps(), rig.actor, campaignId);
     expect(await setOwnHours(clientDb(), plain, { timeZone: "Europe/London", hours: [monday, { weekday: 3, startMinute: 600, endMinute: 900 }] })).toMatchObject({ memberId: colleague.memberId, hours: [monday, { weekday: 3, startMinute: 600, endMinute: 900 }] });
     expect(await setOwnHours(clientDb(), plain, { timeZone: "Asia/Kolkata", hours: [monday] })).toMatchObject({ timeZone: "Asia/Kolkata" });
@@ -317,11 +271,10 @@ describe("a closed campaign is read only for the coordinator too", () => {
 });
 
 describe("the activity of a campaign", () => {
-  it("lists what Fynix changed on it and on its agreement, shares and hosts, newest first, and nothing of another campaign", async () => {
+  it("lists what Fynix changed on it and on its agreement and shares, newest first, and nothing of another campaign", async () => {
     const other = rig.world().campaigns[1];
     if (other === undefined) throw new Error("no second campaign");
     await agreeNumbers(rig, campaignId);
-    await addCampaignHost(rig.deps(), rig.actor, { campaignId, memberId: await memberIdFor(rig, clientActor.userId), jobTitle: "Head of Sales" });
     await setCampaignShare(rig.deps(), rig.actor, { campaignId, agencyOrgId: rig.world().brightpath.id, monthlyShare: 4 });
     await updateCampaign(rig.deps(), rig.actor, campaignId, { status: "active" });
     await closeCampaign(rig.deps(), rig.actor, campaignId, "Done");
@@ -329,7 +282,7 @@ describe("the activity of a campaign", () => {
 
     const rows = await readCampaignActivity(rig.deps(), rig.staffActor, campaignId);
     const actions = rows.map((row) => row.action);
-    expect(actions).toEqual(expect.arrayContaining(["agreement.publish", "agreement.accept", "campaign_host.add", "campaign_share.set", "campaign.update", "campaign.close"]));
+    expect(actions).toEqual(expect.arrayContaining(["agreement.publish", "agreement.accept", "campaign_share.set", "campaign.update", "campaign.close"]));
     expect(actions[0]).toBe("campaign.close");
     expect(rows.every((row) => row.source === "audit")).toBe(true);
     expect(rows.filter((row) => row.action === "agreement.publish")).toHaveLength(1);

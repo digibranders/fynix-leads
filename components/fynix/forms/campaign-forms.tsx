@@ -1,12 +1,8 @@
 "use client";
 
-import { addHostAction, closeCampaignAction, publishAgreementAction, setLetterOpeningAction, setPrivacyLinkAction, setShareAction, updateCampaignAction } from "@/server/fynix/actions";
+import { closeCampaignAction, publishAgreementAction, setLetterOpeningAction, setPrivacyLinkAction, setShareAction, updateCampaignAction } from "@/server/fynix/actions";
 import type { CampaignHeader } from "@/server/domain/campaign-overview";
-import { useId, useState } from "react";
-import { Choice } from "@/components/ui/choice";
-import { Field } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { ActionForm, useFormState } from "./action-form";
+import { ActionForm } from "./action-form";
 import { FormGroup, Hidden, NumberField, SelectField, TextAreaField, TextField, TimeZoneField } from "./form-parts";
 
 type Defaults = {
@@ -52,44 +48,6 @@ export function ShareForm({ campaignId, options, agency, suggested }: { campaign
           </>
         )}
         <NumberField name="monthlyShare" label="Meetings per month" defaultValue={agency !== undefined ? String(agency.monthlyShare) : suggested === undefined || suggested === 0 ? "" : String(suggested)} />
-      </FormGroup>
-    </ActionForm>
-  );
-}
-
-/**
- * Adds a person at the client as a host of the campaign. Choosing the person fills in their job title (the one on their own record), which can
- * still be changed. A host who was paused comes back with the title given here.
- */
-export function AddHostForm({ campaignId, candidates, clientName }: { campaignId: string; candidates: readonly { readonly memberId: string; readonly displayName: string; readonly jobTitle: string | null }[]; clientName: string }) {
-  const state = useFormState();
-  const personId = useId();
-  const titleId = useId();
-  const [person, setPerson] = useState("");
-  const [title, setTitle] = useState("");
-  const error = (name: string) => (state.status === "error" ? state.fields[name] : undefined);
-
-  return (
-    <ActionForm action={addHostAction} submitLabel="Add host" pendingLabel="Adding">
-      <Hidden name="campaignId" value={campaignId} />
-      <FormGroup>
-        <Field id={personId} label={`Person at ${clientName}`} error={error("memberId")}>
-          <Choice
-            id={personId}
-            name="memberId"
-            value={person}
-            onValueChange={(next) => {
-              setPerson(next);
-              setTitle(candidates.find((row) => row.memberId === next)?.jobTitle ?? "");
-            }}
-            options={candidates.map((row) => ({ value: row.memberId, label: row.displayName }))}
-            placeholder="Choose a person"
-            invalid={error("memberId") !== undefined}
-          />
-        </Field>
-        <Field id={titleId} label="Job title" helper="What the coordinator is told this person does. It starts from their own job title." error={error("jobTitle")}>
-          <Input id={titleId} name="jobTitle" value={title} autoComplete="off" onChange={(event) => setTitle(event.target.value)} aria-invalid={error("jobTitle") === undefined ? undefined : true} />
-        </Field>
       </FormGroup>
     </ActionForm>
   );

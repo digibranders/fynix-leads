@@ -63,6 +63,7 @@ export const PORTALS: Record<PortalKind, PortalConfig> = {
           { label: "Overview", icon: "house", href: "/client" },
           { label: "Availability", icon: "tray", href: "/client/review", countKey: "respond" },
           { label: "Leads", icon: "table", href: "/client/leads" },
+          { label: "Calendar", icon: "calendar", href: "/client/calendar" },
           { label: "Meetings", icon: "calendar", href: "/client/meetings" },
           { label: "Messages", icon: "chats", href: "/client/messages", countKey: "messages", countKind: "unread" },
         ],
@@ -71,7 +72,7 @@ export const PORTALS: Record<PortalKind, PortalConfig> = {
         label: "Campaign",
         items: [
           { label: "Campaigns", icon: "megaphone", href: "/client/campaigns" },
-          { label: "Hosts & hours", icon: "users", href: "/client/hosts" },
+          { label: "Working hours", icon: "users", href: "/client/hours" },
           { label: "Agreement", icon: "handshake", href: "/client/agreement" },
           { label: "Team", icon: "team", href: "/client/team" },
           { label: "Exclusions", icon: "prohibit", href: "/client/exclusions" },
@@ -90,6 +91,7 @@ export const PORTALS: Record<PortalKind, PortalConfig> = {
         items: [
           { label: "Overview", icon: "house", href: "/coordinator" },
           { label: "Leads", icon: "table", href: "/coordinator/leads" },
+          { label: "Calendar", icon: "calendar", href: "/coordinator/calendar" },
           { label: "Meetings", icon: "calendar", href: "/coordinator/meetings" },
           { label: "Messages", icon: "chats", href: "/coordinator/messages", countKey: "messages", countKind: "unread" },
         ],
@@ -117,6 +119,7 @@ export const PORTALS: Record<PortalKind, PortalConfig> = {
         items: [
           { label: "Overview", icon: "house", href: "/agency" },
           { label: "Leads", icon: "table", href: "/agency/leads" },
+          { label: "Calendar", icon: "calendar", href: "/agency/calendar" },
           { label: "Meetings", icon: "calendar", href: "/agency/meetings" },
           { label: "Messages", icon: "chats", href: "/agency/messages", countKey: "messages", countKind: "unread" },
         ],
@@ -142,6 +145,7 @@ export const PORTALS: Record<PortalKind, PortalConfig> = {
         items: [
           { label: "Overview", icon: "house", href: "/fynix" },
           { label: "Leads", icon: "table", href: "/fynix/leads" },
+          { label: "Calendar", icon: "calendar", href: "/fynix/calendar" },
           { label: "Meetings", icon: "calendar", href: "/fynix/meetings" },
           { label: "Inbox", icon: "chats", href: "/fynix/inbox", countKey: "messages", countKind: "unread" },
           { label: "Rejections", icon: "scales", href: "/fynix/rejections", countKey: "rejections" },

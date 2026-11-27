@@ -241,11 +241,6 @@ export type SetCampaignShareInput = z.infer<typeof setCampaignShareSchema>;
 export const removeCampaignShareSchema = z.object({ campaignId: z.uuid(), agencyOrgId: z.uuid() }).strict();
 export type RemoveCampaignShareInput = z.infer<typeof removeCampaignShareSchema>;
 
-export const addCampaignHostSchema = z.object({ campaignId: z.uuid(), memberId: z.uuid(), jobTitle: name(120) }).strict();
-export type AddCampaignHostInput = z.infer<typeof addCampaignHostSchema>;
-
-export const deactivateCampaignHostSchema = z.object({ campaignId: z.uuid(), memberId: z.uuid() }).strict();
-export type DeactivateCampaignHostInput = z.infer<typeof deactivateCampaignHostSchema>;
 
 const hoursWindow = z.object({ weekday: z.number().int(), startMinute: z.number().int(), endMinute: z.number().int() }).strict();
 /** A whole weekly set, replacing the old one. Ranges and overlaps are checked by `findHoursProblem` (lib/domain/weekly-hours.ts) so the message names the rule. */
@@ -281,11 +276,6 @@ export type UpdateAliasIdentityInput = z.infer<typeof updateAliasIdentitySchema>
 
 export const retireAliasIdentitySchema = z.object({ publicRef: z.string().trim().regex(/^ALI-[0-9A-HJKMNP-TV-Z]{4}$/, "must be an ALI reference") }).strict();
 export type RetireAliasIdentityInput = z.infer<typeof retireAliasIdentitySchema>;
-
-/** A client manager adds a host from its own organisation's people, or pauses one. */
-export const tenantHostSchema = z.object({ campaignId: z.uuid(), memberId: z.uuid() }).strict();
-export const tenantAddHostSchema = z.object({ campaignId: z.uuid(), memberId: z.uuid(), jobTitle: name(120) }).strict();
-export type TenantAddHostInput = z.input<typeof tenantAddHostSchema>;
 
 /** A host's own weekly hours and a blocked time. The person is the signed-in member, so no member id is taken. */
 export const ownHoursSchema = z.object({ timeZone: timeZoneSchema, hours: z.array(hoursWindow).max(70, "must have at most 70 windows") }).strict();
@@ -354,6 +344,8 @@ export const submitLeadSchema = z
     bantNeed: name(500),
     bantTimeline: name(500),
     proposedTimes: z.array(instant).min(1, "at least one proposed meeting time is required").max(3, "at most 3 proposed meeting times"),
+    /** One slot and the client people to invite to it (calendar spec of 2026-11-26): `proposedTimes` then holds that one time and `hostMemberId` is the first person invited. */
+    inviteeMemberIds: z.array(z.uuid()).min(1, "invite at least one person").max(20, "at most 20 people").optional(),
   })
   .strict();
 export type SubmitLeadInput = z.input<typeof submitLeadSchema>;
@@ -385,7 +377,11 @@ export const saveDraftSchema = z.object({ campaignId: z.uuid(), ...draftFields }
 export type SaveDraftInput = z.input<typeof saveDraftSchema>;
 export const updateDraftSchema = z.object({ leadId: z.uuid(), ...draftFields }).strict();
 export type UpdateDraftInput = z.input<typeof updateDraftSchema>;
+/** The source of a lead moves its meeting to a new slot and invites the people free then (calendar spec of 2026-11-26, section 7.2). */
+export const rebookMeetingSchema = z.object({ leadId: z.uuid(), slot: instant, inviteeMemberIds: z.array(z.uuid()).min(1, "invite at least one person").max(20, "at most 20 people") }).strict();
 export const draftIdSchema = z.object({ leadId: z.uuid() }).strict();
+/** Sending a draft, with the client people to invite when its one time is a booking (calendar spec of 2026-11-26). */
+export const submitDraftSchema = z.object({ leadId: z.uuid(), inviteeMemberIds: z.array(z.uuid()).min(1, "invite at least one person").max(20, "at most 20 people").optional() }).strict();
 
 /** Withdrawing a submitted lead carries an optional note for the history. */
 export const withdrawLeadSchema = z.object({ leadId: z.uuid(), note: optionalText(1000).optional() }).strict();
@@ -539,3 +535,10 @@ export const groupIdSchema = z.object({ groupId: z.uuid() }).strict();
 
 export const hostAvailabilitySchema = z.object({ hostMemberId: z.uuid(), campaignId: z.uuid() }).strict();
 export const checkProposedTimesSchema = z.object({ hostMemberId: z.uuid(), campaignId: z.uuid(), proposedTimes: z.array(instant).max(3) }).strict();
+
+/** A client person's answer to an invitation to a meeting. */
+export const replyInvitationSchema = z.object({ meetingId: z.uuid(), reply: z.enum(["accepted", "declined"]) }).strict();
+
+/** A calendar read: the team of a campaign's client between two moments. A campaign, not a client id, because an agency never reads an organisation id. The length of the range is checked by `assertRange` and again by the database. */
+export const teamTimeSchema = z.object({ campaignId: z.uuid(), from: instant, to: instant }).strict();
+export type TeamTimeInput = z.input<typeof teamTimeSchema>;

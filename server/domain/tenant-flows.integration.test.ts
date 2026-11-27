@@ -64,6 +64,7 @@ beforeEach(async () => {
   const clientMember = await memberOf(clientUser.id);
   const agencyMember = await memberOf(agencyUser.id);
   await owner.insert(campaignHost).values({ campaignId: target.id, clientOrgId: target.client.id, memberId: clientMember, jobTitle: "Chief Operating Officer" });
+  await owner.update(member).set({ jobTitle: "Chief Operating Officer" }).where(eq(member.id, clientMember));
   for (const weekday of [1, 2, 3, 4, 5]) await owner.insert(hostHours).values({ memberId: clientMember, timeZone: "Europe/London", weekday, startMinute: 0, endMinute: 1440 });
   await owner.insert(agreement).values({ campaignId: target.id, party: "supplier", version: 1, monthlyTarget: 10, totalTarget: 60, createdBy: await memberOf(admin.id) });
   await owner.insert(agreement).values({ campaignId: target.id, party: "client", version: 1, monthlyTarget: 12, totalTarget: 72, createdBy: await memberOf(admin.id) });
@@ -211,14 +212,19 @@ describe("agreements, as each role", () => {
   });
 });
 
-describe("hosts, as a client", () => {
-  it("lists the people who take meetings, with their weekly hours", async () => {
+describe("working hours, as a client", () => {
+  it("lists every active person of the client with their weekly hours, whether or not anyone made them a host", async () => {
+    const [colleagueUser] = await rig.dbs.owner.db.insert(user).values({ email: "anna@kestrel-team.example", name: "Anna Colleague" }).returning({ id: user.id });
+    if (colleagueUser === undefined) throw new Error("No colleague user");
+    await rig.dbs.owner.db.insert(member).values({ userId: colleagueUser.id, orgId: cast.clientActor.orgId, orgKind: "client", role: "member", displayName: "Anna Colleague" });
     const hosts = await listClientHosts(rig.dbs.roles.leads_client.db, cast.clientActor);
-    expect(hosts).toHaveLength(1);
-    expect(hosts[0]?.jobTitle).toBe("Chief Operating Officer");
-    expect(hosts[0]?.hours).toHaveLength(5);
-    expect(hosts[0]?.assignments).toMatchObject([{ campaignId: cast.campaignId }]);
-    expect(hosts[0]?.own).toBe(true);
+    expect(hosts.map((person) => person.name)).toEqual([...hosts.map((person) => person.name)].sort((x, y) => x.localeCompare(y)));
+    expect(hosts).toHaveLength(2);
+    const own = hosts.find((person) => person.own);
+    expect(own?.jobTitle).toBe("Chief Operating Officer");
+    expect(own?.hours).toHaveLength(5);
+    const colleague = hosts.find((person) => !person.own);
+    expect(colleague).toMatchObject({ name: "Anna Colleague", jobTitle: "", hours: [], blocks: [] });
   });
 });
 

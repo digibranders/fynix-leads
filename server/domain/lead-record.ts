@@ -4,7 +4,7 @@ import type { CampaignStatus } from "@/lib/domain/campaign-status";
 import { countedMonth, isCountedStage } from "@/lib/domain/counting-month";
 import { agencyLeadColumns, agencyMeetingColumns, agencyRejectionReviewColumns, agencyRescheduleColumns, clientLeadColumns, clientMeetingColumns, clientRescheduleColumns } from "@/server/db/columns";
 import type { Database } from "@/server/db/pool";
-import { aliasIdentity, campaign, campaignHost, hostHours, lead, leadHistory, meeting, meetingReschedule, member, organisation, rejectionReview } from "@/server/db/schema";
+import { aliasIdentity, campaign, hostHours, lead, leadHistory, meeting, meetingReschedule, member, organisation, rejectionReview } from "@/server/db/schema";
 import { withTenantScope, type ScopedTransaction } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import type { DomainDeps } from "@/server/domain/deps";
@@ -200,12 +200,7 @@ export async function getLeadRecordForClient(db: Database, actor: TenantActor, l
     const [hostRow] =
       row.hostMemberId === null
         ? []
-        : await tx
-            .select({ name: member.displayName, jobTitle: campaignHost.jobTitle })
-            .from(member)
-            .leftJoin(campaignHost, and(eq(campaignHost.memberId, member.id), eq(campaignHost.campaignId, row.campaignId)))
-            .where(eq(member.id, row.hostMemberId))
-            .limit(1);
+        : await tx.select({ name: member.displayName, jobTitle: member.jobTitle }).from(member).where(eq(member.id, row.hostMemberId)).limit(1);
     const decider =
       row.decisionByUserId === null ? [] : await tx.select({ name: member.displayName }).from(member).where(eq(member.userId, row.decisionByUserId)).limit(1);
     const aliasRows = await tx.execute<{ display_name: string; job_title: string }>(sql`select display_name, job_title from public.app_lead_alias_name(${row.id}::uuid)`);
@@ -259,8 +254,6 @@ export async function getLeadRecordForSupply(db: Database, actor: TenantActor, l
     if (row === undefined) throw new DomainError("not-found", "There is no such lead.");
 
     const [meetingRow] = await tx.select(agencyMeetingColumns).from(meeting).where(eq(meeting.leadId, row.id)).orderBy(asc(meeting.createdAt)).limit(1);
-    // An agency's own draft may have no host or alias yet.
-    const [hostRow] = row.hostMemberId === null ? [] : await tx.select({ jobTitle: campaignHost.jobTitle }).from(campaignHost).where(and(eq(campaignHost.campaignId, row.campaignId), eq(campaignHost.memberId, row.hostMemberId))).limit(1);
     const [aliasRow] = row.aliasIdentityId === null ? [] : await tx.select({ displayName: aliasIdentity.displayName, jobTitle: aliasIdentity.jobTitle }).from(aliasIdentity).where(eq(aliasIdentity.id, row.aliasIdentityId)).limit(1);
     const own = row.sourceOrgId === actor.orgId;
     let sourceName: string | null = null;
@@ -284,7 +277,8 @@ export async function getLeadRecordForSupply(db: Database, actor: TenantActor, l
       bant: { budget: row.bantBudget, authority: row.bantAuthority, need: row.bantNeed, timeline: row.bantTimeline },
       proposedTimes: times(row.proposedTimes),
       scheduledMeetingTime: row.scheduledMeetingTime,
-      host: { name: null, jobTitle: hostRow?.jobTitle ?? null },
+      // The supply side reads neither the name nor the job title of a client person here. The lead form is where it picks one, by name.
+      host: { name: null, jobTitle: null },
       hostTimeZone: await hostZone(tx, row.hostMemberId),
       alias: aliasRow ?? null,
       meeting: meetingOf(meetingRow),
@@ -319,7 +313,7 @@ export async function getLeadRecordForFynix(deps: DomainDeps, actor: FynixActor,
         clientName: clientOrg.name,
         sourceName: sourceOrg.name,
         hostName: host.displayName,
-        hostJobTitle: campaignHost.jobTitle,
+        hostJobTitle: host.jobTitle,
         aliasName: aliasIdentity.displayName,
         aliasJobTitle: aliasIdentity.jobTitle,
         aliasEmail: aliasIdentity.aliasEmail,
@@ -330,7 +324,6 @@ export async function getLeadRecordForFynix(deps: DomainDeps, actor: FynixActor,
       .innerJoin(clientOrg, eq(clientOrg.id, campaign.clientOrgId))
       .innerJoin(sourceOrg, eq(sourceOrg.id, lead.sourceOrgId))
       .leftJoin(host, eq(host.id, lead.hostMemberId))
-      .leftJoin(campaignHost, and(eq(campaignHost.campaignId, lead.campaignId), eq(campaignHost.memberId, lead.hostMemberId)))
       .leftJoin(aliasIdentity, eq(aliasIdentity.id, lead.aliasIdentityId))
       .leftJoin(decider, eq(decider.userId, lead.decisionByUserId))
       .where(eq(lead.publicRef, leadPublicRef))

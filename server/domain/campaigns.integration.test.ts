@@ -1,8 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { campaign } from "@/server/db/schema";
+import { campaign, member } from "@/server/db/schema";
 import { closeCampaign, createCampaign, reopenCampaign, updateCampaign } from "@/server/domain/campaigns";
-import { addCampaignHost, deactivateCampaignHost } from "@/server/domain/hosts";
 import { publishAgreement, recordAgreementAcceptance } from "@/server/domain/agreements";
 import { DomainError } from "@/server/domain/errors";
 import { createOrganisation, setOrganisationStatus } from "@/server/domain/organisations";
@@ -134,7 +133,7 @@ describe("the going-live rule", () => {
   const coordinatorUser = () => userIn(rig, rig.world().northgate);
   const goLive = (id: string) => updateCampaign(rig.deps(), rig.actor, id, { status: "active" });
 
-  it("refuses with no agreement, naming both sides, and with no host after the agreement", async () => {
+  it("refuses with no agreement, naming both sides, and with no active client team member after the agreement", async () => {
     const id = await create();
     const first = await refusal(goLive(id));
     expect(first).toMatchObject({ code: "agreement-not-accepted", message: "Neither the client nor the coordinator has accepted the agreement yet." });
@@ -144,9 +143,12 @@ describe("the going-live rule", () => {
     await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: published.id, userId: clientUser().id });
     expect(await refusal(goLive(id))).toMatchObject({ code: "agreement-not-accepted", message: "The coordinator has not accepted the agreement yet." });
     await recordAgreementAcceptance(rig.deps(), rig.actor, { agreementId: published.id, userId: coordinatorUser().id });
+    // The client's only person is suspended, so it has nobody to take the meetings.
+    const clientMember = await memberIdFor(rig, clientUser().id);
+    await rig.dbs.owner.db.update(member).set({ status: "suspended" }).where(eq(member.id, clientMember));
     expect((await refusal(goLive(id))).code).toBe("no-host");
     expect(await row(id)).toMatchObject({ status: "draft" });
-    await addCampaignHost(rig.deps(), rig.actor, { campaignId: id, memberId: await memberIdFor(rig, clientUser().id), jobTitle: "Head of Sales" });
+    await rig.dbs.owner.db.update(member).set({ status: "active" }).where(eq(member.id, clientMember));
     expect(await goLive(id)).toMatchObject({ status: "active" });
   });
 
@@ -158,11 +160,11 @@ describe("the going-live rule", () => {
     expect((await refusal(goLive(id))).message).toBe("The client has not accepted the agreement yet.");
   });
 
-  it("applies to a resume from paused too, and a paused host with no other counts as no host", async () => {
+  it("applies to a resume from paused too, and a client whose only person is suspended counts as having none", async () => {
     const id = await create();
     await makeCampaignReady(rig, id);
     await goLive(id);
-    await deactivateCampaignHost(rig.deps(), rig.actor, { campaignId: id, memberId: await memberIdFor(rig, clientUser().id) });
+    await rig.dbs.owner.db.update(member).set({ status: "suspended" }).where(eq(member.id, await memberIdFor(rig, clientUser().id)));
     await updateCampaign(rig.deps(), rig.actor, id, { status: "paused" });
     expect((await refusal(goLive(id))).code).toBe("no-host");
   });
@@ -208,7 +210,7 @@ describe("closing and reopening", () => {
     expect((await auditRowsFor(rig, "campaign.reopen"))).toHaveLength(1);
     expect((await refusal(reopenCampaign(rig.deps(), rig.actor, id))).code).toBe("invalid-transition");
     expect(await updateCampaign(rig.deps(), rig.actor, id, { status: "active" })).toMatchObject({ status: "active" });
-    await deactivateCampaignHost(rig.deps(), rig.actor, { campaignId: id, memberId: await memberIdFor(rig, userIn(rig, rig.world().kestrel).id) });
+    await rig.dbs.owner.db.update(member).set({ status: "suspended" }).where(eq(member.id, await memberIdFor(rig, userIn(rig, rig.world().kestrel).id)));
     await closeCampaign(rig.deps(), rig.actor, id);
     await reopenCampaign(rig.deps(), rig.actor, id);
     expect((await refusal(updateCampaign(rig.deps(), rig.actor, id, { status: "active" }))).code).toBe("no-host");
@@ -237,13 +239,10 @@ describe("closing and reopening", () => {
     expect((await refusal(reopenCampaign(rig.deps(), rig.actor, "99999999-9999-4999-8999-999999999999"))).code).toBe("not-found");
   });
 
-  it("makes a closed campaign read only for hosts: Fynix cannot add or deactivate one, and a new agreement version is refused", async () => {
+  it("makes a closed campaign read only: a new agreement version is refused", async () => {
     const id = await create();
     await makeCampaignReady(rig, id);
     await closeCampaign(rig.deps(), rig.actor, id);
-    const kestrelId = await memberIdFor(rig, userIn(rig, rig.world().kestrel).id);
-    expect((await refusal(deactivateCampaignHost(rig.deps(), rig.actor, { campaignId: id, memberId: kestrelId }))).code).toBe("campaign-closed");
-    expect((await refusal(addCampaignHost(rig.deps(), rig.actor, { campaignId: id, memberId: kestrelId, jobTitle: "x" }))).code).toBe("campaign-closed");
     expect((await refusal(publishAgreement(rig.deps(), rig.actor, { campaignId: id, monthlyTarget: 1, totalTarget: 1 }))).code).toBe("campaign-closed");
   });
 });

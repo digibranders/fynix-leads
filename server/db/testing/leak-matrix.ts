@@ -25,6 +25,8 @@ export interface ReadPath {
   readonly run: (tx: ScopedTransaction, viewer: Viewer, world: SeedWorld) => Promise<unknown>;
   /** Strings that must appear in the result, so a path that returns nothing at all cannot pass as "no leaks". */
   readonly mustContain: (viewer: Viewer, world: SeedWorld) => readonly string[];
+  /** Strings this one path may show, such as the names of the people of a client an agency serves. Each is removed from the result before it is searched for forbidden tokens. */
+  readonly allowedTokens?: (viewer: Viewer, world: SeedWorld) => readonly string[];
 }
 
 export interface Probe {
@@ -46,6 +48,22 @@ export function ownCampaigns(viewer: Viewer, world: SeedWorld): SeedWorld["campa
 export function visibleProfiles(viewer: Viewer, world: SeedWorld): SeedWorld["profiles"][number][] {
   const clientIds = new Set(viewer.role === "leads_client" ? [viewer.organisation.id] : ownCampaigns(viewer, world).map((row) => row.client.id));
   return world.profiles.filter((profile) => clientIds.has(profile.client.id));
+}
+
+/** The campaigns whose client team a viewer may read, which are its own: a client's campaigns, or the campaigns an agency serves. Tenants name a team by a campaign, never by an organisation id. */
+function teamCampaignIds(viewer: Viewer, world: SeedWorld): string[] {
+  return ownCampaigns(viewer, world).map((row) => row.id);
+}
+
+function teamNames(viewer: Viewer, world: SeedWorld): string[] {
+  const clients = new Set(ownCampaigns(viewer, world).map((row) => row.client.id));
+  return world.users.filter((person) => clients.has(person.organisation.id)).map((person) => person.name);
+}
+
+/** The time zone of each client whose team a viewer may read. An agency already reads the zone, hours and blocked times of those people (the lead form), so the client's own zone, which fills in for a person with no hours, is the same kind of fact. */
+function teamZones(viewer: Viewer, world: SeedWorld): string[] {
+  const clients = new Set(ownCampaigns(viewer, world).map((row) => row.client.id));
+  return world.profiles.filter((profile) => clients.has(profile.client.id)).map((profile) => profile.timeZone);
 }
 
 export const READ_PATHS: readonly ReadPath[] = [
@@ -110,6 +128,28 @@ export const READ_PATHS: readonly ReadPath[] = [
       return found;
     },
     mustContain: (viewer, world) => ownCampaigns(viewer, world).map((row) => row.publicRef),
+  },
+  {
+    // Calendar step C: the people of a client, by name and time zone, for the client itself and the agencies that serve it. A name and nothing else.
+    name: "the team of a client, names only",
+    run: async (tx, viewer, world) => {
+      const rows: unknown[] = [];
+      for (const id of teamCampaignIds(viewer, world)) rows.push((await tx.execute(sql`select * from public.app_team_people_for_campaign(${id}::uuid)`)).rows);
+      return rows;
+    },
+    mustContain: (viewer, world) => teamNames(viewer, world),
+    allowedTokens: (viewer, world) => [...teamNames(viewer, world), ...teamZones(viewer, world)],
+  },
+  {
+    // The busy time over the next ten days, asked for every campaign in the world. The seeded world has no busy time, so the result is empty: the path proves that a
+    // campaign the viewer may not read answers with nothing and that nothing but bare times can come out of the function.
+    name: "the busy time of a client's team",
+    run: async (tx, _viewer, world) => {
+      const rows: unknown[] = [];
+      for (const row of world.campaigns) rows.push((await tx.execute(sql`select * from public.app_team_busy_for_campaign(${row.id}::uuid, now(), now() + interval '10 days')`)).rows);
+      return rows;
+    },
+    mustContain: () => [],
   },
 ];
 
@@ -269,6 +309,33 @@ export const PROBES: readonly Probe[] = [
   { name: "lead: whether Fynix reviewed a rejection, as a client", statement: "select rejection_reviewed_at from lead", expectedError: DENIED_TABLE, roles: ["leads_client"] },
   { name: "write: release a draft, as a client", statement: "update lead set released = true", expectedError: DENIED_TABLE, roles: ["leads_client"] },
   { name: "the host names of a campaign, as a client", statement: "select * from app_campaign_host_names(gen_random_uuid())", expectedError: /permission denied for function app_campaign_host_names/, roles: ["leads_client"] },
+  { name: "the team of a campaign, as a client", statement: "select * from app_campaign_team(gen_random_uuid())", expectedError: /permission denied for function app_campaign_team/, roles: ["leads_client"] },
+  { name: "whether an agency serves a member, as a client", statement: "select app_agency_serves_member(gen_random_uuid())", expectedError: /permission denied for function app_agency_serves_member/, roles: ["leads_client"] },
+  { name: "invitations to meetings, every column", statement: "select * from meeting_attendee", expectedError: DENIED_TABLE },
+  { name: "invitations: who was invited", statement: "select member_id from meeting_attendee", expectedError: DENIED_TABLE },
+  { name: "invitations: the reply link hash", statement: "select reply_token_hash from meeting_attendee", expectedError: DENIED_TABLE },
+  { name: "write: invite someone to a meeting", statement: "insert into meeting_attendee (meeting_id, member_id) values (gen_random_uuid(), gen_random_uuid())", expectedError: DENIED_TABLE },
+  { name: "write: change a reply", statement: "update meeting_attendee set reply = 'accepted'", expectedError: DENIED_TABLE },
+  { name: "meeting: when someone must reply", statement: "select reply_due_at from meeting", expectedError: DENIED_TABLE },
+  { name: "meeting: when it was confirmed", statement: "select confirmed_at from meeting", expectedError: DENIED_TABLE },
+  { name: "who may read a client's team, called directly", statement: "select app_may_read_team(gen_random_uuid())", expectedError: /permission denied for function app_may_read_team/ },
+  { name: "calendar: connection tokens", statement: "select refresh_token_enc from calendar_connection", expectedError: DENIED_TABLE },
+  { name: "calendar: synced busy times", statement: "select starts_at from member_busy", expectedError: DENIED_TABLE },
+  { name: "calendar: break someone's connection", statement: "delete from calendar_connection", expectedError: DENIED_TABLE },
+  { name: "calendar: the warnings, as a tenant", statement: "select * from app_calendar_warnings()", expectedError: /permission denied for function app_calendar_warnings/, roles: ["leads_client", "leads_agency"] },
+  { name: "calendar: someone's connections, as an agency", statement: "select * from app_my_calendar_connections()", expectedError: /permission denied for function app_my_calendar_connections/, roles: ["leads_agency"] },
+  { name: "calendar: write a broken-connection notice, as a tenant", statement: "select app_calendar_connection_broken(gen_random_uuid(), 'google')", expectedError: /permission denied for function app_calendar_connection_broken/ },
+  { name: "remind invited people, as a tenant", statement: "select app_remind_invitations(now())", expectedError: /permission denied for function app_remind_invitations/ },
+  { name: "invitation by its link, as a tenant", statement: "select * from app_invitation_by_token('x')", expectedError: /permission denied for function app_invitation_by_token/ },
+  { name: "answer by an invitation link, as a tenant", statement: "select * from app_reply_by_token('x', 'accepted', null, null)", expectedError: /permission denied for function app_reply_by_token/ },
+  { name: "the shared answer of an invitation, as a tenant", statement: "select * from app_answer_invitation(gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 'accepted', null, null)", expectedError: /permission denied for function app_answer_invitation/ },
+  { name: "invite people to a meeting, as a client", statement: "select app_invite_attendees(gen_random_uuid(), array[gen_random_uuid()], array['x'])", expectedError: /permission denied for function app_invite_attendees/, roles: ["leads_client"] },
+  { name: "answer an invitation, as an agency", statement: "select * from app_reply_invitation(gen_random_uuid(), 'accepted', null, null)", expectedError: /permission denied for function app_reply_invitation/, roles: ["leads_agency"] },
+  { name: "the invitations of a person, as an agency", statement: "select * from app_my_invitations()", expectedError: /permission denied for function app_my_invitations/, roles: ["leads_agency"] },
+  { name: "let go of lapsed invitations, as a tenant", statement: "select * from app_expire_invitations(now())", expectedError: /permission denied for function app_expire_invitations/ },
+  { name: "the people of a client by its id", statement: "select * from app_team_people(gen_random_uuid())", expectedError: /permission denied for function app_team_people/ },
+  { name: "the busy time of a client by its id", statement: "select * from app_team_busy(gen_random_uuid(), now(), now() + interval '1 day')", expectedError: /permission denied for function app_team_busy/ },
+  { name: "the client behind a campaign", statement: "select app_team_client(gen_random_uuid())", expectedError: /permission denied for function app_team_client/ },
   { name: "who serves a lead, as a client", statement: "select app_lead_served_by_me(gen_random_uuid())", expectedError: /permission denied for function app_lead_served_by_me/, roles: ["leads_client"] },
   { name: "the visibility of a proposal to the supply side, as a client", statement: "select app_reschedule_visible_to_supply(gen_random_uuid())", expectedError: /permission denied for function app_reschedule_visible_to_supply/, roles: ["leads_client"] },
   { name: "the visibility of a proposal to the client, as an agency", statement: "select app_reschedule_visible_to_client(gen_random_uuid())", expectedError: /permission denied for function app_reschedule_visible_to_client/, roles: ["leads_agency"] },

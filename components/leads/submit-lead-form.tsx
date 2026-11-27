@@ -2,15 +2,16 @@
 
 import Link from "next/link";
 import { CheckCircle, CircleNotch, FloppyDisk, PaperPlaneRight, WarningCircle } from "@phosphor-icons/react";
-import { useActionState, useState } from "react";
+import { useActionState, useLayoutEffect, useRef, useState } from "react";
 import { Panel, Tonal } from "@/components/kit/panel";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Choice } from "@/components/ui/choice";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { HostTimesField } from "@/components/leads/host-times";
-import type { HostAvailability } from "@/lib/leads/host-hours";
+import { SlotPicker } from "@/components/leads/slot-picker";
+import type { CalendarPersonLike } from "@/lib/calendar/layout";
+import { restoreTextValues, textValues, type FieldValues } from "@/lib/leads/form-values";
 import { IDLE_DRAFT_ACTION, IDLE_TENANT_ACTION } from "@/lib/tenant/action-state";
 import { saveDraftAction } from "@/server/domain/draft-actions";
 import { submitLeadAction } from "@/server/domain/lead-actions";
@@ -28,13 +29,6 @@ export interface AliasOption {
   readonly clientOrgId: string | null;
   readonly clientName: string;
   readonly aliasEmail: string;
-}
-
-export interface HostOption {
-  readonly id: string;
-  readonly campaignId: string;
-  readonly name: string;
-  readonly jobTitle: string;
 }
 
 export interface NotLiveCampaign {
@@ -67,13 +61,12 @@ export interface DraftPrefill {
 interface Props {
   readonly campaigns: readonly CampaignOption[];
   readonly aliases: readonly AliasOption[];
-  readonly hosts: readonly HostOption[];
   /** Campaigns that take no leads, each with the reason in words that name no person. */
   readonly notLive?: readonly NotLiveCampaign[];
   /** Where the leads of this portal are listed, for the link after a lead is sent. */
   readonly leadsHref: string;
-  /** The weekly hours, blocked times and zone of each host, by member id, for the time list and its warnings. */
-  readonly availability?: Readonly<Record<string, HostAvailability>>;
+  /** The client team of each campaign with their hours and busy time, by campaign id: the free times and the people to invite come from it. */
+  readonly teams?: Readonly<Record<string, readonly CalendarPersonLike[]>>;
   /** A draft to continue. */
   readonly draft?: DraftPrefill | null;
 }
@@ -91,31 +84,52 @@ function Group({ title, note, children }: { title: string; note?: string; childr
 }
 
 /** A lead submission: four tonal groups of fields in one panel, and one primary action in a sticky foot. Field names are the ones the action reads. */
-export function SubmitLeadForm({ campaigns, aliases, hosts, notLive = [], leadsHref, availability = {}, draft = null }: Props) {
+export function SubmitLeadForm({ campaigns, aliases, notLive = [], leadsHref, teams = {}, draft = null }: Props) {
   const [state, formAction, pending] = useActionState(submitLeadAction, IDLE_TENANT_ACTION);
   const [draftState, draftAction, draftPending] = useActionState(saveDraftAction, IDLE_DRAFT_ACTION);
   const [campaignId, setCampaignId] = useState(draft?.campaignId ?? "");
-  const [hostId, setHostId] = useState(draft?.hostMemberId ?? "");
+  // React clears the text fields when an action ends. The text is kept as it was sent and put back after an error and after a draft is saved, not after a lead is sent.
+  const formRef = useRef<HTMLFormElement>(null);
+  const kept = useRef<FieldValues>({});
+  // Only the answer to the button pressed last is shown, so a draft that was saved does not sit under an old complaint about the send.
+  const [lastPressed, setLastPressed] = useState<"send" | "draft" | null>(null);
+  const remember = () => {
+    if (formRef.current !== null) kept.current = textValues(formRef.current);
+  };
+  const submit = (formData: FormData) => {
+    remember();
+    setLastPressed("send");
+    formAction(formData);
+  };
+  const saveDraft = (formData: FormData) => {
+    remember();
+    setLastPressed("draft");
+    draftAction(formData);
+  };
+  useLayoutEffect(() => {
+    if (state.status === "error" && formRef.current !== null) restoreTextValues(formRef.current, kept.current);
+  }, [state]);
+  useLayoutEffect(() => {
+    if (draftState.status !== "idle" && formRef.current !== null) restoreTextValues(formRef.current, kept.current);
+  }, [draftState]);
   // The first save of a new draft answers with its id, so the next save and the final send both work on that draft.
   const draftId = draftState.leadId ?? draft?.id ?? "";
-  const chosenHost = hosts.find((host) => host.id === hostId && host.campaignId === campaignId);
   const clientOrgId = campaigns.find((c) => c.id === campaignId)?.clientOrgId;
-  // An alias fronts one client and a host belongs to one campaign, so the lists follow the campaign chosen.
+  // An alias fronts one client, so the list follows the campaign chosen.
   const campaignAliases = clientOrgId === undefined ? [] : aliases.filter((a) => a.clientOrgId === clientOrgId);
-  const campaignHosts = hosts.filter((h) => h.campaignId === campaignId);
 
   return (
-    <form action={formAction} noValidate>
+    <form ref={formRef} action={submit} noValidate>
       <input type="hidden" name="draftId" value={draftId} />
       <Panel className="overflow-visible">
         <div className="flex flex-col gap-3 p-3 md:p-4">
-          {draftState.status === "error" ? (
+          {lastPressed === "draft" && draftState.status === "error" ? (
             <p role="alert" className="flex items-start gap-2 rounded-md bg-red-soft px-4 py-3 text-body text-red-text">
               <WarningCircle aria-hidden size={18} weight="fill" className="mt-0.5 shrink-0" />
               <span>{draftState.message ?? "Could not save the draft."}</span>
             </p>
           ) : null}
-          {draftState.status === "success" ? (
+          {lastPressed === "draft" && draftState.status === "success" ? (
             <p role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-green-soft px-4 py-3 text-body text-green-text">
               <CheckCircle aria-hidden size={18} weight="fill" className="shrink-0" />
               <span>{draftState.message}</span>
@@ -124,13 +138,13 @@ export function SubmitLeadForm({ campaigns, aliases, hosts, notLive = [], leadsH
               </Link>
             </p>
           ) : null}
-          {state.status === "error" ? (
+          {lastPressed === "send" && state.status === "error" ? (
             <p role="alert" className="flex items-start gap-2 rounded-md bg-red-soft px-4 py-3 text-body text-red-text">
               <WarningCircle aria-hidden size={18} weight="fill" className="mt-0.5 shrink-0" />
               <span>{state.message ?? "Could not submit the lead."}</span>
             </p>
           ) : null}
-          {state.status === "success" ? (
+          {lastPressed === "send" && state.status === "success" ? (
             <p role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-green-soft px-4 py-3 text-body text-green-text">
               <CheckCircle aria-hidden size={18} weight="fill" className="shrink-0" />
               <span>{state.message}</span>
@@ -140,17 +154,14 @@ export function SubmitLeadForm({ campaigns, aliases, hosts, notLive = [], leadsH
             </p>
           ) : null}
 
-          <Group title="Campaign and sender" note="The campaign sets which alias and which host you can choose.">
+          <Group title="Campaign and sender" note="The campaign sets which alias you can choose.">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Field id="lead-campaign" label="Campaign">
                 <Choice
                   id="lead-campaign"
                   name="campaignId"
                   value={campaignId}
-                  onValueChange={(next) => {
-                    setCampaignId(next);
-                    setHostId("");
-                  }}
+                  onValueChange={setCampaignId}
                   disabled={draftId !== ""}
                   required
                   placeholder="Select a campaign"
@@ -170,21 +181,6 @@ export function SubmitLeadForm({ campaigns, aliases, hosts, notLive = [], leadsH
                   options={campaignAliases.map((a) => ({ value: a.id, label: `${a.displayName}, ${a.clientName} (${a.aliasEmail})` }))}
                 />
               </Field>
-              <div className="md:col-span-2">
-                <Field id="lead-host" label="Meeting host">
-                  <Choice
-                    key={`host-${campaignId}`}
-                    id="lead-host"
-                    name="hostMemberId"
-                    value={hostId}
-                    onValueChange={setHostId}
-                    required
-                    placeholder="Select a host"
-                    emptyLabel={campaignId === "" ? "Choose a campaign first" : "No hosts for this campaign yet"}
-                    options={campaignHosts.map((h) => ({ value: h.id, label: h.name.includes(h.jobTitle) ? h.name : `${h.name} (${h.jobTitle})` }))}
-                  />
-                </Field>
-              </div>
             </div>
             {notLive.length > 0 ? (
               <ul aria-label="Campaigns that are not live" className="flex flex-col gap-1.5 text-table text-ink-2">
@@ -247,8 +243,12 @@ export function SubmitLeadForm({ campaigns, aliases, hosts, notLive = [], leadsH
             </div>
           </Group>
 
-          <Group title="Proposed meeting times" note="Offer one to three times. The client picks one.">
-            <HostTimesField availability={chosenHost === undefined ? null : (availability[chosenHost.id] ?? null)} hostName={chosenHost?.name ?? null} initialTimes={draft?.proposedTimes ?? []} />
+          <Group title="Meeting time" note="Pick one time when someone from the client team is free, and who to invite. The first to accept takes it.">
+            {campaignId === "" ? (
+              <p className="text-label text-ink-muted">Choose a campaign to see when its client team is free.</p>
+            ) : (
+              <SlotPicker key={campaignId} people={teams[campaignId] ?? []} initialTime={campaignId === draft?.campaignId ? (draft?.proposedTimes[0] ?? null) : null} />
+            )}
           </Group>
         </div>
 
@@ -257,7 +257,7 @@ export function SubmitLeadForm({ campaigns, aliases, hosts, notLive = [], leadsH
             Cancel
           </Link>
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="submit" variant="secondary" size="lg" formAction={draftAction} disabled={draftPending || pending} aria-busy={draftPending}>
+            <Button type="submit" variant="secondary" size="lg" formAction={saveDraft} disabled={draftPending || pending} aria-busy={draftPending}>
               {draftPending ? <CircleNotch aria-hidden className="motion-safe:animate-spin" /> : <FloppyDisk aria-hidden weight="bold" />}
               Save draft
             </Button>

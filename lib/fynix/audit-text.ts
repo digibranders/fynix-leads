@@ -28,8 +28,8 @@ const SENTENCES: Readonly<Record<string, string>> = {
   "campaign.restore": "Campaign restored",
   "agreement.publish": "Agreement version published",
   "agreement.accept": "Agreement accepted",
-  "campaign_host.add": "Host added",
-  "campaign_host.deactivate": "Host paused",
+  "campaign_host.add": "Added to the meeting list",
+  "campaign_host.deactivate": "Taken off the meeting list",
   "lead.accept": "Meeting time confirmed",
   "lead.decline": "Rejected before the meeting",
   "meeting.outcome": "Outcome recorded",
@@ -43,6 +43,7 @@ const SENTENCES: Readonly<Record<string, string>> = {
   "lead.correct": "Lead corrected",
   "lead.answer_for_client": "Answered for the client",
   "lead.mark_lost": "Lead marked lost",
+  "lead.rebook": "Meeting moved to a new time",
   "lead.approve_over_share": "Lead beyond a share approved",
 };
 

@@ -8,12 +8,12 @@ describe("availableActions, the client", () => {
     expect(of("client", "awaiting_client")).toEqual(["pick_time", "propose_times", "reject"]);
   });
   it("lets the client reject and propose new times on a booked meeting, and record the outcome once its time has passed", () => {
-    expect(of("client", "scheduled")).toEqual(["reject", "postpone"]);
+    expect(of("client", "scheduled")).toEqual(["reject", "book_new_time"]);
     expect(of("client", "scheduled", true)).toEqual(["reject", "record_outcome"]);
   });
   it("offers a pick when the supply side proposed new times, and not when the client did", () => {
-    expect(of("client", "scheduled", false, { openProposalBy: "supply" })).toEqual(["reject", "postpone", "pick_new_time"]);
-    expect(of("client", "scheduled", false, { openProposalBy: "client" })).toEqual(["reject", "postpone"]);
+    expect(of("client", "scheduled", false, { openProposalBy: "supply" })).toEqual(["reject", "book_new_time", "pick_new_time"]);
+    expect(of("client", "scheduled", false, { openProposalBy: "client" })).toEqual(["reject", "book_new_time"]);
   });
   it("asks the client to accept or reject after the meeting was held, and lets it contest an outcome", () => {
     expect(of("client", "awaiting_decision")).toEqual(["decide"]);
@@ -34,9 +34,17 @@ describe("availableActions, the supply side", () => {
   it("lets the source withdraw before the meeting and nobody else", () => {
     expect(of("supply", "awaiting_client", false, { isSource: true })).toEqual(["withdraw"]);
     expect(of("supply", "awaiting_client")).toEqual([]);
-    expect(of("supply", "scheduled", false, { isSource: true })).toEqual(["postpone", "withdraw"]);
+    expect(of("supply", "scheduled", false, { isSource: true })).toEqual(["book_new_time", "withdraw"]);
     expect(of("supply", "scheduled", false, { isSource: false })).toEqual(["postpone"]);
     expect(of("supply", "scheduled", true, { isSource: true })).toEqual(["record_outcome"]);
+  });
+  it("lets the source book a new time when nobody could take the meeting, and withdraw while it waits for a reply", () => {
+    expect(of("supply", "reschedule_needed", false, { isSource: true })).toEqual(["book_new_time", "withdraw"]);
+    expect(of("supply", "reschedule_needed", false, { isSource: false })).toEqual([]);
+    expect(of("supply", "awaiting_reply", false, { isSource: true })).toEqual(["withdraw"]);
+    expect(of("supply", "awaiting_reply", false, { isSource: false })).toEqual([]);
+    expect(of("fynix", "awaiting_reply")).toContain("mark_lost");
+    expect(of("client", "awaiting_reply")).toEqual([]);
   });
   it("offers a pick when the client proposed new times", () => {
     expect(of("supply", "scheduled", false, { openProposalBy: "client" })).toEqual(["postpone", "pick_new_time"]);
@@ -73,6 +81,9 @@ describe("availableActions, Fynix", () => {
   it("offers nothing on a draft and no postponing, withdrawing or contesting", () => {
     expect(of("fynix", "draft", false, { overShare: true, isSource: true, canContest: true })).toEqual([]);
     expect(of("fynix", "scheduled")).not.toContain("postpone");
+    expect(of("fynix", "scheduled")).toContain("book_new_time");
+    expect(of("fynix", "reschedule_needed")).toContain("book_new_time");
+    expect(of("fynix", "scheduled", true)).not.toContain("book_new_time");
   });
 });
 

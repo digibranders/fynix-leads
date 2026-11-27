@@ -4,9 +4,8 @@ import { EmptyState } from "@/components/kit/empty-state";
 import { Panel, PanelHeader } from "@/components/kit/panel";
 import { Person } from "@/components/kit/person";
 import { When } from "@/components/kit/when";
-import { ClosedTag } from "@/components/kit/closed-tag";
 import type { HoursWindow } from "@/lib/domain/weekly-hours";
-import { AddHostButton, BlockOwnTimeButton, EditOwnHoursButton, PauseHostButton, RemoveOwnBlockButton } from "./host-actions";
+import { BlockOwnTimeButton, EditOwnHoursButton, RemoveOwnBlockButton } from "./host-actions";
 import { cn } from "@/lib/utils";
 
 export interface HostDay {
@@ -26,8 +25,6 @@ export interface HostView {
   readonly memberId: string;
   readonly name: string;
   readonly jobTitle: string;
-  /** The campaigns the host takes meetings for. A closed campaign is read only. */
-  readonly assignments: readonly { readonly campaignId: string; readonly name: string; readonly closed: boolean }[];
   /** The signed-in person: they edit their own hours and blocked times. */
   readonly own: boolean;
   /** The weekly hours as stored, for the edit form. */
@@ -39,19 +36,13 @@ export interface HostView {
   readonly blocks: readonly HostBlock[];
 }
 
-/** What a client manager can do: add a host to an open campaign from the organisation's active people. */
-export interface ManageHosts {
-  readonly campaigns: readonly { readonly id: string; readonly name: string }[];
-  readonly people: readonly { readonly memberId: string; readonly name: string }[];
-}
-
-/** The people who take meetings: a list on the left, and on the right what they do, when they are free and what is blocked. Selection is `?host=`. */
-export function HostsView({ hosts, selectedId, basePath, manage }: { readonly hosts: readonly HostView[]; readonly selectedId?: string; readonly basePath: string; readonly manage?: ManageHosts }) {
+/** The people of the client: a list on the left, and on the right their working hours and what they have blocked. Selection is `?person=`. */
+export function HostsView({ hosts, selectedId, basePath }: { readonly hosts: readonly HostView[]; readonly selectedId?: string; readonly basePath: string }) {
   if (hosts.length === 0) {
     return (
       <Panel>
-        <EmptyState icon={UsersThree} title="No hosts assigned yet" action={manage !== undefined && manage.campaigns.length > 0 ? <AddHostButton campaigns={manage.campaigns} people={manage.people} /> : undefined}>
-          {manage === undefined ? "A manager of your account assigns the people who take your meetings to each campaign." : "Add the people who take your meetings to each campaign. They will appear here with their hours."}
+        <EmptyState icon={UsersThree} title="No team members yet">
+          Invite your colleagues from the Team page. They will appear here with their working hours.
         </EmptyState>
       </Panel>
     );
@@ -61,14 +52,14 @@ export function HostsView({ hosts, selectedId, basePath, manage }: { readonly ho
 
   return (
     <div className="grid items-start gap-4 lg:grid-cols-[var(--queue-w)_minmax(0,1fr)]">
-      <Panel aria-label="Hosts" className="p-2">
+      <Panel aria-label="Team members" className="p-2">
         <ul className="flex flex-col gap-0.5">
           {hosts.map((host) => {
             const here = host.memberId === selected.memberId;
             return (
               <li key={host.memberId}>
                 <Link
-                  href={`${basePath}?host=${encodeURIComponent(host.memberId)}`}
+                  href={`${basePath}?person=${encodeURIComponent(host.memberId)}`}
                   scroll={false}
                   aria-current={here ? "true" : undefined}
                   className={cn(
@@ -88,26 +79,6 @@ export function HostsView({ hosts, selectedId, basePath, manage }: { readonly ho
         <Panel aria-label={selected.name} className="p-6">
           <h2 className="text-name font-semibold tracking-title text-balance">{selected.name}</h2>
           <p className="mt-0.5 text-lead text-ink-muted">{selected.jobTitle}</p>
-          {selected.assignments.length > 0 ? (
-            <ul aria-label="Campaigns" className="mt-3 flex flex-wrap gap-1.5">
-              {selected.assignments.map((entry) => (
-                <li key={entry.campaignId} className="flex items-center gap-1.5 rounded-xs bg-navy-05 px-2 py-0.5 text-xs font-semibold text-ink-2">
-                  {entry.name}
-                  {entry.closed ? <ClosedTag /> : null}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {manage !== undefined ? (
-            <div className="mt-3 flex flex-wrap items-center gap-1">
-              {selected.assignments
-                .filter((entry) => !entry.closed)
-                .map((entry) => (
-                  <PauseHostButton key={entry.campaignId} campaignId={entry.campaignId} memberId={selected.memberId} hostName={selected.name} campaignName={entry.name} />
-                ))}
-              {manage.campaigns.length > 0 ? <AddHostButton campaigns={manage.campaigns} people={manage.people} /> : null}
-            </div>
-          ) : null}
         </Panel>
 
         <Panel aria-label={`Weekly hours of ${selected.name}`}>
@@ -117,7 +88,7 @@ export function HostsView({ hosts, selectedId, basePath, manage }: { readonly ho
               selected.own ? (
                 <EditOwnHoursButton timeZone={selected.timeZone ?? "Europe/London"} windows={selected.windows} />
               ) : selected.timeZone === null ? undefined : (
-                <span className="text-label text-ink-muted">Host time zone: {selected.timeZone}</span>
+                <span className="text-label text-ink-muted">Time zone: {selected.timeZone}</span>
               )
             }
           />
@@ -132,7 +103,7 @@ export function HostsView({ hosts, selectedId, basePath, manage }: { readonly ho
             </dl>
           ) : (
             <EmptyState icon={Clock} title="No hours set">
-              {selected.own ? "No meeting can be booked with you until you set your hours." : "No meeting can be booked with this person until they set their hours."}
+              {selected.own ? "Until you set your hours, you count as free Monday to Friday, 09:00 to 17:00." : "Until they set their hours, they count as free Monday to Friday, 09:00 to 17:00."}
             </EmptyState>
           )}
         </Panel>

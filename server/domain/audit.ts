@@ -53,6 +53,7 @@ export const AUDIT_ACTIONS = [
   "lead.correct",
   "lead.answer_for_client",
   "lead.mark_lost",
+  "lead.rebook",
   "lead.approve_over_share",
   "conversation.create",
   "conversation.open_direct",

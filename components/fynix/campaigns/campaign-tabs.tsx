@@ -11,7 +11,7 @@ export function CampaignTabs({ reference, hostCount }: Props) {
   const base = `/fynix/campaigns/${reference}`;
   const tabs = [
     { key: null, label: "Brief", href: base },
-    { key: "hosts", label: "Hosts", href: `${base}/hosts`, count: hostCount },
+    { key: "team", label: "Client team", href: `${base}/team`, count: hostCount },
     { key: "agreements", label: "Agreements and shares", href: `${base}/agreements` },
     { key: "leads", label: "Leads", href: `${base}/leads` },
     { key: "meetings", label: "Meetings", href: `${base}/meetings` },

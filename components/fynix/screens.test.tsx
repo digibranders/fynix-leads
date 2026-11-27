@@ -161,8 +161,9 @@ describe("Client record", () => {
     expect(html).not.toContain("Remove Company brochure");
     expect(html).not.toContain("Edit profile");
     expect(html).not.toContain("Add link");
-    // The contact people are the way to add who Fynix speaks to.
-    expect(html).toContain("Add contact");
+    // Saved contacts can be invited, and no new one is added from here.
+    expect(html).toContain("Saved contacts");
+    expect(html).not.toContain("Add contact");
   });
 
   it("shows no profile or collateral panel when a client has none", () => {
@@ -288,45 +289,50 @@ const imogen: HostView = {
   memberId: "m2",
   displayName: "Imogen Price",
   jobTitle: "Head of FP&A",
-  active: true,
   timeZone: "Europe/London",
   hours: [1, 2, 4].map((weekday) => ({ weekday, startMinute: 540, endMinute: 1020 })).concat([{ weekday: 3, startMinute: 540, endMinute: 720 }, { weekday: 3, startMinute: 840, endMinute: 1020 }, { weekday: 5, startMinute: 540, endMinute: 780 }]),
   blocks: [{ id: "b1", startsAt: new Date("2026-11-23T00:00:00Z"), endsAt: new Date("2026-11-24T00:00:00Z"), note: "Board meeting" }],
 };
-const theo: HostView = { memberId: "m3", displayName: "Theo Lindqvist", jobTitle: "CFO", active: false, timeZone: null, hours: [], blocks: [] };
+const theo: HostView = { memberId: "m3", displayName: "Theo Lindqvist", jobTitle: "CFO", timeZone: null, hours: [], blocks: [] };
 
-describe("Hosts", () => {
-  it("shows the weekly hours summary, the next block and the status of each host", () => {
-    const html = renderToStaticMarkup(<HostsTable hosts={[imogen, theo]} candidates={[{ memberId: "m4", displayName: "Another Person", jobTitle: null }]} campaignId="c1" reference="CMP-7Q2X" clientName="Kestrel Ledger" campaignZone="Europe/London" selectedId="m2" canWrite inviteHref="/fynix/clients/ORG-K1AA/people/new" />);
+describe("Client team", () => {
+  it("shows the weekly hours summary and the next block of each person, and what a person with no hours counts as", () => {
+    const html = renderToStaticMarkup(<HostsTable hosts={[imogen, theo]} reference="CMP-7Q2X" clientName="Kestrel Ledger" campaignZone="Europe/London" selectedId={undefined} canWrite inviteHref="/fynix/clients/ORG-K1AA/people/new" />);
     expect(html).toContain("Mon to Fri");
     expect(html).toContain("Split on Wednesdays");
     expect(html).toContain("Mon 23 Nov");
     expect(html).toContain("All day");
-    expect(html).toContain("Taking meetings");
-    expect(html).toContain("No hours set");
-    expect(html).toContain("Paused");
-    expect(html).toContain("Add host");
-    expect(html).toContain("/fynix/campaigns/CMP-7Q2X/hosts?host=m2");
+    expect(html).toContain("Counts as Mon to Fri, 09:00 to 17:00");
+    expect(html).toContain("/fynix/campaigns/CMP-7Q2X/team?person=m2");
+    expect(html).not.toContain("Add host");
+    expect(html).not.toContain("Paused");
+    expect(html).not.toMatch(/\bhosts?\b/i);
   });
 
-  it("says there are no hosts, and whether anyone could be one", () => {
-    expect(renderToStaticMarkup(<HostsTable hosts={[]} candidates={[{ memberId: "m4", displayName: "A", jobTitle: null }]} campaignId="c1" reference="CMP-7Q2X" clientName="Kestrel Ledger" campaignZone="Europe/London" selectedId={undefined} canWrite inviteHref="/fynix/clients/ORG-K1AA/people/new" />)).toContain("Add the people at Kestrel Ledger");
-    expect(renderToStaticMarkup(<HostsTable hosts={[]} candidates={[]} campaignId="c1" reference="CMP-7Q2X" clientName="Kestrel Ledger" campaignZone="Europe/London" selectedId={undefined} canWrite inviteHref="/fynix/clients/ORG-K1AA/people/new" />)).toContain("Nobody at Kestrel Ledger can be a host yet");
+  it("says nobody has joined yet, and offers the invite page to an admin only", () => {
+    const admin = renderToStaticMarkup(<HostsTable hosts={[]} reference="CMP-7Q2X" clientName="Kestrel Ledger" campaignZone="Europe/London" selectedId={undefined} canWrite inviteHref="/fynix/clients/ORG-K1AA/people/new" />);
+    expect(admin).toContain("No team members yet");
+    expect(admin).toContain("Invite a person");
+    expect(admin).toContain("/fynix/clients/ORG-K1AA/people/new");
+    const staff = renderToStaticMarkup(<HostsTable hosts={[]} reference="CMP-7Q2X" clientName="Kestrel Ledger" campaignZone="Europe/London" selectedId={undefined} canWrite={false} inviteHref="/fynix/clients/ORG-K1AA/people/new" />);
+    expect(staff).toContain("No team members yet");
+    expect(staff).not.toContain("Invite a person");
+    expect(staff).not.toContain("/fynix/clients/ORG-K1AA/people/new");
   });
 
   it("renders the panel with the week day by day, a split day in two ranges, the blocks and the admin's actions", () => {
-    const html = renderToStaticMarkup(<HostPanel host={imogen} reference="CMP-7Q2X" campaignId="c1" clientName="Kestrel Ledger" campaignZone="Europe/London" now={day("2026-11-13")} canWrite />);
+    const html = renderToStaticMarkup(<HostPanel host={imogen} reference="CMP-7Q2X" clientName="Kestrel Ledger" campaignZone="Europe/London" now={day("2026-11-13")} canWrite />);
     expect(html).toContain("Hours in London time (GMT)");
     expect(html).toContain("9:00 am to 12:00 pm, 2:00 to 5:00 pm");
     expect(html).toContain("Not available");
     expect(html).toContain("Board meeting");
     expect(html).toContain("Block a time");
-    expect(html).toContain("Pause host");
-    const paused = renderToStaticMarkup(<HostPanel host={theo} reference="CMP-7Q2X" campaignId="c1" clientName="Kestrel Ledger" campaignZone="Europe/London" now={day("2026-11-13")} canWrite />);
-    expect(paused).toContain("Reactivate host");
-    const staff = renderToStaticMarkup(<HostPanel host={imogen} reference="CMP-7Q2X" campaignId="c1" clientName="Kestrel Ledger" campaignZone="Europe/London" now={day("2026-11-13")} canWrite={false} />);
+    expect(html).not.toContain("Pause host");
+    expect(html).not.toContain("Reactivate host");
+    const unset = renderToStaticMarkup(<HostPanel host={theo} reference="CMP-7Q2X" clientName="Kestrel Ledger" campaignZone="Europe/London" now={day("2026-11-13")} canWrite />);
+    expect(unset).toContain("they count as free Monday to Friday, 09:00 to 17:00");
+    const staff = renderToStaticMarkup(<HostPanel host={imogen} reference="CMP-7Q2X" clientName="Kestrel Ledger" campaignZone="Europe/London" now={day("2026-11-13")} canWrite={false} />);
     expect(staff).not.toContain("Block a time");
-    expect(staff).not.toContain("Pause host");
     expect(staff).not.toContain("Remove the block");
     expect(staff).not.toContain(">Edit");
   });
@@ -360,8 +366,8 @@ describe("Campaign header", () => {
     expect(admin).toContain("Active");
     expect(admin).toContain("Kestrel Ledger, served by Northgate Outreach");
     expect(admin).toContain("London time, 30 minute meetings");
-    for (const label of ["Brief", "Hosts", "Agreements and shares", "Activity"]) expect(admin).toContain(label);
-    expect(admin).toContain("/fynix/campaigns/CMP-7Q2X/hosts");
+    for (const label of ["Brief", "Client team", "Agreements and shares", "Activity"]) expect(admin).toContain(label);
+    expect(admin).toContain("/fynix/campaigns/CMP-7Q2X/team");
     expect(admin).toContain("Edit campaign");
     expect(renderToStaticMarkup(<CampaignTitle campaign={header} />)).not.toContain("Edit campaign");
     for (const label of ["Leads", "Meetings"]) expect(admin).toContain(label);
@@ -412,7 +418,7 @@ describe("copy", () => {
       renderToStaticMarkup(<ClientOverview client={clientDetail} canWrite />),
       renderToStaticMarkup(<CampaignsTable rows={[campaignRow]} />),
       renderToStaticMarkup(<BriefView campaign={header} />),
-      renderToStaticMarkup(<HostPanel host={imogen} reference="CMP-7Q2X" campaignId="c1" clientName="Kestrel Ledger" campaignZone="Europe/London" now={day("2026-11-13")} canWrite />),
+      renderToStaticMarkup(<HostPanel host={imogen} reference="CMP-7Q2X" clientName="Kestrel Ledger" campaignZone="Europe/London" now={day("2026-11-13")} canWrite />),
     ].join("");
     expect(html).not.toMatch(/[\u2013\u2014]/);
   });

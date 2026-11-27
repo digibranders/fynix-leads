@@ -11,7 +11,7 @@ const { AddAgencyForm, AddCoordinatorForm, EditOrganisationForm, FYNIX_ROLES, In
 const { AddClientForm } = await import("@/components/fynix/forms/client-forms");
 const { EditContactForm } = await import("@/components/fynix/forms/contact-forms");
 const { EditPersonForm } = await import("@/components/fynix/forms/people-forms");
-const { AddHostForm, EditCampaignForm, NewAgreementForm, ShareForm } = await import("@/components/fynix/forms/campaign-forms");
+const { EditCampaignForm, NewAgreementForm, ShareForm } = await import("@/components/fynix/forms/campaign-forms");
 const { CreateCampaignWizard } = await import("@/components/fynix/forms/campaign-wizard");
 const { BlockForm, HoursForm } = await import("@/components/fynix/forms/availability-forms");
 const { PublishTermsForm } = await import("@/components/fynix/forms/settings-forms");
@@ -126,13 +126,6 @@ describe("the forms render", () => {
     const edit = renderToStaticMarkup(<ShareForm campaignId="c1" options={[]} agency={{ id: "a1", name: "Calder Bay", monthlyShare: 6 }} />);
     expect(edit).toContain('name="agencyOrgId" value="a1"');
     expect(edit).toContain('value="6"');
-  });
-
-  it("Add host lists the people who can be hosts", () => {
-    const html = renderToStaticMarkup(<AddHostForm campaignId="c1" clientName="Kestrel" candidates={[{ memberId: "m1", displayName: "Imogen Price", jobTitle: "Head of FP&A" }]} />);
-    expect(html).toContain('name="memberId"');
-    expect(html).toContain("Choose a person");
-    expect(html).toContain('name="jobTitle"');
   });
 
   it("Edit weekly hours fills the boxes from the week and names every box for the server", () => {

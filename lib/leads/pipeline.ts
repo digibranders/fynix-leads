@@ -5,7 +5,7 @@ import { LEAD_STAGES, type LeadStage } from "./stage";
  * The stage bar, the tabs and the `?stage=` filter of every leads screen use these groups, so the counts always agree.
  */
 export const PIPELINE_GROUPS = [
-  { key: "awaiting", label: "Awaiting client", stages: ["awaiting_client"], color: "var(--amber-solid)" },
+  { key: "awaiting", label: "Awaiting client", stages: ["awaiting_client", "awaiting_reply"], color: "var(--amber-solid)" },
   { key: "scheduled", label: "Scheduled", stages: ["scheduled", "reschedule_needed"], color: "var(--blue-solid)" },
   { key: "due", label: "Outcome due", stages: ["outcome_due"], color: "var(--teal-solid)" },
   { key: "decision", label: "Awaiting decision", stages: ["held", "awaiting_decision"], color: "var(--teal-solid)" },

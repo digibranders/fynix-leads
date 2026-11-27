@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { leadSubmitChecks, retryMessage } from "@/lib/auth/rate-limit-rules";
 import { getSessionContext } from "@/server/auth";
+import { calendarSetupFromEnv } from "@/server/calendar";
+import { assertLiveFree } from "@/server/calendar/live-check";
 import { firstBlockedLimit } from "@/server/auth/rate-limit";
 import { getDatabase } from "@/server/db/client";
 import { getDomain } from "@/server/domain";
@@ -40,6 +42,8 @@ export async function submitLeadAction(
   const timesRaw = formData.getAll("proposedTimes");
   const proposedTimes = timesRaw.filter((t): t is string => typeof t === "string" && t.length > 0);
 
+  const inviteeMemberIds = formData.getAll("inviteeMemberIds").filter((id): id is string => typeof id === "string" && id.length > 0);
+
   const input = {
     campaignId: getField(formData, "campaignId"),
     aliasIdentityId: getField(formData, "aliasIdentityId"),
@@ -57,7 +61,17 @@ export async function submitLeadAction(
     bantNeed: getField(formData, "bantNeed"),
     bantTimeline: getField(formData, "bantTimeline"),
     proposedTimes,
+    inviteeMemberIds: inviteeMemberIds.length === 0 ? undefined : inviteeMemberIds,
   };
+
+  // The choices a person can forget are named in plain words, instead of a field name and a format error.
+  if (getField(formData, "draftId") === "") {
+    if (input.campaignId === "") return { status: "error", message: "Choose a campaign." };
+    if (input.aliasIdentityId === "") return { status: "error", message: "Choose a client alias." };
+  }
+  // A lead is submitted with one time and the people to invite. The older way, up to three times for the client to choose from, is no longer offered.
+  if (proposedTimes.length === 0) return { status: "error", message: "Pick a day and a start time for the meeting." };
+  if (inviteeMemberIds.length === 0) return { status: "error", message: "Invite at least one person to the meeting." };
 
   const draftId = getField(formData, "draftId");
   let editsSaved = false;
@@ -71,13 +85,19 @@ export async function submitLeadAction(
       role: context.memberRole,
     };
 
+    // The people invited are asked about live, before the booking opens its transaction. Off, or with nobody connected, this does nothing.
+    const slot = proposedTimes[0];
+    const setup = calendarSetupFromEnv();
+    if (setup !== null && slot !== undefined && input.campaignId !== "") {
+      await assertLiveFree(db, { authDb: deps.authDb, setup }, actor, { campaignId: input.campaignId, memberIds: inviteeMemberIds, slot: new Date(slot) });
+    }
     if (draftId === "") {
       await submitLead(db, deps, actor, input);
     } else {
       // Sending a draft: the form's edits are saved to it first, then the full submission rules run on what it holds.
       await updateDraft(db, deps, actor, draftInput(formData, { leadId: draftId }));
       editsSaved = true;
-      await submitDraft(db, deps, actor, { leadId: draftId });
+      await submitDraft(db, deps, actor, { leadId: draftId, inviteeMemberIds: input.inviteeMemberIds });
     }
     revalidatePath("/agency/leads");
     revalidatePath("/coordinator/leads");

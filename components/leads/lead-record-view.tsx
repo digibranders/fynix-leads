@@ -20,6 +20,7 @@ import { formatInZone } from "@/lib/time/zones";
 import type { LeadRecord, RescheduleView } from "@/server/domain/lead-record";
 import { discardDraftAction } from "@/server/domain/draft-actions";
 import { showsJoinBlock } from "@/lib/leads/who-joined";
+import type { CalendarPersonLike } from "@/lib/calendar/layout";
 import type { MeetingJoinRecord } from "@/server/domain/meeting-joins";
 import { LeadActionBar } from "./lead-action-bar";
 import { recordFacts } from "./record-facts";
@@ -40,7 +41,7 @@ function Times({ at, hostZone }: { at: Date | string; hostZone: string | null })
   return (
     <span className="flex flex-col">
       <When at={date} />
-      {hostZone === null ? null : <span className="text-caption font-normal text-ink-muted">{formatInZone(date, hostZone)} for the host</span>}
+      {hostZone === null ? null : <span className="text-caption font-normal text-ink-muted">{formatInZone(date, hostZone)} in the client&apos;s zone</span>}
     </span>
   );
 }
@@ -107,6 +108,7 @@ export function LeadRecordView({
   isCoordinator = false,
   draftHref,
   joins = [],
+  teamPeople,
 }: {
   readonly record: LeadRecord;
   readonly viewer: LeadViewer;
@@ -120,13 +122,16 @@ export function LeadRecordView({
   readonly draftHref?: string;
   /** Who joined the meeting's room, read after it ends. Empty until the import has run. */
   readonly joins?: readonly MeetingJoinRecord[];
+  /** The client team with their hours and busy time, for booking a new time. Loaded only where the source may book one. */
+  readonly teamPeople?: readonly CalendarPersonLike[];
 }) {
   const { prospect, bant, meeting, decision } = record;
   const facts = recordFacts(record, viewer, now, { isCoordinator });
   const isDraft = record.stage === "draft";
   const closed = isClosed(record.campaignStatus);
   const countdown = record.stage === "awaiting_decision" && record.outcomeRecordedAt !== null ? autoAcceptCountdown(record.outcomeRecordedAt, now) : null;
-  const hostLine = record.host.name ?? record.host.jobTitle;
+  // A meeting waiting for a reply has no person yet: the one invited first has not accepted.
+  const hostLine = record.stage === "awaiting_reply" ? null : (record.host.name ?? record.host.jobTitle);
 
   return (
     <div className="flex flex-col gap-4">
@@ -208,7 +213,7 @@ export function LeadRecordView({
           meetingTime={record.scheduledMeetingTime}
           now={now}
           availabilityHref={availabilityHref}
-          context={facts.context}
+          context={teamPeople === undefined ? facts.context : { ...facts.context, people: teamPeople }}
         />
       </Panel>
 
@@ -254,7 +259,7 @@ export function LeadRecordView({
               <Facts
                 items={[
                   ...(record.scheduledMeetingTime === null ? [] : ([["Scheduled for", <Times key="at" at={record.scheduledMeetingTime} hostZone={record.hostTimeZone} />]] as const)),
-                  ...(hostLine === null ? [] : ([["Host", hostLine]] as const)),
+                  ...(hostLine === null ? [] : ([["Team member", hostLine]] as const)),
                   ...(record.alias === null ? [] : ([["Sent as", `${record.alias.displayName}, ${record.alias.jobTitle}`]] as const)),
                   ...extraFacts,
                 ]}
@@ -280,7 +285,7 @@ export function LeadRecordView({
               {facts.openProposal !== null ? <ProposalNotice proposal={facts.openProposal} viewer={viewer} hostZone={record.hostTimeZone} /> : null}
               {record.scheduledMeetingTime === null && record.proposedTimes.length > 0 ? (
                 <div className="flex flex-col gap-1.5">
-                  <p className="text-caption font-semibold text-ink-muted">Proposed times</p>
+                  <p className="text-caption font-semibold text-ink-muted">{record.stage === "awaiting_reply" ? "Meeting time, waiting for a reply" : "Proposed times"}</p>
                   <ul className="flex flex-col gap-1.5">
                     {record.proposedTimes.map((time) => (
                       <li key={time} className="rounded-md bg-tonal px-3.5 py-2.5 text-row font-medium">

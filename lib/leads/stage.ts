@@ -3,6 +3,7 @@ import type { StatusTone } from "@/lib/domain/status";
 export const LEAD_STAGES = [
   "draft",
   "awaiting_client",
+  "awaiting_reply",
   "scheduled",
   "outcome_due",
   "reschedule_needed",
@@ -25,6 +26,7 @@ export type LeadStage = (typeof LEAD_STAGES)[number];
 const STAGE_CONFIG: Record<LeadStage, { label: string; tone: StatusTone }> = {
   draft: { label: "Draft", tone: "neutral" },
   awaiting_client: { label: "Awaiting client", tone: "pending" },
+  awaiting_reply: { label: "Waiting for reply", tone: "pending" },
   scheduled: { label: "Scheduled", tone: "approved" },
   outcome_due: { label: "Outcome due", tone: "pending" },
   reschedule_needed: { label: "Reschedule needed", tone: "clarify" },
@@ -53,8 +55,10 @@ export function leadStageTone(stage: LeadStage): StatusTone {
 
 /** Allowed stage transitions for lead lifecycle. */
 const ALLOWED_TRANSITIONS: Record<LeadStage, readonly LeadStage[]> = {
-  draft: ["awaiting_client", "withdrawn"],
+  draft: ["awaiting_client", "awaiting_reply", "withdrawn"],
   awaiting_client: ["scheduled", "declined", "withdrawn", "lost"],
+  // Invited client people have not answered yet: the first to accept books it, nobody left or the deadline sends it back for a new time.
+  awaiting_reply: ["scheduled", "reschedule_needed", "declined", "withdrawn", "lost"],
   // A booked meeting is moved by postponing and stays `scheduled`; the source organisation can withdraw the lead before it is held.
   scheduled: ["outcome_due", "awaiting_decision", "declined", "held", "reschedule_needed", "client_no_show", "prospect_no_show", "withdrawn", "lost"],
   outcome_due: ["awaiting_decision", "held", "client_no_show", "prospect_no_show", "reschedule_needed"],
@@ -62,7 +66,7 @@ const ALLOWED_TRANSITIONS: Record<LeadStage, readonly LeadStage[]> = {
   awaiting_decision: ["accepted", "rejected", "outcome_contested", "lost"],
   outcome_contested: ["awaiting_decision", "client_no_show", "prospect_no_show", "lost"],
   accepted: [],
-  reschedule_needed: ["scheduled", "lost", "withdrawn"],
+  reschedule_needed: ["scheduled", "awaiting_reply", "lost", "withdrawn"],
   held: ["delivered", "lost"],
   client_no_show: ["reschedule_needed", "lost", "delivered", "outcome_contested"],
   prospect_no_show: ["reschedule_needed", "lost", "outcome_contested"],

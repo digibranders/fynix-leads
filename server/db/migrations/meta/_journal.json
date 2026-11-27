@@ -673,6 +673,104 @@
       "when": 1795628219838,
       "tag": "0095_pending_emails_review_fixes",
       "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1795691902873,
+      "tag": "0096_client_team",
+      "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1795695386184,
+      "tag": "0097_meeting_attendee",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "7",
+      "when": 1795695444821,
+      "tag": "0098_meeting_attendee_grants",
+      "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1795696226249,
+      "tag": "0099_meeting_new_columns_insert",
+      "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1795697240757,
+      "tag": "0100_team_reads_by_campaign",
+      "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1795697992345,
+      "tag": "0101_awaiting_reply_stage",
+      "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1795698034756,
+      "tag": "0102_meeting_invitations",
+      "breakpoints": true
+    },
+    {
+      "idx": 103,
+      "version": "7",
+      "when": 1795698097401,
+      "tag": "0103_expire_invitations_notice",
+      "breakpoints": true
+    },
+    {
+      "idx": 104,
+      "version": "7",
+      "when": 1795699578659,
+      "tag": "0104_rebook_meeting_and_reminders",
+      "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "7",
+      "when": 1795700293589,
+      "tag": "0105_calendar_connection_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1795700319128,
+      "tag": "0106_calendar_connection_grants",
+      "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1795702749918,
+      "tag": "0107_rebook_by_client_and_fynix",
+      "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "7",
+      "when": 1795704621304,
+      "tag": "0108_email_template_meeting_invitation",
+      "breakpoints": true
+    },
+    {
+      "idx": 109,
+      "version": "7",
+      "when": 1795704703617,
+      "tag": "0109_invitation_links",
+      "breakpoints": true
     }
   ]
 }

@@ -2,7 +2,7 @@ import { and, desc, eq, or, sql } from "drizzle-orm";
 import type { LeadStage } from "@/lib/leads/stage";
 import { agencyMeetingColumns, clientMeetingColumns } from "@/server/db/columns";
 import type { Database } from "@/server/db/pool";
-import { campaign, campaignShare, lead, leadHistory, meeting, member } from "@/server/db/schema";
+import { campaign, campaignShare, lead, leadHistory, meeting, member, organisation } from "@/server/db/schema";
 import { withTenantScope, type ScopedTransaction } from "@/server/db/scope";
 import type { TenantActor } from "@/server/domain/alias-identity";
 import { fynixWorkWrite, type FynixActor } from "@/server/domain/fynix-write";
@@ -214,7 +214,8 @@ export async function listClientMeetings(db: Database, actor: TenantActor) {
         leadStage: lead.stage,
         campaignName: campaign.name,
         campaignRef: campaign.publicRef,
-        hostName: member.displayName,
+        // Until someone accepts, the person named on the meeting is only the first one invited.
+        hostName: sql<string | null>`case when ${lead.stage} = 'awaiting_reply' then null else ${member.displayName} end`,
         openProposalBy: openProposalSide,
       })
       .from(meeting)
@@ -274,10 +275,13 @@ export async function listFynixMeetings(db: Database, _actor: FynixActor, filter
       campaignRef: campaign.publicRef,
       clientName: campaignClientName(campaign.id),
       hostName: member.displayName,
+      sourceOrgId: lead.sourceOrgId,
+      sourceName: organisation.name,
       openProposalBy: openProposalSide,
     })
     .from(meeting)
     .innerJoin(lead, eq(meeting.leadId, lead.id))
+    .innerJoin(organisation, eq(organisation.id, lead.sourceOrgId))
     .innerJoin(campaign, eq(meeting.campaignId, campaign.id))
     .leftJoin(member, eq(member.id, meeting.hostMemberId))
     .where(and(eq(lead.released, true), ...(filter.sourceOrgId === undefined ? [] : [eq(lead.sourceOrgId, filter.sourceOrgId)])))
