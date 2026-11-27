@@ -71,6 +71,6 @@ describe("the Prospect email panel", () => {
   });
 
   it("has no dashes in its words", () => {
-    expect(render({ launchEmailsOn: false, privacyUrl: "https://kestrel.example/privacy", prospectEmailEnabled: true, letterOpening: OPENING }).replace(/<[^>]*>/g, " ")).not.toMatch(/[–—]/);
+    expect(render({ launchEmailsOn: false, privacyUrl: "https://kestrel.example/privacy", prospectEmailEnabled: true, letterOpening: OPENING }).replace(/<[^>]*>/g, " ")).not.toMatch(/[\u2013\u2014]/);
   });
 });
