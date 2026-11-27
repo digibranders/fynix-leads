@@ -48,15 +48,16 @@ describe("the forms render", () => {
 
   it("Edit organisation and Edit person start from what is saved", () => {
     expect(renderToStaticMarkup(<EditOrganisationForm organisationId="s1" name="Northgate" timeZone="Europe/London" label="Coordinator" />)).toContain('value="Europe/London"');
-    const person = renderToStaticMarkup(<EditPersonForm memberId="m1" name="Imogen Price" jobTitle="Head of Sales" phone="+44 20 7946 0000" />);
-    expect(person).toContain('value="Head of Sales"');
+    const person = renderToStaticMarkup(<EditPersonForm memberId="m1" name="Imogen Price" phone="+44 20 7946 0000" />);
+    expect(person).not.toContain('name="jobTitle"');
     expect(person).toContain('value="+44 20 7946 0000"');
   });
 
   it("Invite a person for Fynix has no alias and offers admin and staff; the alias is optional where it shows", () => {
     const fynix = renderToStaticMarkup(<InvitePersonForm organisations={[{ id: "f1", name: "Fynix" }]} roles={FYNIX_ROLES} showAlias={false} />);
     expect(fynix).not.toContain('name="alias"');
-    expect(fynix).toContain('name="jobTitle"');
+    expect(fynix).not.toContain('name="jobTitle"');
+    expect(fynix).not.toContain("Start from a contact person");
     const agency = renderToStaticMarkup(<InvitePersonForm organisations={[{ id: "s1", name: "Northgate" }]} />);
     expect(agency).toContain("optional");
     expect(agency).not.toContain("Fynix name");

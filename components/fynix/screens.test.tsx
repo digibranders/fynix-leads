@@ -10,7 +10,7 @@ import type { CoordinatorDetail, CoordinatorRow } from "@/server/domain/coordina
 // The forms call server actions, which need a running app. The screens only need their buttons to render.
 vi.mock("@/server/fynix/actions", () => {
   const action = async () => ({ status: "idle" as const });
-  return { addCoordinatorAction: action, addAgencyAction: action, invitePersonAction: action, publishAgreementAction: action, setShareAction: action, removeShareAction: action, closeCampaignAction: action, makeCampaignActiveAction: action, reopenCampaignAction: action, addHostAction: action, pauseHostAction: action, setHoursAction: action, addBlockAction: action, removeBlockAction: action, setOrganisationStatusAction: action, updateOrganisationAction: action, updateContactAction: action, addClientAction: action, updatePersonAction: action, suspendPersonAction: action, reactivatePersonAction: action, resendInviteAction: action, revokeInviteAction: action };
+  return { addCoordinatorAction: action, addAgencyAction: action, invitePersonAction: action, publishAgreementAction: action, setShareAction: action, removeShareAction: action, closeCampaignAction: action, makeCampaignActiveAction: action, reopenCampaignAction: action, addHostAction: action, pauseHostAction: action, setHoursAction: action, addBlockAction: action, removeBlockAction: action, setOrganisationStatusAction: action, updateOrganisationAction: action, updateContactAction: action, addClientAction: action, updatePersonAction: action, suspendPersonAction: action, setPersonRoleAction: action, reactivatePersonAction: action, resendInviteAction: action, revokeInviteAction: action };
 });
 
 const { CoordinatorsTable } = await import("@/components/fynix/coordinators/coordinators-table");
@@ -109,15 +109,16 @@ describe("Coordinators", () => {
 const person = (over: Partial<PersonRow> = {}): PersonRow => ({ kind: "member", id: "m1", userId: "u1", orgId: "k1", orgName: "Kestrel Ledger", name: "Imogen Price", jobTitle: "Head of Sales", email: "imogen@kestrel.example", phone: null, role: "manager", state: "active", ...over });
 
 describe("People", () => {
-  it("shows name, job title, email, phone, role and status, with row actions for an admin", () => {
+  it("shows name, email, phone, role and status, with row actions for an admin", () => {
     const html = renderToStaticMarkup(<PeopleTable people={[person(), person({ id: "m2", userId: "u2", name: "Tom Hale", state: "suspended", phone: "+44 7700 900123" }), person({ kind: "invite", id: "i1", userId: null, name: "Aditi Rao", state: "invited" })]} canWrite selfUserId="u1" />);
-    expect(html).toContain("Head of Sales");
+    expect(html).not.toContain("Head of Sales");
     expect(html).toContain("imogen@kestrel.example");
     expect(html).toContain("+44 7700 900123");
     expect(html).toContain("Reactivate Tom Hale");
     expect(html).toContain("Resend the invite to Aditi Rao");
     expect(html).toContain("Revoke the invite to Aditi Rao");
     expect(html).not.toContain("Suspend Imogen Price");
+    expect(html).toMatch(/Make Imogen Price a (manager|member)/);
   });
 
   it("offers suspend on another active person and nothing at all to staff", () => {

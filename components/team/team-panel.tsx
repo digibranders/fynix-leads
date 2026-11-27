@@ -84,7 +84,7 @@ export function TeamPanel({ people, own, inviteInto, canWrite, isClient, showOrg
                     title="Edit details"
                     description="Change the name, job title or phone. The email stays as it is."
                   >
-                    <EditPersonForm memberId={person.id} name={person.name} jobTitle={person.jobTitle} phone={person.phone} action={editTeamPersonAction} />
+                    <EditPersonForm memberId={person.id} name={person.name} phone={person.phone} action={editTeamPersonAction} />
                   </FormSheet>
                 </span>
               ) : null,

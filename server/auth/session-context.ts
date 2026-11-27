@@ -12,7 +12,7 @@ export interface SessionReader {
       query: { disableRefresh: true };
     }): Promise<{
       readonly session: { readonly id: string; readonly createdAt: Date };
-      readonly user: { readonly id: string; readonly name: string; readonly twoFactorEnabled?: boolean | null };
+      readonly user: { readonly id: string; readonly name: string; readonly email?: string; readonly twoFactorEnabled?: boolean | null };
     } | null>;
   };
 }
@@ -21,6 +21,8 @@ interface SessionContextBase {
   readonly userId: string;
   /** The name on the account, for greeting the person. Not the display name other users see (phase 1C and 1E). */
   readonly name: string;
+  /** The sign-in address, read from the session's user row. Shown to the person on their own profile page only. */
+  readonly email?: string;
   readonly sessionId: string;
   readonly orgId: string;
   readonly memberRole: "member" | "manager";
@@ -84,5 +86,5 @@ export async function resolveSessionContext(deps: SessionResolution, headers: He
   const secondFactor = deps.secondFactor ?? secondFactorSatisfied;
   if (!(await secondFactor({ kind: membership.orgKind, userId: found.user.id, sessionId: found.session.id }))) return null;
 
-  return contextFor(membership.orgKind, { userId: found.user.id, name: found.user.name, sessionId: found.session.id, orgId: membership.orgId, memberRole: membership.role, twoFactorEnabled: found.user.twoFactorEnabled === true });
+  return contextFor(membership.orgKind, { userId: found.user.id, name: found.user.name, ...(found.user.email === undefined ? {} : { email: found.user.email }), sessionId: found.session.id, orgId: membership.orgId, memberRole: membership.role, twoFactorEnabled: found.user.twoFactorEnabled === true });
 }

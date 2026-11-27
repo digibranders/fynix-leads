@@ -6,7 +6,7 @@ import { GOOD_PASSWORD } from "@/server/auth/testing";
 import { agencyAlias, member } from "@/server/db/schema";
 import { DomainError, type DomainErrorCode } from "@/server/domain/errors";
 import { issueInvite } from "@/server/domain/invites";
-import { reactivateMember, renameMember, setAgencyAlias, suspendMember } from "@/server/domain/members";
+import { reactivateMember, renameMember, setAgencyAlias, setMemberRole, suspendMember } from "@/server/domain/members";
 import { redeemInvite } from "@/server/domain/redeem-invite";
 import { auditRowsFor, latestInviteLink, publishApprovedTerms } from "@/server/domain/test-helpers";
 import { readCurrentTerms } from "@/server/domain/terms";
@@ -91,6 +91,21 @@ describe("suspendMember and reactivateMember", () => {
     expect(await refusal(suspendMember(rig.deps(), rig.actor, row.id))).toBe("invalid-transition");
     expect(await refusal(suspendMember(rig.deps(), rig.actor, "99999999-9999-4999-8999-999999999999"))).toBe("not-found");
     expect((await memberOf(rig.actor.userId)).status).toBe("active");
+  });
+});
+
+describe("setMemberRole", () => {
+  it("makes a person a manager, audits it, and refuses a repeat, a bad role and demoting the last active manager", async () => {
+    const person = await realClient();
+    const row = await memberOf(person.userId);
+    expect(row.role).toBe("member");
+    expect(await refusal(setMemberRole(rig.deps(), rig.actor, row.id, "owner"))).toBe("invalid-input");
+    expect((await setMemberRole(rig.deps(), rig.actor, row.id, "manager")).role).toBe("manager");
+    expect((await memberOf(person.userId)).role).toBe("manager");
+    expect((await auditRowsFor(rig, "member.set_role")).length).toBe(1);
+    expect(await refusal(setMemberRole(rig.deps(), rig.actor, row.id, "manager"))).toBe("invalid-transition");
+    expect(await refusal(setMemberRole(rig.deps(), rig.actor, row.id, "member"))).toBe("last-manager");
+    expect(await refusal(setMemberRole(rig.deps(), rig.actor, "99999999-9999-4999-8999-999999999999", "manager"))).toBe("not-found");
   });
 });
 

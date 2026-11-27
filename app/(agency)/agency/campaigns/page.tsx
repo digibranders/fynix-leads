@@ -19,7 +19,7 @@ async function Campaigns({ searchParams }: { searchParams: PageProps<"/agency/ca
     <div className="flex flex-col gap-4">
       <PageHeader title="Campaigns" description="The campaigns assigned to you, your monthly share of each, and what has been accepted." />
       <CampaignsSummary campaigns={campaigns} />
-      <CampaignsView campaigns={campaigns} basePath="/agency/campaigns" tab={parseCampaignTab(params.status)} portal="agency" submitHref="/agency/leads/new" />
+      <CampaignsView campaigns={campaigns} basePath="/agency/campaigns" tab={parseCampaignTab(params.status, campaigns)} portal="agency" submitHref="/agency/leads/new" />
     </div>
   );
 }

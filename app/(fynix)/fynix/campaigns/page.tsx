@@ -20,7 +20,7 @@ async function Campaigns({ searchParams }: { searchParams: PageProps<"/fynix/cam
   return (
     <div className="flex flex-col gap-4">
       <PageHeader title="Campaigns" description="Every campaign, with its client and the coordinator that serves it." actions={view.canWrite ? <NewCampaignButton /> : null} />
-      <CampaignsTable rows={rows} query={one(params.q) ?? ""} tab={parseCampaignTab(params.status)} />
+      <CampaignsTable rows={rows} query={one(params.q) ?? ""} tab={parseCampaignTab(params.status, rows)} />
     </div>
   );
 }

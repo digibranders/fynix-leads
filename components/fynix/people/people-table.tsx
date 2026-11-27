@@ -54,7 +54,7 @@ export function PeopleTable({ people, canWrite, selfUserId, showOrganisation = f
               {people.map((person) => (
                 <TableRow key={`${person.kind}-${person.id}`}>
                   <TableCell>
-                    <Person name={person.name} sub={person.jobTitle ?? undefined} />
+                    <Person name={person.name} />
                     <span className="block truncate pt-1 text-caption text-ink-muted md:hidden">{person.email}</span>
                     {showOrganisation ? <span className="block truncate text-caption text-ink-muted md:hidden">{person.orgName}</span> : null}
                   </TableCell>

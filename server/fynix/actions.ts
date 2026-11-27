@@ -10,6 +10,7 @@ import { publishAgreement } from "@/server/domain/agreements";
 import { addHostBlock, removeHostBlock, setHostHours } from "@/server/domain/availability";
 import {
   memberDetailsSchema,
+  memberRoleSchema,
   updateClientContactSchema,
   updateOrganisationSchema,
   addHostBlockSchema,
@@ -31,7 +32,7 @@ import {
   uuidSchema,
 } from "@/server/domain/inputs";
 import { issueInvite, resendInvite, revokeInvite } from "@/server/domain/invites";
-import { reactivateMember, suspendMember, updateMemberDetails } from "@/server/domain/members";
+import { reactivateMember, setMemberRole, suspendMember, updateMemberDetails } from "@/server/domain/members";
 import { LETTER_OPENING_MAX, checkLetterOpening } from "@/lib/email/letter-opening";
 import { setCampaignPrivacy, setProspectEmail, setProspectLetterOpening } from "@/server/domain/campaign-privacy";
 import { closeCampaign, createCampaign, reopenCampaign, updateCampaign } from "@/server/domain/campaigns";
@@ -374,10 +375,10 @@ export async function updatePersonAction(_previous: FormState, formData: FormDat
   const memberId = field(formData, "memberId");
   return runAction({
     formData,
-    fieldNames: ["displayName", "jobTitle", "phone"],
-    build: () => ({ displayName: field(formData, "displayName"), jobTitle: field(formData, "jobTitle"), phone: phone === "" ? null : phone }),
+    fieldNames: ["displayName", "phone"],
+    build: () => ({ displayName: field(formData, "displayName"), phone: phone === "" ? null : phone }),
     schema: memberDetailsSchema,
-    labels: { displayName: "Name", jobTitle: "Job title", phone: "Phone" },
+    labels: { displayName: "Name", phone: "Phone" },
     perform: async (deps, actor, input) => {
       await updateMemberDetails(deps, actor, memberId, input);
     },
@@ -385,6 +386,24 @@ export async function updatePersonAction(_previous: FormState, formData: FormDat
 }
 
 const memberInput = z.object({ memberId: uuidSchema }).strict();
+
+const roleInput = z.object({ memberId: uuidSchema, role: memberRoleSchema }).strict();
+
+/** Makes a person a manager or a plain member. The last active manager of an organisation cannot be made a member. */
+export async function setPersonRoleAction(_previous: FormState, formData: FormData): Promise<FormState> {
+  return runAction({
+    formData,
+    fieldNames: [],
+    build: () => ({ memberId: field(formData, "memberId"), role: field(formData, "role") }),
+    schema: roleInput,
+    labels: {},
+    messages: { "invalid-transition": "That person has this role already. Refresh the page." },
+    perform: async (deps, actor, input) => {
+      const parsed = roleInput.parse(input);
+      await setMemberRole(deps, actor, parsed.memberId, parsed.role);
+    },
+  });
+}
 
 export async function suspendPersonAction(_previous: FormState, formData: FormData): Promise<FormState> {
   return runAction({
@@ -520,14 +539,13 @@ function sendMailAfterResponse(): void {
 export async function invitePersonAction(_previous: FormState, formData: FormData): Promise<FormState> {
   return runAction({
     formData,
-    fieldNames: ["organisationId", "name", "jobTitle", "email", "phone", "role", "alias"],
+    fieldNames: ["organisationId", "name", "email", "phone", "role", "alias"],
     build: () => {
       const phone = field(formData, "phone").trim();
       const alias = field(formData, "alias").trim();
       return {
         organisationId: field(formData, "organisationId"),
         name: field(formData, "name"),
-        jobTitle: field(formData, "jobTitle"),
         email: field(formData, "email"),
         role: INVITE_ROLES.has(field(formData, "role")) ? field(formData, "role") : "member",
         ...(phone === "" ? {} : { phone }),

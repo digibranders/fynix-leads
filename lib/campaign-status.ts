@@ -73,7 +73,7 @@ export function sumActiveCampaigns(rows: readonly { readonly status: CampaignSta
   return totals;
 }
 
-/** The tabs on every campaign list. The list opens on Active, even when Active is empty. */
+/** The tabs on every campaign list. With nothing in the address the list opens on Active, or on the first tab that has a campaign when Active is empty. */
 export type CampaignTab = CampaignBucket | "all";
 export const CAMPAIGN_TAB_ORDER: readonly CampaignTab[] = ["active", "setting-up", "closed", "all"];
 export const DEFAULT_CAMPAIGN_TAB: CampaignTab = "active";
@@ -81,10 +81,14 @@ const TAB_LABEL: Readonly<Record<CampaignTab, string>> = { active: "Active", "se
 
 export const campaignTabLabel = (tab: CampaignTab): string => TAB_LABEL[tab];
 
-/** Reads `?status=`; anything that is not a tab opens the default one. */
-export function parseCampaignTab(value: string | string[] | undefined): CampaignTab {
+/** Reads `?status=`. Anything that is not a tab opens Active, or, when the rows are given and Active is empty, the first tab that holds one (Setting up, then Closed). */
+export function parseCampaignTab(value: string | string[] | undefined, rows?: readonly { readonly status: CampaignStatus }[]): CampaignTab {
   const raw = Array.isArray(value) ? value[0] : value;
-  return CAMPAIGN_TAB_ORDER.find((tab) => tab === raw) ?? DEFAULT_CAMPAIGN_TAB;
+  const named = CAMPAIGN_TAB_ORDER.find((tab) => tab === raw);
+  if (named !== undefined) return named;
+  if (rows === undefined) return DEFAULT_CAMPAIGN_TAB;
+  const counts = countByTab(rows);
+  return (["active", "setting-up", "closed"] as const).find((tab) => counts[tab] > 0) ?? DEFAULT_CAMPAIGN_TAB;
 }
 
 /** How many rows each tab holds. */

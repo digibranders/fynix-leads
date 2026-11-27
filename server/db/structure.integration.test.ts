@@ -229,8 +229,8 @@ describe("access matrix", () => {
     expect(await column("leads_auth", "UPDATE", "status")).toBe(false);
     expect(await column("leads_auth", "INSERT", "org_id")).toBe(true);
     expect(await grantedColumns(dbs.owner.db, "leads_fynix", "member")).toEqual(["id", "user_id", "org_id", "org_kind", "role", "display_name", "status", "created_at", "job_title", "phone", "meeting_emails"]);
-    for (const name of ["status", "display_name", "job_title", "phone"]) expect(await column("leads_fynix", "UPDATE", name), name).toBe(true);
-    for (const name of ["user_id", "org_id", "org_kind", "role"]) expect(await column("leads_fynix", "UPDATE", name), name).toBe(false);
+    for (const name of ["status", "display_name", "job_title", "phone", "role"]) expect(await column("leads_fynix", "UPDATE", name), name).toBe(true);
+    for (const name of ["user_id", "org_id", "org_kind"]) expect(await column("leads_fynix", "UPDATE", name), name).toBe(false);
     expect(await column("leads_fynix", "INSERT", "org_id")).toBe(false);
   });
 

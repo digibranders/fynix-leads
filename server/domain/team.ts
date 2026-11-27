@@ -123,7 +123,7 @@ export async function addPartnerAgencyAsCoordinator(deps: Pick<DomainDeps, "rand
 const OWN_REFUSALS: ReadonlySet<DomainErrorCode> = new Set<DomainErrorCode>(["not-authorised"]);
 
 function ownDetailsCall(tx: ScopedTransaction, parsed: OwnProfileInput): Promise<unknown> {
-  return tx.execute(sql`select public.app_update_own_details(${parsed.displayName}, ${parsed.jobTitle}, ${parsed.phone})`);
+  return tx.execute(sql`select public.app_update_own_details(${parsed.displayName}, ${parsed.jobTitle ?? null}, ${parsed.phone})`);
 }
 
 /**

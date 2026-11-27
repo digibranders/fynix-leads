@@ -4,6 +4,7 @@ import { Panel, PanelHeader } from "@/components/kit/panel";
 import { Button } from "@/components/ui/button";
 import type { ClientContactRecord } from "@/server/domain/client-contacts";
 import { inviteClientContactAction, removeClientContactAction } from "@/server/fynix/actions";
+import { ConfirmAction } from "../forms/confirm-action";
 import { EditContactPersonForm } from "../forms/contact-person-forms";
 import { FormSheet } from "../forms/form-sheet";
 import { InlineAction } from "../forms/inline-action";
@@ -21,7 +22,7 @@ export function ContactsPanel({ contacts, canWrite }: { contacts: readonly Clien
           {contacts.map((person) => (
             <ListRow
               key={person.id}
-              title={person.jobTitle === null ? person.name : `${person.name}, ${person.jobTitle}`}
+              title={person.name}
               sub={[person.email, person.phone].filter((part): part is string => part !== null).join("  ") || undefined}
               trailing={
                 canWrite ? (
@@ -43,10 +44,21 @@ export function ContactsPanel({ contacts, canWrite }: { contacts: readonly Clien
                     >
                       <EditContactPersonForm contact={person} />
                     </FormSheet>
-                    <InlineAction action={removeClientContactAction} fields={{ contactId: person.id }} label={`Remove ${person.name}`} variant="ghost" savedMessage="Contact removed">
-                      <Trash aria-hidden />
-                      Remove
-                    </InlineAction>
+                    <ConfirmAction
+                      action={removeClientContactAction}
+                      fields={{ contactId: person.id }}
+                      triggerLabel={`Remove ${person.name}`}
+                      trigger={
+                        <>
+                          <Trash aria-hidden />
+                          Remove
+                        </>
+                      }
+                      title={`Remove ${person.name}?`}
+                      description={`${person.name} will no longer be listed as a saved contact of this client. This cannot be undone from here.`}
+                      confirmLabel="Remove contact"
+                      savedMessage="Contact removed"
+                    />
                   </span>
                 ) : null
               }
