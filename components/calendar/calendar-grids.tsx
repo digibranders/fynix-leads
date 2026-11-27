@@ -14,6 +14,8 @@ export interface GridMeeting {
 
 const SPAN = GRID_END_MINUTE - GRID_START_MINUTE;
 const HOURS = Array.from({ length: (GRID_END_MINUTE - GRID_START_MINUTE) / 60 + 1 }, (_, index) => GRID_START_MINUTE + index * 60);
+/** The label of every hour but the last line, which is the same midnight as the first. */
+const HOUR_LABELS = HOURS.slice(0, -1);
 const HATCH = "repeating-linear-gradient(135deg, transparent 0, transparent 6px, rgb(12 30 46 / 0.07) 6px, rgb(12 30 46 / 0.07) 12px)";
 
 const percent = (minute: number): number => ((minute - GRID_START_MINUTE) / SPAN) * 100;
@@ -46,7 +48,7 @@ function RunBlock({ run }: { readonly run: Run }) {
 function HourLabels() {
   return (
     <div className="relative h-full" aria-hidden="true">
-      {HOURS.map((minute) => (
+      {HOUR_LABELS.map((minute) => (
         <span key={minute} className="absolute right-2 -translate-y-1/2 text-caption text-ink-muted" style={{ top: `${percent(minute)}%` }}>
           {clock(minute)}
         </span>
@@ -65,7 +67,8 @@ function Lines() {
   );
 }
 
-const LANE_HEIGHT = "h-[640px]";
+// 40 pixels an hour, so a whole day is 960.
+const LANE_HEIGHT = "h-[960px]";
 
 /** One day, a lane for each person of the client: free, busy and not working, in the viewer's own zone. */
 export function DayGrid({ people, dayKey, zone, now }: { readonly people: readonly CalendarPersonLike[]; readonly dayKey: string; readonly zone: string; readonly now: Date }) {

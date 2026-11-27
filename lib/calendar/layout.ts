@@ -3,9 +3,9 @@ import { dayKeyIn, slotInstants } from "@/lib/calendar/view";
 import type { HoursWindow } from "@/lib/domain/weekly-hours";
 import { isOutsideHostHours } from "@/lib/leads/host-hours";
 
-/** The hours a day grid shows, in the viewer's own zone, and the length of a slot. A person in another zone can work any of them. */
-export const GRID_START_MINUTE = 6 * 60;
-export const GRID_END_MINUTE = 22 * 60;
+/** The hours a day grid shows, in the viewer's own zone, and the length of a slot. The whole day: a meeting can be at any hour, and a person in another zone works at any of them. */
+export const GRID_START_MINUTE = 0;
+export const GRID_END_MINUTE = 24 * 60;
 export const SLOT_MINUTES = 30;
 
 const MINUTE = 60_000;
