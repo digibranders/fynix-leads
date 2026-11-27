@@ -241,14 +241,16 @@ export function LeadRecordView({
           <Panel aria-label="Qualification">
             <PanelHeader title="Qualification" />
             <div className="flex flex-col gap-4 px-5 pb-5">
-              <Facts
-                items={[
-                  ["Budget", bant.budget],
-                  ["Authority", bant.authority],
-                  ["Need", bant.need],
-                  ["Timeline", bant.timeline],
-                ]}
-              />
+              {[bant.budget, bant.authority, bant.need, bant.timeline].some((answer) => answer !== "") ? (
+                <Facts
+                  items={[
+                    ["Budget", bant.budget],
+                    ["Authority", bant.authority],
+                    ["Need", bant.need],
+                    ["Timeline", bant.timeline],
+                  ]}
+                />
+              ) : null}
               <QualificationChecklistView checks={record.qualification.checks} notes={record.qualification.notes} />
             </div>
           </Panel>

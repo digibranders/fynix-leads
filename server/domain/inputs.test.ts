@@ -161,6 +161,12 @@ describe("lead inputs", () => {
     expect(parsed.proposedTimes).toHaveLength(2);
   });
 
+  it("no longer asks for budget, authority, need or timeline: the campaign checklist replaced them", () => {
+    const { bantBudget: _b, bantAuthority: _a, bantNeed: _n, bantTimeline: _t, ...without } = validLead;
+    const parsed = parseInput(submitLeadSchema, without);
+    expect([parsed.bantBudget, parsed.bantAuthority, parsed.bantNeed, parsed.bantTimeline]).toEqual(["", "", "", ""]);
+  });
+
   it("refuses lead submission without proposed meeting times", () => {
     expect(submitLeadSchema.safeParse({ ...validLead, proposedTimes: [] }).success).toBe(false);
   });

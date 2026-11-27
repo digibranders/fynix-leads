@@ -367,10 +367,11 @@ export const submitLeadSchema = z
     prospectEmail: z.string().trim().email("must be a valid email address").toLowerCase(),
     prospectPhone: optionalText(40).optional(),
     prospectNotes: optionalText(2000).optional(),
-    bantBudget: name(500),
-    bantAuthority: name(500),
-    bantNeed: name(500),
-    bantTimeline: name(500),
+    /** Budget, authority, need and timeline are no longer asked for: the campaign's checklist replaced them (decision of 2026-11-27). Old leads keep what they hold; a new one stores empty text. */
+    bantBudget: optionalText(500).default(""),
+    bantAuthority: optionalText(500).default(""),
+    bantNeed: optionalText(500).default(""),
+    bantTimeline: optionalText(500).default(""),
     /** The checklist and the agency's note. A check left unticked needs the note to say why: the lead still goes through (decision of 2026-11-27). */
     qualificationChecks: qualificationChecks.default([]),
     qualificationNotes: optionalText(2000).default(""),
