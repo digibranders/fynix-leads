@@ -194,7 +194,8 @@ const inviteRole = z.enum(["member", "manager", "admin", "staff"]).default("memb
 const inviteFields = {
   email: z.email().max(254),
   name: name(120),
-  jobTitle: name(120),
+  /** Not asked for any more: an invite carries one only if an older caller sends it. */
+  jobTitle: name(120).optional(),
   phone: phoneSchema.optional(),
   role: inviteRole,
   /** The Fynix name the client sees for an agency user. Defaults to the person's name; not allowed for a client or Fynix. */
@@ -209,8 +210,11 @@ export const memberDetailsSchema = z
   .refine((input) => input.displayName !== undefined || input.jobTitle !== undefined || input.phone !== undefined, { message: "must change something" });
 export type MemberDetailsInput = z.infer<typeof memberDetailsSchema>;
 
+/** A person's role: `manager` accepts agreements and invites colleagues (an admin in the Fynix organisation), `member` does neither. */
+export const memberRoleSchema = z.enum(["member", "manager"]);
+
 /** The profile page: a person's own name, job title and phone. All three are sent every time; a blank phone is `null`. */
-export const ownProfileSchema = z.object({ displayName: name(120), jobTitle: name(120), phone: phoneSchema.nullable() }).strict();
+export const ownProfileSchema = z.object({ displayName: name(120), jobTitle: name(120).optional(), phone: phoneSchema.nullable() }).strict();
 export type OwnProfileInput = z.infer<typeof ownProfileSchema>;
 
 export const aliasSchema = z.string().trim().min(2, "must be at least 2 characters").max(60, "must be at most 60 characters");

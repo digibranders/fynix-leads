@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { addBlockAction, removeBlockAction, setHoursAction } from "@/server/fynix/actions";
 import { BlockForm, HoursForm } from "../forms/availability-forms";
 import { FormSheet } from "../forms/form-sheet";
-import { InlineAction } from "../forms/inline-action";
+import { ConfirmAction } from "../forms/confirm-action";
 
 export function EditHoursButton({ memberId, hostName, timeZone, windows }: { memberId: string; hostName: string; timeZone: string; windows: readonly HoursWindow[] }) {
   return (
@@ -43,9 +43,20 @@ export function BlockTimeButton({ memberId, hostName, timeZone }: { memberId: st
 
 export function RemoveBlockButton({ blockId, label }: { blockId: string; label: string }) {
   return (
-    <InlineAction action={removeBlockAction} fields={{ blockId }} label={label} variant="ghost" size="sm">
-      <Trash aria-hidden />
-      Remove
-    </InlineAction>
+    <ConfirmAction
+      action={removeBlockAction}
+      fields={{ blockId }}
+      triggerLabel={label}
+      trigger={
+        <>
+          <Trash aria-hidden />
+          Remove
+        </>
+      }
+      title="Remove this blocked time?"
+      description="The time is free again for new meetings. Meetings already booked are not changed."
+      confirmLabel="Remove blocked time"
+      savedMessage="Blocked time removed"
+    />
   );
 }

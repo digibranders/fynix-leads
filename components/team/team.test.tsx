@@ -40,8 +40,8 @@ const base = { people, own, inviteInto: [own], inviteDescription: "They join Kes
 describe("TeamPanel for a client manager", () => {
   const html = renderToStaticMarkup(<TeamPanel {...base} canWrite isClient />);
 
-  it("lists name, job title, email, phone, role and status of everyone, invites included", () => {
-    for (const text of ["Priya Nair", "Head of Ops", "priya@kestrel.example", "+44 20 7946 0001", "Manager", "Colleen Ray", "Invited"]) expect(html).toContain(text);
+  it("lists name, email, phone, role and status of everyone, invites included", () => {
+    for (const text of ["Priya Nair", "priya@kestrel.example", "+44 20 7946 0001", "Manager", "Colleen Ray", "Invited"]) expect(html).toContain(text);
   });
 
   it("offers Invite person, an Edit button per person and a meeting emails switch per person, not per invite", () => {
@@ -109,16 +109,20 @@ describe("AddAgencyButton", () => {
 });
 
 describe("ProfileView", () => {
-  const html = renderToStaticMarkup(<ProfileView name="Priya Nair" jobTitle="Head of Ops" phone={null} />);
+  const html = renderToStaticMarkup(<ProfileView email="priya@client.example" name="Priya Nair" phone={null} />);
 
   it("has the details form filled with the person's own values, and the password form with its rule", () => {
     expect(html).toContain('value="Priya Nair"');
-    expect(html).toContain('value="Head of Ops"');
     expect(html).toContain("Save details");
     expect(html).toContain("Current password");
     expect(html).toContain("New password");
     expect(html).toContain("Change password");
     expect(html).toContain("at least 8 characters");
+  });
+
+  it("shows the sign-in email as plain text, not as a field to edit", () => {
+    expect(html).toContain("priya@client.example");
+    expect(html).not.toContain('value="priya@client.example"');
   });
 
   it("never prefills a password and says other devices are signed out", () => {

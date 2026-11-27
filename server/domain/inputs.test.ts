@@ -254,8 +254,8 @@ describe("lead inputs", () => {
 describe("phase 1 people and profile schemas", () => {
   const PERSON = { organisationId: UUID, email: "a@example.com", name: "A Person", jobTitle: "Buyer" };
 
-  it("requires a job title on an invite, keeps the phone optional and checks it", () => {
-    expect(issueInviteSchema.safeParse({ organisationId: UUID, email: "a@example.com", name: "A Person" }).success).toBe(false);
+  it("does not need a job title on an invite, keeps the phone optional and checks it", () => {
+    expect(issueInviteSchema.safeParse({ organisationId: UUID, email: "a@example.com", name: "A Person" }).success).toBe(true);
     expect(issueInviteSchema.safeParse(PERSON).success).toBe(true);
     expect(issueInviteSchema.parse({ ...PERSON, phone: " +44 (0)20 7946 0000 " }).phone).toBe("+44 (0)20 7946 0000");
     expect(issueInviteSchema.safeParse({ ...PERSON, phone: "abc" }).success).toBe(false);

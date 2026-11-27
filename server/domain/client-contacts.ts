@@ -96,15 +96,15 @@ export async function inviteClientContact(deps: DomainDeps, actor: FynixActor, c
     tx.select(clientContactColumns).from(clientContact).where(and(eq(clientContact.id, id), isNull(clientContact.removedAt))).limit(1),
   );
   if (contact === undefined) throw new DomainError("not-found", "There is no such contact.");
-  if (contact.email === null || contact.jobTitle === null) {
-    throw new DomainError("invalid-input", "This contact needs an email and a job title before they can be invited.");
+  if (contact.email === null) {
+    throw new DomainError("invalid-input", "This contact needs an email before they can be invited.");
   }
   return issueInvite(deps, actor, {
     organisationId: contact.clientOrgId,
     email: contact.email,
     name: contact.name,
-    jobTitle: contact.jobTitle,
+    ...(contact.jobTitle === null ? {} : { jobTitle: contact.jobTitle }),
     ...(contact.phone === null ? {} : { phone: contact.phone }),
-    role: "member",
+    role: "manager",
   });
 }

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import type { Database } from "@/server/db/pool";
 import { member, agencyAlias } from "@/server/db/schema";
 import { withTenantScope, type ScopedTransaction } from "@/server/db/scope";
@@ -7,7 +7,7 @@ import { requireFreeAlias } from "@/server/domain/aliases";
 import type { DomainDeps } from "@/server/domain/deps";
 import { DomainError, isUniqueViolation } from "@/server/domain/errors";
 import { fynixWrite, type FynixActor } from "@/server/domain/fynix-write";
-import { aliasSchema, displayNameSchema, memberDetailsSchema, uuidSchema } from "@/server/domain/inputs";
+import { aliasSchema, displayNameSchema, memberDetailsSchema, memberRoleSchema, uuidSchema } from "@/server/domain/inputs";
 import { parseInput } from "@/server/domain/parse";
 import { snapshotMember } from "@/server/domain/snapshots";
 
@@ -109,6 +109,32 @@ export async function setAgencyAlias(deps: DomainDeps, actor: FynixActor, member
     }
     await audit({ action: "agency_alias.set", subject: { table: "agency_alias", id: subjectId }, before: existing === undefined ? null : { memberId: id, alias: existing.alias }, after: { memberId: id, alias: text } });
     return { alias: text };
+  });
+}
+
+/**
+ * Makes a person a manager (accepts agreements, invites colleagues; an admin in the Fynix organisation) or a plain member. A Fynix admin does it
+ * for anyone; staff are refused (`admin-required`). The last active manager of an organisation cannot be made a member, so no organisation is left
+ * with nobody who can accept an agreement or, for Fynix, change set-up.
+ */
+export async function setMemberRole(deps: DomainDeps, actor: FynixActor, memberId: string, role: unknown): Promise<MemberRecord> {
+  const id = parseInput(uuidSchema, memberId);
+  const wanted = parseInput(memberRoleSchema, role);
+  return fynixWrite(deps.fynixDb, actor, async ({ tx, audit }) => {
+    const before = await loadForUpdate(tx, id);
+    if (before.role === wanted) throw new DomainError("invalid-transition", `The person already is a ${wanted}.`);
+    if (wanted === "member" && before.status === "active") {
+      const [other] = await tx
+        .select({ id: member.id })
+        .from(member)
+        .where(and(eq(member.orgId, before.orgId), eq(member.role, "manager"), eq(member.status, "active"), ne(member.id, id)))
+        .limit(1);
+      if (other === undefined) throw new DomainError("last-manager", "This is the only active manager. Make someone else a manager first.");
+    }
+    const [after] = await tx.update(member).set({ role: wanted }).where(eq(member.id, id)).returning(columns);
+    if (after === undefined) throw new Error("The member update returned no row");
+    await audit({ action: "member.set_role", subject: { table: "member", id }, before: snapshotMember(before), after: snapshotMember(after) });
+    return after;
   });
 }
 

@@ -4,13 +4,14 @@ import { SecondFactorPanel } from "./second-factor-panel";
 
 /** The profile page body, the same in all four portals: your details, then your password. Each is a panel with its own form. */
 export function ProfileView({
+  email,
   name,
-  jobTitle,
   phone,
   secondFactor,
 }: {
+  /** The sign-in address, shown and not editable here. */
+  email: string | null;
   name: string;
-  jobTitle: string | null;
   phone: string | null;
   /** Fynix only: the second sign-in step. Left out for the other portals, which have none. */
   secondFactor?: { readonly enabled: boolean; readonly required: boolean };
@@ -21,7 +22,13 @@ export function ProfileView({
         <PanelHeader title="Your details" />
         <div className="px-5 pb-5">
           <p className="pb-3 text-body text-ink-muted">The people on your side see these. You sign in with the email address your invite went to.</p>
-          <ProfileDetailsForm name={name} jobTitle={jobTitle} phone={phone} />
+          {email === null ? null : (
+            <div className="mb-3 flex flex-col gap-0.5 rounded-sm bg-surface px-3 py-2">
+              <span className="text-label text-ink-muted">Email (your sign-in)</span>
+              <span className="text-body break-all text-ink">{email}</span>
+            </div>
+          )}
+          <ProfileDetailsForm name={name} phone={phone} />
         </div>
       </Panel>
       <Panel aria-label="Password">

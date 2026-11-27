@@ -11,6 +11,7 @@ const MESSAGES: Readonly<Record<DomainErrorCode, string>> = {
   "alias-taken": "Another person already has that Fynix name. Choose a different one.",
   "invalid-transition": "That cannot be done in the current state. Refresh the page and try again.",
   "cannot-suspend-self": "You cannot suspend yourself.",
+  "last-manager": "This is the only active manager. Make someone else a manager first.",
   "invite-not-live": "That invite is no longer live.",
   "ref-exhausted": "A reference could not be made. Try again.",
   "not-authorised": "You are not allowed to do that.",

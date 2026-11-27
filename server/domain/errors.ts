@@ -13,6 +13,7 @@ export type DomainErrorCode =
   | "alias-taken"
   | "invalid-transition"
   | "cannot-suspend-self"
+  | "last-manager"
   | "invite-not-live"
   | "ref-exhausted"
   | "not-authorised"

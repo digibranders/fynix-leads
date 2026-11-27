@@ -1,8 +1,5 @@
 "use client";
 
-import { useId, useState } from "react";
-import { Choice } from "@/components/ui/choice";
-import { Field } from "@/components/ui/field";
 import type { FormState } from "@/lib/fynix/form-state";
 import { addAgencyAction, addCoordinatorAction, invitePersonAction, updateOrganisationAction } from "@/server/fynix/actions";
 import { ActionForm, type PageMode } from "./action-form";
@@ -56,9 +53,6 @@ export const FYNIX_ROLES = [
 
 type RoleOption = { readonly value: string; readonly label: string };
 
-/** A contact person as the invite form starts from them. */
-type ContactToInvite = { readonly id: string; readonly name: string; readonly jobTitle: string | null; readonly email: string | null; readonly phone: string | null };
-
 /**
  * Invites a person into a client, a coordinator or one of its partner agencies, or into Fynix. A client or Fynix person needs no alias; an
  * agency person's alias is optional and shown only where it can apply (`showAlias`).
@@ -70,7 +64,6 @@ export function InvitePersonForm({
   roleHelper = "A manager can accept agreements and invite colleagues.",
   action = invitePersonAction,
   page,
-  contacts = [],
 }: {
   organisations: readonly { readonly id: string; readonly name: string }[];
   roles?: readonly RoleOption[];
@@ -79,12 +72,8 @@ export function InvitePersonForm({
   /** The Fynix action unless a portal passes its own. */
   action?: (previous: FormState, formData: FormData) => Promise<FormState>;
   page?: PageMode;
-  /** A client's contact people: choosing one fills in the name, job title, email and phone below, so they are not typed twice. */
-  contacts?: readonly ContactToInvite[];
 }) {
   const [only] = organisations;
-  const [from, setFrom] = useState<ContactToInvite | null>(null);
-  const pickerId = useId();
   return (
     <ActionForm action={action} submitLabel="Send invite" pendingLabel="Sending" page={page}>
       {organisations.length === 1 && only !== undefined ? (
@@ -94,19 +83,11 @@ export function InvitePersonForm({
           <SelectField name="organisationId" label="Works at" options={organisations.map((row) => ({ value: row.id, label: row.name }))} defaultValue={only?.id} />
         </FormGroup>
       )}
-      {contacts.length > 0 ? (
-        <FormGroup title="Start from a contact person">
-          <Field id={pickerId} label="Contact person" helper="Fills in the details below. Nothing is sent until you send the invite.">
-            <Choice id={pickerId} value={from?.id ?? ""} onValueChange={(next) => setFrom(contacts.find((row) => row.id === next) ?? null)} options={contacts.map((row) => ({ value: row.id, label: row.jobTitle === null ? row.name : `${row.name}, ${row.jobTitle}` }))} placeholder="Choose a contact person" />
-          </Field>
-        </FormGroup>
-      ) : null}
-      <FormGroup title="The person" key={from?.id ?? "blank"}>
-        <TextField name="name" label="Full name" autoComplete="off" defaultValue={from?.name ?? ""} />
-        <TextField name="jobTitle" label="Job title" autoComplete="off" defaultValue={from?.jobTitle ?? ""} />
-        <TextField name="email" label="Email" type="email" inputMode="email" defaultValue={from?.email ?? ""} helper="The invite link goes here. It works for 7 days." />
-        <TextField name="phone" label="Phone (optional)" defaultValue={from?.phone ?? ""} />
-        <SelectField name="role" label="Role" options={roles} defaultValue={roles[0]?.value} helper={roleHelper} />
+      <FormGroup title="The person">
+        <TextField name="name" label="Full name" autoComplete="off" />
+        <TextField name="email" label="Email" type="email" inputMode="email" helper="The invite link goes here. It works for 7 days." />
+        <TextField name="phone" label="Phone (optional)" />
+        <SelectField name="role" label="Role" options={roles} defaultValue={roles.some((role) => role.value === "manager") ? "manager" : roles[0]?.value} helper={roleHelper} />
       </FormGroup>
       {showAlias && (
         <FormGroup title="What the client sees">

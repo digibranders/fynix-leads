@@ -127,7 +127,6 @@ describe("issueInvite", () => {
   });
 
   it.each([
-    ["an invite with no job title", (): Record<string, unknown> => ({ ...CLIENT_INVITE(), jobTitle: undefined }), "invalid-input"],
     ["an invite with a phone that is not a number", (): Record<string, unknown> => ({ ...CLIENT_INVITE(), phone: "call me maybe" }), "invalid-input"],
     ["a client invite with an alias", (): Record<string, unknown> => ({ ...CLIENT_INVITE(), alias: "Priya, Fynix" }), "invalid-input"],
     ["a Fynix invite with an alias", (): Record<string, unknown> => ({ ...CLIENT_INVITE(), organisationId: rig.world().fynix.id, alias: "Priya, Fynix" }), "invalid-input"],

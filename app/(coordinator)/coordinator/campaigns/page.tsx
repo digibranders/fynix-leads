@@ -21,7 +21,7 @@ async function Campaigns({ searchParams }: { searchParams: PageProps<"/coordinat
     <div className="flex flex-col gap-4">
       <PageHeader title="Campaigns" description="The campaigns Fynix has assigned to you. Split each one between your own team and your partner agencies." />
       <CampaignsSummary campaigns={campaigns} />
-      <CampaignsView campaigns={campaigns} basePath="/coordinator/campaigns" tab={parseCampaignTab(params.status)} portal="coordinator" submitHref="/coordinator/leads/new" assign={{ ownOrgId: view.actor.orgId, agencies, canManage: view.canWrite }} />
+      <CampaignsView campaigns={campaigns} basePath="/coordinator/campaigns" tab={parseCampaignTab(params.status, campaigns)} portal="coordinator" submitHref="/coordinator/leads/new" assign={{ ownOrgId: view.actor.orgId, agencies, canManage: view.canWrite }} />
     </div>
   );
 }

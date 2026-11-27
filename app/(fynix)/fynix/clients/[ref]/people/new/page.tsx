@@ -21,7 +21,7 @@ async function Invite({ params }: { params: PageProps<"/fynix/clients/[ref]/peop
   return (
     <FormPage title="Invite person" description={`They get an email with a link to set a password. They join ${client.name}.`} backHref={backHref} backLabel={`People at ${client.name}`}>
       <TermsNotice missing={missing} side="clients" />
-      <InvitePersonForm organisations={[{ id: client.id, name: client.name }]} showAlias={false} page={{ cancelHref: backHref }} contacts={client.contacts} />
+      <InvitePersonForm organisations={[{ id: client.id, name: client.name }]} showAlias={false} page={{ cancelHref: backHref }} />
     </FormPage>
   );
 }

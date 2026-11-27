@@ -83,7 +83,7 @@ async function issueWithin({ tx, audit }: FynixWrite, actor: FynixActor, deps: D
   const expiresAt = inviteExpiry(now);
   const [created] = await tx
     .insert(invite)
-    .values({ orgId: org.id, orgKind: org.kind, email, name: parsed.name, jobTitle: parsed.jobTitle, phone: parsed.phone ?? null, role: parsed.role, alias, tokenHash, expiresAt, createdBy: actor.userId })
+    .values({ orgId: org.id, orgKind: org.kind, email, name: parsed.name, jobTitle: parsed.jobTitle ?? null, phone: parsed.phone ?? null, role: parsed.role, alias, tokenHash, expiresAt, createdBy: actor.userId })
     .returning({ id: invite.id })
     // A second issue for the same address that committed after our revoke step. The driver error carries the row's email, name and token hash, so it is replaced, not wrapped.
     .catch((error: unknown) => {
@@ -99,7 +99,7 @@ async function issueWithin({ tx, audit }: FynixWrite, actor: FynixActor, deps: D
     action: "invite.issue",
     subject: { table: "invite", id: created.id },
     before: null,
-    after: snapshotInvite({ orgId: org.id, email, name: parsed.name, role: parsed.role, jobTitle: parsed.jobTitle, phone: parsed.phone ?? null, alias, expiresAt }),
+    after: snapshotInvite({ orgId: org.id, email, name: parsed.name, role: parsed.role, jobTitle: parsed.jobTitle ?? null, phone: parsed.phone ?? null, alias, expiresAt }),
   });
   return { inviteId: created.id, expiresAt };
 }
@@ -125,12 +125,11 @@ export async function resendInvite(deps: DomainDeps, actor: FynixActor, inviteId
     const [old] = await write.tx.select({ ...inviteColumns, orgKind: invite.orgKind }).from(invite).where(eq(invite.id, id)).limit(1);
     if (old === undefined) throw new DomainError("not-found", "There is no such invite.");
     if (old.redeemedAt !== null) throw new DomainError("invite-not-live", "That invite has been used already.");
-    if (old.jobTitle === null) throw new DomainError("invalid-input", "That invite has no job title. Revoke it and invite the person again.");
     return issueWithin(write, actor, deps, {
       organisationId: old.orgId,
       email: old.email,
       name: old.name,
-      jobTitle: old.jobTitle,
+      ...(old.jobTitle === null ? {} : { jobTitle: old.jobTitle }),
       role: old.role,
       ...(old.phone === null ? {} : { phone: old.phone }),
       ...(old.alias === null ? {} : { alias: old.alias }),
@@ -237,7 +236,7 @@ export async function issueTenantInvite(deps: DomainDeps, db: Database, actor: T
       const params = JSON.stringify({ name: parsed.name, organisationName, expiresOn: formatEmailDate(expiresAt) });
       const result = await tx.execute<{ id: string }>(sql`
         select public.app_issue_tenant_invite(
-          ${parsed.organisationId}::uuid, ${email}, ${parsed.name}, ${parsed.jobTitle}, ${parsed.phone ?? null}, ${parsed.role}::public.member_role, ${parsed.alias ?? null},
+          ${parsed.organisationId}::uuid, ${email}, ${parsed.name}, ${parsed.jobTitle ?? null}, ${parsed.phone ?? null}, ${parsed.role}::public.member_role, ${parsed.alias ?? null},
           ${tokenHash}, ${expiresAt.toISOString()}::timestamptz, ${deps.allowPlaceholderTerms}, ${link.toString()}, ${stored.subject}, ${stored.text}, ${params}::jsonb
         ) as id`);
       const id = result.rows[0]?.id;

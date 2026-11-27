@@ -51,7 +51,6 @@ export async function inviteTeamPersonAction(_previous: FormState, formData: For
       return {
         organisationId: field(formData, "organisationId"),
         name: field(formData, "name"),
-        jobTitle: field(formData, "jobTitle"),
         email: field(formData, "email"),
         role: role === "manager" ? "manager" : "member",
         ...(phone === "" ? {} : { phone }),
@@ -73,11 +72,11 @@ const memberInput = z.object({ memberId: uuidSchema }).strict();
 export async function editTeamPersonAction(_previous: FormState, formData: FormData): Promise<FormState> {
   return runTenantForm({
     formData,
-    fieldNames: ["displayName", "jobTitle", "phone"],
+    fieldNames: ["displayName", "phone"],
     kinds: ["client"],
-    build: () => ({ displayName: field(formData, "displayName"), jobTitle: field(formData, "jobTitle"), phone: phoneOrNull(formData) }),
+    build: () => ({ displayName: field(formData, "displayName"), phone: phoneOrNull(formData) }),
     schema: memberDetailsSchema,
-    labels: { displayName: "Name", jobTitle: "Job title", phone: "Phone" },
+    labels: { displayName: "Name", phone: "Phone" },
     perform: async (context, input) => {
       await updateOwnMemberDetails(dbFor(context), actorOf(context), memberInput.parse({ memberId: field(formData, "memberId") }).memberId, input);
     },
@@ -123,11 +122,11 @@ export async function addPartnerAgencyAction(_previous: FormState, formData: For
 export async function updateProfileAction(_previous: FormState, formData: FormData): Promise<FormState> {
   return runTenantForm({
     formData,
-    fieldNames: ["displayName", "jobTitle", "phone"],
+    fieldNames: ["displayName", "phone"],
     kinds: EVERYONE,
-    build: () => ({ displayName: field(formData, "displayName"), jobTitle: field(formData, "jobTitle"), phone: phoneOrNull(formData) }),
+    build: () => ({ displayName: field(formData, "displayName"), phone: phoneOrNull(formData) }),
     schema: ownProfileSchema,
-    labels: { displayName: "Name", jobTitle: "Job title", phone: "Phone" },
+    labels: { displayName: "Name", phone: "Phone" },
     messages: { "not-authorised": "Your details could not be changed. Sign in again." },
     perform: async (context, input) => {
       if (context.kind === "fynix") await updateOwnFynixProfile(dbFor(context), { userId: context.userId }, input);

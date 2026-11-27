@@ -1,9 +1,9 @@
-import { ArrowCounterClockwise, EnvelopeSimple, PencilSimple, Prohibit, UserPlus, XCircle } from "@phosphor-icons/react/dist/ssr";
+import { ArrowCounterClockwise, EnvelopeSimple, PencilSimple, Prohibit, ShieldCheck, UserMinus, UserPlus, XCircle } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import type { FormState } from "@/lib/fynix/form-state";
 import { Button, buttonVariants } from "@/components/ui/button";
 import type { PersonRow } from "@/server/domain/people-overview";
-import { reactivatePersonAction, resendInviteAction, revokeInviteAction, suspendPersonAction } from "@/server/fynix/actions";
+import { reactivatePersonAction, resendInviteAction, revokeInviteAction, setPersonRoleAction, suspendPersonAction } from "@/server/fynix/actions";
 import { FormSheet } from "../forms/form-sheet";
 import { InlineAction } from "../forms/inline-action";
 import { EditPersonForm } from "../forms/people-forms";
@@ -77,8 +77,19 @@ export function PersonActions({ person, canWrite, selfUserId }: { person: Person
         title="Edit details"
         description="Change the name, job title or phone. The email stays as it is."
       >
-        <EditPersonForm memberId={person.id} name={person.name} jobTitle={person.jobTitle} phone={person.phone} />
+        <EditPersonForm memberId={person.id} name={person.name} phone={person.phone} />
       </FormSheet>
+      {person.role === "manager" ? (
+        <InlineAction action={setPersonRoleAction} fields={{ memberId: person.id, role: "member" }} label={`Make ${person.name} a member`} variant="ghost" savedMessage="Role changed to member">
+          <UserMinus aria-hidden />
+          Make member
+        </InlineAction>
+      ) : (
+        <InlineAction action={setPersonRoleAction} fields={{ memberId: person.id, role: "manager" }} label={`Make ${person.name} a manager`} variant="ghost" savedMessage="Role changed to manager">
+          <ShieldCheck aria-hidden />
+          Make manager
+        </InlineAction>
+      )}
       {person.state === "suspended" ? (
         <InlineAction action={reactivatePersonAction} fields={{ memberId: person.id }} label={`Reactivate ${person.name}`} variant="ghost">
           <ArrowCounterClockwise aria-hidden />

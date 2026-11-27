@@ -13,12 +13,11 @@ import { changePasswordAction } from "@/server/auth/actions";
 import { updateProfileAction } from "@/server/domain/team-actions";
 
 /** Your name, job title and phone, as the people of your own side see them. */
-export function ProfileDetailsForm({ name, jobTitle, phone }: { name: string; jobTitle: string | null; phone: string | null }) {
+export function ProfileDetailsForm({ name, phone }: { name: string; phone: string | null }) {
   return (
     <ActionForm inline action={updateProfileAction} submitLabel="Save details" pendingLabel="Saving">
       <FormGroup>
         <TextField name="displayName" label="Full name" defaultValue={name} autoComplete="name" />
-        <TextField name="jobTitle" label="Job title" defaultValue={jobTitle ?? ""} autoComplete="organization-title" />
         <TextField name="phone" label="Phone (optional)" defaultValue={phone ?? ""} autoComplete="tel" />
       </FormGroup>
     </ActionForm>

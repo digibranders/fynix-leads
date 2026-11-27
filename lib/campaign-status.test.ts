@@ -78,6 +78,14 @@ describe("campaign tabs and filter", () => {
     expect(parseCampaignTab(["all", "closed"])).toBe("all");
   });
 
+  it("opens on the first tab that has a campaign when the URL names none and Active is empty", () => {
+    expect(parseCampaignTab(undefined, [{ status: "draft" }])).toBe("setting-up");
+    expect(parseCampaignTab(undefined, [{ status: "paused" }])).toBe("closed");
+    expect(parseCampaignTab(undefined, [{ status: "draft" }, { status: "active" }])).toBe("active");
+    expect(parseCampaignTab(undefined, [])).toBe("active");
+    expect(parseCampaignTab("closed", [{ status: "draft" }])).toBe("closed");
+  });
+
   it("counts and filters by tab", () => {
     expect(countByTab(rows)).toEqual({ active: 2, "setting-up": 1, closed: 2, all: 5 });
     expect(inCampaignTab(rows, "closed").map((row) => row.id)).toEqual(["b", "e"]);

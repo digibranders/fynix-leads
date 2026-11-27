@@ -16,6 +16,7 @@ const SENTENCES: Readonly<Record<string, string>> = {
   "member.reactivate": "Person reactivated",
   "member.rename": "Person renamed",
   "member.update_details": "Person details changed",
+  "member.set_role": "Person role changed",
   "member.two_factor_enable": "Second sign-in step turned on",
   "member.two_factor_disable": "Second sign-in step turned off",
   "member.backup_code_used": "Backup code used to sign in",

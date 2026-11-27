@@ -31,6 +31,7 @@ export const AUDIT_ACTIONS = [
   "member.reactivate",
   "member.rename",
   "member.update_details",
+  "member.set_role",
   "member.two_factor_enable",
   "member.two_factor_disable",
   "member.backup_code_used",
