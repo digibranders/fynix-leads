@@ -56,7 +56,7 @@ describe("the opening paragraph of a prospect letter", () => {
   });
 
   it("refuses a dash and an exclamation mark", () => {
-    expect(checkLetterOpening("Good news — we can help.").problems).toEqual(["Use a comma or a full stop, not a long dash."]);
+    expect(checkLetterOpening("Good news \u2014 we can help.").problems).toEqual(["Use a comma or a full stop, not a long dash."]);
     expect(checkLetterOpening("We can help!").problems).toEqual(["Take out the exclamation mark."]);
   });
 });

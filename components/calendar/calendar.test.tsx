@@ -97,7 +97,7 @@ describe("the calendar screen", () => {
 
   it("draws every view and uses no dashes in its words", () => {
     const html = (["month", "week", "day"] as const).map((view) => render({}, view)).join("");
-    expect(html).not.toMatch(/[–—]/);
+    expect(html).not.toMatch(/[\u2013\u2014]/);
     expect(html).not.toMatch(/\bhosts?\b/i);
   });
 });
@@ -132,7 +132,7 @@ describe("the meeting invitations", () => {
 
   it("uses no dashes and no host in its words", () => {
     const html = (["invited", "accepted", "released"] as const).map(render).join("");
-    expect(html).not.toMatch(/[–—]/);
+    expect(html).not.toMatch(/[\u2013\u2014]/);
     expect(html).not.toMatch(/\bhosts?\b/i);
   });
 });
