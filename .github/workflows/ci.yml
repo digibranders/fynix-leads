@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       # Before setup-node, which needs pnpm on PATH to resolve the store it caches.
       # The version comes from packageManager in package.json.
@@ -102,7 +102,7 @@ jobs:
           --health-retries 10
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v4
 
