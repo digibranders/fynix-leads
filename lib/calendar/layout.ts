@@ -1,7 +1,6 @@
-import { earliestBookable, isSlotFree, overlaps, type Interval, type PersonTime } from "@/lib/calendar/free-time";
+import { overlaps, type Interval, type PersonTime } from "@/lib/calendar/free-time";
 import { dayKeyIn, slotInstants } from "@/lib/calendar/view";
 import type { HoursWindow } from "@/lib/domain/weekly-hours";
-import { isOutsideHostHours } from "@/lib/leads/host-hours";
 
 /** The hours a day grid shows, in the viewer's own zone, and the length of a slot. The whole day: a meeting can be at any hour, and a person in another zone works at any of them. */
 export const GRID_START_MINUTE = 0;
@@ -19,20 +18,10 @@ export interface CalendarPersonLike {
   readonly busy: readonly { readonly start: string; readonly end: string }[];
 }
 
-/** `off` is outside working hours, `busy` is taken, `soon` is free but too soon to book, `free` can be booked. */
-export type SlotState = "off" | "busy" | "soon" | "free";
-
+/** A stretch of a day, in minutes from midnight in the viewer's zone. */
 export interface Run {
-  readonly state: SlotState;
   readonly fromMinute: number;
   readonly toMinute: number;
-}
-
-export interface FreeRun {
-  readonly fromMinute: number;
-  readonly toMinute: number;
-  readonly free: number;
-  readonly of: number;
 }
 
 export function personTime(person: CalendarPersonLike): PersonTime {
@@ -42,13 +31,6 @@ export function personTime(person: CalendarPersonLike): PersonTime {
   };
 }
 
-function stateOf(slot: Interval, time: PersonTime, now: Date): SlotState {
-  const lastMinute = new Date(slot.end.getTime() - MINUTE);
-  if (isOutsideHostHours(slot.start, time.availability) || isOutsideHostHours(lastMinute, time.availability)) return "off";
-  if (time.busy.some((span) => overlaps(slot, span))) return "busy";
-  return slot.start < earliestBookable(now) ? "soon" : "free";
-}
-
 function slotsOf(dayKey: string, zone: string): { readonly slot: Interval; readonly minute: number }[] {
   return slotInstants(dayKey, zone, GRID_START_MINUTE, GRID_END_MINUTE, SLOT_MINUTES).map((start, index) => ({
     slot: { start, end: new Date(start.getTime() + SLOT_MINUTES * MINUTE) },
@@ -56,37 +38,20 @@ function slotsOf(dayKey: string, zone: string): { readonly slot: Interval; reado
   }));
 }
 
-/** One person's day as stretches of the same state, in the viewer's zone. */
-export function dayRuns(person: CalendarPersonLike, dayKey: string, zone: string, now: Date): Run[] {
-  const time = personTime(person);
+/**
+ * One person's booked time on a day, in the viewer's zone: what a meeting, an open invitation or a blocked time takes, as stretches of the same kind. Free time and working
+ * hours are not drawn, only what is taken.
+ */
+export function bookedRuns(person: CalendarPersonLike, dayKey: string, zone: string): Run[] {
+  const busy = personTime(person).busy;
   const runs: Run[] = [];
   for (const { slot, minute } of slotsOf(dayKey, zone)) {
-    const state = stateOf(slot, time, now);
+    if (!busy.some((span) => overlaps(slot, span))) continue;
     const last = runs[runs.length - 1];
-    if (last !== undefined && last.state === state) runs[runs.length - 1] = { ...last, toMinute: minute + SLOT_MINUTES };
-    else runs.push({ state, fromMinute: minute, toMinute: minute + SLOT_MINUTES });
+    if (last !== undefined && last.toMinute === minute) runs[runs.length - 1] = { ...last, toMinute: minute + SLOT_MINUTES };
+    else runs.push({ fromMinute: minute, toMinute: minute + SLOT_MINUTES });
   }
   return runs;
-}
-
-/** How many of the people are free in each stretch of a day. A stretch where nobody is free is left out. */
-export function freeRuns(people: readonly CalendarPersonLike[], dayKey: string, zone: string, now: Date): FreeRun[] {
-  const times = people.map(personTime);
-  const runs: FreeRun[] = [];
-  for (const { slot, minute } of slotsOf(dayKey, zone)) {
-    const free = times.filter((time) => isSlotFree(slot, time, now)).length;
-    if (free === 0) continue;
-    const last = runs[runs.length - 1];
-    if (last !== undefined && last.free === free && last.toMinute === minute) runs[runs.length - 1] = { ...last, toMinute: minute + SLOT_MINUTES };
-    else runs.push({ fromMinute: minute, toMinute: minute + SLOT_MINUTES, free, of: people.length });
-  }
-  return runs;
-}
-
-/** The half hours of a day in which at least one person is free. */
-export function freeSlotCount(people: readonly CalendarPersonLike[], dayKey: string, zone: string, now: Date): number {
-  const times = people.map(personTime);
-  return slotsOf(dayKey, zone).filter(({ slot }) => times.some((time) => isSlotFree(slot, time, now))).length;
 }
 
 /** The meetings that fall on a day in the viewer's zone, earliest first. */
