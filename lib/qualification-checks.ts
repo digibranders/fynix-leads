@@ -35,7 +35,8 @@ export function checklistFor(source: ChecklistSource): QualificationCheck[] {
   if (source.industries.length > 0) checks.push({ kind: "criteria", label: "The prospect is in a target industry", expected: source.industries.join(", "), passed: false });
   if (source.geography.trim() !== "") checks.push({ kind: "criteria", label: "The prospect is in a target market", expected: source.geography.trim(), passed: false });
   for (const item of qualifyingItemsFor(source.qualifyingItems, source.qualifyingQuestions)) {
-    const label = richToText(item.question);
+    // A list pasted from Word arrives as "1. How many...": the form numbers the questions itself, so a number already in front is dropped.
+    const label = richToText(item.question).replace(/^\s*\d{1,2}\s*[.)]\s+/, "");
     // A question starts as meeting the expectation: the agency records what was said, and unticks it when the answer is not what was hoped for.
     if (label !== "") checks.push({ kind: "question", label, expected: richToText(item.answer), passed: true, answer: "" });
   }

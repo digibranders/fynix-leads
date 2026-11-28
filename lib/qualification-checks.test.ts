@@ -29,6 +29,10 @@ describe("checklistFor", () => {
     // an unticked criterion with a reason is complete, and a question that failed is complete once it has its answer.
     expect(unexplainedChecks(checks.map((check) => ({ ...check, answer: "Written" })))).toHaveLength(0);
   });
+  it("drops a number a pasted list put in front of a question, because the form numbers them", () => {
+    const checks = checklistFor({ ...source, qualifyingItems: [{ question: "<ol><li><p>How many vans?</p></li></ol>", answer: "" }, { question: "<p>2) Who signs?</p>", answer: "" }, { question: "<p>2026 plans?</p>", answer: "" }] });
+    expect(checks.filter((check) => check.kind === "question").map((check) => check.label)).toEqual(["How many vans?", "Who signs?", "2026 plans?"]);
+  });
   it("lists the unticked checks", () => {
     const checks = checklistFor({ ...source, qualifyingItems: [{ question: "<p>Q?</p>", answer: "" }] }).map((check, index) => ({ ...check, passed: index === 0 }));
     // three criteria and one question, the first ticked

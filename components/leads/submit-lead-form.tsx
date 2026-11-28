@@ -14,7 +14,7 @@ import { SlotPicker } from "@/components/leads/slot-picker";
 import type { QualificationCheck } from "@/lib/qualification-checks";
 import type { CalendarPersonLike } from "@/lib/calendar/layout";
 import { restoreTextValues, textValues, type FieldValues } from "@/lib/leads/form-values";
-import { NO_SLOT, leadIsReady, requiredTexts, type ChosenSlot, type RequiredTexts } from "@/lib/leads/submit-readiness";
+import { NO_SLOT, leadIsReady, leadMissing, requiredTexts, type ChosenSlot, type RequiredTexts } from "@/lib/leads/submit-readiness";
 import { IDLE_DRAFT_ACTION, IDLE_TENANT_ACTION } from "@/lib/tenant/action-state";
 import { saveDraftAction } from "@/server/domain/draft-actions";
 import { submitLeadAction } from "@/server/domain/lead-actions";
@@ -111,7 +111,9 @@ export function SubmitLeadForm({ campaigns, notLive = [], leadsHref, teams = {},
     prospectLinkedinUrl: draft?.prospectLinkedinUrl ?? "",
   }));
   const [slot, setSlot] = useState<ChosenSlot>(NO_SLOT);
-  const ready = leadIsReady({ campaignId, texts, slot, checks: checklist });
+  const readiness = { campaignId, texts, slot, checks: checklist };
+  const ready = leadIsReady(readiness);
+  const missing = leadMissing(readiness);
   // Only the answer to the button pressed last is shown, so a draft that was saved does not sit under an old complaint about the send.
   const [lastPressed, setLastPressed] = useState<"send" | "draft" | null>(null);
   const remember = () => {
@@ -250,6 +252,13 @@ export function SubmitLeadForm({ campaigns, notLive = [], leadsHref, teams = {},
         </div>
 
         <div className="sticky bottom-(--tabbar-stack) z-10 flex flex-wrap items-center justify-between gap-3 rounded-b-lg bg-surface max-md:rounded-lg max-md:shadow-raised md:bottom-0 px-5 py-3.5 shadow-[0_-1px_0_var(--line)]">
+          {ready ? null : (
+            <p role="status" className="w-full text-caption text-ink-muted">
+              <span className="font-semibold text-ink-2">Still needed to send: </span>
+              {missing.slice(0, 4).join(", ")}
+              {missing.length > 4 ? ` and ${missing.length - 4} more` : ""}
+            </p>
+          )}
           <Link href={leadsHref} className={buttonVariants({ variant: "ghost" })}>
             Cancel
           </Link>
