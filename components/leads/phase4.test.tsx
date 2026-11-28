@@ -19,7 +19,7 @@ const { AnswerForClientForm, ClearOverShareForm, CorrectLeadForm, DecideContestF
 const { AskReviewForm, ContestOutcomeForm, PickNewTimeForm, PostponeForm, WithdrawLeadForm } = await import("@/components/leads/phase4-forms");
 const { DraftsTable } = await import("@/components/leads/drafts-table");
 const { SubmitLeadForm } = await import("@/components/leads/submit-lead-form");
-const { SlotPicker } = await import("@/components/leads/slot-picker");
+const { SlotPicker, firstPickableDay } = await import("@/components/leads/slot-picker");
 const { SourceLeadsView } = await import("@/components/leads/source-leads-view");
 const { ContestsTable } = await import("@/components/fynix/rejections/contests-table");
 const { RejectionsTable } = await import("@/components/fynix/rejections/rejections-table");
@@ -282,6 +282,13 @@ describe("the meeting time follows the client team", () => {
     day.setUTCHours(10, 0, 0, 0);
     return day.toISOString();
   })();
+  it("starts the day picker after the 48 hours of notice, in the client's zone, not today", () => {
+    // Saturday morning: 48 hours later is Monday, so neither Saturday nor Sunday can be picked.
+    expect(firstPickableDay(new Date("2026-11-28T04:39:00Z"), "Europe/London")).toBe("2026-11-30");
+    // Late on Tuesday in London is already Wednesday in India, so the first day there comes a day later than in London.
+    expect(firstPickableDay(new Date("2026-12-01T22:30:00Z"), "Europe/London")).toBe("2026-12-03");
+    expect(firstPickableDay(new Date("2026-12-01T22:30:00Z"), "Asia/Kolkata")).toBe("2026-12-04");
+  });
   it("says when the client has nobody to invite, then names the client's zone and asks for a day", () => {
     expect(renderToStaticMarkup(<SlotPicker people={[]} />)).toContain("no team members to invite yet");
     const html = renderToStaticMarkup(<SlotPicker people={[daniel]} />);

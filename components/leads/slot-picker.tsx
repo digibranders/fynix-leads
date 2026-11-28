@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { When } from "@/components/kit/when";
 import { Choice } from "@/components/ui/choice";
 import { DateField } from "@/components/ui/date-time";
-import { freePeopleAt } from "@/lib/calendar/free-time";
+import { earliestBookable, freePeopleAt } from "@/lib/calendar/free-time";
 import { personTime, type CalendarPersonLike } from "@/lib/calendar/layout";
 import { dayKeyIn, slotInstants } from "@/lib/calendar/view";
 import { formatTimeInZone, zoneAbbreviation } from "@/lib/time/zones";
@@ -14,9 +14,9 @@ import { formatTimeInZone, zoneAbbreviation } from "@/lib/time/zones";
 const MEETING_MINUTES = 30;
 const STEP_MINUTES = 30;
 
-/** Today as "YYYY-MM-DD" on this device: a meeting cannot be booked for a day that has gone. */
-function earliestDay(now: Date): string {
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+/** The first day that can hold a meeting, in the client's zone: today is not it, because a booking needs 48 hours' notice. */
+export function firstPickableDay(now: Date, zone: string): string {
+  return dayKeyIn(earliestBookable(now), zone);
 }
 
 /**
@@ -52,7 +52,7 @@ export function SlotPicker({ people, initialTime = null }: { readonly people: re
         <div className="w-full sm:w-[210px]">
           <DateField
             value={day}
-            min={earliestDay(now)}
+            min={firstPickableDay(now, zone)}
             onChange={(next) => {
               setDay(next);
               setIso("");
