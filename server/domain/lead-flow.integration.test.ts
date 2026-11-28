@@ -217,7 +217,7 @@ describe("choosing a client team member for a lead", () => {
     expect(stored).toEqual({ hostMemberId: colleague.id, stage: "awaiting_client" });
   });
 
-  it("keeps the checklist and the note with the lead, needs the note when a check is not ticked, and shows both to the client", async () => {
+  it("keeps the checklist and the note with the lead, needs words beside a check that is not ticked, and shows both to the client", async () => {
     const checks = [
       { kind: "criteria" as const, label: "The prospect is a target decision-maker", expected: "COO", passed: true },
       { kind: "question" as const, label: "Do you own a depot?", expected: "Yes", passed: false, answer: "No, they sub-contract their depots" },
@@ -226,10 +226,11 @@ describe("choosing a client team member for a lead", () => {
     // A question with no answer written is refused, even with a note, and nothing is stored.
     const unanswered = checks.map((check) => (check.kind === "question" ? { ...check, answer: "" } : check));
     expect((await refusal(submitLead(agencyDb(), rig.deps(), cast.coordinator, { ...base, qualificationChecks: unanswered, qualificationNotes: "A note" }))).code).toBe("invalid-input");
-    // A check not ticked and no note: refused, and nothing is stored.
-    expect((await refusal(submitLead(agencyDb(), rig.deps(), cast.coordinator, { ...base, qualificationChecks: checks }))).code).toBe("invalid-input");
+    // A criterion not ticked and no reason written: refused, and nothing is stored.
+    const noReason = checks.map((check) => (check.kind === "criteria" ? { ...check, passed: false } : check));
+    expect((await refusal(submitLead(agencyDb(), rig.deps(), cast.coordinator, { ...base, qualificationChecks: noReason }))).code).toBe("invalid-input");
     expect(await ownerDb().select({ id: lead.id }).from(lead).where(eq(lead.prospectEmail, "lead@teamchoiceq.example"))).toHaveLength(0);
-    // With the note it goes through, and the client reads the same checklist.
+    // With every question answered and every unticked criterion explained it goes through, with the optional note, and the client reads the same checklist.
     await submitLead(agencyDb(), rig.deps(), cast.coordinator, { ...base, qualificationChecks: checks, qualificationNotes: "They sub-contract their depots." });
     const [stored] = await ownerDb().select({ id: lead.id, checks: lead.qualificationChecks, notes: lead.qualificationNotes }).from(lead).where(eq(lead.prospectEmail, "lead@teamchoiceq.example"));
     expect(stored?.checks).toEqual(checks);
@@ -237,7 +238,7 @@ describe("choosing a client team member for a lead", () => {
     const seen = (await listClientLeads(clientDb(), cast.clientActor)).find((row) => row.id === stored?.id);
     expect(seen?.qualificationChecks).toEqual(checks);
     expect(seen?.qualificationNotes).toBe("They sub-contract their depots.");
-    // A lead with every check ticked needs no note.
+    // A lead with every check ticked needs no reason, and the general note is optional.
     await submitLead(agencyDb(), rig.deps(), cast.coordinator, { ...input(cast.hostMemberId, "R"), qualificationChecks: checks.map((check) => ({ ...check, passed: true })) });
   });
 

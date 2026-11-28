@@ -14,6 +14,7 @@ import { SlotPicker } from "@/components/leads/slot-picker";
 import type { QualificationCheck } from "@/lib/qualification-checks";
 import type { CalendarPersonLike } from "@/lib/calendar/layout";
 import { restoreTextValues, textValues, type FieldValues } from "@/lib/leads/form-values";
+import { NO_SLOT, leadIsReady, requiredTexts, type ChosenSlot, type RequiredTexts } from "@/lib/leads/submit-readiness";
 import { IDLE_DRAFT_ACTION, IDLE_TENANT_ACTION } from "@/lib/tenant/action-state";
 import { saveDraftAction } from "@/server/domain/draft-actions";
 import { submitLeadAction } from "@/server/domain/lead-actions";
@@ -100,6 +101,17 @@ export function SubmitLeadForm({ campaigns, notLive = [], leadsHref, teams = {},
   // React clears the text fields when an action ends. The text is kept as it was sent and put back after an error and after a draft is saved, not after a lead is sent.
   const formRef = useRef<HTMLFormElement>(null);
   const kept = useRef<FieldValues>({});
+  // What the send button needs to know: the required text as typed (read on every keystroke), and the time and people chosen in the meeting picker. The fields themselves stay as they are.
+  const [texts, setTexts] = useState<RequiredTexts>(() => ({
+    prospectName: draft?.prospectName ?? "",
+    prospectTitle: draft?.prospectTitle ?? "",
+    prospectCompany: draft?.prospectCompany ?? "",
+    prospectDomain: draft?.prospectDomain ?? "",
+    prospectEmail: draft?.prospectEmail ?? "",
+    prospectLinkedinUrl: draft?.prospectLinkedinUrl ?? "",
+  }));
+  const [slot, setSlot] = useState<ChosenSlot>(NO_SLOT);
+  const ready = leadIsReady({ campaignId, texts, slot, checks: checklist });
   // Only the answer to the button pressed last is shown, so a draft that was saved does not sit under an old complaint about the send.
   const [lastPressed, setLastPressed] = useState<"send" | "draft" | null>(null);
   const remember = () => {
@@ -121,11 +133,15 @@ export function SubmitLeadForm({ campaigns, notLive = [], leadsHref, teams = {},
   useLayoutEffect(() => {
     if (draftState.status !== "idle" && formRef.current !== null) restoreTextValues(formRef.current, kept.current);
   }, [draftState]);
+  // After an action ends the fields hold what React left (cleared after a send, put back after an error or a draft), so the send button reads them again.
+  useLayoutEffect(() => {
+    setTexts(requiredTexts(formRef.current));
+  }, [state, draftState]);
   // The first save of a new draft answers with its id, so the next save and the final send both work on that draft.
   const draftId = draftState.leadId ?? draft?.id ?? "";
 
   return (
-    <form ref={formRef} action={submit} noValidate>
+    <form ref={formRef} action={submit} onInput={() => setTexts(requiredTexts(formRef.current))} noValidate>
       <input type="hidden" name="draftId" value={draftId} />
       <Panel className="overflow-visible">
         <div className="flex flex-col gap-3 p-3 md:p-4">
@@ -220,7 +236,7 @@ export function SubmitLeadForm({ campaigns, notLive = [], leadsHref, teams = {},
             </div>
           </Group>
 
-          <Group title="Qualification checklist" note="Tick each check the prospect passed. If one was not passed, say which and why in the notes. The lead can still be sent.">
+          <Group title="Qualification checklist" note="Tick each check the prospect passed. Answer each question, and say why for any criterion not passed. The lead can still be sent.">
             {campaignId === "" ? <p className="text-label text-ink-muted">Choose a campaign to see its checks.</p> : <QualificationChecklist checks={checklist} onChange={(next) => setTicks({ campaignId, checks: next })} notesDefault={campaignId === draft?.campaignId ? draft?.qualificationNotes : undefined} />}
           </Group>
 
@@ -228,7 +244,7 @@ export function SubmitLeadForm({ campaigns, notLive = [], leadsHref, teams = {},
             {campaignId === "" ? (
               <p className="text-label text-ink-muted">Choose a campaign to see when its client team is free.</p>
             ) : (
-              <SlotPicker key={campaignId} people={teams[campaignId] ?? []} initialTime={campaignId === draft?.campaignId ? (draft?.proposedTimes[0] ?? null) : null} />
+              <SlotPicker key={campaignId} onChange={setSlot} people={teams[campaignId] ?? []} initialTime={campaignId === draft?.campaignId ? (draft?.proposedTimes[0] ?? null) : null} />
             )}
           </Group>
         </div>
@@ -242,7 +258,7 @@ export function SubmitLeadForm({ campaigns, notLive = [], leadsHref, teams = {},
               {draftPending ? <CircleNotch aria-hidden className="motion-safe:animate-spin" /> : <FloppyDisk aria-hidden weight="bold" />}
               Save draft
             </Button>
-            <Button type="submit" size="lg" disabled={pending || draftPending} aria-busy={pending}>
+            <Button type="submit" size="lg" disabled={pending || draftPending || !ready} aria-busy={pending}>
               {pending ? <CircleNotch aria-hidden className="motion-safe:animate-spin" /> : <PaperPlaneRight aria-hidden weight="bold" />}
               Submit lead
             </Button>

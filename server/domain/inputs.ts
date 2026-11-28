@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { CAMPAIGN_STATUSES } from "@/lib/domain/campaign-status";
 import { MAX_QUALIFYING_CHARS, MAX_QUALIFYING_ITEMS } from "@/lib/qualifying-items";
-import { MAX_QUALIFICATION_CHECKS } from "@/lib/qualification-checks";
+import { MAX_QUALIFICATION_CHECKS, unexplainedChecks } from "@/lib/qualification-checks";
 import { isRichEmpty, richToHtml } from "@/lib/rich-text";
 import { MEETING_MINUTES_MAX, MEETING_MINUTES_MIN, isIanaTimeZone } from "@/lib/domain/campaign-settings";
 
@@ -373,7 +373,7 @@ export const submitLeadSchema = z
     bantAuthority: optionalText(500).default(""),
     bantNeed: optionalText(500).default(""),
     bantTimeline: optionalText(500).default(""),
-    /** The checklist and the agency's note. A check left unticked needs the note to say why: the lead still goes through (decision of 2026-11-27). */
+    /** The checklist, each check with the agency's words beside it, and an optional general note. A check left unticked still lets the lead through (decision of 2026-11-27). */
     qualificationChecks: qualificationChecks.default([]),
     qualificationNotes: optionalText(2000).default(""),
     proposedTimes: z.array(instant).min(1, "at least one proposed meeting time is required").max(3, "at most 3 proposed meeting times"),
@@ -381,14 +381,10 @@ export const submitLeadSchema = z
     inviteeMemberIds: z.array(z.uuid()).min(1, "invite at least one person").max(20, "at most 20 people").optional(),
   })
   .strict()
-  .refine((input) => input.qualificationChecks.every((check) => check.passed) || input.qualificationNotes !== "", {
-    path: ["qualificationNotes"],
-    message: "must say which checks were not passed, and why",
-  })
-  // Each qualifying question needs what the prospect said: a tick alone does not show the client anything.
-  .refine((input) => input.qualificationChecks.every((check) => check.kind !== "question" || (check.answer ?? "") !== ""), {
+  // Each qualifying question needs what the prospect said, and each criterion that was not ticked needs why: a tick alone shows the client nothing. The general note is optional.
+  .refine((input) => unexplainedChecks(input.qualificationChecks).length === 0, {
     path: ["qualificationChecks"],
-    message: "needs an answer for every qualifying question",
+    message: "needs an answer for every question and a reason for every criterion that was not passed",
   });
 export type SubmitLeadInput = z.input<typeof submitLeadSchema>;
 export type SubmitLeadParsed = z.output<typeof submitLeadSchema>;
