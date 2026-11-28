@@ -13,7 +13,7 @@ export type QualificationCheck = {
   readonly expected: string;
   /** Whether the prospect passed it: for a criterion, the agency's tick; for a question, whether the answer is what was hoped for. */
   readonly passed: boolean;
-  /** For a question: what the prospect actually said, in the agency's words. A lead sent before answers were asked for has none. */
+  /** The agency's words for this check: for a question, what the prospect actually said; for a criterion, why it was not passed (only asked when it is not ticked). A lead sent before this was asked has none. */
   readonly answer?: string;
 };
 
@@ -42,8 +42,11 @@ export function checklistFor(source: ChecklistSource): QualificationCheck[] {
   return checks;
 }
 
-/** The questions that still have no answer written. A lead cannot be sent while there is one. */
-export const unansweredQuestions = (checks: readonly QualificationCheck[]): QualificationCheck[] => checks.filter((check) => check.kind === "question" && (check.answer ?? "").trim() === "");
+/**
+ * The checks that still need words: what the prospect said, for a question, and why it was not passed, for a criterion that is not ticked. The words sit beside
+ * the check, so the client reads them there. A lead cannot be sent while there is one.
+ */
+export const unexplainedChecks = (checks: readonly QualificationCheck[]): QualificationCheck[] => checks.filter((check) => (check.kind === "question" || !check.passed) && (check.answer ?? "").trim() === "");
 
 /** The checks the agency left unticked. */
 export const failedChecks = (checks: readonly QualificationCheck[]): QualificationCheck[] => checks.filter((check) => !check.passed);
