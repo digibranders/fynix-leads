@@ -51,7 +51,7 @@ export function QualificationChecklist({
                 </label>
                 {check.passed ? null : (
                   <Field id={`${base}-reason-${index}`} label="Why it was not passed">
-                    <Textarea id={`${base}-reason-${index}`} rows={2} value={check.answer ?? ""} onChange={(event) => change(index, { answer: event.target.value })} aria-required="true" />
+                    <Textarea id={`${base}-reason-${index}`} rows={1} className="min-h-0 resize-none overflow-hidden" value={check.answer ?? ""} onChange={(event) => change(index, { answer: event.target.value })} aria-required="true" />
                   </Field>
                 )}
               </li>
@@ -71,7 +71,7 @@ export function QualificationChecklist({
                   {check.expected === "" ? null : <span className="text-table text-ink-muted">{`Expected answer: ${check.expected}`}</span>}
                 </div>
                 <Field id={`${base}-answer-${index}`} label="What the prospect said">
-                  <Textarea id={`${base}-answer-${index}`} rows={2} value={check.answer ?? ""} onChange={(event) => change(index, { answer: event.target.value })} aria-required="true" />
+                  <Textarea id={`${base}-answer-${index}`} rows={1} className="min-h-0 resize-none overflow-hidden" value={check.answer ?? ""} onChange={(event) => change(index, { answer: event.target.value })} aria-required="true" />
                 </Field>
                 {tick(index, check, "Meets the expected answer")}
               </li>
