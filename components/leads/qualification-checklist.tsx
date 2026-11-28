@@ -3,11 +3,12 @@
 import { useId } from "react";
 import { Field } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
-import { failedChecks, type QualificationCheck } from "@/lib/qualification-checks";
+import { failedChecks, unansweredQuestions, type QualificationCheck } from "@/lib/qualification-checks";
 
 /**
- * The end of the lead form: one tick box for each qualification criterion and qualifying question of the campaign, and a note. A lead with a check
- * left unticked can still be sent, but the note then has to say which check was not passed and why. The checks post as JSON under `qualificationChecks`.
+ * The end of the lead form. Each qualification criterion is a tick. Each qualifying question has a box for what the prospect said, and a tick for whether
+ * that is the answer hoped for, so the client reads the real answer and not only a tick. A check that is not ticked can still be sent, but the note then has
+ * to say which and why; a question left without an answer cannot be sent. The checks post as JSON under `qualificationChecks`.
  */
 export function QualificationChecklist({
   checks,
@@ -20,40 +21,61 @@ export function QualificationChecklist({
 }) {
   const base = useId();
   const failed = failedChecks(checks);
-  const toggle = (index: number) => onChange(checks.map((check, at) => (at === index ? { ...check, passed: !check.passed } : check)));
-  const section = (kind: QualificationCheck["kind"], title: string) => {
-    const rows = checks.flatMap((check, index) => (check.kind === kind ? [{ check, index }] : []));
-    if (rows.length === 0) return null;
-    return (
-      <div className="flex flex-col gap-2">
-        <h3 className="text-label font-semibold text-ink-2">{title}</h3>
-        <ul className="flex flex-col gap-2">
-          {rows.map(({ check, index }) => (
-            <li key={`${check.kind}-${index}`}>
-              <label htmlFor={`${base}-${index}`} className="flex cursor-pointer items-start gap-3 rounded-md bg-surface px-3.5 py-3 hover:bg-navy-05">
-                <input id={`${base}-${index}`} type="checkbox" checked={check.passed} onChange={() => toggle(index)} className="mt-0.5 size-5 shrink-0 accent-navy" />
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  <span className="text-row font-medium text-ink">{check.label}</span>
-                  {check.expected === "" ? null : (
-                    <span className="text-table text-ink-muted">
-                      {check.kind === "criteria" ? "Looking for: " : "Expected answer: "}
-                      {check.expected}
-                    </span>
-                  )}
-                </span>
-              </label>
-            </li>
-          ))}
-        </ul>
-      </div>
-    );
-  };
+  const unanswered = unansweredQuestions(checks).length;
+  const change = (index: number, patch: Partial<QualificationCheck>) => onChange(checks.map((check, at) => (at === index ? { ...check, ...patch } : check)));
+  const tick = (index: number, check: QualificationCheck, label: string) => (
+    <label className="flex cursor-pointer items-center gap-2.5 text-table text-ink-2">
+      <input type="checkbox" checked={check.passed} onChange={() => change(index, { passed: !check.passed })} className="size-5 shrink-0 accent-navy" />
+      {label}
+    </label>
+  );
+  const criteria = checks.flatMap((check, index) => (check.kind === "criteria" ? [{ check, index }] : []));
+  const questions = checks.flatMap((check, index) => (check.kind === "question" ? [{ check, index }] : []));
   return (
     <div className="flex flex-col gap-4">
       <input type="hidden" name="qualificationChecks" value={JSON.stringify(checks)} />
       {checks.length === 0 ? <p className="text-label text-ink-muted">This campaign has no criteria or questions to check yet. You can still add a note.</p> : null}
-      {section("criteria", "Qualification criteria")}
-      {section("question", "Qualifying questions")}
+
+      {criteria.length === 0 ? null : (
+        <div className="flex flex-col gap-2">
+          <h3 className="text-label font-semibold text-ink-2">Qualification criteria</h3>
+          <ul className="flex flex-col gap-2">
+            {criteria.map(({ check, index }) => (
+              <li key={`criteria-${index}`}>
+                <label htmlFor={`${base}-${index}`} className="flex cursor-pointer items-start gap-3 rounded-md bg-surface px-3.5 py-3 hover:bg-navy-05">
+                  <input id={`${base}-${index}`} type="checkbox" checked={check.passed} onChange={() => change(index, { passed: !check.passed })} className="mt-0.5 size-5 shrink-0 accent-navy" />
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span className="text-row font-medium text-ink">{check.label}</span>
+                    {check.expected === "" ? null : <span className="text-table text-ink-muted">{`Looking for: ${check.expected}`}</span>}
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {questions.length === 0 ? null : (
+        <div className="flex flex-col gap-2">
+          <h3 className="text-label font-semibold text-ink-2">Qualifying questions</h3>
+          <ul className="flex flex-col gap-3">
+            {questions.map(({ check, index }, position) => (
+              <li key={`question-${index}`} className="flex flex-col gap-2.5 rounded-md bg-surface px-3.5 py-3">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-row font-medium text-ink">{`${position + 1}. ${check.label}`}</span>
+                  {check.expected === "" ? null : <span className="text-table text-ink-muted">{`Expected answer: ${check.expected}`}</span>}
+                </div>
+                <Field id={`${base}-answer-${index}`} label="What the prospect said">
+                  <Textarea id={`${base}-answer-${index}`} rows={2} value={check.answer ?? ""} onChange={(event) => change(index, { answer: event.target.value })} aria-required="true" />
+                </Field>
+                {tick(index, check, "Meets the expected answer")}
+              </li>
+            ))}
+          </ul>
+          {unanswered > 0 ? <p className="text-caption text-ink-muted">{unanswered === 1 ? "1 question still needs an answer." : `${unanswered} questions still need an answer.`} The lead cannot be sent until each has one.</p> : null}
+        </div>
+      )}
+
       <Field
         id={`${base}-notes`}
         label="Notes"

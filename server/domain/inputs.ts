@@ -350,7 +350,7 @@ export type RemoveExclusionInput = z.infer<typeof removeExclusionSchema>;
 
 /** One check of the lead's checklist (lib/qualification-checks.ts): what was asked, what passing looks like, and whether the agency ticked it. */
 const qualificationCheck = z
-  .object({ kind: z.enum(["criteria", "question"]), label: z.string().trim().min(1, "is required").max(1000, "must be at most 1000 characters"), expected: z.string().trim().max(2000, "must be at most 2000 characters"), passed: z.boolean() })
+  .object({ kind: z.enum(["criteria", "question"]), label: z.string().trim().min(1, "is required").max(1000, "must be at most 1000 characters"), expected: z.string().trim().max(2000, "must be at most 2000 characters"), passed: z.boolean(), answer: z.string().trim().max(2000, "must be at most 2000 characters").optional() })
   .strict();
 const qualificationChecks = z.array(qualificationCheck).max(MAX_QUALIFICATION_CHECKS, `must have at most ${MAX_QUALIFICATION_CHECKS} checks`);
 
@@ -384,6 +384,11 @@ export const submitLeadSchema = z
   .refine((input) => input.qualificationChecks.every((check) => check.passed) || input.qualificationNotes !== "", {
     path: ["qualificationNotes"],
     message: "must say which checks were not passed, and why",
+  })
+  // Each qualifying question needs what the prospect said: a tick alone does not show the client anything.
+  .refine((input) => input.qualificationChecks.every((check) => check.kind !== "question" || (check.answer ?? "") !== ""), {
+    path: ["qualificationChecks"],
+    message: "needs an answer for every qualifying question",
   });
 export type SubmitLeadInput = z.input<typeof submitLeadSchema>;
 export type SubmitLeadParsed = z.output<typeof submitLeadSchema>;

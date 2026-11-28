@@ -80,9 +80,13 @@ function Group({ title, note, children }: { title: string; note?: string; childr
   );
 }
 
-/** The campaign's checks, with the tick each one had in a draft when it asked for the same thing. */
+/** The campaign's checks, with the tick and the answer each one had in a draft when it asked for the same thing. */
 function withDraftTicks(asked: readonly QualificationCheck[], saved: readonly QualificationCheck[]): QualificationCheck[] {
-  return asked.map((check) => ({ ...check, passed: saved.some((old) => old.kind === check.kind && old.label === check.label && old.passed) }));
+  return asked.map((check) => {
+    const old = saved.find((entry) => entry.kind === check.kind && entry.label === check.label);
+    // A check the draft already had keeps its tick and the answer written; a new one starts as the campaign asks (a question as meeting the expectation, a criterion unticked).
+    return old === undefined ? check : { ...check, passed: old.passed, answer: old.answer ?? check.answer ?? "" };
+  });
 }
 
 /** A lead submission: four tonal groups of fields in one panel, and one primary action in a sticky foot. Field names are the ones the action reads. */

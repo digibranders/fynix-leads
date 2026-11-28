@@ -220,9 +220,12 @@ describe("choosing a client team member for a lead", () => {
   it("keeps the checklist and the note with the lead, needs the note when a check is not ticked, and shows both to the client", async () => {
     const checks = [
       { kind: "criteria" as const, label: "The prospect is a target decision-maker", expected: "COO", passed: true },
-      { kind: "question" as const, label: "Do you own a depot?", expected: "Yes", passed: false },
+      { kind: "question" as const, label: "Do you own a depot?", expected: "Yes", passed: false, answer: "No, they sub-contract their depots" },
     ];
     const base = input(cast.hostMemberId, "Q");
+    // A question with no answer written is refused, even with a note, and nothing is stored.
+    const unanswered = checks.map((check) => (check.kind === "question" ? { ...check, answer: "" } : check));
+    expect((await refusal(submitLead(agencyDb(), rig.deps(), cast.coordinator, { ...base, qualificationChecks: unanswered, qualificationNotes: "A note" }))).code).toBe("invalid-input");
     // A check not ticked and no note: refused, and nothing is stored.
     expect((await refusal(submitLead(agencyDb(), rig.deps(), cast.coordinator, { ...base, qualificationChecks: checks }))).code).toBe("invalid-input");
     expect(await ownerDb().select({ id: lead.id }).from(lead).where(eq(lead.prospectEmail, "lead@teamchoiceq.example"))).toHaveLength(0);

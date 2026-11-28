@@ -19,7 +19,8 @@ export function QualificationChecklistView({ checks, notes }: { readonly checks:
                     {check.label}
                     <span className="sr-only">{check.passed ? ", passed" : ", not passed"}</span>
                   </span>
-                  {check.expected === "" ? null : <span className="text-caption text-ink-muted">{check.expected}</span>}
+                  {check.kind === "question" && (check.answer ?? "").trim() !== "" ? <span className="whitespace-pre-line text-table text-ink">{`Prospect said: ${check.answer}`}</span> : null}
+                  {check.expected === "" ? null : <span className="text-caption text-ink-muted">{check.kind === "question" ? `Expected: ${check.expected}` : check.expected}</span>}
                 </span>
               </li>
             ))}
