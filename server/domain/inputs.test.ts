@@ -167,6 +167,20 @@ describe("lead inputs", () => {
     expect([parsed.bantBudget, parsed.bantAuthority, parsed.bantNeed, parsed.bantTimeline]).toEqual(["", "", "", ""]);
   });
 
+  it("needs an answer for every question and a reason for every criterion that is not ticked, and no general note", () => {
+    const question = { kind: "question" as const, label: "How many vans?", expected: "20 to 250", passed: true };
+    const criterion = { kind: "criteria" as const, label: "A target market", expected: "UK", passed: true };
+    const ok = (checks: unknown[]) => submitLeadSchema.safeParse({ ...validLead, qualificationChecks: checks }).success;
+    expect(ok([question])).toBe(false);
+    expect(ok([{ ...question, answer: "About 85" }])).toBe(true);
+    // A question that did not meet the expectation is complete with its answer: no general note is needed.
+    expect(ok([{ ...question, answer: "About 8", passed: false }])).toBe(true);
+    expect(ok([criterion])).toBe(true);
+    expect(ok([{ ...criterion, passed: false }])).toBe(false);
+    expect(ok([{ ...criterion, passed: false, answer: "  " }])).toBe(false);
+    expect(ok([{ ...criterion, passed: false, answer: "They are in Spain" }])).toBe(true);
+  });
+
   it("refuses lead submission without proposed meeting times", () => {
     expect(submitLeadSchema.safeParse({ ...validLead, proposedTimes: [] }).success).toBe(false);
   });
