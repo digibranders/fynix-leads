@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NO_SLOT, leadIsReady, requiredTexts, type RequiredTexts } from "./submit-readiness";
+import { NO_SLOT, leadIsReady, leadMissing, requiredTexts, type RequiredTexts } from "./submit-readiness";
 import { submitLeadSchema } from "@/server/domain/inputs";
 import type { QualificationCheck } from "@/lib/qualification-checks";
 
@@ -64,5 +64,26 @@ describe("requiredTexts", () => {
     const form = { elements: [{ name: "prospectName", value: "Priya" }, { name: "prospectNotes", value: "x" }, { name: "prospectEmail", value: "p@h.example" }] };
     expect(requiredTexts(form)).toEqual({ prospectName: "Priya", prospectTitle: "", prospectCompany: "", prospectDomain: "", prospectEmail: "p@h.example", prospectLinkedinUrl: "" });
     expect(requiredTexts(null).prospectName).toBe("");
+  });
+});
+
+describe("leadMissing", () => {
+  const base = { campaignId: CAMPAIGN, texts, slot, checks: [criterion, question] };
+  it("is empty exactly when the lead is ready", () => {
+    expect(leadMissing(base)).toEqual([]);
+    expect(leadIsReady(base)).toBe(true);
+  });
+  it("names the question that has no answer by its number, in the order of the form", () => {
+    const second: QualificationCheck = { ...question, label: "Which system do you use?", answer: "" };
+    expect(leadMissing({ ...base, checks: [criterion, question, second] })).toEqual(["Answer to question 2"]);
+    expect(leadMissing({ ...base, texts: { ...texts, prospectName: " " }, checks: [second], slot: NO_SLOT })).toEqual(["Full name", "Answer to question 1", "A meeting time"]);
+  });
+  it("asks for a reason beside a criterion that is not ticked, and for a person to invite", () => {
+    expect(leadMissing({ ...base, checks: [{ ...criterion, passed: false }, question] })).toEqual(["Reason: A target market"]);
+    expect(leadMissing({ ...base, slot: { time: slot.time, invitees: 0 } })).toEqual(["Someone to invite"]);
+    expect(leadMissing({ ...base, campaignId: "" })).toEqual(["Campaign"]);
+  });
+  it("says a typed email is not valid, instead of calling it missing", () => {
+    expect(leadMissing({ ...base, texts: { ...texts, prospectEmail: "priya@" } })).toEqual(["A valid work email"]);
   });
 });
