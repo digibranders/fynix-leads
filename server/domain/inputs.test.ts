@@ -167,6 +167,15 @@ describe("lead inputs", () => {
     expect([parsed.bantBudget, parsed.bantAuthority, parsed.bantNeed, parsed.bantTimeline]).toEqual(["", "", "", ""]);
   });
 
+  it("needs an answer for every qualifying question, and a note for any check that is not ticked", () => {
+    const question = { kind: "question" as const, label: "How many vans?", expected: "20 to 250", passed: true };
+    expect(submitLeadSchema.safeParse({ ...validLead, qualificationChecks: [question] }).success).toBe(false);
+    expect(submitLeadSchema.safeParse({ ...validLead, qualificationChecks: [{ ...question, answer: "About 85" }] }).success).toBe(true);
+    expect(submitLeadSchema.safeParse({ ...validLead, qualificationChecks: [{ ...question, answer: "About 8", passed: false }] }).success).toBe(false);
+    expect(submitLeadSchema.safeParse({ ...validLead, qualificationChecks: [{ ...question, answer: "About 8", passed: false }], qualificationNotes: "Too small for the brief" }).success).toBe(true);
+    expect(submitLeadSchema.safeParse({ ...validLead, qualificationChecks: [{ kind: "criteria", label: "A target market", expected: "UK", passed: true }] }).success).toBe(true);
+  });
+
   it("refuses lead submission without proposed meeting times", () => {
     expect(submitLeadSchema.safeParse({ ...validLead, proposedTimes: [] }).success).toBe(false);
   });

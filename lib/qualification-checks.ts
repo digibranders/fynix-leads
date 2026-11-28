@@ -11,7 +11,10 @@ export type QualificationCheck = {
   readonly label: string;
   /** What passing looks like: the target values for a criterion, the expected answer for a question. Empty when there is none. */
   readonly expected: string;
+  /** Whether the prospect passed it: for a criterion, the agency's tick; for a question, whether the answer is what was hoped for. */
   readonly passed: boolean;
+  /** For a question: what the prospect actually said, in the agency's words. A lead sent before answers were asked for has none. */
+  readonly answer?: string;
 };
 
 export const MAX_QUALIFICATION_CHECKS = 40;
@@ -33,10 +36,14 @@ export function checklistFor(source: ChecklistSource): QualificationCheck[] {
   if (source.geography.trim() !== "") checks.push({ kind: "criteria", label: "The prospect is in a target market", expected: source.geography.trim(), passed: false });
   for (const item of qualifyingItemsFor(source.qualifyingItems, source.qualifyingQuestions)) {
     const label = richToText(item.question);
-    if (label !== "") checks.push({ kind: "question", label, expected: richToText(item.answer), passed: false });
+    // A question starts as meeting the expectation: the agency records what was said, and unticks it when the answer is not what was hoped for.
+    if (label !== "") checks.push({ kind: "question", label, expected: richToText(item.answer), passed: true, answer: "" });
   }
   return checks;
 }
+
+/** The questions that still have no answer written. A lead cannot be sent while there is one. */
+export const unansweredQuestions = (checks: readonly QualificationCheck[]): QualificationCheck[] => checks.filter((check) => check.kind === "question" && (check.answer ?? "").trim() === "");
 
 /** The checks the agency left unticked. */
 export const failedChecks = (checks: readonly QualificationCheck[]): QualificationCheck[] => checks.filter((check) => !check.passed);
