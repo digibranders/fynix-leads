@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { leadSubmitChecks, retryMessage } from "@/lib/auth/rate-limit-rules";
 import { getSessionContext } from "@/server/auth";
 import { calendarSetupFromEnv } from "@/server/calendar";
@@ -27,12 +28,16 @@ function getField(formData: FormData, name: string): string {
  * Server action for agency/coordinator submitting a lead.
  */
 export async function submitLeadAction(
+  leadsHref: string,
   _previous: TenantActionResult,
   formData: FormData,
 ): Promise<TenantActionResult> {
   const context = await getSessionContext();
   if (context === null || context.kind !== "agency") {
     return { status: "error", message: "Only agency or coordinator members can submit leads." };
+  }
+  if (leadsHref !== "/agency/leads" && leadsHref !== "/coordinator/leads") {
+    return { status: "error", message: "Open the lead form from your Leads page and try again." };
   }
 
   const limits = getDomain();
@@ -101,7 +106,6 @@ export async function submitLeadAction(
     }
     revalidatePath("/agency/leads");
     revalidatePath("/coordinator/leads");
-    return { status: "success", message: "Lead submitted successfully." };
   } catch (error) {
     if (editsSaved && error instanceof DomainError) {
       return { status: "error", message: `Your changes are saved in the draft, but it was not sent. ${error.message}` };
@@ -111,4 +115,5 @@ export async function submitLeadAction(
     }
     return { status: "error", message: "An unexpected error occurred while submitting the lead." };
   }
+  redirect(leadsHref, "replace");
 }

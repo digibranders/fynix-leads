@@ -2,6 +2,14 @@
 
 What the app expects from the server around it. The app is live at `leads.fynix.digital` on the Firstfold VPS. A systemd timer (`fynix-leads-autodeploy`, in the `vps-setup` repository under `fynix/leads/`) pulls `main` every minute, runs the migrations, then builds, so a merge to `main` is a deploy. The outbox and the purge run from timers in the same folder. This file is the checklist those units implement.
 
+## Release workflow
+
+1. Integrate temporary branches and worktrees into `development`. Verify the integration before deleting the temporary branches and worktrees. Dependabot update branches also target `development`.
+2. Open a pull request from `development` into `main`. Wait for CI, then use **Create a merge commit**. Steve may also open a pull request from the repository's `steve` branch into either shared branch. Steve owns that branch's lifecycle.
+3. Verify the production deploy from `main`. Merge `main` back into `development` to retain the release merge and bring over any changes from Steve. Keep both local tracking branches in sync with GitHub.
+
+GitHub requires a pull request and CI for `main`. The release source check accepts the repository's `development` and `steve` branches for PRs into `main`.
+
 ## Environment
 
 - Node 24, pnpm 11. `pnpm env:check` names any missing or malformed variable.
