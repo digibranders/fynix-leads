@@ -1,7 +1,7 @@
 "use client";
 
 import { Check } from "@phosphor-icons/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { When } from "@/components/kit/when";
 import { Choice } from "@/components/ui/choice";
 import { DateField } from "@/components/ui/date-time";
@@ -24,7 +24,7 @@ function earliestDay(now: Date): string {
  * the same moment in the viewer's zone under the choice. Everyone free then starts ticked and can be unticked, but at least one stays. A busy person is named as
  * busy and cannot be invited. The form posts `proposedTimes` (the one time), `hostMemberId` (the first person ticked) and `inviteeMemberIds` (everyone ticked).
  */
-export function SlotPicker({ people, initialTime = null }: { readonly people: readonly CalendarPersonLike[]; readonly initialTime?: string | null }) {
+export function SlotPicker({ people, initialTime = null, onChange }: { readonly people: readonly CalendarPersonLike[]; readonly initialTime?: string | null; readonly onChange?: (slot: { readonly time: string; readonly invitees: number }) => void }) {
   const zone = people[0]?.timeZone ?? null;
   const [now] = useState(() => new Date());
   const [day, setDay] = useState(() => (initialTime !== null && zone !== null ? dayKeyIn(new Date(initialTime), zone) : ""));
@@ -42,6 +42,10 @@ export function SlotPicker({ people, initialTime = null }: { readonly people: re
   const free = chosen === null ? [] : freeAt(chosen);
   const invited = people.filter((person) => free.includes(person.memberId) && !unticked.has(person.memberId));
   const toggle = (memberId: string, on: boolean) => setUnticked((current) => new Set(on ? [...current].filter((id) => id !== memberId) : [...current, memberId]));
+
+  // The form around the picker learns what is chosen, so it can keep its send button off until a time and someone to invite are picked.
+  const inviteCount = invited.length;
+  useEffect(() => onChange?.({ time: iso, invitees: inviteCount }), [onChange, iso, inviteCount]);
 
   if (zone === null) return <p className="text-label text-ink-muted">This client has no team members to invite yet, so there are no times to offer.</p>;
 

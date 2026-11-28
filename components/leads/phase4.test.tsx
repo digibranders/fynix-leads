@@ -270,6 +270,13 @@ describe("drafts and the lead form", () => {
     expect(filled).toContain("Call back");
     expect(filled).toContain('name="proposedTimes" value="2026-11-27T09:00:00.000Z"');
   });
+  it("keeps Submit lead off until the lead can be sent, while Save draft stays on", () => {
+    const base = { campaigns: [{ id: "c1", name: "UK", clientOrgId: "k1", clientName: "Kestrel", checklist: [] }], leadsHref: "/agency/leads" };
+    const html = renderToStaticMarkup(<SubmitLeadForm {...base} />);
+    const button = (label: string) => html.match(new RegExp(`<button[^>]*>(?:(?!</button>).)*${label}`))?.[0] ?? "";
+    expect(button("Submit lead")).toContain('disabled=""');
+    expect(button("Save draft")).not.toContain('disabled=""');
+  });
 });
 
 describe("the meeting time follows the client team", () => {
