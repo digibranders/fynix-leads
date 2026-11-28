@@ -61,7 +61,7 @@ interface Props {
   readonly campaigns: readonly CampaignOption[];
   /** Campaigns that take no leads, each with the reason in words that name no person. */
   readonly notLive?: readonly NotLiveCampaign[];
-  /** Where the leads of this portal are listed, for the link after a lead is sent. */
+  /** Where this portal lists its leads and drafts. */
   readonly leadsHref: string;
   /** The client team of each campaign with their hours and busy time, by campaign id: the free times and the people to invite come from it. */
   readonly teams?: Readonly<Record<string, readonly CalendarPersonLike[]>>;
@@ -92,13 +92,13 @@ function withDraftTicks(asked: readonly QualificationCheck[], saved: readonly Qu
 
 /** A lead submission: four tonal groups of fields in one panel, and one primary action in a sticky foot. Field names are the ones the action reads. */
 export function SubmitLeadForm({ campaigns, notLive = [], leadsHref, teams = {}, draft = null }: Props) {
-  const [state, formAction, pending] = useActionState(submitLeadAction, IDLE_TENANT_ACTION);
+  const [state, formAction, pending] = useActionState(submitLeadAction.bind(null, leadsHref), IDLE_TENANT_ACTION);
   const [draftState, draftAction, draftPending] = useActionState(saveDraftAction, IDLE_DRAFT_ACTION);
   const [campaignId, setCampaignId] = useState(draft?.campaignId ?? "");
   // The ticks, one set for the campaign chosen. They start unticked, or as the draft had them (a check of the draft that the campaign still asks for keeps its tick).
   const [ticks, setTicks] = useState<{ readonly campaignId: string; readonly checks: readonly QualificationCheck[] }>(() => ({ campaignId: draft?.campaignId ?? "", checks: withDraftTicks(campaigns.find((c) => c.id === draft?.campaignId)?.checklist ?? [], draft?.qualificationChecks ?? []) }));
   const checklist = ticks.campaignId === campaignId ? ticks.checks : withDraftTicks(campaigns.find((c) => c.id === campaignId)?.checklist ?? [], []);
-  // React clears the text fields when an action ends. The text is kept as it was sent and put back after an error and after a draft is saved, not after a lead is sent.
+  // React clears the text fields when an action ends. Restore them when the form stays open after an error or draft save.
   const formRef = useRef<HTMLFormElement>(null);
   const kept = useRef<FieldValues>({});
   // What the send button needs to know: the required text as typed (read on every keystroke), and the time and people chosen in the meeting picker. The fields themselves stay as they are.
@@ -135,7 +135,7 @@ export function SubmitLeadForm({ campaigns, notLive = [], leadsHref, teams = {},
   useLayoutEffect(() => {
     if (draftState.status !== "idle" && formRef.current !== null) restoreTextValues(formRef.current, kept.current);
   }, [draftState]);
-  // After an action ends the fields hold what React left (cleared after a send, put back after an error or a draft), so the send button reads them again.
+  // Read the restored values so the send button reflects the form after an error or draft save.
   useLayoutEffect(() => {
     setTexts(requiredTexts(formRef.current));
   }, [state, draftState]);
@@ -166,15 +166,6 @@ export function SubmitLeadForm({ campaigns, notLive = [], leadsHref, teams = {},
             <p role="alert" className="flex items-start gap-2 rounded-md bg-red-soft px-4 py-3 text-body text-red-text">
               <WarningCircle aria-hidden size={18} weight="fill" className="mt-0.5 shrink-0" />
               <span>{state.message ?? "Could not submit the lead."}</span>
-            </p>
-          ) : null}
-          {lastPressed === "send" && state.status === "success" ? (
-            <p role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-green-soft px-4 py-3 text-body text-green-text">
-              <CheckCircle aria-hidden size={18} weight="fill" className="shrink-0" />
-              <span>{state.message}</span>
-              <Link href={leadsHref} className="font-semibold underline underline-offset-2">
-                View your leads
-              </Link>
             </p>
           ) : null}
 
