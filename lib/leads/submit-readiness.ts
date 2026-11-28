@@ -25,14 +25,37 @@ export function requiredTexts(form: { readonly elements: ArrayLike<unknown> } | 
   return values as RequiredTexts;
 }
 
+const FIELD_LABEL: Readonly<Record<RequiredTextField, string>> = {
+  prospectName: "Full name",
+  prospectTitle: "Job title",
+  prospectCompany: "Company name",
+  prospectDomain: "Company domain",
+  prospectEmail: "Work email",
+  prospectLinkedinUrl: "LinkedIn profile URL",
+};
+
+const shorten = (text: string, max = 48): string => (text.length > max ? `${text.slice(0, max - 1).trimEnd()}...` : text);
+
+/** What stands between the lead and the send button, in the words of the form, in the order of the form. Empty when it can be sent. */
+export function leadMissing(input: { readonly campaignId: string; readonly texts: RequiredTexts; readonly slot: ChosenSlot; readonly checks: readonly QualificationCheck[] }): string[] {
+  const missing: string[] = [];
+  if (input.campaignId === "") missing.push("Campaign");
+  for (const name of REQUIRED_TEXT_FIELDS) if (input.texts[name].trim() === "") missing.push(FIELD_LABEL[name]);
+  const email = input.texts.prospectEmail.trim();
+  if (email !== "" && !PLAUSIBLE_EMAIL.test(email)) missing.push("A valid work email");
+  const questions = input.checks.filter((check) => check.kind === "question");
+  for (const check of unexplainedChecks(input.checks)) {
+    missing.push(check.kind === "question" ? `Answer to question ${questions.indexOf(check) + 1}` : `Reason: ${shorten(check.label)}`);
+  }
+  if (input.slot.time === "") missing.push("A meeting time");
+  else if (input.slot.invitees === 0) missing.push("Someone to invite");
+  return missing;
+}
+
 /**
  * Whether a lead can be sent: a campaign, every required field, a meeting time with someone to invite, and words beside every check that needs them. It is the form's
  * own check, so the send button stays off until the send can work. The server checks the same things again (`submitLeadSchema`), and a test holds the two together.
  */
 export function leadIsReady(input: { readonly campaignId: string; readonly texts: RequiredTexts; readonly slot: ChosenSlot; readonly checks: readonly QualificationCheck[] }): boolean {
-  if (input.campaignId === "") return false;
-  if (REQUIRED_TEXT_FIELDS.some((name) => input.texts[name].trim() === "")) return false;
-  if (!PLAUSIBLE_EMAIL.test(input.texts.prospectEmail.trim())) return false;
-  if (input.slot.time === "" || input.slot.invitees === 0) return false;
-  return unexplainedChecks(input.checks).length === 0;
+  return leadMissing(input).length === 0;
 }
