@@ -18,3 +18,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Next 16 renames `middleware` to `proxy`, drops `next lint` (the `lint` script runs `eslint`), and uses Turbopack by default. A custom `webpack` config fails `next build` unless you pass `--webpack`.
 - Node 20.9 or newer is required. This machine runs Node 24.
 - shadcn/ui runs on Base UI (`@base-ui/react`, style `base-nova`) with Phosphor icons: `components.json` sets `"iconLibrary": "phosphor"`, so `shadcn add` writes `@phosphor-icons/react` imports directly. `lucide-react` is not installed; use Phosphor only. `cn` in `lib/utils.ts` is the `cn` package configured with the design system font sizes. The `shadcn` skill lives in `.claude/skills/shadcn`.
+
+## Branches and releases
+
+- Keep `development` and `main` as the shared branches. Leave Steve's optional `steve` branch under his control.
+- Start temporary branches and worktrees from `development`. Integrate their work into `development`, verify it is present there, then remove the temporary worktree and branch, including any remote branch created for the work.
+- Release via a pull request from `development` to `main` after CI passes. Use a merge commit to retain shared history. Direct pushes to `main` are prohibited. Steve may open pull requests from `steve` to either shared branch.
+- After each release or Steve PR to `main`, merge `main` back into `development` and update local tracking branches. See [Deployment](docs/deploy.md#release-workflow).
